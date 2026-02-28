@@ -361,3 +361,8 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/NativePlugin/build/intermediate/CinematicShadersNative.exp
+/NativePlugin/build/intermediate
+/NativePlugin/build
+/GTAO Standalone Mod Extraction.md
+/structure.txt
