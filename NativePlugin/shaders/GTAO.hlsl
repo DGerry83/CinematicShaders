@@ -19,7 +19,7 @@ cbuffer GTAOParams : register(b0)
     // float4 #3 (offset 32)
     float2 InvScreenSize;
     float EffectRadius;
-    float FalloffRange;
+    float MaxPixelRadius;       // NEW: Max sampling radius in pixels (was hardcoded 50.0)
     // float4 #4 (offset 48)
     float Intensity;
     float SampleDistributionPower;
@@ -27,10 +27,15 @@ cbuffer GTAOParams : register(b0)
     int StepsPerSlice;
     // float4 #5 (offset 64)
     int FrameIndex;             // 0-7 temporal frame index
-    float DepthMIPSamplingOffset; // Offset for Hi-Z mip level calculation (typically 1.0-2.0)
-    float __pad1;               // Padding
+    float DepthMIPSamplingOffset; // Offset for Hi-Z mip level calculation
+    float FadeStartDistance;    // NEW: Distance fade start (meters)
+    float FadeEndDistance;      // NEW: Distance fade end (meters)
+    // float4 #6 (offset 80)
+    float FadeCurve;            // NEW: Fade curve power (1.0=linear)
+    int DebugMode;              // 0=AO, 1=WorldNorm, 2=ViewNorm, 3=NormAlpha
     float __pad2;               // Padding
-    // float4 #6, #7, #8 (offset 80, 96, 112)
+    float __pad3;               // Padding
+    // float4 #7, #8, #9 (offset 96, 112, 128)
     float4 WorldToViewRow0;     // .xyz = row 0 of world-to-view matrix
     float4 WorldToViewRow1;     // .xyz = row 1 of world-to-view matrix
     float4 WorldToViewRow2;     // .xyz = row 2 of world-to-view matrix
@@ -98,10 +103,83 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float rawDepth = g_DepthTexture[coord];
     float4 normalData = g_NormalTexture[coord];
     float3 worldNormal = UnpackNormal(normalData);
+
+    // DEBUG VISUALIZATION MODES
+    if (DebugMode > 0)
+    {
+        if (DebugMode == 1) // World Normals
+        {
+            // Pack RGB into RG: R->R, G->G, B->(R+G)/2 or similar, or just store R and G
+            float3 packed = worldNormal * 0.5 + 0.5; // 0-1 range
+            g_AOTexture[coord] = float2(packed.r, packed.g); // Store RG, ignore B for now
+            return;
+        }
+        else if (DebugMode == 2) // View Normals
+        {
+            if (length(worldNormal) < 0.001)
+            {
+                g_AOTexture[coord] = float2(0, 0); // Black for invalid
+                return;
+            }
+            float3x3 worldToView = float3x3(
+                WorldToViewRow0.xyz,
+                WorldToViewRow1.xyz,
+                WorldToViewRow2.xyz
+            );
+            float3 viewNormal = mul(worldToView, worldNormal);
+            float3 packed = viewNormal * 0.5 + 0.5; // 0-1 range
+            g_AOTexture[coord] = float2(packed.r, packed.g);
+            return;
+        }
+        else if (DebugMode == 3) // Normal Alpha
+        {
+            g_AOTexture[coord] = float2(normalData.a, normalData.a);
+            return;
+        }
+        else if (DebugMode == 4) // Normal Sampling Check
+        {
+            // Calculate viewZ first
+            float debugViewZ = LinearizeDepth(rawDepth, DepthUnpackConsts);
+            
+            bool anyInvalid = false;
+            
+            for(int dir = 0; dir < 4; dir++)
+            {
+                float angle = dir * 1.570796;
+                float2 omega = float2(cos(angle), -sin(angle));
+                
+                float2 pixelSizeAtViewZ = debugViewZ * NDCToViewMul * InvScreenSize;
+                float screenSpaceRadius = EffectRadius / max(abs(pixelSizeAtViewZ.x), 0.0001);
+                screenSpaceRadius = clamp(screenSpaceRadius, 2.0, MaxPixelRadius);
+                
+                float2 sampleUV = uv + omega * screenSpaceRadius * InvScreenSize;
+                
+                if (any(sampleUV < 0.0) || any(sampleUV > 1.0))
+                    continue;
+                    
+                int2 sampleCoord = int2(sampleUV * ScreenSize);
+                sampleCoord = clamp(sampleCoord, int2(0, 0), int2(width - 1, height - 1));
+                
+                float4 sampleNormalData = g_NormalTexture[sampleCoord];
+                float3 sampleWorldNormal = UnpackNormal(sampleNormalData);
+                
+                if (length(sampleWorldNormal) < 0.001)
+                {
+                    anyInvalid = true;
+                    break;
+                }
+            }
+            
+            // WHITE (1.0) = all sampled normals valid
+            // BLACK (0.0) = found invalid zero normal
+            g_AOTexture[coord] = float2(anyInvalid ? 0.0 : 1.0, 0.0);
+            return;
+        }
+    }
     
-    // Skip sky/invalid pixels - rely on Deferred's normal alpha for sky detection
-    // (depth range check removed as it fails with reversed-Z and large far planes)
-    if (length(worldNormal) < 0.001 || normalData.a < 0.1)
+    // Skip sky pixels using Deferred's normal alpha channel
+    // Deferred mod: alpha = 0 for sky, alpha = 1 for geometry
+    if (normalData.a < 0.5)
     {
         g_AOTexture[coord] = float2(1.0, 0.0);  // Sky: AO=1, depth=0
         return;
@@ -130,7 +208,12 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // 5. Calculate screen-space radius (use abs to handle sign conventions)
     float2 pixelSizeAtViewZ = viewZ * NDCToViewMul * InvScreenSize;
     float screenSpaceRadius = EffectRadius / max(abs(pixelSizeAtViewZ.x), 0.0001);
-    screenSpaceRadius = min(screenSpaceRadius, 50.0); // Max 50 pixels to prevent excessive sampling on distant grass
+    screenSpaceRadius = clamp(screenSpaceRadius, 2.0, MaxPixelRadius); // User-controlled limit
+
+    if (MaxPixelRadius < 1.0) {
+    g_AOTexture[coord] = float2(1.0, viewZ); // Bright red if MaxPixelRadius is broken
+    return;
+    }
     
     // 6. Minimum sample distance (avoid self-sampling center pixel)
     const float pixelTooCloseThreshold = 1.3;
@@ -200,12 +283,8 @@ void CSMain(uint3 id : SV_DispatchThreadID)
                 
                 // Hi-Z sampling: calculate mip level based on sample distance (in pixels)
                 float sampleOffsetLength = t * screenSpaceRadius; // Distance in pixels
-                float mipLevel = clamp(log2(sampleOffsetLength) - DepthMIPSamplingOffset, 0.0, 8.0);
-                
-                float sampleRawDepth = g_DepthTexture.SampleLevel(pointSampler, sampleUV, mipLevel);
-                if (sampleRawDepth < 0.001 || sampleRawDepth > 0.999)
-                    continue;
-                    
+                // Sample depth directly (no threshold check - rely on falloff weight)
+                float sampleRawDepth = g_DepthTexture[sampleCoord];
                 float sampleViewZ = LinearizeDepth(sampleRawDepth, DepthUnpackConsts);
                 
                 float3 samplePos = ComputeViewspacePosition(sampleUV, sampleViewZ, NDCToViewMul, NDCToViewAdd);
@@ -243,6 +322,20 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float ao = lerp(1.0, visibility, saturate(Intensity));
     if (Intensity > 1.0)
         ao = lerp(ao, ao * ao, saturate(Intensity - 1.0));
+    
+    // Distance-based soft fade (replaces hard visual cutoff)
+    float absViewZ = abs(viewZ);
+    float fadeRange = FadeEndDistance - FadeStartDistance;
+    float fadeFactor = 0.0;
+    
+    if (absViewZ > FadeStartDistance && fadeRange > 0.001) {
+        fadeFactor = saturate((absViewZ - FadeStartDistance) / fadeRange);
+        // Apply curve: <1.0 = soft start, 1.0 = linear, >1.0 = sharp edge
+        fadeFactor = pow(fadeFactor, FadeCurve);
+    }
+    
+    // Fade AO to white (1.0) as distance increases
+    ao = lerp(ao, 1.0, fadeFactor);
     
     g_AOTexture[coord] = float2(saturate(ao), viewZ);  // Pack AO + linear depth
 }

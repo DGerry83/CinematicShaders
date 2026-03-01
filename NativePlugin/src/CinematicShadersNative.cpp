@@ -167,6 +167,7 @@ static struct {
     
     // Current frame params (set by C#, read by render thread)
     int outputMode = 0; // 0=Composite, 1=Raw
+    int debugMode = 0;  // ADD THIS: 0=AO, 1=WorldNorm, 2=ViewNorm, 3=NormAlpha
     bool paramsDirty = false;
     
     // Device pointer for render callback
@@ -179,6 +180,36 @@ static struct {
     std::mutex stateMutex;
 } g_GTAOState;
 
+// User-tweakable settings for distance fade and sampling
+struct GTAOUserSettings {
+    float EffectRadius;           // Default: 2.0f
+    float Intensity;              // Default: 0.8f
+    int SliceCount;              // Default: 2
+    int StepsPerSlice;           // Default: 4
+    float SampleDistributionPower; // Default: 2.0f
+    float NormalPower;           // Default: 32.0f
+    float DepthSigma;            // Default: 0.5f
+    float MaxPixelRadius;        // Default: 50.0f (replaces hardcoded 50.0)
+    float FadeStartDistance;     // Default: 0.0f (meters from camera)
+    float FadeEndDistance;       // Default: 500.0f (meters from camera)
+    float FadeCurve;             // Default: 1.0f (1.0=linear)
+};
+
+// Global settings storage (initialized to defaults)
+static GTAOUserSettings g_UserSettings = {
+    2.0f,   // EffectRadius
+    0.8f,   // Intensity
+    2,      // SliceCount
+    4,      // StepsPerSlice
+    2.0f,   // SampleDistributionPower
+    32.0f,  // NormalPower
+    0.5f,   // DepthSigma
+    50.0f,  // MaxPixelRadius (was hardcoded)
+    0.0f,   // FadeStartDistance
+    500.0f, // FadeEndDistance
+    1.0f    // FadeCurve
+};
+
 // Forward declarations for functions defined later in the file
 static void InitializeBlueNoiseResources(ID3D11Device* device);
 static void EnsureComputeResources(ID3D11Device* device, int width, int height);
@@ -187,30 +218,45 @@ static void EnsureComputeResources(ID3D11Device* device, int width, int height);
 // Total: 80 bytes (5 float4s)
 struct GTAOParams {
     // float4 #1 (offset 0)
-    float ndcToViewMul[2];      // tanHalfFOV * float2(2, -2)
-    float ndcToViewAdd[2];      // tanHalfFOV * float2(-1, 1)
+    float ndcToViewMul[2];
+    float ndcToViewAdd[2];
+    
     // float4 #2 (offset 16)
-    float depthUnpackConsts[2]; // x = (far*near)/(far-near), y = -near/(far-near)
-    float resolution[2];        // Width, Height
+    float depthUnpackConsts[2];
+    float resolution[2];
+    
     // float4 #3 (offset 32)
-    float invResolution[2];     // 1/Width, 1/Height
-    float effectRadius;         // World-space sampling radius
-    float falloffRange;         // Default 0.615
-    // float4 #4 (offset 48) - 16 bytes exactly
-    float intensity;            // AO intensity multiplier
-    float sampleDistributionPower; // Default 2.0
-    int sliceCount;             // Number of slices (4-8)
-    int stepsPerSlice;          // Steps per direction (8-16)
+    float invResolution[2];
+    float effectRadius;
+    float maxPixelRadius;        // WAS: falloffRange - RENAMED TO MATCH HLSL
+    
+    // float4 #4 (offset 48)
+    float intensity;
+    float sampleDistributionPower;
+    int sliceCount;
+    int stepsPerSlice;
+    
     // float4 #5 (offset 64)
-    int FrameIndex;             // 0-7 temporal frame index
-    float depthMipSamplingOffset; // Hi-Z mip offset (typically 1.0-2.0)
-    float __pad1;
+    int FrameIndex;
+    float depthMipSamplingOffset;
+    float fadeStartDistance;     // NEW
+    float fadeEndDistance;       // NEW
+    
+    // float4 #6 (offset 80)
+    float fadeCurve;             // NEW
+    int DebugMode;
     float __pad2;
-    // float4 #6, #7, #8 - World-to-View matrix as three float4s
-    float worldToViewRow0[4];   // offset 80: [row0.x, row0.y, row0.z, 0]
-    float worldToViewRow1[4];   // offset 96: [row1.x, row1.y, row1.z, 0]
-    float worldToViewRow2[4];   // offset 112: [row2.x, row2.y, row2.z, 0]
-    // Total: 128 bytes exactly (8 float4s)
+    float __pad3;
+    
+    // float4 #7 (offset 96)
+    float worldToViewRow0[4];
+    
+    // float4 #8 (offset 112)
+    float worldToViewRow1[4];
+    
+    // float4 #9 (offset 128)
+    float worldToViewRow2[4];
+    // Total: 144 bytes
 };
 
 // Filter params constant buffer (matches GTAO_Filter.hlsl)
@@ -903,53 +949,78 @@ static void ExecuteGTAOCompute(ID3D11DeviceContext* context)
     srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Texture2D.MipLevels = -1;
     srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
-    device->CreateShaderResourceView(g_GTAOState.hiZTexture, &srvDesc, &depthSRV);
+    device->CreateShaderResourceView(g_GTAOState.depthTexture, &srvDesc, &depthSRV);
     srvDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
     device->CreateShaderResourceView(g_GTAOState.normalTexture, &srvDesc, &normalSRV);
     
     // Fill constant buffer
     D3D11_MAPPED_SUBRESOURCE mapped;
-    if (SUCCEEDED(context->Map(g_GTAOState.gtaoCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+     if (SUCCEEDED(context->Map(g_GTAOState.gtaoCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
         GTAOParams* params = (GTAOParams*)mapped.pData;
         
         float tanHalfFOVX = g_GTAOState.invProj[0];
         float tanHalfFOVY = g_GTAOState.invProj[5];
         
+        // float4 #1 (offset 0)
         params->ndcToViewMul[0] = tanHalfFOVX * 2.0f;
         params->ndcToViewAdd[0] = tanHalfFOVX * -1.0f;
         params->ndcToViewMul[1] = tanHalfFOVY * -2.0f;
         params->ndcToViewAdd[1] = tanHalfFOVY * 1.0f;
         
+        // float4 #2 (offset 16)
         float n = g_GTAOState.nearPlane;
         float f = g_GTAOState.farPlane;
         params->depthUnpackConsts[0] = n;
         params->depthUnpackConsts[1] = f;
-        
         params->resolution[0] = (float)width;
         params->resolution[1] = (float)height;
+        
+        // float4 #3 (offset 32)
         params->invResolution[0] = 1.0f / width;
         params->invResolution[1] = 1.0f / height;
-        params->effectRadius = 2.0f;
-        params->falloffRange = 0.615f;
-        params->intensity = 0.8f;
-        params->sliceCount = 2;
-        params->stepsPerSlice = 4;
-        params->sampleDistributionPower = 2.0f;
-        params->depthMipSamplingOffset = 100.0f;
+        params->effectRadius = g_UserSettings.EffectRadius;
+        params->maxPixelRadius = g_UserSettings.MaxPixelRadius;
+        
+        // float4 #4 (offset 48)
+        params->intensity = g_UserSettings.Intensity;
+        params->sampleDistributionPower = g_UserSettings.SampleDistributionPower;
+        params->sliceCount = g_UserSettings.SliceCount;
+        params->stepsPerSlice = g_UserSettings.StepsPerSlice;
+        
+        // float4 #5 (offset 64) - CRITICAL: These were missing/wrong before
         params->FrameIndex = g_GTAOState.frameIndex;
+        params->depthMipSamplingOffset = 100.0f;
+        params->fadeStartDistance = g_UserSettings.FadeStartDistance;
+        params->fadeEndDistance = g_UserSettings.FadeEndDistance;
+        
+        // float4 #6 (offset 80)
+        params->fadeCurve = g_UserSettings.FadeCurve;
+        params->DebugMode = g_GTAOState.debugMode;
+        params->__pad2 = 0.0f;
+        params->__pad3 = 0.0f;
+        
+        // float4 #7 (offset 96)
         params->worldToViewRow0[0] = g_GTAOState.worldToView[0];
         params->worldToViewRow0[1] = g_GTAOState.worldToView[1];
         params->worldToViewRow0[2] = g_GTAOState.worldToView[2];
         params->worldToViewRow0[3] = 0.0f;
+        
+        // float4 #8 (offset 112)
         params->worldToViewRow1[0] = g_GTAOState.worldToView[3];
         params->worldToViewRow1[1] = g_GTAOState.worldToView[4];
         params->worldToViewRow1[2] = g_GTAOState.worldToView[5];
         params->worldToViewRow1[3] = 0.0f;
+        
+        // float4 #9 (offset 128)
         params->worldToViewRow2[0] = g_GTAOState.worldToView[6];
         params->worldToViewRow2[1] = g_GTAOState.worldToView[7];
         params->worldToViewRow2[2] = g_GTAOState.worldToView[8];
         params->worldToViewRow2[3] = 0.0f;
-        
+
+        LogToFile("[GTAO CB] EffectRadius=%.2f FadeStart=%.1f FadeEnd=%.1f Intensity=%.2f", 
+          params->effectRadius, params->fadeStartDistance, 
+          params->fadeEndDistance, params->intensity);
+
         context->Unmap(g_GTAOState.gtaoCB, 0);
     }
     
@@ -1027,8 +1098,8 @@ static void ExecuteGTAOCompute(ID3D11DeviceContext* context)
         FilterParams* fparams = (FilterParams*)filterMapped.pData;
         fparams->invScreenSize[0] = 1.0f / width;
         fparams->invScreenSize[1] = 1.0f / height;
-        fparams->normalPower = 32.0f;
-        fparams->depthSigma = 0.5f;
+        fparams->normalPower = g_UserSettings.NormalPower;
+        fparams->depthSigma = g_UserSettings.DepthSigma;
         context->Unmap(g_GTAOState.filterCB, 0);
     }
     
@@ -1096,11 +1167,39 @@ UnityRenderingEvent CR_GetGTAORenderEventFunc()
     return OnGTAORenderEvent;
 }
 
-// Set output mode (0=Composite, 1=Raw)
+// Set output mode (0=Composite, 1=Raw, 2=WorldNorm, 3=ViewNorm, 4=NormAlpha)
 extern "C" __declspec(dllexport)
 void CR_GTAOSetOutputMode(int mode)
 {
-    g_GTAOState.outputMode = mode;
+    // Mode 0-1 are existing composite/raw AO modes
+    // Mode 2-4 are debug visualization modes passed via debugMode field
+    if (mode <= 1)
+    {
+        g_GTAOState.outputMode = mode; // 0=Composite, 1=Raw AO
+        g_GTAOState.debugMode = 0;
+    }
+    else
+    {
+        // Debug modes: we still want to see the AO texture output, so set outputMode to 1 (Raw)
+        // but set debugMode to control what the compute shader writes
+        g_GTAOState.outputMode = 1; // Force raw output so we see the debug data directly
+        g_GTAOState.debugMode = mode - 1; // 2->1, 3->2, 4->3 for shader
+    }
+}
+
+extern "C" __declspec(dllexport)
+void CR_GTAOSetSettings(const GTAOUserSettings* settings)
+{
+    if (!settings) return;
+    
+    std::lock_guard<std::mutex> lock(g_GTAOState.stateMutex);
+    g_UserSettings = *settings;
+    
+    LogToFile("[GTAO] Settings updated: Radius=%.2f, Intensity=%.2f, Slices=%d, Steps=%d, MaxPixels=%.1f, Fade=%.1f-%.1f", 
+              g_UserSettings.EffectRadius, g_UserSettings.Intensity, 
+              g_UserSettings.SliceCount, g_UserSettings.StepsPerSlice,
+              g_UserSettings.MaxPixelRadius, g_UserSettings.FadeStartDistance,
+              g_UserSettings.FadeEndDistance);
 }
 
 extern "C" __declspec(dllexport)

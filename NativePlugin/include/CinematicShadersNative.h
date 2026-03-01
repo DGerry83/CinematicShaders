@@ -41,6 +41,20 @@ void CR_GTAOSetOutputMode(int mode);
 __declspec(dllexport)
 void CR_GTAOShutdown();
 
+// Settings struct for Phase 1 UI control
+typedef struct {
+    float EffectRadius;
+    float Intensity;
+    int SliceCount;
+    int StepsPerSlice;
+    float SampleDistributionPower;
+    float NormalPower;
+    float DepthSigma;
+} GTAOSettings;
+
+__declspec(dllexport)
+void CR_GTAOSetSettings(const GTAOSettings* settings);
+
 #ifdef __cplusplus
 }
 #endif

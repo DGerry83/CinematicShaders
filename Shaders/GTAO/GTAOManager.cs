@@ -66,6 +66,19 @@ namespace CinematicShaders.Shaders.GTAO
             }
         }
 
+        public static void EnableDebugMode()
+        {
+            Camera mainCam = Camera.main;
+            if (mainCam == null) return;
+
+            _compositor = mainCam.GetComponent<GTAOCompositor>();
+            if (_compositor == null)
+            {
+                _compositor = mainCam.gameObject.AddComponent<GTAOCompositor>();
+            }
+            _compositor.enabled = true;
+        }
+
         /// <summary>
         /// Call at startup to sync with GTAOSettings.
         /// </summary>

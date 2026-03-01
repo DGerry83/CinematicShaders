@@ -1,6 +1,4 @@
 ﻿using System;
-using System.IO;
-using System.Runtime.InteropServices;
 using CinematicShaders.Core;
 using CinematicShaders.Native;
 using UnityEngine;
@@ -13,46 +11,6 @@ namespace CinematicShaders.Shaders.GTAO
     /// </summary>
     public class GTAOCompositor : MonoBehaviour
     {
-        #region Native Imports & DLL Loading
-        [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
-        private static extern bool SetDllDirectory(string lpPathName);
-
-        [DllImport("kernel32", SetLastError = true)]
-        private static extern IntPtr LoadLibrary(string lpFileName);
-
-        static GTAOCompositor()
-        {
-            try
-            {
-                string assemblyPath = Path.GetDirectoryName(typeof(GTAOCompositor).Assembly.Location);
-                if (assemblyPath != null)
-                {
-                    string pluginDataPath = Path.GetFullPath(Path.Combine(assemblyPath, "..", "PluginData"));
-                    string dllPath = Path.Combine(pluginDataPath, "CinematicShadersNative.dll");
-
-                    if (!File.Exists(dllPath))
-                    {
-                        Debug.LogError($"[GTAOCompositor] Native DLL not found: {dllPath}");
-                        return;
-                    }
-
-                    IntPtr hModule = LoadLibrary(dllPath);
-                    if (hModule == IntPtr.Zero)
-                    {
-                        Debug.LogError($"[GTAOCompositor] LoadLibrary failed: {Marshal.GetLastWin32Error()}");
-                        return;
-                    }
-
-                    Debug.Log("[GTAOCompositor] Native DLL loaded successfully");
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"[GTAOCompositor] Static init error: {ex}");
-            }
-        }
-        #endregion
-
         private Camera _camera;
         private RenderTexture _depthRT;
         private RenderTexture _normalRT;
@@ -64,6 +22,14 @@ namespace CinematicShaders.Shaders.GTAO
 
         void OnEnable()
         {
+            // Centralized DLL loading is now handled by GTAONative static constructor
+            if (!GTAONative.IsLoaded)
+            {
+                Debug.LogError("[GTAOCompositor] Native DLL not loaded. Disabling GTAO.");
+                enabled = false;
+                return;
+            }
+
             Initialize();
         }
 
@@ -75,7 +41,10 @@ namespace CinematicShaders.Shaders.GTAO
         void OnDestroy()
         {
             Cleanup();
-            GTAONative.CR_GTAOShutdown();
+            if (GTAONative.IsLoaded)
+            {
+                GTAONative.CR_GTAOShutdown();
+            }
         }
 
         private void Initialize()
@@ -162,11 +131,13 @@ namespace CinematicShaders.Shaders.GTAO
             _initialized = false;
         }
 
-        // CRITICAL: OnPreRender runs BEFORE the CommandBuffer executes
-        // This allows us to upload frame data that the render callback will use
         void OnPreRender()
         {
-            if (!_initialized || !GTAOSettings.EnableGTAO)
+            if (!_initialized || !GTAONative.IsLoaded)
+                return;
+
+            // Allow debug visualization even when main AO is disabled
+            if (!GTAOSettings.EnableGTAO && GTAOSettings.DebugVisualizationMode == 0)
                 return;
 
             // Get camera matrices for the upcoming frame
@@ -189,7 +160,6 @@ namespace CinematicShaders.Shaders.GTAO
             worldToViewArray[8] = worldToCamera[2, 2];
 
             // Pass pointers to native state
-            // These will be read by OnGTAORenderEvent on the render thread
             GTAONative.CR_GTAODebugSetInput(
                 _depthRT.GetNativeTexturePtr(),
                 _normalRT.GetNativeTexturePtr(),
@@ -201,14 +171,18 @@ namespace CinematicShaders.Shaders.GTAO
                 _camera.farClipPlane,
                 _gtaoFrameIndex);
 
-            // Set output mode (0=Composite, 1=Raw AO)
-            GTAONative.CR_GTAOSetOutputMode(GTAOSettings.GTAORawAOOutput ? 1 : 0);
+            // Set output mode: 
+            // If debug visualization is active (2-4), use that mode
+            // Otherwise use normal AO output mode (0=Composite, 1=Raw)
+            int outputMode = GTAOSettings.DebugVisualizationMode > 0
+                ? GTAOSettings.DebugVisualizationMode
+                : (GTAOSettings.GTAORawAOOutput ? 1 : 0);
+            GTAONative.CR_GTAOSetOutputMode(outputMode);
 
             // Advance temporal index (0-7)
             _gtaoFrameIndex = (_gtaoFrameIndex + 1) & 7;
         }
 
-        // Handle resolution changes (window resize)
         void Update()
         {
             if (!_initialized) return;

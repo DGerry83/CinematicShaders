@@ -11,6 +11,7 @@
         /// </summary>
         public static bool EnableGTAO { get; set; } = false;
 
+        public static int DebugVisualizationMode { get; set; } = 0;
         /// <summary>
         /// Show raw AO output (grayscale debug view) instead of composited scene.
         /// </summary>
