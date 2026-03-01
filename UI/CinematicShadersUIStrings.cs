@@ -22,13 +22,14 @@
             // Sampling Controls
             public const string QualityLabel = "Quality";
             public const string RadiusLabel = "Radius";
-            public const string DetailRangeLabel = "Detail Range";
-            public const string DetailRangeTooltip = "Higher = better distant detail, lower FPS";
+            public const string RadiusTooltip = "How far to search for occluders (larger = more distant shadows)";
+            public const string DetailRangeLabel = "Shadow Spread";
+            //public const string DetailRangeTooltip = "Higher = better distant detail, lower FPS";
 
             // Shadow Strength
             public const string IntensityLabel = "Intensity";
 
-            // Filtering
+            // Filtering - DEPRECATED
             public const string EdgeSharpnessLabel = "Edge Sharpness";
             public const string DepthToleranceLabel = "Depth Tolerance";
 
@@ -44,7 +45,7 @@
             public const string RawAOOutputToggle = " Show Raw AO Output";
             public const string DeferredWarning = "GTAO requires deferred rendering.";
 
-            // Distribution Options
+            // Distribution Options - DEPRECATED
             public const string DistributionLinear = "Linear";
             public const string DistributionQuadratic = "Quadratic";
             public const string DistributionCubic = "Cubic";

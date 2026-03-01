@@ -7,22 +7,38 @@ if not exist build\intermediate mkdir build\intermediate
 call "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvars64.bat"
 if errorlevel 1 exit /b 1
 
+:: Compile resource file (version info)
+rc.exe /fo build\intermediate\CinematicShadersNative.res src\CinematicShadersNative.rc
+if errorlevel 1 (
+    echo Resource compilation failed!
+    exit /b 1
+)
+
+:: Compile C++ to object file
 cl ^
-  /LD ^
+  /c ^
   /std:c++17 ^
   /EHsc ^
   /O2 ^
   /DNDEBUG ^
   /Iinclude ^
-  /Fobuild\intermediate\ ^
-  src\CinematicShadersNative.cpp ^
-  /link ^
+  /Fobuild\intermediate\CinematicShadersNative.obj ^
+  src\CinematicShadersNative.cpp
+if errorlevel 1 (
+    echo Compilation failed!
+    exit /b 1
+)
+
+:: Link object + resources into DLL
+link ^
+  build\intermediate\CinematicShadersNative.obj ^
+  build\intermediate\CinematicShadersNative.res ^
   d3d11.lib dxgi.lib ole32.lib ^
+  /DLL ^
   /OUT:build\CinematicShadersNative.dll ^
   /IMPLIB:build\intermediate\CinematicShadersNative.lib
-
 if errorlevel 1 (
-    echo Build failed!
+    echo Link failed!
     exit /b 1
 )
 

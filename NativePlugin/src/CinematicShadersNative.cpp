@@ -182,17 +182,17 @@ static struct {
 
 // User-tweakable settings for distance fade and sampling
 struct GTAOUserSettings {
-    float EffectRadius;           // Default: 2.0f
-    float Intensity;              // Default: 0.8f
-    int SliceCount;              // Default: 2
-    int StepsPerSlice;           // Default: 4
-    float SampleDistributionPower; // Default: 2.0f
-    float NormalPower;           // Default: 32.0f
-    float DepthSigma;            // Default: 0.5f
-    float MaxPixelRadius;        // Default: 50.0f (replaces hardcoded 50.0)
-    float FadeStartDistance;     // Default: 0.0f (meters from camera)
-    float FadeEndDistance;       // Default: 500.0f (meters from camera)
-    float FadeCurve;             // Default: 1.0f (1.0=linear)
+    float EffectRadius;
+    float Intensity;
+    int SliceCount;
+    int StepsPerSlice;
+    float SampleDistributionPower;
+    float NormalPower;
+    float DepthSigma;
+    float MaxPixelRadius;
+    float FadeStartDistance;
+    float FadeEndDistance;
+    float FadeCurve;
 };
 
 // Global settings storage (initialized to defaults)
@@ -1017,10 +1017,6 @@ static void ExecuteGTAOCompute(ID3D11DeviceContext* context)
         params->worldToViewRow2[2] = g_GTAOState.worldToView[8];
         params->worldToViewRow2[3] = 0.0f;
 
-        LogToFile("[GTAO CB] EffectRadius=%.2f FadeStart=%.1f FadeEnd=%.1f Intensity=%.2f", 
-          params->effectRadius, params->fadeStartDistance, 
-          params->fadeEndDistance, params->intensity);
-
         context->Unmap(g_GTAOState.gtaoCB, 0);
     }
     
@@ -1199,12 +1195,6 @@ void CR_GTAOSetSettings(const GTAOUserSettings* settings)
     
     std::lock_guard<std::mutex> lock(g_GTAOState.stateMutex);
     g_UserSettings = *settings;
-    
-    LogToFile("[GTAO] Settings updated: Radius=%.2f, Intensity=%.2f, Slices=%d, Steps=%d, MaxPixels=%.1f, Fade=%.1f-%.1f", 
-              g_UserSettings.EffectRadius, g_UserSettings.Intensity, 
-              g_UserSettings.SliceCount, g_UserSettings.StepsPerSlice,
-              g_UserSettings.MaxPixelRadius, g_UserSettings.FadeStartDistance,
-              g_UserSettings.FadeEndDistance);
 }
 
 extern "C" __declspec(dllexport)

@@ -61,4 +61,11 @@
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>if exist "$(ProjectDir)copy_dll.bat" (
+    "$(ProjectDir)copy_dll.bat" "$(TargetPath)"
+) else (
+    echo Warning: copy_dll.bat not found. Skipping personal copy.
+)</PostBuildEvent>
+  </PropertyGroup>
 </Project>

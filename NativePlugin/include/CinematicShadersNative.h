@@ -50,6 +50,12 @@ typedef struct {
     float SampleDistributionPower;
     float NormalPower;
     float DepthSigma;
+    float MaxPixelRadius;
+    float FadeStartDistance;
+    float FadeEndDistance;
+    float FadeCurve;
+    float NormalSimilarityPower;      // NEW
+    float NormalSimilarityThreshold;  // NEW
 } GTAOSettings;
 
 __declspec(dllexport)

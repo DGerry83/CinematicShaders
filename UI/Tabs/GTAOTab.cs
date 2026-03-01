@@ -8,8 +8,8 @@ namespace CinematicShaders.UI.Tabs
     public class GTAOTab
     {
         // Quality presets
-        private readonly int[] kSlicePresets = { 1, 2, 2, 4 };
-        private readonly int[] kStepPresets = { 2, 4, 10, 14 };
+        private readonly int[] kSlicePresets = { 2, 3, 4, 6 };
+        private readonly int[] kStepPresets = { 4, 8, 12, 16 };
         private readonly string[] kQualityNames = {
             CinematicShadersUIStrings.GTAO.QualityLow,
             CinematicShadersUIStrings.GTAO.QualityMedium,
@@ -79,6 +79,8 @@ namespace CinematicShaders.UI.Tabs
                 if (!isDeferred)
                     GUI.enabled = false;
 
+                GUIStyle smallHelp = CinematicShadersUIResources.Styles.SmallHelp();
+
                 // DEBUG VISUALIZATION SECTION
                 // Comment out the line below to disable debug visualization UI in release builds
                 DrawDebugSection();
@@ -88,10 +90,8 @@ namespace CinematicShaders.UI.Tabs
 
                 DrawQualityDropdown();
                 DrawSlider(CinematicShadersUIStrings.GTAO.RadiusLabel, ref _radius, 0.5f, 10.0f, "F1");
+                GUILayout.Label(CinematicShadersUIStrings.GTAO.RadiusTooltip, smallHelp);
                 DrawSlider(CinematicShadersUIStrings.GTAO.DetailRangeLabel, ref _maxPixelRadius, 20f, 300f, "F0", "px");
-
-                GUIStyle smallHelp = CinematicShadersUIResources.Styles.SmallHelp();
-                GUILayout.Label(CinematicShadersUIStrings.GTAO.DetailRangeTooltip, smallHelp);
 
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
 
@@ -102,16 +102,15 @@ namespace CinematicShaders.UI.Tabs
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
 
                 // FILTERING SECTION
-                GUILayout.Label(CinematicShadersUIStrings.GTAO.FilteringSection, HighLogic.Skin.label);
-                DrawSlider(CinematicShadersUIStrings.GTAO.EdgeSharpnessLabel, ref _edgeSharpness, 1.0f, 64.0f, "F0");
-                DrawSlider(CinematicShadersUIStrings.GTAO.DepthToleranceLabel, ref _depthTolerance, 0.01f, 2.0f, "F2");
-
-                GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
+                //GUILayout.Label(CinematicShadersUIStrings.GTAO.FilteringSection, HighLogic.Skin.label);
+                //DrawSlider(CinematicShadersUIStrings.GTAO.EdgeSharpnessLabel, ref _edgeSharpness, 1.0f, 64.0f, "F0");
+                //DrawSlider(CinematicShadersUIStrings.GTAO.DepthToleranceLabel, ref _depthTolerance, 0.01f, 2.0f, "F2");
+                //GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
 
                 // DISTANCE FADE SECTION
                 GUILayout.Label(CinematicShadersUIStrings.GTAO.DistanceFadeSection, HighLogic.Skin.label);
-                DrawSlider(CinematicShadersUIStrings.GTAO.StartFadeLabel, ref _fadeStartDistance, 0f, 1000f, "F0", "m");
-                DrawSlider(CinematicShadersUIStrings.GTAO.EndFadeLabel, ref _fadeEndDistance, 100f, 2000f, "F0", "m");
+                DrawSliderExponential(CinematicShadersUIStrings.GTAO.StartFadeLabel, ref _fadeStartDistance, 2000f, 25000f, 2.5f, "F0", "m");
+                DrawSliderExponential(CinematicShadersUIStrings.GTAO.EndFadeLabel, ref _fadeEndDistance, 25000f, 200000f, 2.0f, "F0", "m");
                 DrawSlider(CinematicShadersUIStrings.GTAO.EdgeHardnessLabel, ref _fadeCurve, 0.5f, 3.0f, "F1");
 
                 GUILayout.Label(CinematicShadersUIStrings.GTAO.EdgeHardnessTooltip, smallHelp);
@@ -119,10 +118,9 @@ namespace CinematicShaders.UI.Tabs
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
 
                 // ADVANCED SECTION
-                GUILayout.Label(CinematicShadersUIStrings.GTAO.AdvancedSection, HighLogic.Skin.label);
-                DrawDistributionDropdown();
-
-                GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.LARGE);
+                //GUILayout.Label(CinematicShadersUIStrings.GTAO.AdvancedSection, HighLogic.Skin.label);
+                //DrawDistributionDropdown();
+                //GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.LARGE);
 
                 // TOGGLES
                 DrawEnableToggle(oldEnabled, isDeferred);
@@ -198,6 +196,38 @@ namespace CinematicShaders.UI.Tabs
 
             float newValue = GUILayout.HorizontalSlider(value, min, max, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.SLIDER_WIDTH));
             string displayText = value.ToString(format) + suffix;
+            GUILayout.Label(displayText, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.VALUE_WIDTH));
+
+            GUILayout.EndHorizontal();
+
+            if (!Mathf.Approximately(newValue, value))
+            {
+                value = newValue;
+                PushSettingsToNative();
+            }
+        }
+
+        /// <summary>
+        /// Draws a slider with exponential mapping for better precision at the low end.
+        /// Higher 'exponent' = more precision at low values, less at high values.
+        /// </summary>
+        private void DrawSliderExponential(string label, ref float value, float min, float max, float exponent, string format, string suffix = "")
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.DEFAULT_WIDTH));
+
+            // Convert value to normalized slider position (0-1) using inverse exponential
+            float normalized = Mathf.InverseLerp(min, max, value);
+            // Apply inverse power to get linear slider position
+            float sliderT = Mathf.Pow(normalized, 1.0f / exponent);
+
+            float newSliderT = GUILayout.HorizontalSlider(sliderT, 0f, 1f, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.SLIDER_WIDTH));
+
+            // Convert back to value with exponential curve
+            float newNormalized = Mathf.Pow(newSliderT, exponent);
+            float newValue = Mathf.Lerp(min, max, newNormalized);
+
+            string displayText = newValue.ToString(format) + suffix;
             GUILayout.Label(displayText, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.VALUE_WIDTH));
 
             GUILayout.EndHorizontal();
