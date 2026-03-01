@@ -1171,19 +1171,24 @@ UnityRenderingEvent CR_GetGTAORenderEventFunc()
 extern "C" __declspec(dllexport)
 void CR_GTAOSetOutputMode(int mode)
 {
-    // Mode 0-1 are existing composite/raw AO modes
-    // Mode 2-4 are debug visualization modes passed via debugMode field
-    if (mode <= 1)
+    // Mode mapping from C# UI to internal state:
+    // 0=None (Composite AO), 1=Raw AO, 2=World Normals, 3=View Normals, 4=Normal Alpha
+    if (mode == 0)
     {
-        g_GTAOState.outputMode = mode; // 0=Composite, 1=Raw AO
-        g_GTAOState.debugMode = 0;
+        g_GTAOState.outputMode = 0; // Composite AO over scene
+        g_GTAOState.debugMode = 0;  // Normal AO computation
+    }
+    else if (mode == 1)
+    {
+        g_GTAOState.outputMode = 1; // Raw AO output (grayscale)
+        g_GTAOState.debugMode = 0;  // Normal AO computation
     }
     else
     {
-        // Debug modes: we still want to see the AO texture output, so set outputMode to 1 (Raw)
-        // but set debugMode to control what the compute shader writes
-        g_GTAOState.outputMode = 1; // Force raw output so we see the debug data directly
-        g_GTAOState.debugMode = mode - 1; // 2->1, 3->2, 4->3 for shader
+        // Debug visualizations (modes 2-4): force raw output, set debug mode for shader
+        // 2->World Normals (debugMode=1), 3->View Normals (debugMode=2), 4->Normal Alpha (debugMode=3)
+        g_GTAOState.outputMode = 1;
+        g_GTAOState.debugMode = mode - 1;
     }
 }
 

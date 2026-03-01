@@ -136,45 +136,6 @@ void CSMain(uint3 id : SV_DispatchThreadID)
             g_AOTexture[coord] = float2(normalData.a, normalData.a);
             return;
         }
-        else if (DebugMode == 4) // Normal Sampling Check
-        {
-            // Calculate viewZ first
-            float debugViewZ = LinearizeDepth(rawDepth, DepthUnpackConsts);
-            
-            bool anyInvalid = false;
-            
-            for(int dir = 0; dir < 4; dir++)
-            {
-                float angle = dir * 1.570796;
-                float2 omega = float2(cos(angle), -sin(angle));
-                
-                float2 pixelSizeAtViewZ = debugViewZ * NDCToViewMul * InvScreenSize;
-                float screenSpaceRadius = EffectRadius / max(abs(pixelSizeAtViewZ.x), 0.0001);
-                screenSpaceRadius = clamp(screenSpaceRadius, 2.0, MaxPixelRadius);
-                
-                float2 sampleUV = uv + omega * screenSpaceRadius * InvScreenSize;
-                
-                if (any(sampleUV < 0.0) || any(sampleUV > 1.0))
-                    continue;
-                    
-                int2 sampleCoord = int2(sampleUV * ScreenSize);
-                sampleCoord = clamp(sampleCoord, int2(0, 0), int2(width - 1, height - 1));
-                
-                float4 sampleNormalData = g_NormalTexture[sampleCoord];
-                float3 sampleWorldNormal = UnpackNormal(sampleNormalData);
-                
-                if (length(sampleWorldNormal) < 0.001)
-                {
-                    anyInvalid = true;
-                    break;
-                }
-            }
-            
-            // WHITE (1.0) = all sampled normals valid
-            // BLACK (0.0) = found invalid zero normal
-            g_AOTexture[coord] = float2(anyInvalid ? 0.0 : 1.0, 0.0);
-            return;
-        }
     }
     
     // Skip sky pixels using Deferred's normal alpha channel

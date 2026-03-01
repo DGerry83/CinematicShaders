@@ -41,14 +41,13 @@ namespace CinematicShaders.UI.Tabs
         {
             _currentDebugMode = mode;
             GTAOSettings.DebugVisualizationMode = mode;
-            // Mode mapping: 0->0 (normal), 1->1 (raw), 2->2 (world), 3->3 (view), 4->4 (alpha)
+            // Mode mapping: 0=Composite, 1=Raw AO, 2=World Normals, 3=View Normals, 4=Normal Alpha
             GTAONative.CR_GTAOSetOutputMode(mode);
 
             // If enabling debug view, ensure GTAO is effectively "enabled" so render runs
             if (mode > 0 && !GTAOSettings.EnableGTAO)
             {
-                // Temporarily enable or just enable the compositor without the toggle
-                GTAOManager.EnableDebugMode(); // We'll add this
+                GTAOManager.EnableDebugMode();
             }
         }
 
@@ -80,22 +79,9 @@ namespace CinematicShaders.UI.Tabs
                 if (!isDeferred)
                     GUI.enabled = false;
 
-                // DEBUG VISUALIZATION DROPDOWN
-                GUILayout.Label("Debug Visualization", HighLogic.Skin.label);
-                string[] debugOptions = { "None", "Raw AO", "World Normals", "View Normals", "Normal Alpha", "Sampling Check"};
-                int currentDebugMode = GetCurrentDebugMode(); // You'll need to track this state
-
-                GUILayout.BeginHorizontal();
-                GUILayout.Label("View", GUILayout.Width(60));
-                int newDebugMode = GUILayout.SelectionGrid(currentDebugMode, debugOptions, 2, HighLogic.Skin.button);
-                GUILayout.EndHorizontal();
-
-                if (newDebugMode != currentDebugMode)
-                {
-                    SetDebugMode(newDebugMode);
-                }
-
-                GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
+                // DEBUG VISUALIZATION SECTION
+                // Comment out the line below to disable debug visualization UI in release builds
+                DrawDebugSection();
 
                 // SAMPLING SECTION
                 GUILayout.Label(CinematicShadersUIStrings.GTAO.SamplingSection, HighLogic.Skin.label);
@@ -152,6 +138,25 @@ namespace CinematicShaders.UI.Tabs
             {
                 GUI.enabled = oldEnabled;
             }
+        }
+
+        private void DrawDebugSection()
+        {
+            GUILayout.Label("Debug Visualization", HighLogic.Skin.label);
+            string[] debugOptions = { "None", "Raw AO", "World Normals", "View Normals", "Normal Alpha" };
+            int currentDebugMode = GetCurrentDebugMode();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("View", GUILayout.Width(60));
+            int newDebugMode = GUILayout.SelectionGrid(currentDebugMode, debugOptions, 2, HighLogic.Skin.button);
+            GUILayout.EndHorizontal();
+
+            if (newDebugMode != currentDebugMode)
+            {
+                SetDebugMode(newDebugMode);
+            }
+
+            GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
         }
 
         private void DrawQualityDropdown()
