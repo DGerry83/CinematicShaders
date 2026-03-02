@@ -4,10 +4,6 @@ using UnityEngine;
 
 namespace CinematicShaders.Shaders.GTAO
 {
-    /// <summary>
-    /// Manages the GTAO compositor component on the main camera.
-    /// Called when GTAOSettings.EnableGTAO changes.
-    /// </summary>
     public static class GTAOManager
     {
         private static GTAOCompositor _compositor;
@@ -15,9 +11,6 @@ namespace CinematicShaders.Shaders.GTAO
         public static GTAOCompositor Compositor => _compositor;
         public static void ClearCompositorReference() => _compositor = null;
 
-        /// <summary>
-        /// Call this when the GTAO enable toggle changes.
-        /// </summary>
         public static void OnToggleChanged()
         {
             bool shouldEnable = GTAOSettings.EnableGTAO;
@@ -35,7 +28,6 @@ namespace CinematicShaders.Shaders.GTAO
 
         private static void EnableGTAO()
         {
-            // Prevent re-initialization if already active
             if (_compositor != null && _compositor.enabled) return;
 
             Camera mainCam = Camera.main;
@@ -51,7 +43,7 @@ namespace CinematicShaders.Shaders.GTAO
                 return;
             }
 
-            // CRITICAL: Push settings to native BEFORE enabling the compositor
+            // Push settings to native BEFORE enabling the compositor to ensure first frame is correct
             if (GTAONative.IsLoaded)
             {
                 GTAOSettings.PushSettingsToNative();
@@ -95,9 +87,6 @@ namespace CinematicShaders.Shaders.GTAO
             _compositor.enabled = true;
         }
 
-        /// <summary>
-        /// Call at startup to sync with GTAOSettings.
-        /// </summary>
         public static void Initialize()
         {
             if (GTAOSettings.EnableGTAO)

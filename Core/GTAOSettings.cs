@@ -3,24 +3,12 @@ using UnityEngine;
 
 namespace CinematicShaders.Core
 {
-    /// <summary>
-    /// Persistent settings for GTAO shader. 
-    /// Replaces SessionState from CinematicRecorder.
-    /// </summary>
     public static class GTAOSettings
     {
-        /// <summary>
-        /// Enable Ground-Truth Ambient Occlusion.
-        /// </summary>
         public static bool EnableGTAO { get; set; } = false;
-
         public static int DebugVisualizationMode { get; set; } = 0;
-        /// <summary>
-        /// Show raw AO output (grayscale debug view) instead of composited scene.
-        /// </summary>
         public static bool GTAORawAOOutput { get; set; } = false;
-        // Persistent settings fields - these mirror the UI state
-        public static int QualityPreset { get; set; } = 1; // 0=Low, 1=Med, 2=High, 3=Ultra
+        public static int QualityPreset { get; set; } = 1;
         public static float EffectRadius { get; set; } = 2.0f;
         public static float Intensity { get; set; } = 0.8f;
         public static float MaxPixelRadius { get; set; } = 50.0f;
@@ -56,7 +44,7 @@ namespace CinematicShaders.Core
             }
             catch (System.Exception ex)
             {
-                UnityEngine.Debug.LogError($"[CinematicShaders] Failed to load settings: {ex}");
+                Debug.LogError($"[CinematicShaders] Failed to load settings: {ex}");
             }
         }
 
@@ -65,7 +53,6 @@ namespace CinematicShaders.Core
             if (!GTAONative.IsLoaded)
                 return;
 
-            // Quality Presets (Must match your UI/DLL expectations)
             int[] kSlicePresets = { 2, 3, 4, 6 };
             int[] kStepPresets = { 4, 8, 12, 16 };
             int q = Mathf.Clamp(QualityPreset, 0, 3);
@@ -76,7 +63,7 @@ namespace CinematicShaders.Core
                 Intensity = Intensity,
                 SliceCount = kSlicePresets[q],
                 StepsPerSlice = kStepPresets[q],
-                SampleDistributionPower = 2.0f,  // Hardcoded Quadratic
+                SampleDistributionPower = 2.0f,
                 NormalPower = 32.0f,
                 DepthSigma = 2.0f,
                 MaxPixelRadius = MaxPixelRadius,
@@ -114,7 +101,7 @@ namespace CinematicShaders.Core
             }
             catch (System.Exception ex)
             {
-                UnityEngine.Debug.LogError($"[CinematicShaders] Failed to save settings: {ex}");
+                Debug.LogError($"[CinematicShaders] Failed to save settings: {ex}");
             }
         }
     }

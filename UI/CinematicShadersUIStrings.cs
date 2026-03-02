@@ -10,52 +10,34 @@
 
         public static class GTAO
         {
-            // Section Headers
             public const string SamplingSection = "SAMPLING";
             public const string ShadowStrengthSection = "SHADOW STRENGTH";
             public const string FilteringSection = "FILTERING";
             public const string DistanceFadeSection = "DISTANCE FADE";
             public const string AdvancedSection = "ADVANCED";
-
-            // Tab
             public const string TabName = "GTAO";
-
-            // Sampling Controls
             public const string QualityLabel = "Quality";
             public const string RadiusLabel = "Radius";
             public const string RadiusTooltip = "How far to search for occluders (larger = more distant shadows)";
             public const string DetailRangeLabel = "Shadow Spread";
-
-            // Shadow Strength
             public const string IntensityLabel = "Intensity";
-
-            // Filtering - DEPRECATED
             public const string EdgeSharpnessLabel = "Edge Sharpness";
             public const string DepthToleranceLabel = "Depth Tolerance";
-
-            // Distance Fade
             public const string StartFadeLabel = "Start Fade";
             public const string EndFadeLabel = "End Fade";
             public const string EdgeHardnessLabel = "Edge Hardness";
             public const string EdgeHardnessTooltip = "0.5=Soft, 1.0=Linear, 3.0=Sharp";
-
-            // Advanced
             public const string DistributionLabel = "Distribution";
             public const string EnableToggle = " Enable Ground-Truth AO";
             public const string RawAOOutputToggle = " Show Raw AO Output";
             public const string DeferredWarning = "GTAO requires deferred rendering.";
-
-            // Distribution Options - DEPRECATED
             public const string DistributionLinear = "Linear";
             public const string DistributionQuadratic = "Quadratic";
             public const string DistributionCubic = "Cubic";
-
-            // Quality Presets
             public const string QualityLow = "Low";
             public const string QualityMedium = "Medium";
             public const string QualityHigh = "High";
             public const string QualityUltra = "Ultra";
-
             public const string DebugVisualizationHeader = "Debug Visualization";
             public const string DebugViewLabel = "View";
             public const string DebugModeNone = "None";

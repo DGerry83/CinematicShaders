@@ -6,17 +6,12 @@ using UnityEngine;
 
 namespace CinematicShaders.Native
 {
-    /// <summary>
-    /// P/Invoke declarations for CinematicShadersNative.dll
-    /// Explicitly loads the DLL to handle GameData/PluginData subdirectory paths
-    /// </summary>
     public static class GTAONative
     {
         private const string DllName = "CinematicShadersNative.dll";
         private static IntPtr _dllHandle = IntPtr.Zero;
         private static bool _loaded = false;
 
-        #region Explicit DLL Loading
         [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
         private static extern IntPtr LoadLibrary(string lpFileName);
 
@@ -34,11 +29,11 @@ namespace CinematicShaders.Native
                 string pluginDataPath = Path.GetFullPath(Path.Combine(assemblyPath, "..", "PluginData"));
                 string dllPath = Path.Combine(pluginDataPath, DllName);
 
-                UnityEngine.Debug.Log($"[CinematicShaders] Loading native DLL from: {dllPath}");
+                Debug.Log($"[CinematicShaders] Loading native DLL from: {dllPath}");
 
                 if (!File.Exists(dllPath))
                 {
-                    UnityEngine.Debug.LogError($"[CinematicShaders] Native DLL not found at: {dllPath}");
+                    Debug.LogError($"[CinematicShaders] Native DLL not found at: {dllPath}");
                     return;
                 }
 
@@ -47,27 +42,26 @@ namespace CinematicShaders.Native
                 if (_dllHandle == IntPtr.Zero)
                 {
                     int errorCode = Marshal.GetLastWin32Error();
-                    UnityEngine.Debug.LogError($"[CinematicShaders] LoadLibrary failed with error {errorCode}: {new System.ComponentModel.Win32Exception(errorCode).Message}");
+                    Debug.LogError($"[CinematicShaders] LoadLibrary failed with error {errorCode}: {new System.ComponentModel.Win32Exception(errorCode).Message}");
                     return;
                 }
 
                 if (GetProcAddress(_dllHandle, "CR_GTAOSetSettings") == IntPtr.Zero)
                 {
-                    UnityEngine.Debug.LogError("[CinematicShaders] DLL loaded but CR_GTAOSetSettings export not found!");
+                    Debug.LogError("[CinematicShaders] DLL loaded but CR_GTAOSetSettings export not found!");
                     return;
                 }
 
                 _loaded = true;
-                UnityEngine.Debug.Log("[CinematicShaders] Native DLL loaded successfully");
+                Debug.Log("[CinematicShaders] Native DLL loaded successfully");
             }
             catch (Exception ex)
             {
-                UnityEngine.Debug.LogError($"[CinematicShaders] Failed to load native DLL: {ex}");
+                Debug.LogError($"[CinematicShaders] Failed to load native DLL: {ex}");
             }
         }
 
         public static bool IsLoaded => _loaded;
-        #endregion
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_GTAODebugSetInput(
@@ -76,7 +70,7 @@ namespace CinematicShaders.Native
             int width,
             int height,
             [In] float[] worldToView,
-            [In] float[] fovParams,  // tanHalfFOV [x, y] - explicit FOV for correct view reconstruction
+            [In] float[] fovParams,
             float nearPlane,
             float farPlane,
             int frameIndex);
@@ -93,17 +87,17 @@ namespace CinematicShaders.Native
         [StructLayout(LayoutKind.Sequential)]
         public struct GTAOSettings
         {
-            public float EffectRadius;        // Default: 2.0f
-            public float Intensity;           // Default: 0.8f
-            public int SliceCount;           // Default: 2
-            public int StepsPerSlice;        // Default: 4
-            public float SampleDistributionPower; // Default: 2.0f
-            public float NormalPower;        // Default: 32.0f
-            public float DepthSigma;         // Default: 0.5f
-            public float MaxPixelRadius;     // Default: 50.0f
-            public float FadeStartDistance;  // Default: 0.0f
-            public float FadeEndDistance;    // Default: 500.0f
-            public float FadeCurve;          // Default: 1.0f
+            public float EffectRadius;
+            public float Intensity;
+            public int SliceCount;
+            public int StepsPerSlice;
+            public float SampleDistributionPower;
+            public float NormalPower;
+            public float DepthSigma;
+            public float MaxPixelRadius;
+            public float FadeStartDistance;
+            public float FadeEndDistance;
+            public float FadeCurve;
         }
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]

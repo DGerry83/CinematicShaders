@@ -1,7 +1,7 @@
 ﻿using CinematicShaders.UI.Tabs;
 using CinematicShaders.Core;
 using UnityEngine;
-using static KSP.UI.Screens.ApplicationLauncher;
+using System;
 
 namespace CinematicShaders.UI
 {
@@ -19,26 +19,24 @@ namespace CinematicShaders.UI
         private ShaderTab currentTab = ShaderTab.GTAO;
         private GTAOTab _gtaoTab;
 
-        public event System.Action OnClose;
+        public event Action OnClose;
         private bool wasVisibleBeforeF2 = false;
 
         void Start()
         {
-            // Subscribe to KSP's global UI hide event (F2 key)
             GameEvents.onHideUI.Add(OnHideUI);
             GameEvents.onShowUI.Add(OnShowUI);
 
             InitStyles();
 
-            // Safe initialization - don't let native plugin failures kill the UI
             try
             {
                 _gtaoTab = new GTAOTab();
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 errorMessage = "Failed to initialize GTAO: " + ex.Message;
-                UnityEngine.Debug.LogError($"[CinematicShaders] {errorMessage}\n{ex}");
+                Debug.LogError($"[CinematicShaders] {errorMessage}\n{ex}");
             }
         }
 
@@ -68,17 +66,13 @@ namespace CinematicShaders.UI
 
         private void DrawWindow(int id)
         {
-            // Always allow dragging, even if content fails
             try
             {
                 if (!string.IsNullOrEmpty(errorMessage))
                 {
                     GUILayout.BeginVertical();
                     GUILayout.Space(20);
-                    GUIStyle errorStyle = new GUIStyle(HighLogic.Skin.label);
-                    errorStyle.normal.textColor = Color.red;
-                    errorStyle.wordWrap = true;
-                    GUILayout.Label(errorMessage, errorStyle);
+                    GUILayout.Label(errorMessage, CinematicShadersUIResources.Styles.Error());
                     GUILayout.EndVertical();
                     GUI.DragWindow();
                     return;
@@ -88,7 +82,7 @@ namespace CinematicShaders.UI
                 {
                     GUILayout.BeginVertical();
                     GUILayout.Space(20);
-                    GUILayout.Label("Initializing...", HighLogic.Skin.label);
+                    GUILayout.Label(CinematicShadersUIStrings.Common.Initializing, HighLogic.Skin.label);
                     GUILayout.EndVertical();
                     GUI.DragWindow();
                     return;
@@ -108,11 +102,9 @@ namespace CinematicShaders.UI
 
                 GUILayout.EndVertical();
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                UnityEngine.Debug.LogError($"[CinematicShaders] Error rendering window: {ex}");
-                // Ensure layout stack is cleared if we had an exception mid-layout
-                GUILayout.EndVertical();
+                Debug.LogError($"[CinematicShaders] Error rendering window: {ex}");
             }
 
             GUI.DragWindow();

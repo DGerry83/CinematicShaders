@@ -6,9 +6,6 @@ using UnityEngine.Rendering;
 
 namespace CinematicShaders.Shaders.GTAO
 {
-    /// <summary>
-    /// Attaches to the main camera and manages GTAO rendering via native compute shaders.
-    /// </summary>
     public class GTAOCompositor : MonoBehaviour
     {
         private Camera _camera;
@@ -23,7 +20,6 @@ namespace CinematicShaders.Shaders.GTAO
 
         void OnEnable()
         {
-            // Centralized DLL loading is now handled by GTAONative static constructor
             if (!GTAONative.IsLoaded)
             {
                 Debug.LogError("[GTAOCompositor] Native DLL not loaded. Disabling GTAO.");
@@ -50,7 +46,7 @@ namespace CinematicShaders.Shaders.GTAO
                 if (GTAONative.IsLoaded)
                     GTAONative.CR_GTAOShutdown();
             }
-            catch (System.Exception)
+            catch (Exception)
             {
                 /* DLL unloaded, ignore */
             }
@@ -69,15 +65,13 @@ namespace CinematicShaders.Shaders.GTAO
             int width = _camera.pixelWidth;
             int height = _camera.pixelHeight;
 
-            // Create render textures for depth/normal capture
             _depthRT = new RenderTexture(width, height, 0, RenderTextureFormat.RFloat);
             _depthRT.Create();
 
             _normalRT = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB2101010);
             _normalRT.Create();
 
-            // 1. Depth/Normal capture at AfterForwardOpaque 
-            // (after opaque geometry, before Blackrack's clouds and lens flares)
+            // Capture depth/normals after opaque geometry, before clouds/flares
             _depthCaptureBuffer = new CommandBuffer();
             _depthCaptureBuffer.name = "GTAO Capture Depth";
             _depthCaptureBuffer.Blit(BuiltinRenderTextureType.ResolvedDepth, _depthRT);
@@ -88,7 +82,6 @@ namespace CinematicShaders.Shaders.GTAO
             _normalCaptureBuffer.Blit(BuiltinRenderTextureType.GBuffer2, _normalRT);
             _camera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, _normalCaptureBuffer);
 
-            // 2. GTAO Pipeline - register at appropriate event based on current mode
             _gtaoPipelineBuffer = new CommandBuffer();
             _gtaoPipelineBuffer.name = "GTAO Compute and Composite";
             _gtaoPipelineBuffer.IssuePluginEvent(GTAONative.CR_GetGTAORenderEventFunc(), 0);
@@ -110,8 +103,17 @@ namespace CinematicShaders.Shaders.GTAO
                     _camera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, _depthCaptureBuffer);
                 if (_normalCaptureBuffer != null)
                     _camera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, _normalCaptureBuffer);
-                if (_gtaoPipelineBuffer != null)
+            }
+
+            if (_gtaoPipelineBuffer != null)
+            {
+                if (_isRawAOMode)
+                    _camera.RemoveCommandBuffer(CameraEvent.BeforeImageEffects, _gtaoPipelineBuffer);
+                else
                     _camera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, _gtaoPipelineBuffer);
+
+                _gtaoPipelineBuffer.Release();
+                _gtaoPipelineBuffer = null;
             }
 
             if (_depthCaptureBuffer != null)
@@ -123,13 +125,6 @@ namespace CinematicShaders.Shaders.GTAO
             {
                 _normalCaptureBuffer.Release();
                 _normalCaptureBuffer = null;
-            }
-            if (_gtaoPipelineBuffer != null)
-            {
-                if (_isRawAOMode)
-                    _camera.RemoveCommandBuffer(CameraEvent.BeforeImageEffects, _gtaoPipelineBuffer);
-                else
-                    _camera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, _gtaoPipelineBuffer);
             }
             if (_depthRT != null)
             {
@@ -152,15 +147,10 @@ namespace CinematicShaders.Shaders.GTAO
             if (!_initialized || !GTAONative.IsLoaded)
                 return;
 
-            // Allow debug visualization even when main AO is disabled
             if (!GTAOSettings.EnableGTAO && GTAOSettings.DebugVisualizationMode == 0)
                 return;
 
-            // Get camera matrices for the upcoming frame
             Matrix4x4 projMatrix = GL.GetGPUProjectionMatrix(_camera.projectionMatrix, false);
-            Matrix4x4 invProjMatrix = projMatrix.inverse;
-            float[] invProjArray = new float[16];
-            // Calculate tangent half-FOV for accurate view-space reconstruction
             float tanHalfFOVY = Mathf.Tan(_camera.fieldOfView * Mathf.Deg2Rad * 0.5f);
             float tanHalfFOVX = tanHalfFOVY * _camera.aspect;
             float[] fovArray = new float[2] { tanHalfFOVX, tanHalfFOVY };
@@ -177,8 +167,6 @@ namespace CinematicShaders.Shaders.GTAO
             worldToViewArray[7] = worldToCamera[2, 1];
             worldToViewArray[8] = worldToCamera[2, 2];
 
-            // Pass pointers to native state
-
             GTAONative.CR_GTAODebugSetInput(
                 _depthRT.GetNativeTexturePtr(),
                 _normalRT.GetNativeTexturePtr(),
@@ -190,15 +178,12 @@ namespace CinematicShaders.Shaders.GTAO
                 _camera.farClipPlane,
                 _gtaoFrameIndex);
 
-            // Set output mode: 
-            // If debug visualization is active (2-4), use that mode
-            // Otherwise use normal AO output mode (0=Composite, 1=Raw)
             int outputMode = GTAOSettings.DebugVisualizationMode > 0
                 ? GTAOSettings.DebugVisualizationMode
                 : (GTAOSettings.GTAORawAOOutput ? 1 : 0);
             GTAONative.CR_GTAOSetOutputMode(outputMode);
 
-            // Advance temporal index (0-7)
+            // Temporal index 0-7
             _gtaoFrameIndex = (_gtaoFrameIndex + 1) & 7;
         }
 
@@ -206,7 +191,6 @@ namespace CinematicShaders.Shaders.GTAO
         {
             if (!_initialized) return;
 
-            // Handle resolution changes
             if (_camera.pixelWidth != _depthRT.width || _camera.pixelHeight != _depthRT.height)
             {
                 Cleanup();
@@ -214,19 +198,16 @@ namespace CinematicShaders.Shaders.GTAO
                 return;
             }
 
-            // Handle Raw AO / Debug mode switching - move buffer to after clouds for clean output
             bool wantRawAO = GTAOSettings.GTAORawAOOutput || GTAOSettings.DebugVisualizationMode > 0;
             if (wantRawAO != _isRawAOMode)
             {
                 if (_gtaoPipelineBuffer != null && _camera != null)
                 {
-                    // Remove from current event
                     if (_isRawAOMode)
                         _camera.RemoveCommandBuffer(CameraEvent.BeforeImageEffects, _gtaoPipelineBuffer);
                     else
                         _camera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, _gtaoPipelineBuffer);
 
-                    // Add to new event
                     if (wantRawAO)
                         _camera.AddCommandBuffer(CameraEvent.BeforeImageEffects, _gtaoPipelineBuffer);
                     else

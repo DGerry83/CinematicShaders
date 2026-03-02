@@ -7,7 +7,6 @@ namespace CinematicShaders.UI.Tabs
 {
     public class GTAOTab
     {
-        // Quality presets
         private readonly int[] kSlicePresets = { 2, 3, 4, 6 };
         private readonly int[] kStepPresets = { 4, 8, 12, 16 };
         private readonly string[] kQualityNames = {
@@ -27,8 +26,7 @@ namespace CinematicShaders.UI.Tabs
         private bool _initialized = false;
         private bool _showQualityDropdown = false;
         private bool _showDebugDropdown = false;
-
-        private int _currentDebugMode = 0; // None=0, RawAO=1, WorldNorm=2, ViewNorm=3, NormAlpha=4
+        private int _currentDebugMode = 0;
 
         public GTAOTab()
         {
@@ -129,7 +127,7 @@ namespace CinematicShaders.UI.Tabs
             if (GUILayout.Button(currentLabel, HighLogic.Skin.button, GUILayout.Width(CinematicShadersUIResources.Layout.Dropdowns.DEBUG_BUTTON_WIDTH)))
             {
                 _showDebugDropdown = !_showDebugDropdown;
-                _showQualityDropdown = false; // Close other dropdown
+                _showQualityDropdown = false;
             }
             GUILayout.EndHorizontal();
 
@@ -162,7 +160,7 @@ namespace CinematicShaders.UI.Tabs
             if (GUILayout.Button(kQualityNames[_qualityPresetIndex], HighLogic.Skin.button, GUILayout.Width(CinematicShadersUIResources.Layout.Dropdowns.QUALITY_BUTTON_WIDTH)))
             {
                 _showQualityDropdown = !_showQualityDropdown;
-                _showDebugDropdown = false; // Close other dropdown to prevent overlap
+                _showDebugDropdown = false;
             }
             GUILayout.EndHorizontal();
 
@@ -204,23 +202,16 @@ namespace CinematicShaders.UI.Tabs
             }
         }
 
-        /// <summary>
-        /// Draws a slider with exponential mapping for better precision at the low end.
-        /// Higher 'exponent' = more precision at low values, less at high values.
-        /// </summary>
         private void DrawSliderExponential(string label, ref float value, float min, float max, float exponent, string format, string suffix = "")
         {
             GUILayout.BeginHorizontal();
             GUILayout.Label(label, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.DEFAULT_WIDTH));
 
-            // Convert value to normalized slider position (0-1) using inverse exponential
             float normalized = Mathf.InverseLerp(min, max, value);
-            // Apply inverse power to get linear slider position
             float sliderT = Mathf.Pow(normalized, 1.0f / exponent);
 
             float newSliderT = GUILayout.HorizontalSlider(sliderT, 0f, 1f, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.SLIDER_WIDTH));
 
-            // Convert back to value with exponential curve
             float newNormalized = Mathf.Pow(newSliderT, exponent);
             float newValue = Mathf.Lerp(min, max, newNormalized);
 
@@ -272,8 +263,6 @@ namespace CinematicShaders.UI.Tabs
 
         private void PushSettingsToNative()
         {
-            GTAOSettings.PushSettingsToNative();
-
             GTAOSettings.QualityPreset = _qualityPresetIndex;
             GTAOSettings.EffectRadius = _radius;
             GTAOSettings.Intensity = _intensity;
@@ -281,6 +270,8 @@ namespace CinematicShaders.UI.Tabs
             GTAOSettings.FadeStartDistance = _fadeStartDistance;
             GTAOSettings.FadeEndDistance = _fadeEndDistance;
             GTAOSettings.FadeCurve = _fadeCurve;
+
+            GTAOSettings.PushSettingsToNative();
         }
 
         private bool IsDeferredRenderingActive()
