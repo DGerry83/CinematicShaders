@@ -1,0 +1,62 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on tags starting with 'v' (v1.0.0, v0.5.0-beta, etc.)
+
+permissions:
+  contents: write  # Required to create releases
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required to fetch tag annotations
+      
+      - name: Extract tag information
+        id: tag_info
+        shell: bash
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          
+          # Get the annotation message (annotated tags only)
+          # This handles multiline messages properly for GitHub Actions
+          MESSAGE=$(git tag -l --format='%(contents)' $TAG)
+          
+          # Escape special characters for GitHub Actions
+          DELIMITER=$(openssl rand -hex 12)
+          echo "message<<$DELIMITER" >> $GITHUB_OUTPUT
+          echo "$MESSAGE" >> $GITHUB_OUTPUT
+          echo "$DELIMITER" >> $GITHUB_OUTPUT
+          
+          echo "Creating release for tag: $TAG"
+      
+      - name: Create release ZIP
+        run: |
+          # Create zip preserving GameData structure
+          # Add README.md and LICENSE.txt if they exist at repo root
+          zip -r "CinematicShaders-${{ steps.tag_info.outputs.tag }}.zip" \
+            GameData/ \
+            README.md \
+            LICENSE.txt \
+            2>/dev/null || true
+          
+          # Verify contents
+          echo "ZIP contents:"
+          unzip -l "CinematicShaders-${{ steps.tag_info.outputs.tag }}.zip"
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ steps.tag_info.outputs.tag }}
+          body: ${{ steps.tag_info.outputs.message }}
+          files: CinematicShaders-*.zip
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
