@@ -67,23 +67,24 @@ namespace CinematicShaders.Shaders.GTAO
             _normalRT = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB2101010);
             _normalRT.Create();
 
-            // 1. Depth/Normal capture at BeforeImageEffectsOpaque (fills textures)
+            // 1. Depth/Normal capture at AfterForwardOpaque 
+            // (after opaque geometry, before Blackrack's clouds and lens flares)
             _depthCaptureBuffer = new CommandBuffer();
             _depthCaptureBuffer.name = "GTAO Capture Depth";
             _depthCaptureBuffer.Blit(BuiltinRenderTextureType.ResolvedDepth, _depthRT);
-            _camera.AddCommandBuffer(CameraEvent.BeforeImageEffectsOpaque, _depthCaptureBuffer);
+            _camera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, _depthCaptureBuffer);
 
             _normalCaptureBuffer = new CommandBuffer();
             _normalCaptureBuffer.name = "GTAO Capture Normals";
             _normalCaptureBuffer.Blit(BuiltinRenderTextureType.GBuffer2, _normalRT);
-            _camera.AddCommandBuffer(CameraEvent.BeforeImageEffectsOpaque, _normalCaptureBuffer);
+            _camera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, _normalCaptureBuffer);
 
-            // 2. GTAO Pipeline at BeforeImageEffects
-            // This ensures GTAO runs BEFORE image effects and capture
+            // 2. GTAO Pipeline at AfterForwardOpaque
+            // Execute after capture buffers to ensure depth/normal are ready
             _gtaoPipelineBuffer = new CommandBuffer();
             _gtaoPipelineBuffer.name = "GTAO Compute and Composite";
             _gtaoPipelineBuffer.IssuePluginEvent(GTAONative.CR_GetGTAORenderEventFunc(), 0);
-            _camera.AddCommandBuffer(CameraEvent.BeforeImageEffects, _gtaoPipelineBuffer);
+            _camera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, _gtaoPipelineBuffer);
 
             _initialized = true;
         }
@@ -93,11 +94,11 @@ namespace CinematicShaders.Shaders.GTAO
             if (_camera != null)
             {
                 if (_depthCaptureBuffer != null)
-                    _camera.RemoveCommandBuffer(CameraEvent.BeforeImageEffectsOpaque, _depthCaptureBuffer);
+                    _camera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, _depthCaptureBuffer);
                 if (_normalCaptureBuffer != null)
-                    _camera.RemoveCommandBuffer(CameraEvent.BeforeImageEffectsOpaque, _normalCaptureBuffer);
+                    _camera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, _normalCaptureBuffer);
                 if (_gtaoPipelineBuffer != null)
-                    _camera.RemoveCommandBuffer(CameraEvent.BeforeImageEffects, _gtaoPipelineBuffer);
+                    _camera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, _gtaoPipelineBuffer);
             }
 
             if (_depthCaptureBuffer != null)
@@ -144,8 +145,10 @@ namespace CinematicShaders.Shaders.GTAO
             Matrix4x4 projMatrix = GL.GetGPUProjectionMatrix(_camera.projectionMatrix, false);
             Matrix4x4 invProjMatrix = projMatrix.inverse;
             float[] invProjArray = new float[16];
-            for (int i = 0; i < 16; i++)
-                invProjArray[i] = invProjMatrix[i];
+            // Calculate tangent half-FOV for accurate view-space reconstruction
+            float tanHalfFOVY = Mathf.Tan(_camera.fieldOfView * Mathf.Deg2Rad * 0.5f);
+            float tanHalfFOVX = tanHalfFOVY * _camera.aspect;
+            float[] fovArray = new float[2] { tanHalfFOVX, tanHalfFOVY };
 
             Matrix4x4 worldToCamera = _camera.worldToCameraMatrix;
             float[] worldToViewArray = new float[9];
@@ -160,13 +163,14 @@ namespace CinematicShaders.Shaders.GTAO
             worldToViewArray[8] = worldToCamera[2, 2];
 
             // Pass pointers to native state
+
             GTAONative.CR_GTAODebugSetInput(
                 _depthRT.GetNativeTexturePtr(),
                 _normalRT.GetNativeTexturePtr(),
                 _depthRT.width,
                 _depthRT.height,
-                invProjArray,
                 worldToViewArray,
+                fovArray,
                 _camera.nearClipPlane,
                 _camera.farClipPlane,
                 _gtaoFrameIndex);

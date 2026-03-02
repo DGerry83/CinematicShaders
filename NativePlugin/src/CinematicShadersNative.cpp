@@ -117,7 +117,6 @@ static struct {
     ID3D11Texture2D* normalTexture = nullptr;
     int width = 0;
     int height = 0;
-    float invProj[16] = {};       // Inverse projection matrix from Unity
     float worldToView[9] = {};     // World-to-view matrix (3x3 rotation)
     float nearPlane = 0.1f;        // Camera near plane
     float farPlane = 1000.0f;      // Camera far plane
@@ -175,6 +174,10 @@ static struct {
     
     int cachedWidth = 0;
     int cachedHeight = 0;
+    
+    // Explicit FOV parameters for view-space reconstruction
+    float tanHalfFOVX = 0.0f;
+    float tanHalfFOVY = 0.0f;
     
     // Thread safety for cross-thread access
     std::mutex stateMutex;
@@ -604,7 +607,8 @@ static void EnsureIntermediateTexture(ID3D11Device* device, DXGI_FORMAT format, 
 
 extern "C" __declspec(dllexport)
 void CR_GTAODebugSetInput(ID3D11Texture2D* depthTex, ID3D11Texture2D* normalTex, int width, int height,
-                          const float* invProj, const float* worldToView, float nearPlane, float farPlane,
+                          const float* worldToView, const float* fovParams,
+                          float nearPlane, float farPlane,
                           int frameIndex)
 {
     std::lock_guard<std::mutex> lock(g_GTAOState.stateMutex);
@@ -618,17 +622,6 @@ void CR_GTAODebugSetInput(ID3D11Texture2D* depthTex, ID3D11Texture2D* normalTex,
     g_GTAOState.frameIndex = frameIndex;
     g_GTAOState.paramsDirty = true;
     
-    if (invProj) {
-        memcpy(g_GTAOState.invProj, invProj, sizeof(float) * 16);
-    } else {
-        // Identity fallback
-        memset(g_GTAOState.invProj, 0, sizeof(g_GTAOState.invProj));
-        g_GTAOState.invProj[0] = 1.0f;
-        g_GTAOState.invProj[5] = 1.0f;
-        g_GTAOState.invProj[10] = 1.0f;
-        g_GTAOState.invProj[15] = 1.0f;
-    }
-    
     if (worldToView) {
         memcpy(g_GTAOState.worldToView, worldToView, sizeof(float) * 9);
     } else {
@@ -637,6 +630,15 @@ void CR_GTAODebugSetInput(ID3D11Texture2D* depthTex, ID3D11Texture2D* normalTex,
         g_GTAOState.worldToView[4] = 1.0f;
         g_GTAOState.worldToView[8] = 1.0f;
     }
+    
+    // Validate and store explicit FOV parameters (mandatory)
+    if (!fovParams || fovParams[0] <= 0.0f || fovParams[1] <= 0.0f)
+    {
+        LogToFile("[GTAO] ERROR: Invalid or missing FOV parameters");
+        return;
+    }
+    g_GTAOState.tanHalfFOVX = fovParams[0];
+    g_GTAOState.tanHalfFOVY = fovParams[1];
     
     // Initialize resources (one-time)
     if (depthTex) {
@@ -958,8 +960,9 @@ static void ExecuteGTAOCompute(ID3D11DeviceContext* context)
      if (SUCCEEDED(context->Map(g_GTAOState.gtaoCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
         GTAOParams* params = (GTAOParams*)mapped.pData;
         
-        float tanHalfFOVX = g_GTAOState.invProj[0];
-        float tanHalfFOVY = g_GTAOState.invProj[5];
+        // Use explicit FOV parameters for view-space reconstruction
+        float tanHalfFOVX = g_GTAOState.tanHalfFOVX;
+        float tanHalfFOVY = g_GTAOState.tanHalfFOVY;
         
         // float4 #1 (offset 0)
         params->ndcToViewMul[0] = tanHalfFOVX * 2.0f;

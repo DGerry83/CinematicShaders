@@ -75,8 +75,8 @@ namespace CinematicShaders.Native
             IntPtr normalTex,
             int width,
             int height,
-            [In] float[] invProj,
             [In] float[] worldToView,
+            [In] float[] fovParams,  // tanHalfFOV [x, y] - explicit FOV for correct view reconstruction
             float nearPlane,
             float farPlane,
             int frameIndex);

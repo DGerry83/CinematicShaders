@@ -21,8 +21,8 @@ void CR_GTAODebugSetInput(
     ID3D11Texture2D* normalTex, 
     int width, 
     int height,
-    const float* invProj, 
     const float* worldToView, 
+    const float* fovParams,  // tanHalfFOV [x, y]
     float nearPlane, 
     float farPlane,
     int frameIndex
