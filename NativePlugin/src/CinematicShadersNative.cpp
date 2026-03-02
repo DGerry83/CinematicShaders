@@ -18,7 +18,7 @@ typedef unsigned char BYTE;
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "dxgi.lib")
 
-// Unity interface macros (in case headers don't define them)
+// Ensure Unity interface macros are defined
 #ifndef UNITY_INTERFACE_API
 #define UNITY_INTERFACE_API __stdcall
 #define UNITY_INTERFACE_EXPORT __declspec(dllexport)
@@ -101,9 +101,9 @@ static void LogToFile(const char* fmt, ...)
 }
 
 
-// ============================================================================
-// GTAO Debug Test - Full GTAO compute shader
-// ============================================================================
+// =========================
+// Full GTAO compute shader
+// =========================
 
 #include "GTAO.h"  // Compiled compute shader bytecode
 #include "GTAO_Filter.h"  // Compiled filter shader bytecode
@@ -112,7 +112,6 @@ static void LogToFile(const char* fmt, ...)
 #include "HiZ.h"
 
 static struct {
-    // GTAO State - renamed from g_GTAOState
     ID3D11Texture2D* depthTexture = nullptr;
     ID3D11Texture2D* normalTexture = nullptr;
     int width = 0;
@@ -183,7 +182,6 @@ static struct {
     std::mutex stateMutex;
 } g_GTAOState;
 
-// User-tweakable settings for distance fade and sampling
 struct GTAOUserSettings {
     float EffectRadius;
     float Intensity;
@@ -198,7 +196,6 @@ struct GTAOUserSettings {
     float FadeCurve;
 };
 
-// Global settings storage (initialized to defaults)
 static GTAOUserSettings g_UserSettings = {
     2.0f,   // EffectRadius
     0.8f,   // Intensity
@@ -209,16 +206,15 @@ static GTAOUserSettings g_UserSettings = {
     2.0f,   // DepthSigma
     50.0f,  // MaxPixelRadius (was hardcoded)
     0.0f,   // FadeStartDistance
-    500.0f, // FadeEndDistance
+    25000.0f, // FadeEndDistance
     1.0f    // FadeCurve
 };
 
-// Forward declarations for functions defined later in the file
 static void InitializeBlueNoiseResources(ID3D11Device* device);
 static void EnsureComputeResources(ID3D11Device* device, int width, int height);
 
-// GTAO params constant buffer (matches GTAO.hlsl - XeGTAO style)
-// Total: 80 bytes (5 float4s)
+// GTAO params constant buffer (matches GTAO.hlsl)
+// Total: 144 bytes (9 float4s) - matches HLSL cbuffer layout
 struct GTAOParams {
     // float4 #1 (offset 0)
     float ndcToViewMul[2];
@@ -231,7 +227,7 @@ struct GTAOParams {
     // float4 #3 (offset 32)
     float invResolution[2];
     float effectRadius;
-    float maxPixelRadius;        // WAS: falloffRange - RENAMED TO MATCH HLSL
+    float maxPixelRadius;
     
     // float4 #4 (offset 48)
     float intensity;
@@ -242,11 +238,11 @@ struct GTAOParams {
     // float4 #5 (offset 64)
     int FrameIndex;
     float depthMipSamplingOffset;
-    float fadeStartDistance;     // NEW
-    float fadeEndDistance;       // NEW
+    float fadeStartDistance;
+    float fadeEndDistance;
     
     // float4 #6 (offset 80)
-    float fadeCurve;             // NEW
+    float fadeCurve;
     int DebugMode;
     float __pad2;
     float __pad3;
@@ -269,10 +265,9 @@ struct FilterParams {
     float depthSigma;
 };
 
-// Initialize filter resources (one-time, cached)
 static void InitializeFilterResources(ID3D11Device* device, int width, int height)
 {
-    // Safer check: verify resources actually exist and match dimensions
+    // Verify resources exist and match current dimensions before reuse
     if (g_GTAOState.filteredAOTexture && g_GTAOState.filteredAOUAV && 
         g_GTAOState.cachedWidth == width && g_GTAOState.cachedHeight == height)
         return; // Already valid
@@ -304,7 +299,7 @@ static void InitializeFilterResources(ID3D11Device* device, int width, int heigh
         }
     }
     
-    // 1. Filtered AO Texture (R32_FLOAT - filter outputs single-channel AO only)
+    // Filtered AO Texture (R32_FLOAT - filter outputs single-channel AO only)
     D3D11_TEXTURE2D_DESC desc = {};
     desc.Width = width;
     desc.Height = height;
@@ -330,7 +325,7 @@ static void InitializeFilterResources(ID3D11Device* device, int width, int heigh
         return;
     }
     
-    // 2. Intermediate texture for ping-pong (Pass 1 -> Pass 2)
+    // Intermediate texture for ping-pong (Pass 1 -> Pass 2)
     hr = device->CreateTexture2D(&desc, nullptr, &g_GTAOState.filterIntermediateTexture);
     if (FAILED(hr) || !g_GTAOState.filterIntermediateTexture) {
         LogToFile("[GTAO] Failed to create filter intermediate texture (0x%08X)", hr);
@@ -346,14 +341,14 @@ static void InitializeFilterResources(ID3D11Device* device, int width, int heigh
         LogToFile("[GTAO] Failed to create filter intermediate UAV (0x%08X)", hr);
     }
     
-    // 3. Filter Compute Shader
+    // Filter Compute Shader
     hr = device->CreateComputeShader(g_GTAOFilterCS, sizeof(g_GTAOFilterCS), nullptr, 
                                 &g_GTAOState.filterShader);
     if (FAILED(hr)) {
         LogToFile("[GTAO] Failed to create filter shader (0x%08X)", hr);
     }
     
-    // 4. Constant Buffer (FilterParams: 16 bytes)
+    // Constant Buffer (FilterParams: 16 bytes)
     D3D11_BUFFER_DESC cbDesc = {};
     cbDesc.ByteWidth = sizeof(FilterParams);
     cbDesc.Usage = D3D11_USAGE_DYNAMIC;
@@ -368,7 +363,6 @@ static void InitializeFilterResources(ID3D11Device* device, int width, int heigh
     g_GTAOState.cachedHeight = height;
 }
 
-// Initialize blue noise texture (one-time, immutable)
 static void InitializeBlueNoiseResources(ID3D11Device* device)
 {
     if (g_GTAOState.blueNoiseTexture) return;  // Already initialized
@@ -394,7 +388,6 @@ static void InitializeBlueNoiseResources(ID3D11Device* device)
     }
 }
 
-// Initialize cached compute resources (create only if null or size mismatch)
 static void EnsureComputeResources(ID3D11Device* device, int width, int height)
 {
     // Safer check: verify resources actually exist and match dimensions
@@ -416,7 +409,7 @@ static void EnsureComputeResources(ID3D11Device* device, int width, int height)
         if (g_GTAOState.normalSRVCached) { g_GTAOState.normalSRVCached->Release(); g_GTAOState.normalSRVCached = nullptr; }
     }
     
-    // 1. AO Output Texture (RG32_FLOAT)
+    // AO Output Texture (RG32_FLOAT)
     D3D11_TEXTURE2D_DESC aoDesc = {};
     aoDesc.Width = width;
     aoDesc.Height = height;
@@ -443,7 +436,7 @@ static void EnsureComputeResources(ID3D11Device* device, int width, int height)
         return;
     }
     
-    // 2. Hi-Z Texture with mip chain
+    // Hi-Z Texture with mip chain
     int hiZMipCount = (int)(log2((std::max)(width, height))) + 1;
     hiZMipCount = (std::min)(hiZMipCount, 12);
     
@@ -466,7 +459,7 @@ static void EnsureComputeResources(ID3D11Device* device, int width, int height)
         return;
     }
     
-    // 3. Constant Buffers
+    // Constant Buffers
     D3D11_BUFFER_DESC cbDesc = {};
     cbDesc.ByteWidth = sizeof(GTAOParams);
     cbDesc.Usage = D3D11_USAGE_DYNAMIC;
@@ -484,7 +477,7 @@ static void EnsureComputeResources(ID3D11Device* device, int width, int height)
         LogToFile("[GTAO] Failed to create Hi-Z constant buffer (0x%08X)", hr);
     }
     
-    // 4. Compute Shaders
+    // Compute Shaders
     hr = device->CreateComputeShader(g_HiZCS, sizeof(g_HiZCS), nullptr, &g_GTAOState.hiZShaderCached);
     if (FAILED(hr)) {
         LogToFile("[GTAO] Failed to create Hi-Z shader (0x%08X)", hr);
@@ -495,7 +488,7 @@ static void EnsureComputeResources(ID3D11Device* device, int width, int height)
         LogToFile("[GTAO] Failed to create GTAO shader (0x%08X)", hr);
     }
     
-    // 5. Point Sampler for Hi-Z
+    // Point Sampler for Hi-Z
     D3D11_SAMPLER_DESC sampDesc = {};
     sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
     sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
@@ -507,37 +500,31 @@ static void EnsureComputeResources(ID3D11Device* device, int width, int height)
         LogToFile("[GTAO] Failed to create point sampler (0x%08X)", hr);
     }
     
-    // Cache dimensions
     g_GTAOState.cachedWidth = width;
     g_GTAOState.cachedHeight = height;
 }
 
-// Initialize output pipeline state objects (one-time)
 static void InitializeOutputStates(ID3D11Device* device)
 {
     if (g_GTAOState.dsState) return; // Already initialized
     
-    // Depth-stencil: Disable depth test/write for full-screen quad
     D3D11_DEPTH_STENCIL_DESC dsDesc = {};
     dsDesc.DepthEnable = FALSE;
     dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
     dsDesc.StencilEnable = FALSE;
     device->CreateDepthStencilState(&dsDesc, &g_GTAOState.dsState);
     
-    // Blend: Standard alpha blend disabled for AO composite
     D3D11_BLEND_DESC blendDesc = {};
     blendDesc.RenderTarget[0].BlendEnable = FALSE;
     blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
     device->CreateBlendState(&blendDesc, &g_GTAOState.blendState);
     
-    // Rasterizer: No culling, fill mode
     D3D11_RASTERIZER_DESC rsDesc = {};
     rsDesc.FillMode = D3D11_FILL_SOLID;
     rsDesc.CullMode = D3D11_CULL_NONE;
     device->CreateRasterizerState(&rsDesc, &g_GTAOState.rasterState);
 }
 
-// Ensure intermediate texture exists for read-modify-write safety
 static void EnsureIntermediateTexture(ID3D11Device* device, DXGI_FORMAT format, int width, int height)
 {
     if (g_GTAOState.intermediateTexture && 
@@ -545,7 +532,6 @@ static void EnsureIntermediateTexture(ID3D11Device* device, DXGI_FORMAT format, 
         g_GTAOState.cachedHeight == height)
         return;
     
-    // Cleanup old
     if (g_GTAOState.intermediateTexture) {
         g_GTAOState.intermediateTexture->Release(); g_GTAOState.intermediateTexture = nullptr;
         g_GTAOState.intermediateSRV->Release(); g_GTAOState.intermediateSRV = nullptr;
@@ -670,15 +656,12 @@ static void ExecuteComposite(ID3D11DeviceContext* context, ID3D11RenderTargetVie
         return;
     }
     
-    // Get device from context
     ID3D11Device* device = nullptr;
     context->GetDevice(&device);
     if (!device) return;
     
-    // Initialize cached resources if needed
     InitializeOutputStates(device);
     
-    // Ensure intermediate texture for read-write hazard (use source format)
     if (sourceSceneTexture) {
         D3D11_TEXTURE2D_DESC srcDesc;
         sourceSceneTexture->GetDesc(&srcDesc);
@@ -687,7 +670,6 @@ static void ExecuteComposite(ID3D11DeviceContext* context, ID3D11RenderTargetVie
         EnsureIntermediateTexture(device, DXGI_FORMAT_R8G8B8A8_UNORM, width, height);
     }
     
-    // Check if intermediate texture creation succeeded
     if (!g_GTAOState.intermediateTexture) {
         LogToFile("[GTAO] ExecuteComposite: intermediate texture creation failed");
         device->Release();
@@ -714,7 +696,6 @@ static void ExecuteComposite(ID3D11DeviceContext* context, ID3D11RenderTargetVie
         device->CreateBuffer(&cbDesc, nullptr, &g_GTAOState.outputCB);
     }
     
-    // Create SRV for filtered AO
     ID3D11ShaderResourceView* aoSRV = nullptr;
     HRESULT hr = device->CreateShaderResourceView(g_GTAOState.filteredAOTexture, nullptr, &aoSRV);
     if (FAILED(hr) || !aoSRV) {
@@ -790,7 +771,6 @@ static void ExecuteComposite(ID3D11DeviceContext* context, ID3D11RenderTargetVie
         context->Unmap(g_GTAOState.outputCB, 0);
     }
     
-    // Setup pipeline state
     context->OMSetRenderTargets(1, &compositeRTV, nullptr);
     context->OMSetDepthStencilState(g_GTAOState.dsState, 0);
     context->OMSetBlendState(g_GTAOState.blendState, nullptr, 0xFFFFFFFF);
@@ -799,17 +779,14 @@ static void ExecuteComposite(ID3D11DeviceContext* context, ID3D11RenderTargetVie
     D3D11_VIEWPORT vp = { 0, 0, (float)width, (float)height, 0, 1 };
     context->RSSetViewports(1, &vp);
     
-    // Bind shaders
     context->VSSetShader(g_GTAOState.outputVS, nullptr, 0);
     context->PSSetShader(g_GTAOState.outputPS, nullptr, 0);
     context->PSSetConstantBuffers(0, 1, &g_GTAOState.outputCB);
     context->PSSetSamplers(0, 1, &g_GTAOState.outputSampler);
     
-    // Bind SRVs
     ID3D11ShaderResourceView* srvs[2] = { aoSRV, sceneSRV };
     context->PSSetShaderResources(0, 2, srvs);
     
-    // Draw fullscreen triangle (3 vertices, no vertex buffer)
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     context->IASetInputLayout(nullptr);
     context->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
@@ -832,7 +809,6 @@ static void ExecuteComposite(ID3D11DeviceContext* context, ID3D11RenderTargetVie
     context->PSSetShader(nullPS, nullptr, 0);
     context->PSSetSamplers(0, 1, &nullSampler);
     
-    // Cleanup local resources (don't release rtv or context - caller owns them)
     if (aoSRV) aoSRV->Release();
     if (sceneSRV && sceneSRV != g_GTAOState.intermediateSRV) sceneSRV->Release();
     if (sceneSRV == g_GTAOState.intermediateSRV) sceneSRV->Release(); // Release our AddRef
@@ -990,7 +966,7 @@ static void ExecuteGTAOCompute(ID3D11DeviceContext* context)
         params->sliceCount = g_UserSettings.SliceCount;
         params->stepsPerSlice = g_UserSettings.StepsPerSlice;
         
-        // float4 #5 (offset 64) - CRITICAL: These were missing/wrong before
+        // float4 #5 (offset 64)
         params->FrameIndex = g_GTAOState.frameIndex;
         params->depthMipSamplingOffset = 2.0f;
         params->fadeStartDistance = g_UserSettings.FadeStartDistance;
@@ -1170,8 +1146,7 @@ UnityRenderingEvent CR_GetGTAORenderEventFunc()
 extern "C" __declspec(dllexport)
 void CR_GTAOSetOutputMode(int mode)
 {
-    // Mode mapping from C# UI to internal state:
-    // 0=None (Composite AO), 1=Raw AO, 2=World Normals, 3=View Normals, 4=Normal Alpha
+// Output modes: 0=Composite AO, 1=Raw AO, 2=World Normals, 3=View Normals, 4=Normal Alpha
     if (mode == 0)
     {
         g_GTAOState.outputMode = 0; // Composite AO over scene
@@ -1203,25 +1178,20 @@ void CR_GTAOSetSettings(const GTAOUserSettings* settings)
 extern "C" __declspec(dllexport)
 void CR_GTAOShutdown()
 {
-    // Lock to prevent concurrent access from render thread
     std::lock_guard<std::mutex> lock(g_GTAOState.stateMutex);
     
-    // Release intermediate texture
     if (g_GTAOState.intermediateSRV) { g_GTAOState.intermediateSRV->Release(); g_GTAOState.intermediateSRV = nullptr; }
     if (g_GTAOState.intermediateTexture) { g_GTAOState.intermediateTexture->Release(); g_GTAOState.intermediateTexture = nullptr; }
     
-    // Release state objects
     if (g_GTAOState.dsState) { g_GTAOState.dsState->Release(); g_GTAOState.dsState = nullptr; }
     if (g_GTAOState.blendState) { g_GTAOState.blendState->Release(); g_GTAOState.blendState = nullptr; }
     if (g_GTAOState.rasterState) { g_GTAOState.rasterState->Release(); g_GTAOState.rasterState = nullptr; }
     
-    // Release shaders
     if (g_GTAOState.outputVS) { g_GTAOState.outputVS->Release(); g_GTAOState.outputVS = nullptr; }
     if (g_GTAOState.outputPS) { g_GTAOState.outputPS->Release(); g_GTAOState.outputPS = nullptr; }
     if (g_GTAOState.outputSampler) { g_GTAOState.outputSampler->Release(); g_GTAOState.outputSampler = nullptr; }
     if (g_GTAOState.outputCB) { g_GTAOState.outputCB->Release(); g_GTAOState.outputCB = nullptr; }
     
-    // Release filter resources
     if (g_GTAOState.filteredAOTexture) { g_GTAOState.filteredAOTexture->Release(); g_GTAOState.filteredAOTexture = nullptr; }
     if (g_GTAOState.filteredUAV) { g_GTAOState.filteredUAV->Release(); g_GTAOState.filteredUAV = nullptr; }
     if (g_GTAOState.filteredAOUAV) { g_GTAOState.filteredAOUAV->Release(); g_GTAOState.filteredAOUAV = nullptr; }
@@ -1230,11 +1200,9 @@ void CR_GTAOShutdown()
     if (g_GTAOState.filterShader) { g_GTAOState.filterShader->Release(); g_GTAOState.filterShader = nullptr; }
     if (g_GTAOState.filterCB) { g_GTAOState.filterCB->Release(); g_GTAOState.filterCB = nullptr; }
     
-    // Release blue noise
     if (g_GTAOState.blueNoiseSRV) { g_GTAOState.blueNoiseSRV->Release(); g_GTAOState.blueNoiseSRV = nullptr; }
     if (g_GTAOState.blueNoiseTexture) { g_GTAOState.blueNoiseTexture->Release(); g_GTAOState.blueNoiseTexture = nullptr; }
     
-    // Release cached compute resources
     if (g_GTAOState.aoUAV) { g_GTAOState.aoUAV->Release(); g_GTAOState.aoUAV = nullptr; }
     if (g_GTAOState.aoTexture) { g_GTAOState.aoTexture->Release(); g_GTAOState.aoTexture = nullptr; }
     if (g_GTAOState.hiZTexture) { g_GTAOState.hiZTexture->Release(); g_GTAOState.hiZTexture = nullptr; }

@@ -17,34 +17,36 @@ namespace CinematicShaders.UI.Tabs
             CinematicShadersUIStrings.GTAO.QualityUltra
         };
 
-        // State
-        private int _qualityPresetIndex = 1;
-        private float _radius = 2.0f;
-        private float _intensity = 0.8f;
-        private int _distributionCurve = 1;
-        private float _edgeSharpness = 32.0f;
-        private float _depthTolerance = 0.5f;
-        private float _maxPixelRadius = 50.0f;
-        private float _fadeStartDistance = 0.0f;
-        private float _fadeEndDistance = 500.0f;
-        private float _fadeCurve = 1.0f;
+        private int _qualityPresetIndex;
+        private float _radius;
+        private float _intensity;
+        private float _maxPixelRadius;
+        private float _fadeStartDistance;
+        private float _fadeEndDistance;
+        private float _fadeCurve;
         private bool _initialized = false;
+        private bool _showQualityDropdown = false;
+        private bool _showDebugDropdown = false;
 
-        private int _currentDebugMode = 0; // 0=None, 1=RawAO, 2=WorldNorm, 3=ViewNorm, 4=NormAlpha
+        private int _currentDebugMode = 0; // None=0, RawAO=1, WorldNorm=2, ViewNorm=3, NormAlpha=4
 
-        private int GetCurrentDebugMode()
+        public GTAOTab()
         {
-            return _currentDebugMode;
+            _qualityPresetIndex = GTAOSettings.QualityPreset;
+            _radius = GTAOSettings.EffectRadius;
+            _intensity = GTAOSettings.Intensity;
+            _maxPixelRadius = GTAOSettings.MaxPixelRadius;
+            _fadeStartDistance = GTAOSettings.FadeStartDistance;
+            _fadeEndDistance = GTAOSettings.FadeEndDistance;
+            _fadeCurve = GTAOSettings.FadeCurve;
         }
 
         private void SetDebugMode(int mode)
         {
             _currentDebugMode = mode;
             GTAOSettings.DebugVisualizationMode = mode;
-            // Mode mapping: 0=Composite, 1=Raw AO, 2=World Normals, 3=View Normals, 4=Normal Alpha
             GTAONative.CR_GTAOSetOutputMode(mode);
 
-            // If enabling debug view, ensure GTAO is effectively "enabled" so render runs
             if (mode > 0 && !GTAOSettings.EnableGTAO)
             {
                 GTAOManager.EnableDebugMode();
@@ -53,18 +55,13 @@ namespace CinematicShaders.UI.Tabs
 
         public void Draw()
         {
-            // Check if native DLL loaded
             if (!GTAONative.IsLoaded)
             {
                 GUILayout.Space(20);
-                GUIStyle errorStyle = new GUIStyle(HighLogic.Skin.label);
-                errorStyle.normal.textColor = Color.red;
-                errorStyle.wordWrap = true;
-                GUILayout.Label("Native plugin failed to load. Check KSP.log for details.", errorStyle);
+                GUILayout.Label(CinematicShadersUIStrings.GTAO.NativeLoadError, CinematicShadersUIResources.Styles.Error());
                 return;
             }
 
-            // Initialize on first draw when we're sure native plugin is ready
             if (!_initialized)
             {
                 PushSettingsToNative();
@@ -79,56 +76,38 @@ namespace CinematicShaders.UI.Tabs
                 if (!isDeferred)
                     GUI.enabled = false;
 
-                GUIStyle smallHelp = CinematicShadersUIResources.Styles.SmallHelp();
+                GUIStyle helpStyle = CinematicShadersUIResources.Styles.Help();
 
-                // DEBUG VISUALIZATION SECTION
-                // Comment out the line below to disable debug visualization UI in release builds
                 DrawDebugSection();
 
-                // SAMPLING SECTION
                 GUILayout.Label(CinematicShadersUIStrings.GTAO.SamplingSection, HighLogic.Skin.label);
 
                 DrawQualityDropdown();
                 DrawSlider(CinematicShadersUIStrings.GTAO.RadiusLabel, ref _radius, 0.5f, 10.0f, "F1");
-                GUILayout.Label(CinematicShadersUIStrings.GTAO.RadiusTooltip, smallHelp);
+                GUILayout.Label(CinematicShadersUIStrings.GTAO.RadiusTooltip, helpStyle);
                 DrawSlider(CinematicShadersUIStrings.GTAO.DetailRangeLabel, ref _maxPixelRadius, 20f, 300f, "F0", "px");
 
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
 
-                // SHADOW STRENGTH SECTION
                 GUILayout.Label(CinematicShadersUIStrings.GTAO.ShadowStrengthSection, HighLogic.Skin.label);
                 DrawSlider(CinematicShadersUIStrings.GTAO.IntensityLabel, ref _intensity, 0.0f, 2.0f, "F2");
 
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
 
-                // FILTERING SECTION
-                //GUILayout.Label(CinematicShadersUIStrings.GTAO.FilteringSection, HighLogic.Skin.label);
-                //DrawSlider(CinematicShadersUIStrings.GTAO.EdgeSharpnessLabel, ref _edgeSharpness, 1.0f, 64.0f, "F0");
-                //DrawSlider(CinematicShadersUIStrings.GTAO.DepthToleranceLabel, ref _depthTolerance, 0.01f, 2.0f, "F2");
-                //GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
-
-                // DISTANCE FADE SECTION
                 GUILayout.Label(CinematicShadersUIStrings.GTAO.DistanceFadeSection, HighLogic.Skin.label);
                 DrawSliderExponential(CinematicShadersUIStrings.GTAO.StartFadeLabel, ref _fadeStartDistance, 2000f, 25000f, 2.5f, "F0", "m");
                 DrawSliderExponential(CinematicShadersUIStrings.GTAO.EndFadeLabel, ref _fadeEndDistance, 25000f, 200000f, 2.0f, "F0", "m");
                 DrawSlider(CinematicShadersUIStrings.GTAO.EdgeHardnessLabel, ref _fadeCurve, 0.5f, 3.0f, "F1");
 
-                GUILayout.Label(CinematicShadersUIStrings.GTAO.EdgeHardnessTooltip, smallHelp);
+                GUILayout.Label(CinematicShadersUIStrings.GTAO.EdgeHardnessTooltip, helpStyle);
 
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
 
-                // ADVANCED SECTION
-                //GUILayout.Label(CinematicShadersUIStrings.GTAO.AdvancedSection, HighLogic.Skin.label);
-                //DrawDistributionDropdown();
-                //GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.LARGE);
-
-                // TOGGLES
                 DrawEnableToggle(oldEnabled, isDeferred);
 
                 if (!isDeferred)
                 {
                     GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.TIGHT);
-                    GUIStyle helpStyle = CinematicShadersUIResources.Styles.Help();
                     GUILayout.Label(CinematicShadersUIStrings.GTAO.DeferredWarning, helpStyle);
                 }
             }
@@ -140,18 +119,36 @@ namespace CinematicShaders.UI.Tabs
 
         private void DrawDebugSection()
         {
-            GUILayout.Label("Debug Visualization", HighLogic.Skin.label);
-            string[] debugOptions = { "None", "Raw AO", "World Normals", "View Normals", "Normal Alpha" };
-            int currentDebugMode = GetCurrentDebugMode();
+            GUILayout.Label(CinematicShadersUIStrings.GTAO.DebugVisualizationHeader, HighLogic.Skin.label);
+            string[] debugOptions = { CinematicShadersUIStrings.GTAO.DebugModeNone, CinematicShadersUIStrings.GTAO.DebugModeRawAO, CinematicShadersUIStrings.GTAO.DebugModeWorldNormals, CinematicShadersUIStrings.GTAO.DebugModeViewNormals, CinematicShadersUIStrings.GTAO.DebugModeNormalAlpha };
+            int currentDebugMode = _currentDebugMode;
+            string currentLabel = debugOptions[currentDebugMode];
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label("View", GUILayout.Width(60));
-            int newDebugMode = GUILayout.SelectionGrid(currentDebugMode, debugOptions, 2, HighLogic.Skin.button);
+            GUILayout.Label(CinematicShadersUIStrings.GTAO.DebugViewLabel, GUILayout.Width(CinematicShadersUIResources.Layout.Dropdowns.DEBUG_LABEL_WIDTH));
+            if (GUILayout.Button(currentLabel, HighLogic.Skin.button, GUILayout.Width(CinematicShadersUIResources.Layout.Dropdowns.DEBUG_BUTTON_WIDTH)))
+            {
+                _showDebugDropdown = !_showDebugDropdown;
+                _showQualityDropdown = false; // Close other dropdown
+            }
             GUILayout.EndHorizontal();
 
-            if (newDebugMode != currentDebugMode)
+            if (_showDebugDropdown)
             {
-                SetDebugMode(newDebugMode);
+                GUIStyle boxStyle = CinematicShadersUIResources.Styles.DropdownBox();
+                GUILayout.BeginVertical(boxStyle);
+                for (int i = 0; i < debugOptions.Length; i++)
+                {
+                    if (GUILayout.Button(debugOptions[i], HighLogic.Skin.button))
+                    {
+                        if (currentDebugMode != i)
+                        {
+                            SetDebugMode(i);
+                        }
+                        _showDebugDropdown = false;
+                    }
+                }
+                GUILayout.EndVertical();
             }
 
             GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
@@ -162,31 +159,31 @@ namespace CinematicShaders.UI.Tabs
             GUILayout.BeginHorizontal();
             GUILayout.Label(CinematicShadersUIStrings.GTAO.QualityLabel, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.DEFAULT_WIDTH));
 
-            if (GUILayout.Button(kQualityNames[_qualityPresetIndex], HighLogic.Skin.button, GUILayout.Width(100)))
+            if (GUILayout.Button(kQualityNames[_qualityPresetIndex], HighLogic.Skin.button, GUILayout.Width(CinematicShadersUIResources.Layout.Dropdowns.QUALITY_BUTTON_WIDTH)))
             {
-                _qualityPresetIndex = (_qualityPresetIndex + 1) % kQualityNames.Length;
-                PushSettingsToNative();
+                _showQualityDropdown = !_showQualityDropdown;
+                _showDebugDropdown = false; // Close other dropdown to prevent overlap
             }
             GUILayout.EndHorizontal();
-        }
 
-        private void DrawDistributionDropdown()
-        {
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(CinematicShadersUIStrings.GTAO.DistributionLabel, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.DEFAULT_WIDTH));
-
-            string[] curveNames = {
-                CinematicShadersUIStrings.GTAO.DistributionLinear,
-                CinematicShadersUIStrings.GTAO.DistributionQuadratic,
-                CinematicShadersUIStrings.GTAO.DistributionCubic
-            };
-
-            if (GUILayout.Button(curveNames[_distributionCurve], HighLogic.Skin.button, GUILayout.Width(100)))
+            if (_showQualityDropdown)
             {
-                _distributionCurve = (_distributionCurve + 1) % 3;
-                PushSettingsToNative();
+                GUIStyle boxStyle = CinematicShadersUIResources.Styles.DropdownBox();
+                GUILayout.BeginVertical(boxStyle);
+                for (int i = 0; i < kQualityNames.Length; i++)
+                {
+                    if (GUILayout.Button(kQualityNames[i], HighLogic.Skin.button))
+                    {
+                        if (_qualityPresetIndex != i)
+                        {
+                            _qualityPresetIndex = i;
+                            PushSettingsToNative();
+                        }
+                        _showQualityDropdown = false;
+                    }
+                }
+                GUILayout.EndVertical();
             }
-            GUILayout.EndHorizontal();
         }
 
         private void DrawSlider(string label, ref float value, float min, float max, string format, string suffix = "")
@@ -275,25 +272,15 @@ namespace CinematicShaders.UI.Tabs
 
         private void PushSettingsToNative()
         {
-            if (!GTAONative.IsLoaded)
-                return;
+            GTAOSettings.PushSettingsToNative();
 
-            var settings = new GTAONative.GTAOSettings
-            {
-                EffectRadius = _radius,
-                Intensity = _intensity,
-                SliceCount = kSlicePresets[_qualityPresetIndex],
-                StepsPerSlice = kStepPresets[_qualityPresetIndex],
-                SampleDistributionPower = _distributionCurve + 1.0f,
-                NormalPower = _edgeSharpness,
-                DepthSigma = _depthTolerance,
-                MaxPixelRadius = _maxPixelRadius,
-                FadeStartDistance = _fadeStartDistance,
-                FadeEndDistance = _fadeEndDistance,
-                FadeCurve = _fadeCurve
-            };
-
-            GTAONative.CR_GTAOSetSettings(ref settings);
+            GTAOSettings.QualityPreset = _qualityPresetIndex;
+            GTAOSettings.EffectRadius = _radius;
+            GTAOSettings.Intensity = _intensity;
+            GTAOSettings.MaxPixelRadius = _maxPixelRadius;
+            GTAOSettings.FadeStartDistance = _fadeStartDistance;
+            GTAOSettings.FadeEndDistance = _fadeEndDistance;
+            GTAOSettings.FadeCurve = _fadeCurve;
         }
 
         private bool IsDeferredRenderingActive()

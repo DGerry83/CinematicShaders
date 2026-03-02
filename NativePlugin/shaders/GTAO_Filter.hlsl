@@ -3,7 +3,7 @@
 
 Texture2D<float2>  g_RawAO    : register(t0);  // x=AO, y=LinearDepth
 Texture2D<float4>  g_Normals  : register(t1);  // View-space normals (RGB10A2_UNORM)
-RWTexture2D<float> g_Filtered : register(u0);  // Output
+RWTexture2D<float> g_Filtered : register(u0); 
 
 SamplerState g_PointSampler : register(s0); // Point clamp
 
@@ -85,7 +85,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     }
     
     // Solve weighted linear regression: AO = alpha + beta * Depth
-    // This is the REFERENCE AO trick - it preserves gradients across smooth surfaces
+    // Preserves gradients across smooth surfaces while normal/depth weights stop at edges
     // but the normal/depth weights stop the regression at edges
     float cov = sumW_AOxDepth - (sumW_Depth * sumW_AO / sumW);
     float var = sumW_DepthSq - (sumW_Depth * sumW_Depth / sumW);

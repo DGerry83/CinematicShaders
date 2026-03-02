@@ -5,6 +5,7 @@
         public static class Common
         {
             public const string WindowTitle = "Cinematic Shaders";
+            public const string Initializing = "Initializing...";
         }
 
         public static class GTAO
@@ -24,7 +25,6 @@
             public const string RadiusLabel = "Radius";
             public const string RadiusTooltip = "How far to search for occluders (larger = more distant shadows)";
             public const string DetailRangeLabel = "Shadow Spread";
-            //public const string DetailRangeTooltip = "Higher = better distant detail, lower FPS";
 
             // Shadow Strength
             public const string IntensityLabel = "Intensity";
@@ -55,6 +55,15 @@
             public const string QualityMedium = "Medium";
             public const string QualityHigh = "High";
             public const string QualityUltra = "Ultra";
+
+            public const string DebugVisualizationHeader = "Debug Visualization";
+            public const string DebugViewLabel = "View";
+            public const string DebugModeNone = "None";
+            public const string DebugModeRawAO = "Raw AO";
+            public const string DebugModeWorldNormals = "World Normals";
+            public const string DebugModeViewNormals = "View Normals";
+            public const string DebugModeNormalAlpha = "Normal Alpha";
+            public const string NativeLoadError = "Native plugin failed to load. Check KSP.log for details.";
         }
     }
 }

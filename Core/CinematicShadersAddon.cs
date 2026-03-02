@@ -6,101 +6,162 @@ using UnityEngine;
 
 namespace CinematicShaders.Core
 {
-    [KSPAddon(KSPAddon.Startup.Flight, false)]
+    [KSPAddon(KSPAddon.Startup.EveryScene, false)]
     public class CinematicShadersAddon : MonoBehaviour
     {
         public static CinematicShadersAddon Instance { get; private set; }
 
-        private ApplicationLauncherButton toolbarButton;
-        private CinematicShadersWindow mainWindow;
-        private Texture2D toolbarIcon;
+        private static ApplicationLauncherButton _toolbarButton;
+        private static Texture2D _toolbarIcon;
+
+        private CinematicShadersWindow _mainWindow;
 
         void Awake()
         {
+            if (Instance != null && Instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
             Instance = this;
         }
 
         void Start()
         {
-            // Initialize GTAO if enabled
-            GTAOManager.Initialize();
+            GTAOSettings.Load();
 
-            // Hook into ApplicationLauncher (toolbar)
-            GameEvents.onGUIApplicationLauncherReady.Add(OnGUIApplicationLauncherReady);
-            GameEvents.onGUIApplicationLauncherDestroyed.Add(OnGUIApplicationLauncherDestroyed);
-
-            // Load icon (create a simple colored texture if file not found, or use your own)
-            toolbarIcon = GameDatabase.Instance.GetTexture("CinematicShaders/Icons/ToolbarIcon", false);
-            if (toolbarIcon == null)
+            if (HighLogic.LoadedScene != GameScenes.MAINMENU && GTAOSettings.EnableGTAO)
             {
-                // Create a simple placeholder icon (orange square)
-                toolbarIcon = new Texture2D(38, 38, TextureFormat.RGBA32, false);
-                Color[] pixels = new Color[38 * 38];
-                for (int i = 0; i < pixels.Length; i++) pixels[i] = new Color(1f, 0.5f, 0f);
-                toolbarIcon.SetPixels(pixels);
-                toolbarIcon.Apply();
+                Invoke(nameof(DelayedInit), 0.5f);
+            }
+
+            GameEvents.onGUIApplicationLauncherReady.Add(OnGUIApplicationLauncherReady);
+            GameEvents.onLevelWasLoadedGUIReady.Add(OnLevelWasLoadedGUIReady);
+
+            if (_toolbarIcon == null)
+            {
+                _toolbarIcon = GameDatabase.Instance.GetTexture("CinematicShaders/Icons/ToolbarIcon", false);
+                if (_toolbarIcon == null)
+                {
+                    _toolbarIcon = new Texture2D(38, 38, TextureFormat.RGBA32, false);
+                    Color[] pixels = new Color[38 * 38];
+                    for (int i = 0; i < pixels.Length; i++) pixels[i] = new Color(1f, 0.5f, 0f);
+                    _toolbarIcon.SetPixels(pixels);
+                    _toolbarIcon.Apply();
+                }
+            }
+        }
+
+        private void DelayedInit()
+        {
+            if (GTAOSettings.EnableGTAO)
+                GTAOManager.Initialize();
+        }
+
+        private void OnLevelWasLoadedGUIReady(GameScenes scene)
+        {
+            if (scene == GameScenes.MAINMENU) return;
+
+            if (GTAOSettings.EnableGTAO)
+            {
+                if (scene == GameScenes.EDITOR && GTAOManager.IsActive)
+                {
+                    // Check if compositor is on the wrong (destroyed) camera
+                    if (!GTAOManager.IsCompositorOnCurrentCamera())
+                    {
+                        Debug.Log("[CinematicShaders] Detected stale compositor in Editor, resetting...");
+                        GTAOManager.DisableGTAO();
+                    }
+                }
+
+                GTAOManager.Initialize();
+
+                if (!GTAOManager.IsActive && scene == GameScenes.EDITOR)
+                {
+                    CancelInvoke(nameof(RetryInit));
+                    Invoke(nameof(RetryInit), 0.5f);
+                    Invoke(nameof(RetryInit), 1.5f);
+                    Invoke(nameof(RetryInit), 3.0f);
+                }
+            }
+        }
+
+        private void RetryInit()
+        {
+            if (GTAOSettings.EnableGTAO && !GTAOManager.IsActive)
+            {
+                Debug.Log("[CinematicShaders] Retrying GTAO initialization...");
+                GTAOManager.Initialize();
             }
         }
 
         void OnDestroy()
         {
+            if (Instance != this) return;
+            CancelInvoke(nameof(RetryInit));
+
             GameEvents.onGUIApplicationLauncherReady.Remove(OnGUIApplicationLauncherReady);
-            GameEvents.onGUIApplicationLauncherDestroyed.Remove(OnGUIApplicationLauncherDestroyed);
+            GameEvents.onLevelWasLoadedGUIReady.Remove(OnLevelWasLoadedGUIReady);
 
-            if (toolbarButton != null)
-                ApplicationLauncher.Instance.RemoveModApplication(toolbarButton);
+            if (_toolbarButton != null && ApplicationLauncher.Instance != null)
+            {
+                ApplicationLauncher.Instance.RemoveModApplication(_toolbarButton);
+                _toolbarButton = null;
+            }
 
-            if (mainWindow != null && mainWindow.gameObject != null)
-                Destroy(mainWindow.gameObject);
+            if (_mainWindow != null && _mainWindow.gameObject != null)
+                Destroy(_mainWindow.gameObject);
 
-            // Cleanup GTAO native resources
-            GTAONative.CR_GTAOShutdown();
+            try
+            {
+                if (GTAONative.IsLoaded)
+                    GTAONative.CR_GTAOShutdown();
+            }
+            catch (System.Exception)
+            {
+                /* DLL already unloaded, ignore */
+            }
+
+            Instance = null;
         }
 
         private void OnGUIApplicationLauncherReady()
         {
-            if (toolbarButton == null)
+            if (_toolbarButton != null || Instance != this) return;
+
+            if (ApplicationLauncher.Instance != null)
             {
-                toolbarButton = ApplicationLauncher.Instance.AddModApplication(
+                _toolbarButton = ApplicationLauncher.Instance.AddModApplication(
                     OnToolbarButtonOn,
                     OnToolbarButtonOff,
                     null, null, null, null,
-                    ApplicationLauncher.AppScenes.FLIGHT | ApplicationLauncher.AppScenes.MAPVIEW,
-                    toolbarIcon
+                    ApplicationLauncher.AppScenes.ALWAYS,
+                    _toolbarIcon
                 );
-            }
-        }
-
-        private void OnGUIApplicationLauncherDestroyed()
-        {
-            if (toolbarButton != null)
-            {
-                ApplicationLauncher.Instance.RemoveModApplication(toolbarButton);
-                toolbarButton = null;
             }
         }
 
         private void OnToolbarButtonOn()
         {
-            if (mainWindow == null)
+            if (_mainWindow == null)
             {
                 GameObject go = new GameObject("CinematicShadersWindow");
                 DontDestroyOnLoad(go);
-                mainWindow = go.AddComponent<CinematicShadersWindow>();
-                mainWindow.OnClose += () =>
+                _mainWindow = go.AddComponent<CinematicShadersWindow>();
+                _mainWindow.OnClose += () =>
                 {
-                    if (toolbarButton != null)
-                        toolbarButton.SetFalse(false);
+                    if (_toolbarButton != null)
+                        _toolbarButton.SetFalse(false);
                 };
             }
-            mainWindow.Show();
+            _mainWindow.Show();
         }
 
         private void OnToolbarButtonOff()
         {
-            if (mainWindow != null)
+            if (_mainWindow != null)
             {
-                mainWindow.Hide();
+                _mainWindow.Hide();
             }
         }
     }

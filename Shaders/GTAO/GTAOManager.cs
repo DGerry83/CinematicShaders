@@ -1,4 +1,5 @@
 ﻿using CinematicShaders.Core;
+using CinematicShaders.Native;
 using UnityEngine;
 
 namespace CinematicShaders.Shaders.GTAO
@@ -10,6 +11,9 @@ namespace CinematicShaders.Shaders.GTAO
     public static class GTAOManager
     {
         private static GTAOCompositor _compositor;
+        public static bool IsActive => _compositor != null && _compositor.enabled;
+        public static GTAOCompositor Compositor => _compositor;
+        public static void ClearCompositorReference() => _compositor = null;
 
         /// <summary>
         /// Call this when the GTAO enable toggle changes.
@@ -31,6 +35,9 @@ namespace CinematicShaders.Shaders.GTAO
 
         private static void EnableGTAO()
         {
+            // Prevent re-initialization if already active
+            if (_compositor != null && _compositor.enabled) return;
+
             Camera mainCam = Camera.main;
             if (mainCam == null)
             {
@@ -38,15 +45,18 @@ namespace CinematicShaders.Shaders.GTAO
                 return;
             }
 
-            // Check for deferred rendering
             if (mainCam.actualRenderingPath != RenderingPath.DeferredShading)
             {
                 Debug.LogWarning("[GTAOManager] GTAO requires deferred rendering");
-                GTAOSettings.EnableGTAO = false;
                 return;
             }
 
-            // Add or enable the compositor
+            // CRITICAL: Push settings to native BEFORE enabling the compositor
+            if (GTAONative.IsLoaded)
+            {
+                GTAOSettings.PushSettingsToNative();
+            }
+
             _compositor = mainCam.GetComponent<GTAOCompositor>();
             if (_compositor == null)
             {
@@ -57,13 +67,19 @@ namespace CinematicShaders.Shaders.GTAO
             Debug.Log("[GTAOManager] GTAO enabled");
         }
 
-        private static void DisableGTAO()
+        public static void DisableGTAO()
         {
             if (_compositor != null)
             {
                 _compositor.enabled = false;
                 Debug.Log("[GTAOManager] GTAO disabled");
             }
+        }
+
+        public static bool IsCompositorOnCurrentCamera()
+        {
+            if (_compositor == null) return false;
+            return _compositor.gameObject == Camera.main?.gameObject;
         }
 
         public static void EnableDebugMode()

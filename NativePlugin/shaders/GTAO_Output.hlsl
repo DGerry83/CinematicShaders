@@ -1,5 +1,4 @@
-// GTAO_Output.hlsl
-// Full-screen composite output with proper full-screen triangle
+// Compositing filter for GTAO shader
 
 struct VSOut
 {
@@ -20,12 +19,9 @@ VSOut VSMain(uint id : SV_VertexID)
     VSOut o;
     
     // Generate positions that cover the screen with one large triangle
-    // id 0: (-1, -1) bottom-left
-    // id 1: ( 3, -1) way right, bottom  
-    // id 2: (-1,  3) top, way up
     float2 pos = float2(
-        id == 1 ? 3.0 : -1.0,  // x: -1 or 3
-        id == 2 ? 3.0 : -1.0   // y: -1 or 3
+        id == 1 ? 3.0 : -1.0,  
+        id == 2 ? 3.0 : -1.0   
     );
     
     o.pos = float4(pos, 0.0, 1.0);
@@ -39,8 +35,8 @@ VSOut VSMain(uint id : SV_VertexID)
     return o;
 }
 
-Texture2D<float>   g_AOTexture     : register(t0);  // Filtered AO (R32_FLOAT)
-Texture2D<float4>  g_SceneTexture  : register(t1);  // Scene color (optional)
+Texture2D<float>   g_AOTexture     : register(t0);  
+Texture2D<float4>  g_SceneTexture  : register(t1); 
 
 SamplerState g_LinearSampler : register(s0)
 {
@@ -58,15 +54,11 @@ float4 PSMain(VSOut i) : SV_Target0
     
     if (OutputMode == 1)
     {
-        // Raw AO Debug: Grayscale output
         return float4(ao, ao, ao, 1.0);
     }
     else
     {
-        // Composite: Multiply AO into scene color
         float4 scene = g_SceneTexture.Sample(g_LinearSampler, uv);
-        
-        // Multiplicative occlusion
         return scene * ao;
     }
 }

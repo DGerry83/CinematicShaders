@@ -19,6 +19,7 @@ namespace CinematicShaders.Shaders.GTAO
         private CommandBuffer _gtaoPipelineBuffer;
         private bool _initialized = false;
         private static int _gtaoFrameIndex = 0;
+        private bool _isRawAOMode = false;
 
         void OnEnable()
         {
@@ -40,10 +41,18 @@ namespace CinematicShaders.Shaders.GTAO
 
         void OnDestroy()
         {
+            if (GTAOManager.Compositor == this)
+                GTAOManager.ClearCompositorReference();
+
             Cleanup();
-            if (GTAONative.IsLoaded)
+            try
             {
-                GTAONative.CR_GTAOShutdown();
+                if (GTAONative.IsLoaded)
+                    GTAONative.CR_GTAOShutdown();
+            }
+            catch (System.Exception)
+            {
+                /* DLL unloaded, ignore */
             }
         }
 
@@ -79,12 +88,16 @@ namespace CinematicShaders.Shaders.GTAO
             _normalCaptureBuffer.Blit(BuiltinRenderTextureType.GBuffer2, _normalRT);
             _camera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, _normalCaptureBuffer);
 
-            // 2. GTAO Pipeline at AfterForwardOpaque
-            // Execute after capture buffers to ensure depth/normal are ready
+            // 2. GTAO Pipeline - register at appropriate event based on current mode
             _gtaoPipelineBuffer = new CommandBuffer();
             _gtaoPipelineBuffer.name = "GTAO Compute and Composite";
             _gtaoPipelineBuffer.IssuePluginEvent(GTAONative.CR_GetGTAORenderEventFunc(), 0);
-            _camera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, _gtaoPipelineBuffer);
+
+            _isRawAOMode = GTAOSettings.GTAORawAOOutput || GTAOSettings.DebugVisualizationMode > 0;
+            if (_isRawAOMode)
+                _camera.AddCommandBuffer(CameraEvent.BeforeImageEffects, _gtaoPipelineBuffer);
+            else
+                _camera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, _gtaoPipelineBuffer);
 
             _initialized = true;
         }
@@ -113,8 +126,10 @@ namespace CinematicShaders.Shaders.GTAO
             }
             if (_gtaoPipelineBuffer != null)
             {
-                _gtaoPipelineBuffer.Release();
-                _gtaoPipelineBuffer = null;
+                if (_isRawAOMode)
+                    _camera.RemoveCommandBuffer(CameraEvent.BeforeImageEffects, _gtaoPipelineBuffer);
+                else
+                    _camera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, _gtaoPipelineBuffer);
             }
             if (_depthRT != null)
             {
@@ -191,10 +206,33 @@ namespace CinematicShaders.Shaders.GTAO
         {
             if (!_initialized) return;
 
+            // Handle resolution changes
             if (_camera.pixelWidth != _depthRT.width || _camera.pixelHeight != _depthRT.height)
             {
                 Cleanup();
                 Initialize();
+                return;
+            }
+
+            // Handle Raw AO / Debug mode switching - move buffer to after clouds for clean output
+            bool wantRawAO = GTAOSettings.GTAORawAOOutput || GTAOSettings.DebugVisualizationMode > 0;
+            if (wantRawAO != _isRawAOMode)
+            {
+                if (_gtaoPipelineBuffer != null && _camera != null)
+                {
+                    // Remove from current event
+                    if (_isRawAOMode)
+                        _camera.RemoveCommandBuffer(CameraEvent.BeforeImageEffects, _gtaoPipelineBuffer);
+                    else
+                        _camera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, _gtaoPipelineBuffer);
+
+                    // Add to new event
+                    if (wantRawAO)
+                        _camera.AddCommandBuffer(CameraEvent.BeforeImageEffects, _gtaoPipelineBuffer);
+                    else
+                        _camera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, _gtaoPipelineBuffer);
+                }
+                _isRawAOMode = wantRawAO;
             }
         }
     }

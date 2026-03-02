@@ -10,39 +10,37 @@ SamplerState pointSampler : register(s0);  // Point sampler for Hi-Z depth sampl
 
 cbuffer GTAOParams : register(b0)
 {
-    // float4 #1 (offset 0)
     float2 NDCToViewMul;        // tanHalfFOV * float2(2, -2)
     float2 NDCToViewAdd;        // tanHalfFOV * float2(-1, 1)
-    // float4 #2 (offset 16)
+
     float2 DepthUnpackConsts;   // x = (far*near)/(far-near), y = -near/(far-near)
     float2 ScreenSize;
-    // float4 #3 (offset 32)
+
     float2 InvScreenSize;
     float EffectRadius;
-    float MaxPixelRadius;       // NEW: Max sampling radius in pixels (was hardcoded 50.0)
-    // float4 #4 (offset 48)
+    float MaxPixelRadius;       // Max sampling radius in pixels
+
     float Intensity;
     float SampleDistributionPower;
     int SliceCount;
     int StepsPerSlice;
-    // float4 #5 (offset 64)
+
     int FrameIndex;             // 0-7 temporal frame index
     float DepthMIPSamplingOffset; // Offset for Hi-Z mip level calculation
-    float FadeStartDistance;    // NEW: Distance fade start (meters)
-    float FadeEndDistance;      // NEW: Distance fade end (meters)
-    // float4 #6 (offset 80)
-    float FadeCurve;            // NEW: Fade curve power (1.0=linear)
+    float FadeStartDistance;    // Distance fade start (meters)
+    float FadeEndDistance;      // Distance fade end (meters)
+
+    float FadeCurve;            // Fade curve power (1.0=linear)
     int DebugMode;              // 0=AO, 1=WorldNorm, 2=ViewNorm, 3=NormAlpha
-    float __pad2;               // Padding
-    float __pad3;               // Padding
-    // float4 #7, #8, #9 (offset 96, 112, 128)
+    float __pad2;               
+    float __pad3;               
+
     float4 WorldToViewRow0;     // .xyz = row 0 of world-to-view matrix
     float4 WorldToViewRow1;     // .xyz = row 1 of world-to-view matrix
     float4 WorldToViewRow2;     // .xyz = row 2 of world-to-view matrix
 };
 
-// Blue noise for GTAO sampling
-float2 GetGTANoise(uint2 pixelCoord, uint frameIndex)
+float2 GetGTAONoise(uint2 pixelCoord, uint frameIndex)
 {
     // Temporal shift: 31 is coprime with 256 for 8-frame cycle coverage
     uint temporalShift = (frameIndex * 31u) & 0xFFu;
@@ -73,7 +71,6 @@ float LinearizeDepth(float rawDepth, float2 nearFar)
     return -(n * f) / (rawDepth * (f - n) + n);
 }
 
-// Fast viewspace reconstruction
 float3 ComputeViewspacePosition(float2 uv, float viewZ, float2 ndcMul, float2 ndcAdd)
 {
     float3 pos;
@@ -82,7 +79,7 @@ float3 ComputeViewspacePosition(float2 uv, float viewZ, float2 ndcMul, float2 nd
     return pos;
 }
 
-// Unpack normal from Deferred's custom format (WORLD SPACE)
+// Unpack normal WORLD SPACE
 // Deferred mod stores full XYZ world normal in RGB
 float3 UnpackNormal(float4 normalData)
 {
@@ -146,14 +143,14 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         return;
     }
     
-    // 1. Linearize depth
+    // Linearize depth
     float viewZ = LinearizeDepth(rawDepth, DepthUnpackConsts);
     
-    // 2. Reconstruct view position
+    // Reconstruct view position
     float3 pos = ComputeViewspacePosition(uv, viewZ, NDCToViewMul, NDCToViewAdd);
     float3 viewVec = normalize(-pos);
     
-    // 3. Transform normal to VIEW SPACE using proper matrix
+    // Transform normal to VIEW SPACE using proper matrix
     float3x3 worldToView = float3x3(
         WorldToViewRow0.xyz,
         WorldToViewRow1.xyz,
@@ -161,12 +158,12 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     );
     float3 viewNormal = mul(worldToView, worldNormal);
     
-    // 4. Push toward camera (less negative Z) to avoid self-occlusion
+    // Push toward camera (less negative Z) to avoid self-occlusion
     // Use 0.99999 for FP32 (0.01% offset = ~75 units at 750km far plane)
     viewZ *= 0.99999;
     pos = ComputeViewspacePosition(uv, viewZ, NDCToViewMul, NDCToViewAdd);
     
-    // 5. Calculate screen-space radius (use abs to handle sign conventions)
+    // Calculate screen-space radius (use abs to handle sign conventions)
     float2 pixelSizeAtViewZ = viewZ * NDCToViewMul * InvScreenSize;
     float screenSpaceRadius = EffectRadius / max(abs(pixelSizeAtViewZ.x), 0.0001);
     screenSpaceRadius = clamp(screenSpaceRadius, 2.0, MaxPixelRadius); // User-controlled limit
@@ -176,12 +173,12 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     return;
     }
     
-    // 6. Minimum sample distance (avoid self-sampling center pixel)
+    // Minimum sample distance (avoid self-sampling center pixel)
     const float pixelTooCloseThreshold = 1.3;
     float minS = pixelTooCloseThreshold / screenSpaceRadius;
     
-    // 8. Blue noise for temporal stability
-    float2 localNoise = GetGTANoise(coord, (uint)FrameIndex);
+    // Blue noise for temporal stability
+    float2 localNoise = GetGTAONoise(coord, (uint)FrameIndex);
     float noiseSlice = localNoise.x;    // For slice rotation
     float noiseStep = localNoise.y;     // For step distribution
     
@@ -193,7 +190,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         float sliceK = ((float)s + noiseSlice) / (float)SliceCount;
         float phi = sliceK * 3.14159265359; // 180 degrees
         // XeGTAO: negate sin for Unity's coordinate system
-        float2 omega = float2(cos(phi), -sin(phi));  // For sampling direction
+        float2 omega = float2(cos(phi), -sin(phi));
         
         // Slice plane orientation - directionVec matches omega for consistency
         float3 directionVec = float3(omega.x, omega.y, 0.0);
@@ -283,7 +280,6 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     
     visibility /= (float)SliceCount;
     
-    // REFERENCE-style intensity application
     float ao = lerp(1.0, visibility, saturate(Intensity));
     if (Intensity > 1.0)
         ao = lerp(ao, ao * ao, saturate(Intensity - 1.0));

@@ -1,5 +1,7 @@
-﻿using UnityEngine;
-using CinematicShaders.UI.Tabs;
+﻿using CinematicShaders.UI.Tabs;
+using CinematicShaders.Core;
+using UnityEngine;
+using static KSP.UI.Screens.ApplicationLauncher;
 
 namespace CinematicShaders.UI
 {
@@ -18,9 +20,14 @@ namespace CinematicShaders.UI
         private GTAOTab _gtaoTab;
 
         public event System.Action OnClose;
+        private bool wasVisibleBeforeF2 = false;
 
         void Start()
         {
+            // Subscribe to KSP's global UI hide event (F2 key)
+            GameEvents.onHideUI.Add(OnHideUI);
+            GameEvents.onShowUI.Add(OnShowUI);
+
             InitStyles();
 
             // Safe initialization - don't let native plugin failures kill the UI
@@ -133,7 +140,36 @@ namespace CinematicShaders.UI
         public void Hide()
         {
             isVisible = false;
+            wasVisibleBeforeF2 = false;
+            GTAOSettings.Save();
             OnClose?.Invoke();
+        }
+
+        private void OnHideUI()
+        {
+            if (isVisible)
+            {
+                wasVisibleBeforeF2 = true;
+                isVisible = false;
+            }
+        }
+
+        private void OnShowUI()
+        {
+            if (wasVisibleBeforeF2)
+            {
+                isVisible = true;
+                wasVisibleBeforeF2 = false;
+            }
+        }
+
+        void OnDestroy()
+        {
+            GameEvents.onHideUI.Remove(OnHideUI);
+            GameEvents.onShowUI.Remove(OnShowUI);
+
+            if (isVisible || wasVisibleBeforeF2)
+                GTAOSettings.Save();
         }
     }
 }

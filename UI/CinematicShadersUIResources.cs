@@ -29,6 +29,13 @@ namespace CinematicShaders.UI
                 public const float SLIDER_WIDTH = 120f;
             }
 
+            public static class Dropdowns
+            {
+                public const float DEBUG_LABEL_WIDTH = 60f;
+                public const float DEBUG_BUTTON_WIDTH = 150f;
+                public const float QUALITY_BUTTON_WIDTH = 100f;
+            }
+
             public static class Spacing
             {
                 public const float TIGHT = 4f;
@@ -83,6 +90,19 @@ namespace CinematicShaders.UI
                 style.fontSize = 10;
                 style.normal.textColor = Colors.TEXT_DIM;
                 return style;
+            }
+
+            public static GUIStyle Error()
+            {
+                GUIStyle style = new GUIStyle(HighLogic.Skin.label);
+                style.normal.textColor = Color.red;
+                style.wordWrap = true;
+                return style;
+            }
+
+            public static GUIStyle DropdownBox()
+            {
+                return new GUIStyle(HighLogic.Skin.box);
             }
         }
         #endregion
