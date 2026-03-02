@@ -56,7 +56,6 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // Each Gather samples 2x2 pixels. 4 Gathers = 16 unique samples.
     const int2 offsets[4] = { int2(-1,-1), int2(1,-1), int2(-1,1), int2(1,1) };
     
-    [unroll]
     for(int i = 0; i < 4; i++)
     {
         // Gather4: returns 4 samples in 2x2 block around (uv + offset*pixelSize)
@@ -66,7 +65,6 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         float4 ny4 = g_Normals.GatherGreen(g_PointSampler, uv, offsets[i]);
         float4 nz4 = g_Normals.GatherBlue(g_PointSampler, uv, offsets[i]);
         
-        [unroll]
         for(int j = 0; j < 4; j++)
         {
             float sampleAO = ao4[j];

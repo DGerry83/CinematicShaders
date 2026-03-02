@@ -235,29 +235,33 @@ void CSMain(uint3 id : SV_DispatchThreadID)
                 t += minS; // Add offset to ensure first sample is at least 1.3 pixels away
                 
                 float2 sampleUV = uv + direction * t * screenSpaceRadius * InvScreenSize;
-                
-                if (any(sampleUV < 0.0) || any(sampleUV > 1.0))
-                    break;
-                    
-                int2 sampleCoord = int2(sampleUV * ScreenSize);
-                sampleCoord = clamp(sampleCoord, int2(0, 0), int2(width - 1, height - 1));
+                sampleUV = saturate(sampleUV);
                 
                 // Hi-Z sampling: calculate mip level based on sample distance (in pixels)
                 float sampleOffsetLength = t * screenSpaceRadius; // Distance in pixels
-                // Sample depth directly (no threshold check - rely on falloff weight)
-                float sampleRawDepth = g_DepthTexture[sampleCoord];
+                float mipLevel = clamp(log2(sampleOffsetLength) - DepthMIPSamplingOffset, 0.0, 11.0);
+                
+                // Sample from Hi-Z pyramid
+                float sampleRawDepth = g_DepthTexture.SampleLevel(pointSampler, sampleUV, mipLevel);
                 float sampleViewZ = LinearizeDepth(sampleRawDepth, DepthUnpackConsts);
                 
                 float3 samplePos = ComputeViewspacePosition(sampleUV, sampleViewZ, NDCToViewMul, NDCToViewAdd);
                 
-                // REFERENCE-style falloff (inverse square, no thin occluder compensation)
+                // XeGTAO thin occluder compensation (fixes faceting on smooth curved surfaces)
                 float3 delta = samplePos - pos;
-                float distSq = dot(delta, delta);
+                
+                // Geometric direction for accurate horizon (uses true surface shape)
                 float3 deltaDir = normalize(delta);
                 float elevationCos = dot(deltaDir, viewVec);
                 
-                // Inverse square falloff (REFERENCE style)
-                float falloff = 1.0 / (1.0 + distSq / (EffectRadius * EffectRadius));
+                // Thickened distance for falloff (smooths over depth buffer faceting)
+                // Artificially inflates Z difference so facet steps don't create hard occlusion edges
+                const float thinOccluderCompensation = 0.5; // 0.3 = subtle, 1.0 = aggressive smoothing
+                float distSqThick = (delta.x * delta.x) + (delta.y * delta.y) + 
+                                    (delta.z * delta.z * (1.0 + thinOccluderCompensation) * (1.0 + thinOccluderCompensation));
+                
+                // Inverse square falloff using thickened distance
+                float falloff = 1.0 / (1.0 + distSqThick / (EffectRadius * EffectRadius));
                 elevationCos = lerp(lowHorizonCosDir, elevationCos, falloff);
                 
                 horizonCos[dir] = max(horizonCos[dir], elevationCos);

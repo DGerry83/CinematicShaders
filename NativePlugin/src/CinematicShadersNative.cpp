@@ -206,7 +206,7 @@ static GTAOUserSettings g_UserSettings = {
     4,      // StepsPerSlice
     2.0f,   // SampleDistributionPower
     32.0f,  // NormalPower
-    0.5f,   // DepthSigma
+    2.0f,   // DepthSigma
     50.0f,  // MaxPixelRadius (was hardcoded)
     0.0f,   // FadeStartDistance
     500.0f, // FadeEndDistance
@@ -951,7 +951,7 @@ static void ExecuteGTAOCompute(ID3D11DeviceContext* context)
     srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Texture2D.MipLevels = -1;
     srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
-    device->CreateShaderResourceView(g_GTAOState.depthTexture, &srvDesc, &depthSRV);
+    device->CreateShaderResourceView(g_GTAOState.hiZTexture, &srvDesc, &depthSRV);
     srvDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
     device->CreateShaderResourceView(g_GTAOState.normalTexture, &srvDesc, &normalSRV);
     
@@ -992,7 +992,7 @@ static void ExecuteGTAOCompute(ID3D11DeviceContext* context)
         
         // float4 #5 (offset 64) - CRITICAL: These were missing/wrong before
         params->FrameIndex = g_GTAOState.frameIndex;
-        params->depthMipSamplingOffset = 100.0f;
+        params->depthMipSamplingOffset = 2.0f;
         params->fadeStartDistance = g_UserSettings.FadeStartDistance;
         params->fadeEndDistance = g_UserSettings.FadeEndDistance;
         
