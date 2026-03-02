@@ -35,6 +35,10 @@ The folder structure should be: `GameData/CinematicShaders/`
    - **Quality**: Preset controlling sample count (Low/Ultra)
 4. **Debug**: Use the "Debug Visualization" dropdown for Raw AO or normal buffer inspection
 
+## Known Issues
+
+There's currently an issue with the AO processing that I'll detail in a separate KnownIssues.md file.  It affects the overall rendering and may be more noticeable in some scenes than others.
+
 ## License
 
 MIT License – See included `LICENSE.txt` file.

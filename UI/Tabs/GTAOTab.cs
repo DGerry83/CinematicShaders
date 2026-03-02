@@ -37,6 +37,7 @@ namespace CinematicShaders.UI.Tabs
             _fadeStartDistance = GTAOSettings.FadeStartDistance;
             _fadeEndDistance = GTAOSettings.FadeEndDistance;
             _fadeCurve = GTAOSettings.FadeCurve;
+            _currentDebugMode = GTAOSettings.DebugVisualizationMode;
         }
 
         private void SetDebugMode(int mode)
