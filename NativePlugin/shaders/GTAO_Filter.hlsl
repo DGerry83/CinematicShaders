@@ -72,8 +72,11 @@ void CSMain(uint3 id : SV_DispatchThreadID)
             float3 sampleNormal = UnpackNormal(float3(nx4[j], ny4[j], nz4[j]));
             
             // Combined edge-stopping weight
-            float w = NormalWeight(centerNormal, sampleNormal, NormalPower) *
-                      DepthWeight(centerDepth, sampleDepth, DepthSigma);
+            float normalW = NormalWeight(centerNormal, sampleNormal, NormalPower);
+            float depthW = DepthWeight(centerDepth, sampleDepth, DepthSigma);
+            // If normals agree strongly (>0.95), ignore depth completely and blend fully
+            // Otherwise, use standard bilateral weighting
+            float w = (normalW > 0.95) ? 1.0 : normalW * depthW;
             
             // Accumulate for linear regression (bilateral moment preservation)
             sumW += w;
