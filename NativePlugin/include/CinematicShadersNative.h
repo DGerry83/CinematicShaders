@@ -4,6 +4,7 @@
 
 #include <Windows.h>
 #include <d3d11.h>
+#include "StarfieldNative.h"
 
 #define UNITY_INTERFACE_API __stdcall
 #define UNITY_INTERFACE_EXPORT __declspec(dllexport)

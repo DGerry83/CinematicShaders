@@ -14,7 +14,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Compile C++ to object file
+:: Compile CinematicShadersNative.cpp to object file
 cl ^
   /c ^
   /std:c++17 ^
@@ -25,13 +25,29 @@ cl ^
   /Fobuild\intermediate\CinematicShadersNative.obj ^
   src\CinematicShadersNative.cpp
 if errorlevel 1 (
-    echo Compilation failed!
+    echo Compilation of CinematicShadersNative.cpp failed!
     exit /b 1
 )
 
-:: Link object + resources into DLL
+:: Compile StarfieldNative.cpp to object file
+cl ^
+  /c ^
+  /std:c++17 ^
+  /EHsc ^
+  /O2 ^
+  /DNDEBUG ^
+  /Iinclude ^
+  /Fobuild\intermediate\StarfieldNative.obj ^
+  src\StarfieldNative.cpp
+if errorlevel 1 (
+    echo Compilation of StarfieldNative.cpp failed!
+    exit /b 1
+)
+
+:: Link objects + resources into DLL
 link ^
   build\intermediate\CinematicShadersNative.obj ^
+  build\intermediate\StarfieldNative.obj ^
   build\intermediate\CinematicShadersNative.res ^
   d3d11.lib dxgi.lib ole32.lib ^
   /DLL ^

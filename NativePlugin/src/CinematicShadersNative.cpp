@@ -80,7 +80,7 @@ static void InitLogFile()
     }
 }
 
-static void LogToFile(const char* fmt, ...)
+void LogToFile(const char* fmt, ...)
 {
     InitLogFile();
     

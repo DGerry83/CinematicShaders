@@ -15,9 +15,10 @@ namespace CinematicShaders.UI
         private GUIStyle tabButtonActiveStyle;
         private string errorMessage = null;
 
-        public enum ShaderTab { GTAO }
+        public enum ShaderTab { GTAO, Starfield }
         private ShaderTab currentTab = ShaderTab.GTAO;
         private GTAOTab _gtaoTab;
+        private StarfieldTab _starfieldTab;
 
         public event Action OnClose;
         private bool wasVisibleBeforeF2 = false;
@@ -32,6 +33,7 @@ namespace CinematicShaders.UI
             try
             {
                 _gtaoTab = new GTAOTab();
+                _starfieldTab = new StarfieldTab();
             }
             catch (Exception ex)
             {
@@ -98,6 +100,10 @@ namespace CinematicShaders.UI
                     case ShaderTab.GTAO:
                         _gtaoTab.Draw();
                         break;
+                    case ShaderTab.Starfield:
+                        if (_starfieldTab != null)
+                            _starfieldTab.Draw();
+                        break;
                 }
 
                 GUILayout.EndVertical();
@@ -124,6 +130,13 @@ namespace CinematicShaders.UI
                 currentTab = ShaderTab.GTAO;
             }
 
+            GUIStyle starfieldStyle = (currentTab == ShaderTab.Starfield) ? tabButtonActiveStyle : tabButtonStyle;
+            if (GUILayout.Button(CinematicShadersUIStrings.Starfield.TabName, starfieldStyle,
+                GUILayout.Height(tabHeight), GUILayout.Width(tabWidth)))
+            {
+                currentTab = ShaderTab.Starfield;
+            }
+
             GUILayout.EndHorizontal();
         }
 
@@ -134,6 +147,7 @@ namespace CinematicShaders.UI
             isVisible = false;
             wasVisibleBeforeF2 = false;
             GTAOSettings.Save();
+            StarfieldSettings.Save();
             OnClose?.Invoke();
         }
 
@@ -161,7 +175,10 @@ namespace CinematicShaders.UI
             GameEvents.onShowUI.Remove(OnShowUI);
 
             if (isVisible || wasVisibleBeforeF2)
+            {
                 GTAOSettings.Save();
+                StarfieldSettings.Save();
+            }
         }
     }
 }

@@ -47,5 +47,47 @@
             public const string DebugModeNormalAlpha = "Normal Alpha";
             public const string NativeLoadError = "Native plugin failed to load. Check KSP.log for details.";
         }
+
+        public static class Starfield
+        {
+            public const string TabName = "Starfield";
+            public const string EnableToggle = " Enable Procedural Starfield";
+
+            public const string RenderingSection = "RENDERING";
+            public const string ExposureLabel = "Exposure";
+            public const string ExposureTooltip = "Logarithmic exposure in EV stops (pow(2.0, exposure))";
+            public const string BlurPixelsLabel = "Star Softness";
+            public const string BlurPixelsTooltip = "Gaussian sigma for point spread function (pixels)";
+
+            public const string DistributionSection = "STAR DISTRIBUTION";
+            public const string StarDensityLabel = "Star Density";
+            public const string StarDensityTooltip = "Spatial grid density (higher = more stars)";
+            public const string MinMagnitudeLabel = "Min Magnitude";
+            public const string MaxMagnitudeLabel = "Max Magnitude";
+            public const string MagnitudeBiasLabel = "Magnitude Bias";
+            public const string HeroRarityLabel = "Hero Star Rarity";
+            public const string ClusteringLabel = "Clustering";
+            public const string StaggerAmountLabel = "Grid Stagger";
+            public const string PopulationBiasLabel = "Population Bias";
+            public const string PopulationBiasTooltip = "Shift toward red (-1) or blue (+1) stars";
+            public const string MainSequenceLabel = "Main Sequence";
+            public const string MainSequenceTooltip = "Correlation between brightness and temperature";
+            public const string RedGiantRarityLabel = "Red Giant Rarity";
+
+            public const string GalacticStructureSection = "GALACTIC STRUCTURE";
+            public const string DiscFlatnessLabel = "Disc Flatness";
+            public const string DiscFalloffLabel = "Disc Falloff";
+            public const string BandCenterBoostLabel = "Band Boost";
+            public const string BandCoreSharpnessLabel = "Band Sharpness";
+            public const string BulgeIntensityLabel = "Bulge Intensity";
+            public const string BulgeWidthLabel = "Bulge Width";
+            public const string BulgeHeightLabel = "Bulge Height";
+            public const string BulgeSoftnessLabel = "Bulge Softness";
+            public const string BulgeNoiseScaleLabel = "Bulge Noise Scale";
+            public const string BulgeNoiseStrengthLabel = "Bulge Noise Strength";
+
+            public const string Initializing = "Initializing starfield...";
+            public const string NativeLoadError = "Native plugin failed to load. Check KSP.log for details.";
+        }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using CinematicShaders.Native;
 using CinematicShaders.Shaders.GTAO;
+using CinematicShaders.Shaders.Starfield;
 using CinematicShaders.UI;
 using KSP.UI.Screens;
 using UnityEngine;
@@ -29,8 +30,9 @@ namespace CinematicShaders.Core
         void Start()
         {
             GTAOSettings.Load();
+            StarfieldSettings.Load();
 
-            if (HighLogic.LoadedScene != GameScenes.MAINMENU && GTAOSettings.EnableGTAO)
+            if (HighLogic.LoadedScene != GameScenes.MAINMENU && (GTAOSettings.EnableGTAO || StarfieldSettings.EnableStarfield))
             {
                 Invoke(nameof(DelayedInit), 0.5f);
             }
@@ -56,6 +58,8 @@ namespace CinematicShaders.Core
         {
             if (GTAOSettings.EnableGTAO)
                 GTAOManager.Initialize();
+            if (StarfieldSettings.EnableStarfield)
+                StarfieldManager.Initialize();
         }
 
         private void OnLevelWasLoadedGUIReady(GameScenes scene)
@@ -82,6 +86,10 @@ namespace CinematicShaders.Core
                     Invoke(nameof(RetryInit), 0.5f);
                     Invoke(nameof(RetryInit), 1.5f);
                     Invoke(nameof(RetryInit), 3.0f);
+                }
+                if (StarfieldSettings.EnableStarfield)
+                {
+                    StarfieldManager.Initialize();
                 }
             }
         }
@@ -112,10 +120,22 @@ namespace CinematicShaders.Core
             if (_mainWindow != null && _mainWindow.gameObject != null)
                 Destroy(_mainWindow.gameObject);
 
+            // Shutdown GTAO
             try
             {
                 if (GTAONative.IsLoaded)
                     GTAONative.CR_GTAOShutdown();
+            }
+            catch (System.Exception)
+            {
+                /* DLL already unloaded, ignore */
+            }
+
+            // Shutdown Starfield
+            try
+            {
+                if (StarfieldNative.IsLoaded)
+                    StarfieldNative.CR_StarfieldShutdown();
             }
             catch (System.Exception)
             {

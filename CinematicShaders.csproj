@@ -45,14 +45,19 @@
   <ItemGroup>
     <Compile Include="Core\CinematicShadersAddon.cs" />
     <Compile Include="Core\GTAOSettings.cs" />
+    <Compile Include="Core\StarfieldSettings.cs" />
     <Compile Include="Native\GTAONative.cs" />
+    <Compile Include="Native\StarfieldNative.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Shaders\GTAO\GTAOCompositor.cs" />
     <Compile Include="Shaders\GTAO\GTAOManager.cs" />
+    <Compile Include="Shaders\Starfield\StarfieldCompositor.cs" />
+    <Compile Include="Shaders\Starfield\StarfieldManager.cs" />
     <Compile Include="UI\CinematicShadersUIResources.cs" />
     <Compile Include="UI\CinematicShadersUIStrings.cs" />
     <Compile Include="UI\CinematicShadersWindow.cs" />
     <Compile Include="UI\Tabs\GTAOTab.cs" />
+    <Compile Include="UI\Tabs\StarfieldTab.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="KSPBuildTools">

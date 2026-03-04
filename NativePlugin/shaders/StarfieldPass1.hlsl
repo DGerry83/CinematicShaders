@@ -1,0 +1,411 @@
+// Starfield Pass 1: Procedural Star Generation
+// Outputs to R11G11B10_Float RenderTexture (Linear HDR, values > 1.0 for bright stars)
+
+Texture2D<float> BlueNoiseTexture : register(t0);
+SamplerState pointSampler : register(s0);
+
+RWTexture2D<float3> OutputHDR : register(u0);
+
+cbuffer StarfieldParams : register(b0)
+{
+    // Camera - First 16-byte chunk (8 bytes used, 8 bytes padding)
+    float VerticalFOV;   // Radians
+    float AspectRatio;   // Width/Height (e.g., 1.77 for 16:9)
+    float2 _padCamera0;  // Pad to 16 bytes
+    
+    // Camera basis vectors - Each float3(12 bytes) + float(4 bytes) = 16 bytes
+    float3 CameraRight;
+    float _padCamera1;
+    float3 CameraUp;
+    float _padCamera2;
+    float3 CameraForward;
+    float _padCamera3;
+    
+    // Star Distribution
+    float StarDensity;
+    float MinMagnitude;
+    float MaxMagnitude;
+    float MagnitudeBias;
+    
+    float HeroRarity;
+    float Clustering;
+    float StaggerAmount;
+    float PopulationBias;
+    
+    float MainSequenceStrength;
+    float RedGiantRarity;
+    float Exposure;      // EV stops
+    float BlurPixels;
+    
+    // Galactic Structure
+    float GalacticFlatness;
+    float GalacticDiscFalloff;
+    float BandCenterBoost;
+    float BandCoreSharpness;
+    
+    float3 GalacticPlaneNormal;
+    float BulgeIntensity;
+    
+    float3 BulgeCenterDirection;
+    float BulgeWidth;
+    
+    float BulgeHeight;
+    float BulgeSoftness;
+    float BulgeNoiseScale;
+    float BulgeNoiseStrength;
+    
+    // Screen
+    float2 ScreenSize;
+    float2 InvScreenSize;
+    int FrameIndex;
+};
+
+// ============================================
+// MODULE 2: MATH UTILITIES (Converted from Godot)
+// ============================================
+float3 hash33(float3 p)
+{
+    float3 q = float3(
+        dot(p, float3(127.1, 311.7, 74.7)),
+        dot(p, float3(269.5, 183.3, 246.1)),
+        dot(p, float3(113.5, 271.9, 124.6))
+    );
+    return frac(sin(q) * 43758.5453);
+}
+
+float hash13(float3 p)
+{
+    return frac(sin(dot(p, float3(12.9898, 78.233, 45.164))) * 43758.5453);
+}
+
+float value_noise(float3 p)
+{
+    float3 i = floor(p);
+    float3 f = frac(p);
+    f = f * f * (3.0 - 2.0 * f);
+    
+    return lerp(
+        lerp(
+            lerp(hash13(i + float3(0,0,0)), hash13(i + float3(1,0,0)), f.x),
+            lerp(hash13(i + float3(0,1,0)), hash13(i + float3(1,1,0)), f.x),
+            f.y
+        ),
+        lerp(
+            lerp(hash13(i + float3(0,0,1)), hash13(i + float3(1,0,1)), f.x),
+            lerp(hash13(i + float3(0,1,1)), hash13(i + float3(1,1,1)), f.x),
+            f.y
+        ),
+        f.z
+    );
+}
+
+float fbm_noise(float3 p, float scale)
+{
+    float value = 0.0;
+    float amplitude = 0.5;
+    float frequency = 1.0;
+    
+    [unroll]
+    for(int i = 0; i < 3; i++)
+    {
+        value += amplitude * value_noise(p * frequency * scale);
+        amplitude *= 0.5;
+        frequency *= 2.0;
+    }
+    return value;
+}
+
+// ============================================
+// MODULE 3: SIMPLEX NOISE
+// ============================================
+float3 mod289(float3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+float4 mod289v4(float4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+float4 permute(float4 x) { return mod289v4(((x*34.0)+1.0)*x); }
+float4 taylorInvSqrt(float4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+
+float snoise(float3 v)
+{
+    const float2 C = float2(1.0/6.0, 1.0/3.0);
+    const float4 D = float4(0.0, 0.5, 1.0, 2.0);
+    
+    float3 i  = floor(v + dot(v, C.yyy));
+    float3 x0 = v - i + dot(i, C.xxx);
+    
+    float3 g = step(x0.yzx, x0.xyz);
+    float3 l = 1.0 - g;
+    float3 i1 = min(g.xyz, l.zxy);
+    float3 i2 = max(g.xyz, l.zxy);
+    
+    float3 x1 = x0 - i1 + C.xxx;
+    float3 x2 = x0 - i2 + C.yyy;
+    float3 x3 = x0 - D.yyy;
+    
+    i = mod289(i);
+    float4 p = permute(permute(permute(
+        i.z + float4(0.0, i1.z, i2.z, 1.0))
+        + i.y + float4(0.0, i1.y, i2.y, 1.0))
+        + i.x + float4(0.0, i1.x, i2.x, 1.0));
+        
+    float n_ = 0.142857142857;
+    float3 ns = n_ * D.wyz - D.xzx;
+    
+    float4 j = p - 49.0 * floor(p * ns.z * ns.z);
+    
+    float4 x_ = floor(j * ns.z);
+    float4 y_ = floor(j - 7.0 * x_);
+    
+    float4 x = x_ *ns.x + ns.yyyy;
+    float4 y = y_ *ns.x + ns.yyyy;
+    float4 h = 1.0 - abs(x) - abs(y);
+    
+    float4 b0 = float4(x.xy, y.xy);
+    float4 b1 = float4(x.zw, y.zw);
+    
+    float4 s0 = floor(b0)*2.0 + 1.0;
+    float4 s1 = floor(b1)*2.0 + 1.0;
+    float4 sh = -step(h, float4(0.0, 0.0, 0.0, 0.0));
+    
+    float4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+    float4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+    
+    float3 p0 = float3(a0.xy, h.x);
+    float3 p1 = float3(a0.zw, h.y);
+    float3 p2 = float3(a1.xy, h.z);
+    float3 p3 = float3(a1.zw, h.w);
+    
+    float4 norm = taylorInvSqrt(float4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+    p0 *= norm.x;
+    p1 *= norm.y;
+    p2 *= norm.z;
+    p3 *= norm.w;
+    
+    float4 m = max(0.6 - float4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+    m = m * m;
+    return 42.0 * dot(m*m, float4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+}
+
+// ============================================
+// MODULE 4: CAMERA/RAY GENERATION (RADIANS VERSION)
+// ============================================
+float3 generate_view_ray(float2 uv, float fov_rad, float aspect)
+{
+    float tan_fov_y = tan(fov_rad * 0.5);
+    float tan_fov_x = tan_fov_y * aspect;
+    
+    // View space ray (camera looks down -Z)
+    float3 rd;
+    rd.x = uv.x * tan_fov_x;
+    rd.y = uv.y * tan_fov_y;
+    rd.z = 1.0;
+    rd = normalize(rd);
+    
+    // Transform to world space using camera basis vectors
+    // WorldRay = rd.x * Right + rd.y * Up + rd.z * Forward
+    float3 worldRay = rd.x * CameraRight + rd.y * CameraUp + rd.z * CameraForward;
+    return normalize(worldRay);
+}
+
+// ============================================
+// MODULE 5: STAR PROPERTIES
+// ============================================
+struct StarProperties
+{
+    float flux;
+    float3 color;
+    float magnitude;
+    float normalized_brightness;
+};
+
+StarProperties calculate_star_properties(float3 hash_values, float min_mag, float max_mag, 
+    float mag_bias, float pop_bias, float main_seq_str, float red_giant_rare)
+{
+    StarProperties star;
+    
+    star.normalized_brightness = pow(hash_values.y, mag_bias);
+    star.magnitude = lerp(min_mag, max_mag, star.normalized_brightness);
+    star.flux = pow(10.0, -0.4 * star.magnitude);
+    
+    float random_component = hash_values.z;
+    float sequence_component = (1.0 - star.normalized_brightness);
+    float temp_hash = lerp(random_component, sequence_component, main_seq_str);
+    temp_hash = frac(temp_hash + pop_bias * 0.3);
+    
+    // Red giants override
+    if(hash_values.x < red_giant_rare && star.normalized_brightness < 0.3)
+    {
+        star.color = float3(1.0, 0.2, 0.05);
+        return star;
+    }
+    
+    if(temp_hash < 0.15) star.color = float3(1.0, 0.15, 0.05);
+    else if(temp_hash < 0.35) star.color = float3(1.0, 0.4, 0.1);
+    else if(temp_hash < 0.55) star.color = float3(1.0, 0.9, 0.5);
+    else if(temp_hash < 0.75) star.color = float3(0.85, 0.95, 1.0);
+    else if(temp_hash < 0.90) star.color = float3(0.6, 0.8, 1.0);
+    else star.color = float3(0.4, 0.65, 1.0);
+    
+    return star;
+}
+
+// ============================================
+// MODULE 6: POINT SPREAD FUNCTION
+// ============================================
+float calculate_psf(float dist_pixels, float sigma_pixels)
+{
+    return exp(-0.5 * pow(dist_pixels / sigma_pixels, 2.0));
+}
+
+// ============================================
+// MODULE 7: GALAXY DENSITY
+// ============================================
+float get_galactic_density(float3 ray_direction, float flatness, float falloff, 
+    float band_boost, float band_sharpness, float3 normal, float bulge_intensity,
+    float3 bulge_center, float bulge_width, float bulge_height, float bulge_softness,
+    float bulge_noise_scale, float bulge_noise_str)
+{
+    if(flatness <= 0.001) return 1.0;
+    
+    float3 n = normalize(normal);
+    float sin_latitude = dot(ray_direction, n);
+    float abs_sin_lat = abs(sin_latitude);
+    float cos_latitude = sqrt(max(0.0, 1.0 - sin_latitude * sin_latitude));
+    
+    float exponent = falloff * flatness;
+    float base_density = pow(max(cos_latitude, 0.0), exponent);
+    float core_density = band_boost * pow(max(cos_latitude, 0.0), band_sharpness);
+    
+    float bulge_density = 0.0;
+    if(bulge_intensity > 0.0)
+    {
+        float3 projected_ray = ray_direction - sin_latitude * n;
+        float3 center_dir = normalize(bulge_center);
+        float3 projected_center = center_dir - dot(center_dir, n) * n;
+        
+        float center_len = length(projected_center);
+        if(center_len > 0.001)
+        {
+            projected_center /= center_len;
+            float cos_long = dot(normalize(projected_ray), projected_center);
+            // Fast approximation: 1-cos(θ) ≈ θ²/2, sufficient for soft bulge mask
+            // Range [0,2] instead of [0,π], but bulge_width is tunable anyway
+            float long_dist = 1.0 - cos_long;
+            float lat_dist = abs_sin_lat;
+            
+            float dx = long_dist / bulge_width;
+            float dy = lat_dist / bulge_height;
+            float t = sqrt(dx*dx + dy*dy);
+            
+            float softness_curve = pow(max(bulge_softness, 0.0), 0.1);
+            float edge_exponent = lerp(20.0, 0.1, softness_curve);
+            float base_falloff = pow(max(0.0, 1.0 - t), edge_exponent);
+            
+            float n = fbm_noise(ray_direction, bulge_noise_scale * 0.1);
+            float density_mod = 1.0 - (n * bulge_noise_str);
+            float falloff_bulge = base_falloff * density_mod;
+            
+            bulge_density = bulge_intensity * falloff_bulge;
+        }
+    }
+    
+    return base_density + core_density + bulge_density;
+}
+
+// ============================================
+// MODULE 8: SPATIAL CLUSTERING
+// ============================================
+float calculate_clustering(float3 ray_dir, float density, float strength)
+{
+    float cluster_noise = hash13(floor(ray_dir * density * 0.1));
+    return 0.2 + cluster_noise * strength * 0.6;
+}
+
+// ============================================
+// MAIN ENTRY POINT (Compute Shader)
+// ============================================
+[numthreads(8, 8, 1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    uint2 coord = id.xy;
+    if (coord.x >= (uint)ScreenSize.x || coord.y >= (uint)ScreenSize.y)
+        return;
+    
+    float2 uv = (float2(coord) + 0.5) * InvScreenSize;
+    uv = (uv - 0.5) * 2.0; // -1 to 1 range
+    
+    // Pass radians directly - VerticalFOV calculated as camera.fieldOfView * Mathf.Deg2Rad on C# side
+    float3 rd = generate_view_ray(uv, VerticalFOV, AspectRatio);
+    
+    float3 raw_cell_id = floor(rd * StarDensity);
+    float3 star_accum = float3(0.0, 0.0, 0.0);
+    
+    float screen_width = ScreenSize.x;
+    float pixels_per_rad = screen_width / VerticalFOV;
+    
+    float cluster_prob = calculate_clustering(rd, StarDensity, Clustering);
+    float galactic_mask = get_galactic_density(rd, GalacticFlatness, GalacticDiscFalloff,
+        BandCenterBoost, BandCoreSharpness, GalacticPlaneNormal, BulgeIntensity,
+        BulgeCenterDirection, BulgeWidth, BulgeHeight, BulgeSoftness,
+        BulgeNoiseScale, BulgeNoiseStrength);
+    
+    if(galactic_mask >= 0.001)
+    {
+        [loop]
+        for(int x = -2; x <= 2; x++)
+        {
+            [loop]
+            for(int y = -2; y <= 2; y++)
+            {
+                [loop]
+                for(int z = -2; z <= 2; z++)
+                {
+                    float3 neighbor_raw = raw_cell_id + float3(float(x), float(y), float(z));
+                    
+                    float n_stagger_x = (hash13(float3(0.0, neighbor_raw.y, neighbor_raw.z)) - 0.5) * StaggerAmount;
+                    float n_stagger_y = (hash13(float3(neighbor_raw.x, 0.0, neighbor_raw.z)) - 0.5) * StaggerAmount;
+                    float n_stagger_z = (hash13(float3(neighbor_raw.x, neighbor_raw.y, 0.0)) - 0.5) * StaggerAmount;
+                    
+                    float3 h = hash33(neighbor_raw);
+                    StarProperties star = calculate_star_properties(h, MinMagnitude, MaxMagnitude,
+                        MagnitudeBias, PopulationBias, MainSequenceStrength, RedGiantRarity);
+                    
+                    float base_prob = cluster_prob * galactic_mask;
+                    float existence_prob = base_prob * (HeroRarity + (1.0 - HeroRarity) * star.normalized_brightness);
+                    
+                    if(h.x > existence_prob) continue;
+                    
+                    float rot_angle = hash13(neighbor_raw) * 6.283185;
+                    float cos_r = cos(rot_angle);
+                    float sin_r = sin(rot_angle);
+                    
+                    float2 offset = h.yz - 0.5;
+                    float2 rot_offset = float2(
+                        offset.x * cos_r - offset.y * sin_r,
+                        offset.x * sin_r + offset.y * cos_r
+                    );
+                    
+                    float3 star_pos = (neighbor_raw + float3(n_stagger_x, n_stagger_y, n_stagger_z) + float3(rot_offset.x, rot_offset.y, h.x - 0.5)) / StarDensity;
+                    star_pos = normalize(star_pos);
+                    
+                    float3 cross_prod = cross(rd, star_pos);
+                    float angle = length(cross_prod);
+                    
+                    float fade = 1.0 - smoothstep(0.0, 0.02, angle);
+                    if(fade < 0.001) continue;
+                    
+                    float dist_pixels = angle * pixels_per_rad;
+                    float psf = calculate_psf(dist_pixels, BlurPixels);
+                    
+                    star_accum += star.flux * psf * fade * star.color;
+                }
+            }
+        }
+    }
+    
+    // Apply exposure (logarithmic EV stops), output linear HDR
+    float3 total = star_accum * pow(2.0, Exposure);
+    
+    // NO tonemapping here - that happens in Pass 2
+    // NO gamma correction here
+    
+    OutputHDR[coord] = total;
+}
