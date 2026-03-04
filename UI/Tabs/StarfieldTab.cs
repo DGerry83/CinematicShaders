@@ -35,6 +35,11 @@ namespace CinematicShaders.UI.Tabs
         private float _bulgeNoiseScale;
         private float _bulgeNoiseStrength;
 
+        // Beauty
+        private float _bloomThreshold;
+        private float _bloomIntensity;
+        private float _spikeIntensity;
+
         private bool _initialized = false;
 
         public StarfieldTab()
@@ -62,6 +67,9 @@ namespace CinematicShaders.UI.Tabs
             _bulgeSoftness = StarfieldSettings.BulgeSoftness;
             _bulgeNoiseScale = StarfieldSettings.BulgeNoiseScale;
             _bulgeNoiseStrength = StarfieldSettings.BulgeNoiseStrength;
+            _bloomThreshold = StarfieldSettings.BloomThreshold;
+            _bloomIntensity = StarfieldSettings.BloomIntensity;
+            _spikeIntensity = StarfieldSettings.SpikeIntensity;
         }
 
         public void Draw()
@@ -98,6 +106,17 @@ namespace CinematicShaders.UI.Tabs
 
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
 
+                // Beauty
+                GUILayout.Label(CinematicShadersUIStrings.Starfield.BeautySection, HighLogic.Skin.label);
+                DrawSlider(CinematicShadersUIStrings.Starfield.BloomThresholdLabel, ref _bloomThreshold, 0.0f, 0.5f, "F3");
+                GUILayout.Label(CinematicShadersUIStrings.Starfield.BloomThresholdTooltip, helpStyle);
+                DrawSlider(CinematicShadersUIStrings.Starfield.BloomIntensityLabel, ref _bloomIntensity, 0.0f, 5.0f, "F2");
+                GUILayout.Label(CinematicShadersUIStrings.Starfield.BloomIntensityTooltip, helpStyle);
+                DrawSlider(CinematicShadersUIStrings.Starfield.SpikeIntensityLabel, ref _spikeIntensity, 0.0f, 1.0f, "F2");
+                GUILayout.Label(CinematicShadersUIStrings.Starfield.SpikeIntensityTooltip, helpStyle);
+
+                GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
+                // Distribution
                 GUILayout.Label(CinematicShadersUIStrings.Starfield.DistributionSection, HighLogic.Skin.label);
                 DrawSlider(CinematicShadersUIStrings.Starfield.StarDensityLabel, ref _starDensity, 50.0f, 400.0f, "F0");
                 DrawSlider(CinematicShadersUIStrings.Starfield.MinMagnitudeLabel, ref _minMagnitude, -2.0f, 3.0f, "F1");
@@ -112,7 +131,7 @@ namespace CinematicShaders.UI.Tabs
                 DrawSlider(CinematicShadersUIStrings.Starfield.RedGiantRarityLabel, ref _redGiantRarity, 0.0f, 0.5f, "F2");
 
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
-
+                // Structure
                 GUILayout.Label(CinematicShadersUIStrings.Starfield.GalacticStructureSection, HighLogic.Skin.label);
                 DrawSlider(CinematicShadersUIStrings.Starfield.DiscFlatnessLabel, ref _galacticFlatness, 0.0f, 1.0f, "F2");
                 DrawSlider(CinematicShadersUIStrings.Starfield.DiscFalloffLabel, ref _galacticDiscFalloff, 0.5f, 10.0f, "F1");
@@ -197,6 +216,9 @@ namespace CinematicShaders.UI.Tabs
             StarfieldSettings.BulgeSoftness = _bulgeSoftness;
             StarfieldSettings.BulgeNoiseScale = _bulgeNoiseScale;
             StarfieldSettings.BulgeNoiseStrength = _bulgeNoiseStrength;
+            StarfieldSettings.BloomThreshold = _bloomThreshold;
+            StarfieldSettings.BloomIntensity = _bloomIntensity;
+            StarfieldSettings.SpikeIntensity = _spikeIntensity;
 
             StarfieldSettings.PushSettingsToNative();
         }

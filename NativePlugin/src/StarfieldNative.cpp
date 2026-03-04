@@ -69,6 +69,9 @@ static struct {
     float bulgeSoftness = 0.0f;
     float bulgeNoiseScale = 20.0f;
     float bulgeNoiseStrength = 0.0f;
+    float bloomThreshold = 0.8f;
+    float bloomIntensity = 2.0f;
+    float spikeIntensity = 0.4f;
     float blurPixels = 1.0f;
     int frameIndex = 0;
     
@@ -147,6 +150,8 @@ struct StarfieldPass2Params {
     float ExposureEV;
     int EnableTonemapping;
     int Pad[3];  // Pad to 16 bytes
+    float SpikeIntensity;
+    float SpikePad[3]; // Pad to 16 bytes
 };
 
 // Starfield Internal Functions
@@ -293,7 +298,6 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         return;
     }
 
-    LogToFile("[Starfield] ExecuteStarfieldRender START: FOV=%.3f Density=%.1f", g_StarfieldState.verticalFOV, g_StarfieldState.starDensity);
     
     ID3D11Device* device = g_StarfieldState.device;
     
@@ -376,9 +380,6 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         params->Pad1[0] = params->Pad1[1] = params->Pad1[2] = 0;
         
         context->Unmap(g_StarfieldState.pass1CB, 0);
-        LogToFile("[Starfield] CameraFwd: %.3f,%.3f,%.3f Right: %.3f,%.3f,%.3f", 
-            g_StarfieldState.cameraForward.x, g_StarfieldState.cameraForward.y, g_StarfieldState.cameraForward.z,
-            g_StarfieldState.cameraRight.x, g_StarfieldState.cameraRight.y, g_StarfieldState.cameraRight.z);
     }
     
     context->CSSetShader(g_StarfieldState.pass1CS, nullptr, 0);
@@ -404,8 +405,9 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         params->ScreenSizeY = (float)g_StarfieldState.height;
         params->InvScreenSizeX = 1.0f / g_StarfieldState.width;
         params->InvScreenSizeY = 1.0f / g_StarfieldState.height;
-        params->BloomThreshold = 1.0f;
-        params->BloomIntensity = 0.5f;
+        params->BloomThreshold = g_StarfieldState.bloomThreshold;
+        params->BloomIntensity = g_StarfieldState.bloomIntensity;
+        params->SpikeIntensity = g_StarfieldState.spikeIntensity;
         params->DepthThreshold = 0.5f;  // Alpha threshold: < 0.5 = sky (0), >= 0.5 = geometry (1)
         params->ExposureEV = g_StarfieldState.exposure;
         params->EnableTonemapping = 1;
@@ -456,8 +458,6 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
     
     ID3D11ShaderResourceView* srvs[3] = {g_StarfieldState.hdrSRV, normalSRV, depthSRV};
     context->PSSetShaderResources(0, 3, srvs);
-
-        LogToFile("[Starfield] Pass 2 setup complete: RTV=%p NormalSRV=%p HDRSRV=%p", currentRTV, normalSRV, g_StarfieldState.hdrSRV);
     
     // Draw fullscreen triangle
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -470,8 +470,6 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
     }
 
     context->Draw(3, 0);
-
-    LogToFile("[Starfield] ExecuteStarfieldRender END");
     
     // Cleanup bindings
     ID3D11ShaderResourceView* nullSRV[3] = {nullptr, nullptr, nullptr};
@@ -512,10 +510,7 @@ static void UNITY_INTERFACE_API OnStarfieldRenderEvent(int eventId)
 extern "C" __declspec(dllexport)
 void CR_StarfieldSetCameraMatrices(ID3D11Texture2D* depthTex, ID3D11Texture2D* normalTex, int width, int height,
                                    float verticalFOV, float aspectRatio, float3 cameraRight, float3 cameraUp, float3 cameraForward)
-{
-    LogToFile("[Starfield] SetCameraMatrices: depthTex=%p normalTex=%p %dx%d FOV=%.3f", 
-        depthTex, normalTex, width, height, verticalFOV);
-    
+{    
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     
     g_StarfieldState.depthTexture = depthTex;
@@ -571,6 +566,9 @@ void CR_StarfieldSetSettings(const StarfieldSettingsNative* settings)
     g_StarfieldState.bulgeSoftness = settings->BulgeSoftness;
     g_StarfieldState.bulgeNoiseScale = settings->BulgeNoiseScale;
     g_StarfieldState.bulgeNoiseStrength = settings->BulgeNoiseStrength;
+    g_StarfieldState.bloomThreshold = settings->BloomThreshold;
+    g_StarfieldState.bloomIntensity = settings->BloomIntensity;
+    g_StarfieldState.spikeIntensity = settings->SpikeIntensity;
 }
 
 extern "C" __declspec(dllexport)

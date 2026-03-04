@@ -34,26 +34,13 @@ namespace CinematicShaders.Shaders.Starfield
                 return;
             }
 
-            if (HighLogic.LoadedScene == GameScenes.MAINMENU)
-            {
-                Debug.Log("[StarfieldManager] Skipping enable - MainMenu has no camera");
-                return;
-            }
+            //if (HighLogic.LoadedScene == GameScenes.MAINMENU)
+            //{
+            //    Debug.Log("[StarfieldManager] Skipping enable - MainMenu has no camera");
+            //    return;
+            //}
 
             if (_compositor != null && _compositor.enabled) return;
-
-            Camera mainCam = Camera.main;
-            if (mainCam == null)
-            {
-                Debug.LogWarning("[StarfieldManager] No main camera found for starfield");
-                return;
-            }
-
-            if (mainCam.actualRenderingPath != RenderingPath.DeferredShading)
-            {
-                Debug.LogWarning("[StarfieldManager] Starfield requires deferred rendering");
-                return;
-            }
 
             // Push settings to native BEFORE enabling the compositor
             if (StarfieldNative.IsLoaded)
@@ -66,14 +53,23 @@ namespace CinematicShaders.Shaders.Starfield
                 return;
             }
 
-            _compositor = mainCam.GetComponent<StarfieldCompositor>();
+            // Create persistent GameObject to host the compositor
+            // (ScaledSpace camera gets destroyed during scene transitions, so we need our own host)
+            GameObject compositorHost = GameObject.Find("StarfieldCompositorHost");
+            if (compositorHost == null)
+            {
+                compositorHost = new GameObject("StarfieldCompositorHost");
+                UnityEngine.Object.DontDestroyOnLoad(compositorHost);
+            }
+
+            _compositor = compositorHost.GetComponent<StarfieldCompositor>();
             if (_compositor == null)
             {
-                _compositor = mainCam.gameObject.AddComponent<StarfieldCompositor>();
+                _compositor = compositorHost.AddComponent<StarfieldCompositor>();
             }
             _compositor.enabled = true;
 
-            Debug.Log("[StarfieldManager] Starfield enabled");
+            Debug.Log("[StarfieldManager] Starfield enabled on persistent host");
         }
 
         public static void DisableStarfield()
@@ -87,8 +83,9 @@ namespace CinematicShaders.Shaders.Starfield
 
         public static bool IsCompositorOnCurrentCamera()
         {
-            if (_compositor == null) return false;
-            return _compositor.gameObject == Camera.main?.gameObject;
+            // With ScaledSpace rendering, we just check if compositor exists and is enabled
+            // The compositor handles its own camera discovery internally
+            return _compositor != null && _compositor.enabled && _compositor.gameObject != null;
         }
 
         public static void Initialize()

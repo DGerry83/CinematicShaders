@@ -35,6 +35,11 @@ namespace CinematicShaders.Core
         public static float BulgeNoiseScale { get; set; } = 20.0f;
         public static float BulgeNoiseStrength { get; set; } = 0.0f;
 
+        // Beauty
+        public static float BloomThreshold { get; set; } = 0.8f;
+        public static float BloomIntensity { get; set; } = 2.0f;
+        public static float SpikeIntensity { get; set; } = 0.4f;
+
         private static readonly string SettingsPath = System.IO.Path.Combine(
             KSPUtil.ApplicationRootPath, "GameData", "CinematicShaders", "PluginData", "Settings.cfg");
 
@@ -73,6 +78,9 @@ namespace CinematicShaders.Core
                 BulgeSoftness = float.Parse(settingsNode.GetValue("BulgeSoftness") ?? "0.0");
                 BulgeNoiseScale = float.Parse(settingsNode.GetValue("BulgeNoiseScale") ?? "20.0");
                 BulgeNoiseStrength = float.Parse(settingsNode.GetValue("BulgeNoiseStrength") ?? "0.0");
+                BloomThreshold = float.Parse(settingsNode.GetValue("BloomThreshold") ?? "0.8");
+                BloomIntensity = float.Parse(settingsNode.GetValue("BloomIntensity") ?? "2.0");
+                SpikeIntensity = float.Parse(settingsNode.GetValue("SpikeIntensity") ?? "0.4");
             }
             catch (System.Exception ex)
             {
@@ -108,7 +116,10 @@ namespace CinematicShaders.Core
                 BulgeHeight = BulgeHeight,
                 BulgeSoftness = BulgeSoftness,
                 BulgeNoiseScale = BulgeNoiseScale,
-                BulgeNoiseStrength = BulgeNoiseStrength
+                BulgeNoiseStrength = BulgeNoiseStrength,
+                BloomThreshold = BloomThreshold,
+                BloomIntensity = BloomIntensity,
+                SpikeIntensity = SpikeIntensity
             };
 
             StarfieldNative.CR_StarfieldSetSettings(ref nativeSettings);
@@ -153,6 +164,9 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("BulgeSoftness", BulgeSoftness);
                 settingsNode.AddValue("BulgeNoiseScale", BulgeNoiseScale);
                 settingsNode.AddValue("BulgeNoiseStrength", BulgeNoiseStrength);
+                settingsNode.AddValue("BloomThreshold", BloomThreshold);
+                settingsNode.AddValue("BloomIntensity", BloomIntensity);
+                settingsNode.AddValue("SpikeIntensity", SpikeIntensity);
 
                 node.Save(SettingsPath);
             }

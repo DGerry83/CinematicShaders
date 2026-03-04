@@ -88,6 +88,14 @@
 
             public const string Initializing = "Initializing starfield...";
             public const string NativeLoadError = "Native plugin failed to load. Check KSP.log for details.";
+
+            public const string BloomThresholdLabel = "Bloom Threshold";
+            public const string BloomThresholdTooltip = "Values above this trigger bloom (lower = more stars bloom)";
+            public const string BloomIntensityLabel = "Bloom Intensity";
+            public const string BloomIntensityTooltip = "Strength of bloom halos around bright stars";
+            public const string BeautySection = "BEAUTY";
+            public const string SpikeIntensityLabel = "Spike Intensity";
+            public const string SpikeIntensityTooltip = "Strength of diffraction spikes on bright stars (0.0-1.0)";
         }
     }
 }

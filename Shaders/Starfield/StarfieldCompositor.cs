@@ -8,10 +8,9 @@ namespace CinematicShaders.Shaders.Starfield
 {
     public class StarfieldCompositor : MonoBehaviour
     {
-        private Camera _camera;
-        private RenderTexture _depthRT;  // Depth texture (keep for now, or remove if unused)
-        private RenderTexture _normalRT; // Normal texture for sky masking via alpha
-        private CommandBuffer _depthCaptureBuffer;
+        private Camera _scaledSpaceCamera;
+        private RenderTexture _dummyDepthRT;
+        private RenderTexture _dummyNormalRT;
         private CommandBuffer _normalCaptureBuffer;
         private CommandBuffer _starfieldRenderBuffer;
         private bool _initialized = false;
@@ -24,12 +23,17 @@ namespace CinematicShaders.Shaders.Starfield
         void OnEnable()
         {
             Initialize();
+            if (_initialized)
+            {
+                Camera.onPreRender += OnPreRender;
+            }
         }
 
         void OnDisable()
         {
             _initialized = false;
             Cleanup();
+            Camera.onPreRender -= OnPreRender;
         }
 
         void OnDestroy()
@@ -55,122 +59,102 @@ namespace CinematicShaders.Shaders.Starfield
 
         private void Initialize()
         {
-            _camera = GetComponent<Camera>();
-            if (_camera == null)
+            // Find Galaxy Camera (renders first in all scenes with sky, handles all scene types)
+            _scaledSpaceCamera = null;
+            GameObject camObj = GameObject.Find("GalaxyCamera");
+            if (camObj != null)
             {
-                Debug.LogError("[StarfieldCompositor] No camera found!");
+                _scaledSpaceCamera = camObj.GetComponent<Camera>();
+            }
+
+            if (_scaledSpaceCamera == null)
+            {
+                Debug.Log("[StarfieldCompositor] Galaxy Camera not found - no sky to draw");
                 enabled = false;
                 return;
             }
 
-            int width = _camera.pixelWidth;
-            int height = _camera.pixelHeight;
+            // Create dummy 1x1 textures to satisfy native API (alpha=0 means sky everywhere)
+            _dummyDepthRT = new RenderTexture(1, 1, 0, RenderTextureFormat.RFloat);
+            _dummyDepthRT.Create();
 
-            // Depth texture (keep for native API compatibility)
-            _depthRT = new RenderTexture(width, height, 0, RenderTextureFormat.RFloat);
-            _depthRT.Create();
+            _dummyNormalRT = new RenderTexture(1, 1, 0, RenderTextureFormat.ARGB2101010);
+            _dummyNormalRT.Create();
 
-            // Normal texture for sky masking (ARGB2101010, alpha = 0 for sky, 1 for geometry)
-            _normalRT = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB2101010);
-            _normalRT.Create();
-
-            // Create three separate command buffers to ensure render target is restored between blits and plugin event
-            _depthCaptureBuffer = new CommandBuffer();
-            _depthCaptureBuffer.name = "Starfield Capture Depth";
-            _depthCaptureBuffer.Blit(BuiltinRenderTextureType.ResolvedDepth, _depthRT);
-            _camera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, _depthCaptureBuffer);
-
-            _normalCaptureBuffer = new CommandBuffer();
-            _normalCaptureBuffer.name = "Starfield Capture Normals";
-            _normalCaptureBuffer.Blit(BuiltinRenderTextureType.GBuffer2, _normalRT);
-            _camera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, _normalCaptureBuffer);
-
+            // Create render buffer for Pass 2 (composite stars)
             _starfieldRenderBuffer = new CommandBuffer();
             _starfieldRenderBuffer.name = "Procedural Starfield Render";
             IntPtr renderEventFunc = StarfieldNative.CR_GetStarfieldRenderEventFunc();
             _starfieldRenderBuffer.IssuePluginEvent(renderEventFunc, 0);
-            _camera.AddCommandBuffer(CameraEvent.BeforeForwardOpaque, _starfieldRenderBuffer);
 
-            _cachedFOV = _camera.fieldOfView;
-            _cachedAspect = _camera.aspect;
+            // Attach to ScaledSpace camera BEFORE it renders planets (so stars appear behind)
+            _scaledSpaceCamera.AddCommandBuffer(CameraEvent.BeforeForwardOpaque, _starfieldRenderBuffer);
+
+            _cachedFOV = _scaledSpaceCamera.fieldOfView;
+            _cachedAspect = _scaledSpaceCamera.aspect;
             _initialized = true;
-
-            Debug.Log("[StarfieldCompositor] Initialized");
         }
 
         private void Cleanup()
         {
             _initialized = false;
 
-            if (_camera != null)
+            // Remove command buffer from whichever camera it was attached to
+            if (_scaledSpaceCamera != null && _starfieldRenderBuffer != null)
             {
-                if (_depthCaptureBuffer != null)
-                    _camera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, _depthCaptureBuffer);
-                if (_normalCaptureBuffer != null)
-                    _camera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, _normalCaptureBuffer);
-                if (_starfieldRenderBuffer != null)
-                    _camera.RemoveCommandBuffer(CameraEvent.BeforeForwardOpaque, _starfieldRenderBuffer);
+                _scaledSpaceCamera.RemoveCommandBuffer(CameraEvent.BeforeForwardOpaque, _starfieldRenderBuffer);
             }
 
-            if (_depthCaptureBuffer != null)
-            {
-                _depthCaptureBuffer.Release();
-                _depthCaptureBuffer = null;
-            }
-            if (_normalCaptureBuffer != null)
-            {
-                _normalCaptureBuffer.Release();
-                _normalCaptureBuffer = null;
-            }
             if (_starfieldRenderBuffer != null)
             {
                 _starfieldRenderBuffer.Release();
                 _starfieldRenderBuffer = null;
             }
 
-            if (_depthRT != null)
+            if (_dummyDepthRT != null)
             {
-                _depthRT.Release();
-                Destroy(_depthRT);
-                _depthRT = null;
+                _dummyDepthRT.Release();
+                Destroy(_dummyDepthRT);
+                _dummyDepthRT = null;
             }
-            if (_normalRT != null)
+            if (_dummyNormalRT != null)
             {
-                _normalRT.Release();
-                Destroy(_normalRT);
-                _normalRT = null;
+                _dummyNormalRT.Release();
+                Destroy(_dummyNormalRT);
+                _dummyNormalRT = null;
             }
         }
 
-        void OnPreRender()
+        void OnPreRender(Camera cam)
         {
-            if (!_initialized || !StarfieldNative.IsLoaded)
+            // Only process for our target galaxy camera
+            if (cam != _scaledSpaceCamera) return;
+
+            if (!_initialized || !StarfieldNative.IsLoaded || _scaledSpaceCamera == null)
                 return;
 
-            Debug.Log($"[StarfieldCompositor] OnPreRender: Camera={_camera.name} FOV={_camera.fieldOfView} DepthRT ptr={_depthRT.GetNativeTexturePtr()}");
-
-            float verticalFOV = _camera.fieldOfView * Mathf.Deg2Rad;
+            float verticalFOV = _scaledSpaceCamera.fieldOfView * Mathf.Deg2Rad;
 
             // Extract basis vectors in Surface Frame (rotating with planet)
-            Vector3 surfaceRight = _camera.transform.right;
-            Vector3 surfaceUp = _camera.transform.up;
-            Vector3 surfaceForward = _camera.transform.forward;
+            Vector3 surfaceRight = _scaledSpaceCamera.transform.right;
+            Vector3 surfaceUp = _scaledSpaceCamera.transform.up;
+            Vector3 surfaceForward = _scaledSpaceCamera.transform.forward;
 
             // Transform to Inertial Frame (fixed celestial frame) to counteract planetary rotation
-            // Planetarium.Rotation converts Inertial->Surface, so we use Inverse to go Surface->Inertial
             QuaternionD inverseRotation = QuaternionD.Inverse(Planetarium.Rotation);
 
             Vector3 right = (Vector3)(inverseRotation * (Vector3d)surfaceRight);
             Vector3 up = (Vector3)(inverseRotation * (Vector3d)surfaceUp);
             Vector3 forward = (Vector3)(inverseRotation * (Vector3d)surfaceForward);
 
+            // Use dummy textures (1x1 black) to satisfy native API - actual occlusion via painter's algorithm
             StarfieldNative.CR_StarfieldSetCameraMatrices(
-                _depthRT.GetNativeTexturePtr(),
-                _normalRT.GetNativeTexturePtr(),
-                _depthRT.width,
-                _depthRT.height,
+                _dummyDepthRT.GetNativeTexturePtr(),
+                _dummyNormalRT.GetNativeTexturePtr(),
+                _scaledSpaceCamera.pixelWidth,
+                _scaledSpaceCamera.pixelHeight,
                 verticalFOV,
-                _camera.aspect,
+                _scaledSpaceCamera.aspect,
                 right,
                 up,
                 forward
@@ -183,21 +167,30 @@ namespace CinematicShaders.Shaders.Starfield
         {
             if (!_initialized) return;
 
-            // Handle screen resize
-            if (_camera.pixelWidth != _depthRT.width ||
-                _camera.pixelHeight != _depthRT.height)
+            // Handle ScaledSpace camera destruction (scene transitions)
+            if (_scaledSpaceCamera == null)
             {
+                Debug.Log("[StarfieldCompositor] ScaledSpace camera lost, cleaning up...");
+                Cleanup();
+                return;
+            }
+
+            // Handle screen resize or camera change
+            if (_scaledSpaceCamera.pixelWidth != _dummyDepthRT.width + 1 || // Dummy is 1x1, actual camera changed
+                _scaledSpaceCamera.pixelHeight != _dummyDepthRT.height + 1)
+            {
+                // Reinitialize to catch new camera dimensions
                 Cleanup();
                 Initialize();
                 return;
             }
 
             // Handle FOV changes (Update camera matrices for shader)
-            if (!Mathf.Approximately(_camera.fieldOfView, _cachedFOV) ||
-                !Mathf.Approximately(_camera.aspect, _cachedAspect))
+            if (!Mathf.Approximately(_scaledSpaceCamera.fieldOfView, _cachedFOV) ||
+                !Mathf.Approximately(_scaledSpaceCamera.aspect, _cachedAspect))
             {
-                _cachedFOV = _camera.fieldOfView;
-                _cachedAspect = _camera.aspect;
+                _cachedFOV = _scaledSpaceCamera.fieldOfView;
+                _cachedAspect = _scaledSpaceCamera.aspect;
                 // Matrices will be updated in next OnPreRender
             }
         }

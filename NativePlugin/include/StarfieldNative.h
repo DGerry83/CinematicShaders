@@ -38,6 +38,9 @@ struct StarfieldSettingsNative {
     float BulgeSoftness;
     float BulgeNoiseScale;
     float BulgeNoiseStrength;
+    float BloomThreshold;
+    float BloomIntensity;
+    float SpikeIntensity;
 };
 
 __declspec(dllexport) void CR_StarfieldSetCameraMatrices(

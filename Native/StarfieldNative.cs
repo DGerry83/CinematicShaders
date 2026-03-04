@@ -99,6 +99,9 @@ namespace CinematicShaders.Native
             public float BulgeSoftness;
             public float BulgeNoiseScale;
             public float BulgeNoiseStrength;
+            public float BloomThreshold;
+            public float BloomIntensity;
+            public float SpikeIntensity;
         }
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
