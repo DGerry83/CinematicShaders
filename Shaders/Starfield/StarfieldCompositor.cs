@@ -9,8 +9,8 @@ namespace CinematicShaders.Shaders.Starfield
     public class StarfieldCompositor : MonoBehaviour
     {
         private Camera _scaledSpaceCamera;
-        private RenderTexture _dummyDepthRT;
-        private RenderTexture _dummyNormalRT;
+        private int _lastScreenWidth;
+        private int _lastScreenHeight;
         private CommandBuffer _normalCaptureBuffer;
         private CommandBuffer _starfieldRenderBuffer;
         private bool _initialized = false;
@@ -74,13 +74,6 @@ namespace CinematicShaders.Shaders.Starfield
                 return;
             }
 
-            // Create dummy 1x1 textures to satisfy native API (alpha=0 means sky everywhere)
-            _dummyDepthRT = new RenderTexture(1, 1, 0, RenderTextureFormat.RFloat);
-            _dummyDepthRT.Create();
-
-            _dummyNormalRT = new RenderTexture(1, 1, 0, RenderTextureFormat.ARGB2101010);
-            _dummyNormalRT.Create();
-
             // Create render buffer for Pass 2 (composite stars)
             _starfieldRenderBuffer = new CommandBuffer();
             _starfieldRenderBuffer.name = "Procedural Starfield Render";
@@ -92,6 +85,9 @@ namespace CinematicShaders.Shaders.Starfield
 
             _cachedFOV = _scaledSpaceCamera.fieldOfView;
             _cachedAspect = _scaledSpaceCamera.aspect;
+            _lastScreenWidth = Screen.width;
+            _lastScreenHeight = Screen.height;
+
             _initialized = true;
         }
 
@@ -109,19 +105,6 @@ namespace CinematicShaders.Shaders.Starfield
             {
                 _starfieldRenderBuffer.Release();
                 _starfieldRenderBuffer = null;
-            }
-
-            if (_dummyDepthRT != null)
-            {
-                _dummyDepthRT.Release();
-                Destroy(_dummyDepthRT);
-                _dummyDepthRT = null;
-            }
-            if (_dummyNormalRT != null)
-            {
-                _dummyNormalRT.Release();
-                Destroy(_dummyNormalRT);
-                _dummyNormalRT = null;
             }
         }
 
@@ -147,10 +130,10 @@ namespace CinematicShaders.Shaders.Starfield
             Vector3 up = (Vector3)(inverseRotation * (Vector3d)surfaceUp);
             Vector3 forward = (Vector3)(inverseRotation * (Vector3d)surfaceForward);
 
-            // Use dummy textures (1x1 black) to satisfy native API - actual occlusion via painter's algorithm
+            // Pass whiteTexture to bootstrap D3D11 device acquisition in native code
+            // (Texture2D.whiteTexture is a built-in 4x4 texture, no allocation/disposal needed)
             StarfieldNative.CR_StarfieldSetCameraMatrices(
-                _dummyDepthRT.GetNativeTexturePtr(),
-                _dummyNormalRT.GetNativeTexturePtr(),
+                Texture2D.whiteTexture.GetNativeTexturePtr(),
                 _scaledSpaceCamera.pixelWidth,
                 _scaledSpaceCamera.pixelHeight,
                 verticalFOV,
@@ -176,8 +159,9 @@ namespace CinematicShaders.Shaders.Starfield
             }
 
             // Handle screen resize or camera change
-            if (_scaledSpaceCamera.pixelWidth != _dummyDepthRT.width + 1 || // Dummy is 1x1, actual camera changed
-                _scaledSpaceCamera.pixelHeight != _dummyDepthRT.height + 1)
+            if (Screen.width != _lastScreenWidth || Screen.height != _lastScreenHeight ||
+                _scaledSpaceCamera.pixelWidth != _lastScreenWidth ||
+                _scaledSpaceCamera.pixelHeight != _lastScreenHeight)
             {
                 // Reinitialize to catch new camera dimensions
                 Cleanup();

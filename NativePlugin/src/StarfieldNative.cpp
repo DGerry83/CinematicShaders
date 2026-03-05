@@ -14,8 +14,6 @@ static struct {
     ID3D11Texture2D* hdrTexture = nullptr;
     ID3D11UnorderedAccessView* hdrUAV = nullptr;
     ID3D11ShaderResourceView* hdrSRV = nullptr;
-    ID3D11Texture2D* depthTexture = nullptr;  // Borrowed from C#, don't release
-    ID3D11Texture2D* normalTexture = nullptr; // Borrowed from C#, don't release (ARGB2101010, alpha = sky mask)
     
     // Shaders
     ID3D11ComputeShader* pass1CS = nullptr;
@@ -293,13 +291,25 @@ if (!g_StarfieldState.blendState) {
 
 static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
 {
-    if (!g_StarfieldState.initialized || !g_StarfieldState.depthTexture) {
-        LogToFile("[Starfield] ExecuteStarfieldRender skipped: initialized=%d depthTexture=%p", g_StarfieldState.initialized, g_StarfieldState.depthTexture);
+    if (!context) return;
+    
+    // Get device from context (safe even if g_StarfieldState.device is null)
+    ID3D11Device* device = nullptr;
+    context->GetDevice(&device);
+    if (!device) return;
+    
+    // Lazy initialization: ensure resources match current dimensions
+    if (!g_StarfieldState.initialized || g_StarfieldState.width != g_StarfieldState.width || g_StarfieldState.height != g_StarfieldState.height) {
+        // Note: You'll need to pass width/height to this function or retrieve from context
+        // For now, using cached values from g_StarfieldState
+        EnsureStarfieldResources(device, g_StarfieldState.width, g_StarfieldState.height);
+    }
+    
+    if (!g_StarfieldState.initialized) {
+        LogToFile("[Starfield] ExecuteStarfieldRender skipped: resource initialization failed");
+        device->Release();
         return;
     }
-
-    
-    ID3D11Device* device = g_StarfieldState.device;
     
     // Get current render target (to use as destination for Pass 2)
     ID3D11RenderTargetView* currentRTV = nullptr;
@@ -414,32 +424,6 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         params->Pad[0] = params->Pad[1] = params->Pad[2] = 0;
         context->Unmap(g_StarfieldState.pass2CB, 0);
     }
-
-        // Create SRV for normal texture (ARGB2101010)
-    ID3D11ShaderResourceView* normalSRV = nullptr;
-    D3D11_SHADER_RESOURCE_VIEW_DESC normalSrvDesc = {};
-    normalSrvDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;  // ARGB2101010
-    normalSrvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-    normalSrvDesc.Texture2D.MipLevels = 1;
-    HRESULT hr = device->CreateShaderResourceView(g_StarfieldState.normalTexture, &normalSrvDesc, &normalSRV);
-    if (FAILED(hr)) {
-        LogToFile("[Starfield] Failed to create normal SRV (0x%08X)", hr);
-        currentRTV->Release();
-        if (currentDSV) currentDSV->Release();
-        return;
-    }
-
-        // Create SRV for depth texture (RFloat) for debug visualization
-    ID3D11ShaderResourceView* depthSRV = nullptr;
-    D3D11_SHADER_RESOURCE_VIEW_DESC depthSrvDesc = {};
-    depthSrvDesc.Format = DXGI_FORMAT_R32_FLOAT;  // RFloat depth
-    depthSrvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-    depthSrvDesc.Texture2D.MipLevels = 1;
-    hr = device->CreateShaderResourceView(g_StarfieldState.depthTexture, &depthSrvDesc, &depthSRV);
-    if (FAILED(hr)) {
-        LogToFile("[Starfield] Failed to create depth SRV (0x%08X)", hr);
-        // Continue without it for now, but log the error
-    }
     
     // Setup output merger
     context->OMSetRenderTargets(1, &currentRTV, nullptr);  // No depth testing
@@ -456,8 +440,8 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
     context->PSSetConstantBuffers(0, 1, &g_StarfieldState.pass2CB);
     context->PSSetSamplers(0, 1, &g_StarfieldState.linearSampler);
     
-    ID3D11ShaderResourceView* srvs[3] = {g_StarfieldState.hdrSRV, normalSRV, depthSRV};
-    context->PSSetShaderResources(0, 3, srvs);
+    ID3D11ShaderResourceView* srvs[1] = {g_StarfieldState.hdrSRV};
+    context->PSSetShaderResources(0, 1, srvs);
     
     // Draw fullscreen triangle
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -472,20 +456,19 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
     context->Draw(3, 0);
     
     // Cleanup bindings
-    ID3D11ShaderResourceView* nullSRV[3] = {nullptr, nullptr, nullptr};
+    ID3D11ShaderResourceView* nullSRV[1] = {nullptr};
     ID3D11RenderTargetView* nullRTV = nullptr;
     ID3D11DepthStencilState* nullDS = nullptr;
     ID3D11BlendState* nullBlend = nullptr;
     
-    context->PSSetShaderResources(0, 3, nullSRV);
+    context->PSSetShaderResources(0, 1, nullSRV);
     context->OMSetRenderTargets(1, &nullRTV, nullptr);
     context->OMSetDepthStencilState(nullDS, 0);
     context->OMSetBlendState(nullBlend, nullptr, 0xFFFFFFFF);
     
-    if (depthSRV) depthSRV->Release();
-    normalSRV->Release();
     currentRTV->Release();
     if (currentDSV) currentDSV->Release();
+    device->Release();  // Release the reference we obtained at start
 }
 
 static void UNITY_INTERFACE_API OnStarfieldRenderEvent(int eventId)
@@ -508,13 +491,11 @@ static void UNITY_INTERFACE_API OnStarfieldRenderEvent(int eventId)
 
 // Starfield Exports
 extern "C" __declspec(dllexport)
-void CR_StarfieldSetCameraMatrices(ID3D11Texture2D* depthTex, ID3D11Texture2D* normalTex, int width, int height,
+void CR_StarfieldSetCameraMatrices(ID3D11Texture2D* deviceSourceTexture, int width, int height,
                                    float verticalFOV, float aspectRatio, float3 cameraRight, float3 cameraUp, float3 cameraForward)
 {    
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     
-    g_StarfieldState.depthTexture = depthTex;
-    g_StarfieldState.normalTexture = normalTex;
     g_StarfieldState.width = width;
     g_StarfieldState.height = height;
     g_StarfieldState.verticalFOV = verticalFOV;
@@ -523,16 +504,14 @@ void CR_StarfieldSetCameraMatrices(ID3D11Texture2D* depthTex, ID3D11Texture2D* n
     g_StarfieldState.cameraUp = cameraUp;
     g_StarfieldState.cameraForward = cameraForward;
     
-    if (depthTex) {
+    // Acquire device from any valid texture (we use whiteTexture from C#)
+    if (deviceSourceTexture && !g_StarfieldState.device) {
         ID3D11Device* device = nullptr;
-        depthTex->GetDevice(&device);
+        deviceSourceTexture->GetDevice(&device);
         if (device) {
-            if (!g_StarfieldState.device) {
-                g_StarfieldState.device = device;
-                g_StarfieldState.device->AddRef();
-            }
+            g_StarfieldState.device = device;
+            g_StarfieldState.device->AddRef();
             EnsureStarfieldResources(device, width, height);
-            device->Release();
         }
     }
 }

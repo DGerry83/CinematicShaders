@@ -106,8 +106,7 @@ namespace CinematicShaders.Native
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_StarfieldSetCameraMatrices(
-            IntPtr depthTex,
-            IntPtr normalTex,
+            IntPtr deviceSourceTexture,  // Pass Texture2D.whiteTexture.GetNativeTexturePtr()
             int width,
             int height,
             float verticalFOV,

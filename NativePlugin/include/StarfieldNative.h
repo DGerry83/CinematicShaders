@@ -44,15 +44,14 @@ struct StarfieldSettingsNative {
 };
 
 __declspec(dllexport) void CR_StarfieldSetCameraMatrices(
-    ID3D11Texture2D* depthTex,
-    ID3D11Texture2D* normalTex,
+    ID3D11Texture2D* deviceSourceTexture,  // Any D3D11 texture to query device from (e.g., whiteTexture)
     int width, 
     int height,
     float verticalFOV,
     float aspectRatio,
-    float3 cameraRight,      // New: World-space right vector
-    float3 cameraUp,         // New: World-space up vector  
-    float3 cameraForward     // New: World-space forward vector (direction camera looks)
+    float3 cameraRight,
+    float3 cameraUp,
+    float3 cameraForward
 );
 
 __declspec(dllexport) void CR_StarfieldSetSettings(const StarfieldSettingsNative* settings);

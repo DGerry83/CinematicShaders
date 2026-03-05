@@ -2,8 +2,6 @@
 // Samples HDR star texture, applies Gaussian bloom to bright values, masks by depth
 
 Texture2D<float3> StarHDRTexture : register(t0);
-Texture2D<float4> NormalTexture : register(t1);  // ARGB2101010, alpha = sky mask (0=sky, 1=geom)
-Texture2D<float> DepthTexture : register(t2);    // RFloat depth buffer for debug visualization
 SamplerState linearSampler : register(s0);
 
 cbuffer CompositeParams : register(b0)
@@ -75,62 +73,12 @@ float4 PSMain(PSInput input) : SV_Target
 {
     float2 uv = input.uv;
     
-    // Sample normal texture alpha (dummy texture returns alpha=0, skyMask=1.0, stars render everywhere)
-    float normalAlpha = NormalTexture.Sample(linearSampler, uv).a;
-    float skyMask = (normalAlpha < DepthThreshold) ? 1.0 : 0.0;
-    
-    // Early exit for geometry - output transparent to preserve original pixel
-    if (skyMask < 0.001)
-        return float4(0.0, 0.0, 0.0, 0.0);
+    // Hardcoded sky mask - always render stars (Galaxy Camera renders first, painter's algorithm handles occlusion)
+    float skyMask = 1.0;
     
     // Sample base star color
     float3 starColor = StarHDRTexture.Sample(linearSampler, uv);
-    
-    // // Calculate diffraction spikes in Pass 2 (brightness-based, no random variation)
-    // float3 spikeAccum = float3(0.0, 0.0, 0.0);
-    // float spikeThreshold = 0.5; // Minimum brightness for spikes
-    // float spikeRange = 8.0; // Brightness range for falloff calculation
-    // int spikeLength = 25; // Maximum reach (pixels)
-    // float baseDecay = 0.12; // Base falloff
-    
-    // // Sample neighbors for spikes (horizontal and vertical)
-    // [loop]
-    // for(int i = 1; i < spikeLength; i++)
-    // {
-    //     float decay = exp(-i * baseDecay);
-    //     float2 hOffset = float2(i * InvScreenSize.x, 0.0);
-    //     float2 vOffset = float2(0.0, i * InvScreenSize.y);
         
-    //     // Horizontal spikes (left/right) - SampleLevel to avoid gradient warning in loop
-    //     float3 leftStar = StarHDRTexture.SampleLevel(linearSampler, uv - hOffset, 0);
-    //     float3 rightStar = StarHDRTexture.SampleLevel(linearSampler, uv + hOffset, 0);
-        
-    //     // Vertical spikes (up/down) - SampleLevel to avoid gradient warning in loop
-    //     float3 upStar = StarHDRTexture.SampleLevel(linearSampler, uv - vOffset, 0);
-    //     float3 downStar = StarHDRTexture.SampleLevel(linearSampler, uv + vOffset, 0);
-        
-    //     float leftLum = length(leftStar);
-    //     float rightLum = length(rightStar);
-    //     float upLum = length(upStar);
-    //     float downLum = length(downStar);
-        
-    //     // Brightness-based scaling: top stars get full spikes, mid-bright get partial
-    //     // pow(x, 2.0) creates steep falloff: 1.0 -> 1.0, 0.5 -> 0.25, 0.1 -> 0.01
-    //     float leftScale = (leftLum > spikeThreshold) ? pow(saturate((leftLum - spikeThreshold) / spikeRange), 2.0) : 0.0;
-    //     float rightScale = (rightLum > spikeThreshold) ? pow(saturate((rightLum - spikeThreshold) / spikeRange), 2.0) : 0.0;
-    //     float upScale = (upLum > spikeThreshold) ? pow(saturate((upLum - spikeThreshold) / spikeRange), 2.0) : 0.0;
-    //     float downScale = (downLum > spikeThreshold) ? pow(saturate((downLum - spikeThreshold) / spikeRange), 2.0) : 0.0;
-        
-    //     // Accumulate with intensity control and brightness scaling
-    //     spikeAccum += leftStar * decay * SpikeIntensity * leftScale;
-    //     spikeAccum += rightStar * decay * SpikeIntensity * rightScale;
-    //     spikeAccum += upStar * decay * SpikeIntensity * upScale;
-    //     spikeAccum += downStar * decay * SpikeIntensity * downScale;
-    // }
-    
-    // // Add spikes to base color (before bloom)
-    // starColor += spikeAccum;
-    
     // Apply separable Gaussian blur on THRESHOLDED values only (bright stars)
     float3 bloomH = SampleBloom(StarHDRTexture, linearSampler, uv, float2(1.0, 0.0), BloomThreshold);
     float3 bloomV = SampleBloom(StarHDRTexture, linearSampler, uv, float2(0.0, 1.0), BloomThreshold);
