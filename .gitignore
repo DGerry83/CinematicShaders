@@ -367,3 +367,12 @@ FodyWeavers.xsd
 /GTAO Standalone Mod Extraction.md
 /structure.txt
 /dll_copy_config.txt
+/BOOTUP.md
+/NativePlugin/include/GTAO_Filter_Fixed.cso
+/NativePlugin/include/GTAO_Filter_Fixed.h
+/NativePlugin/include/GTAO_SmartBlur.cso
+/NativePlugin/include/GTAO_SmartBlur.h
+/NativePlugin/shaders/compile_GTAO_SmartBlur.bat
+/NativePlugin/shaders/compile_GTAO_Filter_Fixed.bat
+/NativePlugin/shaders/GTAO_Filter_Fixed.hlsl
+/NativePlugin/shaders/GTAO_SmartBlur.hlsl
