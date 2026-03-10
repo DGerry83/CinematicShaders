@@ -43,9 +43,11 @@ extern "C" {
 #endif
 
 // Settings struct matching C#
+// NOTE: BlurPixels is interpreted as angular sigma in RADIANS by the shader
+// (e.g., 0.001 = ~3.4 arcminutes). The shader converts to screen pixels based on FOV.
 struct StarfieldSettingsNative {
     float Exposure;
-    float BlurPixels;
+    float BlurPixels;  // Angular sigma in radians, NOT screen pixels
     float MinMagnitude;
     float MaxMagnitude;
     float MagnitudeBias;
@@ -66,6 +68,7 @@ struct StarfieldSettingsNative {
     float BulgeNoiseStrength;
     float BloomThreshold;
     float BloomIntensity;
+    float ColorSaturation;  // 0.0-2.0: 0.5=realistic, 1.0=natural, 2.0=vivid
 };
 
 __declspec(dllexport) void CR_StarfieldSetCameraMatrices(
@@ -86,6 +89,17 @@ __declspec(dllexport) UnityRenderingEvent CR_GetStarfieldRenderEventFunc();
 __declspec(dllexport) void CR_StarfieldShutdown();
 
 __declspec(dllexport) void CR_StarfieldGenerateCatalog(int seed, int count);
+
+// Catalog save/load - for StarCatalogManager
+// Returns number of stars copied, or 0 if buffer too small or no catalog loaded
+__declspec(dllexport) int CR_StarfieldGetCatalogData(StarData* outBuffer, int maxCount);
+
+// Load catalog directly from buffer (bypasses generation). Thread-safe.
+__declspec(dllexport) void CR_StarfieldLoadCatalog(const StarData* buffer, int count, int heroCount);
+
+// Get current catalog info
+__declspec(dllexport) int CR_StarfieldGetCatalogSize();
+__declspec(dllexport) int CR_StarfieldGetHeroCount();
 
 #ifdef __cplusplus
 }

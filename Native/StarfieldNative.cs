@@ -99,6 +99,7 @@ namespace CinematicShaders.Native
             public float BulgeNoiseStrength;
             public float BloomThreshold;
             public float BloomIntensity;
+            public float ColorSaturation;  // 0.0-2.0: 0.5=realistic, 1.0=natural, 2.0=vivid
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 32)]
@@ -153,5 +154,74 @@ namespace CinematicShaders.Native
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_StarfieldGenerateCatalog(int seed, int count);
+
+        // Catalog save/load exports
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CR_StarfieldGetCatalogData([Out] StarDataNative[] outBuffer, int maxCount);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_StarfieldLoadCatalog([In] StarDataNative[] buffer, int count, int heroCount);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CR_StarfieldGetCatalogSize();
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CR_StarfieldGetHeroCount();
+
+        /// <summary>
+        /// Get current catalog data from native plugin
+        /// </summary>
+        public static StarDataNative[] GetCatalogData(int count)
+        {
+            if (count <= 0) return new StarDataNative[0];
+            
+            var buffer = new StarDataNative[count];
+            int actualCount = CR_StarfieldGetCatalogData(buffer, count);
+            
+            if (actualCount != count)
+            {
+                Debug.LogWarning($"[StarfieldNative] Catalog size mismatch: expected {count}, got {actualCount}");
+                // Resize array to actual count
+                if (actualCount > 0)
+                {
+                    var actual = new StarDataNative[actualCount];
+                    Array.Copy(buffer, actual, actualCount);
+                    return actual;
+                }
+                return new StarDataNative[0];
+            }
+            
+            return buffer;
+        }
+
+        /// <summary>
+        /// Load a catalog into the native plugin
+        /// </summary>
+        public static void LoadCatalog(StarDataNative[] stars, int heroCount)
+        {
+            if (stars == null || stars.Length == 0)
+            {
+                Debug.LogWarning("[StarfieldNative] Cannot load null or empty catalog");
+                return;
+            }
+            
+            CR_StarfieldLoadCatalog(stars, stars.Length, heroCount);
+        }
+
+        /// <summary>
+        /// Get the number of stars in the current catalog
+        /// </summary>
+        public static int GetCatalogSize()
+        {
+            return CR_StarfieldGetCatalogSize();
+        }
+
+        /// <summary>
+        /// Get the number of hero stars in the current catalog
+        /// </summary>
+        public static int GetHeroCount()
+        {
+            return CR_StarfieldGetHeroCount();
+        }
     }
 }

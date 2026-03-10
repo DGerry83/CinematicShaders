@@ -1,4 +1,5 @@
-﻿using CinematicShaders.Native;
+﻿using CinematicShaders.Core;
+using CinematicShaders.Native;
 using UnityEngine;
 
 namespace CinematicShaders.Core
@@ -9,7 +10,9 @@ namespace CinematicShaders.Core
 
         // Rendering
         public static float Exposure { get; set; } = 3.0f;
-        public static float BlurPixels { get; set; } = 1.0f;
+        // BlurPixels is now ANGULAR SIGMA in radians (not screen pixels)
+        // Default 0.001 rad ≈ 3.4 arcminutes (was 1.0 pixel at 60° FOV on 1080p)
+        public static float BlurPixels { get; set; } = 0.001f;
 
         // Star Distribution
         public static float MinMagnitude { get; set; } = -1.0f;
@@ -36,10 +39,17 @@ namespace CinematicShaders.Core
         // Beauty
         public static float BloomThreshold { get; set; } = 0.8f;
         public static float BloomIntensity { get; set; } = 2.0f;
+        
+        // Color
+        public static float ColorSaturation { get; set; } = 1.0f;  // 0.5=realistic, 1.0=natural, 2.0=vivid
 
         // Catalog Generation
         public static int CatalogSeed { get; set; } = 12345;
         public static int CatalogSize { get; set; } = 20000;
+        
+        // Active Catalog
+        public static string ActiveCatalogPath { get; set; } = "";
+        public static bool IsReadOnly { get; set; } = false;  // New catalogs start as Generation Active (read-only = false)
 
         // Track last pushed values to detect changes requiring regeneration
         private static int _lastCatalogSeed = 12345;
@@ -86,7 +96,7 @@ namespace CinematicShaders.Core
                 CatalogSeed = int.Parse(settingsNode.GetValue("CatalogSeed") ?? "12345");
                 CatalogSize = int.Parse(settingsNode.GetValue("CatalogSize") ?? "20000");
                 Exposure = float.Parse(settingsNode.GetValue("Exposure") ?? "3.0");
-                BlurPixels = float.Parse(settingsNode.GetValue("BlurPixels") ?? "1.0");
+                BlurPixels = float.Parse(settingsNode.GetValue("BlurPixels") ?? "0.001");
                 MinMagnitude = float.Parse(settingsNode.GetValue("MinMagnitude") ?? "-1.0");
                 MaxMagnitude = float.Parse(settingsNode.GetValue("MaxMagnitude") ?? "10.0");
                 MagnitudeBias = float.Parse(settingsNode.GetValue("MagnitudeBias") ?? "0.08");
@@ -107,6 +117,9 @@ namespace CinematicShaders.Core
                 BulgeNoiseStrength = float.Parse(settingsNode.GetValue("BulgeNoiseStrength") ?? "0.0");
                 BloomThreshold = float.Parse(settingsNode.GetValue("BloomThreshold") ?? "0.8");
                 BloomIntensity = float.Parse(settingsNode.GetValue("BloomIntensity") ?? "2.0");
+                ColorSaturation = float.Parse(settingsNode.GetValue("ColorSaturation") ?? "1.0");
+                ActiveCatalogPath = settingsNode.GetValue("ActiveCatalogPath") ?? "";
+                IsReadOnly = bool.Parse(settingsNode.GetValue("IsReadOnly") ?? "false");
 
                 // Force regeneration on next push since we loaded new values
                 _catalogNeedsRegeneration = true;
@@ -173,14 +186,15 @@ namespace CinematicShaders.Core
                 BulgeNoiseScale = BulgeNoiseScale,
                 BulgeNoiseStrength = BulgeNoiseStrength,
                 BloomThreshold = BloomThreshold,
-                BloomIntensity = BloomIntensity
+                BloomIntensity = BloomIntensity,
+                ColorSaturation = ColorSaturation
             };
 
             StarfieldNative.CR_StarfieldSetSettings(ref nativeSettings);
 
-            // Regenerate catalog if needed (with debounce)
+            // Regenerate catalog if needed (with debounce) - but NOT if read-only
             float currentTime = Time.time;
-            if (catalogParamsChanged && EnableStarfield &&
+            if (catalogParamsChanged && EnableStarfield && !IsReadOnly &&
                 (currentTime - _lastCatalogGenerationTime > CATALOG_GENERATION_DEBOUNCE || _lastCatalogGenerationTime < 0))
             {
                 try
@@ -208,6 +222,12 @@ namespace CinematicShaders.Core
                     _lastBulgeNoiseScale = BulgeNoiseScale;
                     _lastBulgeNoiseStrength = BulgeNoiseStrength;
                     _catalogNeedsRegeneration = false;
+                    
+                    // Auto-save to current catalog file if one is active
+                    if (!string.IsNullOrEmpty(ActiveCatalogPath) && !IsReadOnly)
+                    {
+                        StarCatalogManager.IsDirty = true;
+                    }
                 }
                 catch (System.Exception ex)
                 {
@@ -260,6 +280,9 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("BulgeNoiseStrength", BulgeNoiseStrength);
                 settingsNode.AddValue("BloomThreshold", BloomThreshold);
                 settingsNode.AddValue("BloomIntensity", BloomIntensity);
+                settingsNode.AddValue("ColorSaturation", ColorSaturation);
+                settingsNode.AddValue("ActiveCatalogPath", ActiveCatalogPath);
+                settingsNode.AddValue("IsReadOnly", IsReadOnly);
                 settingsNode.AddValue("CatalogSeed", CatalogSeed);
                 settingsNode.AddValue("CatalogSize", CatalogSize);
 

@@ -32,6 +32,7 @@ namespace CinematicShaders.Core
         {
             GTAOSettings.Load();
             StarfieldSettings.Load();
+            StarCatalogManager.Initialize();  // Ensure catalog folder exists
 
             if (HighLogic.LoadedScene != GameScenes.MAINMENU && (GTAOSettings.EnableGTAO || StarfieldSettings.EnableStarfield))
             {

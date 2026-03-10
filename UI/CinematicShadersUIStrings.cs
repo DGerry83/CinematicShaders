@@ -57,7 +57,7 @@
             public const string ExposureLabel = "Exposure";
             public const string ExposureTooltip = "Logarithmic exposure in EV stops (pow(2.0, exposure))";
             public const string BlurPixelsLabel = "Star Softness";
-            public const string BlurPixelsTooltip = "Gaussian sigma for point spread function (pixels)";
+            public const string BlurPixelsTooltip = "Angular size of star blur in arcminutes (1-2 for sharp stars, higher values look out of focus)";
 
             public const string DistributionSection = "STAR DISTRIBUTION";
             public const string MinMagnitudeLabel = "Min Magnitude";
@@ -86,9 +86,11 @@
             public const string NativeLoadError = "Native plugin failed to load. Check KSP.log for details.";
 
             public const string BloomThresholdLabel = "Bloom Threshold";
-            public const string BloomThresholdTooltip = "Values above this trigger bloom (lower = more stars bloom)";
+            public const string BloomThresholdTooltip = "HDR values above this trigger bloom - display 0-10 maps to actual 0-0.1 for fine control";
             public const string BloomIntensityLabel = "Bloom Intensity";
-            public const string BloomIntensityTooltip = "Strength of bloom halos around bright stars";
+            public const string BloomIntensityTooltip = "Bloom strength - logarithmic scale gives more precision at low values (0-2 range)";
+            public const string ColorSaturationLabel = "Color Saturation";
+            public const string ColorSaturationTooltip = "Star color vividness. 0.5=Realistic (real sky), 1.0=Natural, 2.0=Vivid/Artistic";
             public const string BeautySection = "BEAUTY";
         }
     }

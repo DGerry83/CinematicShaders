@@ -264,9 +264,12 @@ StarProperties calculate_star_properties(float3 hash_values, float min_mag, floa
 // ============================================
 // MODULE 6: POINT SPREAD FUNCTION
 // ============================================
+// Normalized Gaussian PSF with flux conservation
+// Integral over all pixels equals 1.0 regardless of sigma
 float calculate_psf(float dist_pixels, float sigma_pixels)
 {
-    return exp(-0.5 * pow(dist_pixels / sigma_pixels, 2.0));
+    float norm = 1.0 / (2.0 * 3.14159265 * sigma_pixels * sigma_pixels);
+    return norm * exp(-0.5 * pow(dist_pixels / sigma_pixels, 2.0));
 }
 
 // ============================================
@@ -373,9 +376,24 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // Calculate flux from magnitude (same formula as original)
     float flux = pow(10.0, -0.4 * star.Magnitude);
     
+    // FIX 1: Calculate pixels per radian at screen center for angular-to-pixel conversion
+    // This maintains constant angular star size regardless of FOV zoom
+    // SAFETY: Clamp FOV to avoid division by zero or extreme values
+    float safe_fov = clamp(VerticalFOV, 0.001, 3.0);  // 0.001 to ~172 degrees
+    float tan_half_fov = tan(safe_fov * 0.5);
+    float pixels_per_rad = (ScreenSize.y * 0.5) / max(tan_half_fov, 0.0001);
+    
+    // FIX 1 & 3: Convert angular blur to pixel sigma, enforce minimum 0.5px to prevent flicker
+    // BlurPixels is now interpreted as angular sigma in radians
+    float sigma_pixels = BlurPixels * pixels_per_rad;
+    sigma_pixels = max(sigma_pixels, 0.5);  // Anti-flicker: never smaller than 0.5 pixel sigma
+    
+    // Additional safety: ensure sigma is finite and not extreme
+    if (!isfinite(sigma_pixels) || sigma_pixels > 100.0) sigma_pixels = 0.5;
+    
     // Calculate splat radius (3.5 sigma covers 99.95% of Gaussian)
-    // BlurPixels is the standard deviation (sigma) in pixels
-    int radius = ceil(BlurPixels * 3.5);
+    // At minimum sigma=0.5, radius = ceil(1.75) = 2, giving ~3-4 pixel footprint
+    int radius = ceil(sigma_pixels * 3.5);
     if (radius < 1) radius = 1;
     
     int2 center = int2(floor(pixel_x + 0.5), floor(pixel_y + 0.5));
@@ -393,8 +411,9 @@ void CSMain(uint3 id : SV_DispatchThreadID)
             // Distance from star center in pixels
             float dist = length(float2(pix.x - pixel_x, pix.y - pixel_y));
             
-            // Gaussian PSF (same function as original)
-            float psf = calculate_psf(dist, BlurPixels);
+            // FIX 2: Normalized Gaussian PSF with flux conservation
+            // Total deposited flux is independent of sigma, preventing brightness changes when zooming
+            float psf = calculate_psf(dist, sigma_pixels);
             if (psf < 0.001) continue;
             
             // Calculate final contribution (flux * psf * exposure * color)

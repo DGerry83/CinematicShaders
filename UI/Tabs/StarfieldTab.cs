@@ -1,6 +1,7 @@
 ﻿using CinematicShaders.Core;
 using CinematicShaders.Native;
 using CinematicShaders.Shaders.Starfield;
+using System.Linq;
 using UnityEngine;
 
 namespace CinematicShaders.UI.Tabs
@@ -36,10 +37,20 @@ namespace CinematicShaders.UI.Tabs
         // Beauty
         private float _bloomThreshold;
         private float _bloomIntensity;
+        private float _colorSaturation;
         private int _catalogSeed;
         private int _catalogSize;
 
+        // Catalog Management
         private bool _initialized = false;
+        private bool _showReadOnlyWarning = false;
+        private string _newCatalogName = "";
+        private string _newFileName = "";
+        private bool _showSaveAsDialog = false;
+        private Vector2 _catalogDropdownScroll;
+        private bool _catalogDropdownOpen = false;
+        private string[] _catalogNames = new string[0];
+        private string[] _catalogPaths = new string[0];
 
         public StarfieldTab()
         {
@@ -66,6 +77,7 @@ namespace CinematicShaders.UI.Tabs
             _bulgeNoiseStrength = StarfieldSettings.BulgeNoiseStrength;
             _bloomThreshold = StarfieldSettings.BloomThreshold;
             _bloomIntensity = StarfieldSettings.BloomIntensity;
+            _colorSaturation = StarfieldSettings.ColorSaturation;
             _catalogSeed = StarfieldSettings.CatalogSeed;
             _catalogSize = StarfieldSettings.CatalogSize;
         }
@@ -91,6 +103,11 @@ namespace CinematicShaders.UI.Tabs
             {
                 GUIStyle helpStyle = CinematicShadersUIResources.Styles.Help();
 
+                // Catalog Management Section (always visible)
+                DrawCatalogSection();
+                
+                GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
+
                 GUILayout.Label(CinematicShadersUIStrings.Starfield.RenderingSection, HighLogic.Skin.label);
 
                 DrawEnableToggle(oldEnabled);
@@ -100,25 +117,51 @@ namespace CinematicShaders.UI.Tabs
 
                 DrawSlider(CinematicShadersUIStrings.Starfield.ExposureLabel, ref _exposure, -2.0f, 8.0f, "F1");
                 GUILayout.Label(CinematicShadersUIStrings.Starfield.ExposureTooltip, helpStyle);
-                DrawSlider(CinematicShadersUIStrings.Starfield.BlurPixelsLabel, ref _blurPixels, 1.0f, 3.0f, "F1");
+                // BlurPixels is angular sigma in radians; display as arcminutes (1' = 1/60° ≈ 0.00029 rad)
+                // Range: 1-2 arcminutes for sharp stars (0.00029 to 0.00058 radians)
+                // Values above 2 look out of focus and are reserved for special effects
+                float blurArcminutes = _blurPixels * 3437.75f;  // rad to arcmin (180*60/π)
+                DrawSlider(CinematicShadersUIStrings.Starfield.BlurPixelsLabel, ref blurArcminutes, 1.0f, 2.0f, "F1");
+                _blurPixels = blurArcminutes / 3437.75f;
 
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
 
                 // Beauty
                 GUILayout.Label(CinematicShadersUIStrings.Starfield.BeautySection, HighLogic.Skin.label);
-                DrawSlider(CinematicShadersUIStrings.Starfield.BloomThresholdLabel, ref _bloomThreshold, 0.0f, 0.5f, "F3");
+                // Bloom threshold slider 0-10 maps to actual 0-0.1 for finer control
+                float bloomThresholdDisplay = _bloomThreshold * 100.0f;  // 0.01 actual = 1.0 display
+                DrawSlider(CinematicShadersUIStrings.Starfield.BloomThresholdLabel, ref bloomThresholdDisplay, 0.0f, 10.0f, "F1");
+                _bloomThreshold = bloomThresholdDisplay / 100.0f;
                 GUILayout.Label(CinematicShadersUIStrings.Starfield.BloomThresholdTooltip, helpStyle);
-                DrawSlider(CinematicShadersUIStrings.Starfield.BloomIntensityLabel, ref _bloomIntensity, 0.0f, 5.0f, "F2");
+                // Bloom intensity 0-2 with logarithmic mapping for more precision at low end
+                // Display value 0-2, actual = display^2 / 2 (gives 0.125 at 0.5, 0.5 at 1.0, 2.0 at 2.0)
+                float bloomIntensityDisplay = Mathf.Sqrt(_bloomIntensity * 2.0f);
+                DrawSlider(CinematicShadersUIStrings.Starfield.BloomIntensityLabel, ref bloomIntensityDisplay, 0.0f, 2.0f, "F2");
+                _bloomIntensity = (bloomIntensityDisplay * bloomIntensityDisplay) * 0.5f;
                 GUILayout.Label(CinematicShadersUIStrings.Starfield.BloomIntensityTooltip, helpStyle);
+                
+                // Color saturation slider: 0.5-2.0 range
+                DrawSlider(CinematicShadersUIStrings.Starfield.ColorSaturationLabel, ref _colorSaturation, 0.5f, 2.0f, "F2");
+                GUILayout.Label(CinematicShadersUIStrings.Starfield.ColorSaturationTooltip, helpStyle);
 
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
                 GUILayout.Label("Catalog Generation", HighLogic.Skin.label);
+                
+                // Disable generation sliders if read-only
+                bool wasEnabled = GUI.enabled;
+                if (StarfieldSettings.IsReadOnly)
+                {
+                    GUI.enabled = false;
+                    GUILayout.Label("🔒 Generation parameters locked (Read-Only mode)", CinematicShadersUIResources.Styles.Help());
+                }
 
                 DrawIntSlider("Catalog Seed", ref _catalogSeed, 0, 99999);
                 GUILayout.Label("Random seed for star placement", helpStyle);
 
                 DrawIntSlider("Catalog Size", ref _catalogSize, 1000, 100000);
                 GUILayout.Label("Number of stars to generate", helpStyle);
+                
+                GUI.enabled = wasEnabled;
 
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
                 // Distribution
@@ -224,6 +267,233 @@ namespace CinematicShaders.UI.Tabs
             }
         }
 
+        private void DrawCatalogSection()
+        {
+            GUILayout.Label("Star Catalog", HighLogic.Skin.label);
+            
+            // Active catalog dropdown
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Active Catalog", GUILayout.Width(CinematicShadersUIResources.Layout.Labels.DEFAULT_WIDTH));
+            
+            string activeName = "(None)";
+            if (StarCatalogManager.ActiveCatalog != null)
+                activeName = StarCatalogManager.ActiveCatalog.GetDropdownLabel();
+            
+            if (GUILayout.Button(activeName + " ▼", GUILayout.Width(200)))
+            {
+                _catalogDropdownOpen = !_catalogDropdownOpen;
+                if (_catalogDropdownOpen)
+                {
+                    RefreshCatalogList();
+                }
+            }
+            GUILayout.EndHorizontal();
+            
+            // Dropdown menu
+            if (_catalogDropdownOpen)
+            {
+                GUILayout.BeginVertical(GUI.skin.box);
+                _catalogDropdownScroll = GUILayout.BeginScrollView(_catalogDropdownScroll, GUILayout.Height(150));
+                
+                foreach (var catalog in StarCatalogManager.GetAvailableCatalogs())
+                {
+                    if (GUILayout.Button(catalog.GetDropdownLabel()))
+                    {
+                        LoadCatalog(catalog.FilePath);
+                        _catalogDropdownOpen = false;
+                    }
+                }
+                
+                GUILayout.EndScrollView();
+                GUILayout.EndVertical();
+            }
+            
+            GUILayout.Space(5);
+            
+            // Read-Only toggle with glowing style
+            GUILayout.BeginHorizontal();
+            GUIStyle toggleStyle = StarfieldSettings.IsReadOnly ? 
+                CinematicShadersUIResources.Styles.ToggleActive() : HighLogic.Skin.toggle;
+            
+            bool newReadOnly = GUILayout.Toggle(StarfieldSettings.IsReadOnly, 
+                StarfieldSettings.IsReadOnly ? "🔒 Read-Only Protection ON" : "Generation Active", 
+                toggleStyle, GUILayout.Width(220));
+            
+            if (newReadOnly != StarfieldSettings.IsReadOnly)
+            {
+                if (!newReadOnly && StarfieldSettings.IsReadOnly)
+                {
+                    // User is trying to DISABLE read-only - show warning
+                    _showReadOnlyWarning = true;
+                }
+                else
+                {
+                    // Enabling read-only is always safe
+                    StarfieldSettings.IsReadOnly = true;
+                }
+            }
+            GUILayout.EndHorizontal();
+            
+            // Read-Only Warning Dialog
+            if (_showReadOnlyWarning)
+            {
+                GUILayout.Space(10);
+                GUILayout.BeginVertical(GUI.skin.box);
+                GUILayout.Label("⚠️ WARNING: Disabling Read-Only Protection", HighLogic.Skin.label);
+                GUILayout.Label("You are about to unlock this catalog for editing. Any changes to generation parameters will PERMANENTLY modify this catalog. This cannot be undone.", CinematicShadersUIResources.Styles.Help());
+                
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Cancel", GUILayout.Width(100)))
+                {
+                    _showReadOnlyWarning = false;
+                }
+                if (GUILayout.Button("I Understand - Unlock", GUILayout.Width(150)))
+                {
+                    StarfieldSettings.IsReadOnly = false;
+                    _showReadOnlyWarning = false;
+                    // Force save to mark as modifiable
+                    if (StarCatalogManager.ActiveCatalog != null)
+                    {
+                        StarCatalogManager.SaveCatalog(StarCatalogManager.ActiveCatalog.FilePath, 
+                            StarCatalogManager.ActiveCatalog.GetDisplayName(), false);
+                    }
+                }
+                GUILayout.EndHorizontal();
+                GUILayout.EndVertical();
+                GUILayout.Space(10);
+            }
+            
+            // Action buttons
+            GUILayout.BeginHorizontal();
+            
+            // Save button (disabled if read-only)
+            GUI.enabled = !StarfieldSettings.IsReadOnly && StarCatalogManager.ActiveCatalog != null;
+            if (GUILayout.Button("Save", GUILayout.Width(70)))
+            {
+                if (StarCatalogManager.ActiveCatalog != null)
+                {
+                    StarCatalogManager.SaveCatalog(StarCatalogManager.ActiveCatalog.FilePath,
+                        StarCatalogManager.ActiveCatalog.GetDisplayName(), false);
+                }
+            }
+            GUI.enabled = true;
+            
+            // New button (generate fresh catalog)
+            if (GUILayout.Button("New", GUILayout.Width(60)))
+            {
+                // Generate new random seed
+                _catalogSeed = new System.Random().Next(0, 99999);
+                StarfieldSettings.CatalogSeed = _catalogSeed;
+                StarfieldSettings.IsReadOnly = false;  // New catalogs start modifiable
+                StarfieldSettings.ActiveCatalogPath = "";  // Clear active catalog
+                StarCatalogManager.ActiveCatalog = null;
+                StarfieldSettings.InvalidateCatalog();
+                PushSettingsToNative();
+                
+                // Open Save As dialog for naming
+                _showSaveAsDialog = true;
+                _newFileName = "MyStarfield";
+                _newCatalogName = "My Starfield";
+            }
+            
+            // Save As button
+            if (GUILayout.Button("Save As...", GUILayout.Width(80)))
+            {
+                _showSaveAsDialog = true;
+                _newFileName = StarCatalogManager.ActiveCatalog?.GetDisplayName() ?? "MyStarfield";
+                _newCatalogName = StarCatalogManager.ActiveCatalog?.GetDisplayName() ?? "My Starfield";
+            }
+            
+            // Open Folder button
+            if (GUILayout.Button("Open Folder", GUILayout.Width(90)))
+            {
+                StarCatalogManager.OpenCatalogFolder();
+            }
+            
+            GUILayout.EndHorizontal();
+            
+            // Save As Dialog
+            if (_showSaveAsDialog)
+            {
+                GUILayout.Space(10);
+                GUILayout.BeginVertical(GUI.skin.box);
+                GUILayout.Label("Save Catalog As:", HighLogic.Skin.label);
+                
+                GUILayout.Label("Filename:");
+                _newFileName = GUILayout.TextField(_newFileName, GUILayout.Width(250));
+                
+                GUILayout.Label("Display Name:");
+                _newCatalogName = GUILayout.TextField(_newCatalogName, GUILayout.Width(250));
+                
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Cancel", GUILayout.Width(70)))
+                {
+                    _showSaveAsDialog = false;
+                }
+                if (GUILayout.Button("Save", GUILayout.Width(70)))
+                {
+                    string path = StarCatalogManager.SaveCatalogAs(_newFileName, _newCatalogName, false);
+                    if (path != null)
+                    {
+                        // Reload to switch to new catalog
+                        StarCatalogManager.LoadCatalog(path);
+                        StarfieldSettings.ActiveCatalogPath = path;
+                        StarfieldSettings.IsReadOnly = false;
+                    }
+                    _showSaveAsDialog = false;
+                }
+                GUILayout.EndHorizontal();
+                GUILayout.EndVertical();
+            }
+            
+            GUILayout.Space(5);
+            
+            // Delete button (red, right-aligned)
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            GUI.color = Color.red;
+            if (GUILayout.Button("Delete Catalog", GUILayout.Width(120)) && StarCatalogManager.ActiveCatalog != null)
+            {
+                if (StarCatalogManager.ActiveCatalog != null)
+                {
+                    StarCatalogManager.DeleteCatalog(StarCatalogManager.ActiveCatalog.FilePath);
+                }
+            }
+            GUI.color = Color.white;
+            GUILayout.EndHorizontal();
+        }
+        
+        private void RefreshCatalogList()
+        {
+            var catalogs = StarCatalogManager.GetAvailableCatalogs();
+            _catalogNames = catalogs.Select(c => c.GetDropdownLabel()).ToArray();
+            _catalogPaths = catalogs.Select(c => c.FilePath).ToArray();
+        }
+        
+        private void LoadCatalog(string filePath)
+        {
+            if (StarCatalogManager.LoadCatalog(filePath))
+            {
+                StarfieldSettings.ActiveCatalogPath = filePath;
+                // Read-only status comes from the loaded catalog
+                if (StarCatalogManager.ActiveCatalog != null)
+                {
+                    StarfieldSettings.IsReadOnly = StarCatalogManager.ActiveCatalog.IsReadOnly;
+                }
+                
+                // Sync UI values from loaded catalog's generation params
+                if (StarCatalogManager.ActiveCatalog != null)
+                {
+                    _catalogSeed = StarCatalogManager.ActiveCatalog.GenerationSeed;
+                    StarfieldSettings.CatalogSeed = _catalogSeed;
+                    // Reload other params if stored in catalog
+                }
+                
+                StarfieldSettings.InvalidateCatalog();
+                PushSettingsToNative();
+            }
+        }
+
         private void PushSettingsToNative()
         {
             StarfieldSettings.Exposure = _exposure;
@@ -248,6 +518,7 @@ namespace CinematicShaders.UI.Tabs
             StarfieldSettings.BulgeNoiseStrength = _bulgeNoiseStrength;
             StarfieldSettings.BloomThreshold = _bloomThreshold;
             StarfieldSettings.BloomIntensity = _bloomIntensity;
+            StarfieldSettings.ColorSaturation = _colorSaturation;
 
             StarfieldSettings.PushSettingsToNative();
         }

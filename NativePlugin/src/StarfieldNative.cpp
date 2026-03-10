@@ -68,6 +68,7 @@ static struct {
     float bulgeNoiseStrength = 0.0f;
     float bloomThreshold = 0.8f;
     float bloomIntensity = 2.0f;
+    float colorSaturation = 1.0f;  // 0.5=realistic, 1.0=natural, 2.0=vivid
     float blurPixels = 1.0f;
     int frameIndex = 0;
     // Catalog buffer management
@@ -75,6 +76,7 @@ static struct {
     int catalogSize = 0;
     int catalogCapacity = 0;     // Allocated capacity (may be larger than catalogSize)
     int catalogSeed = 0;         // Track current seed for debugging
+    int catalogHeroCount = 0;    // Actual hero count in loaded/generated catalog
     
     std::mutex stateMutex;
 } g_StarfieldState;
@@ -273,10 +275,60 @@ static float GetGalacticDensityCPU(const float3& rayDir,
     return baseDensity + coreDensity + bulgeDensity;
 }
 
+// Blackbody color calculation (Tanner Helland algorithm)
+// Returns RGB in range [0, 1] for given temperature in Kelvin
+static float3 BlackbodyRGB(float temperature)
+{
+    float t = fmaxf(1000.0f, fminf(40000.0f, temperature));
+    float tmp = t / 100.0f;
+    
+    float r, g, b;
+    
+    // Red
+    if (tmp <= 66.0f) {
+        r = 255.0f;
+    } else {
+        r = 329.698727446f * powf(tmp - 60.0f, -0.1332047592f);
+        r = fmaxf(0.0f, fminf(255.0f, r));
+    }
+    
+    // Green
+    if (tmp <= 66.0f) {
+        g = 99.4708025861f * logf(tmp) - 161.1195681661f;
+        g = fmaxf(0.0f, fminf(255.0f, g));
+    } else {
+        g = 288.1221695283f * powf(tmp - 60.0f, -0.0755148492f);
+        g = fmaxf(0.0f, fminf(255.0f, g));
+    }
+    
+    // Blue
+    if (tmp >= 66.0f) {
+        b = 255.0f;
+    } else if (tmp <= 19.0f) {
+        b = 0.0f;
+    } else {
+        b = 138.5177312231f * logf(tmp - 10.0f) - 305.0447927307f;
+        b = fmaxf(0.0f, fminf(255.0f, b));
+    }
+    
+    return float3(r / 255.0f, g / 255.0f, b / 255.0f);
+}
+
+// Apply saturation to color: 0.5=realistic, 1.0=natural, 2.0=vivid
+static float3 ApplySaturation(float3 baseColor, float saturation)
+{
+    // Lerp toward white based on saturation
+    // saturation < 1.0 = more white (realistic)
+    // saturation = 1.0 = base color unchanged
+    // saturation > 1.0 = extrapolate away from white (vivid)
+    float3 white(1.0f, 1.0f, 1.0f);
+    return white + (baseColor - white) * saturation;
+}
+
 // Star properties calculation (matches HLSL calculate_star_properties)
 static void CalculateStarPropertiesCPU(const float3& hashValues, 
     float minMag, float maxMag, float magBias, float popBias, 
-    float mainSeqStr, float redGiantRare,
+    float mainSeqStr, float redGiantRare, float colorSaturation,
     float& outFlux, float3& outColor, float& outMagnitude, float& outTemp)
 {
     float normalizedBrightness = powf(hashValues.y, magBias);
@@ -290,31 +342,36 @@ static void CalculateStarPropertiesCPU(const float3& hashValues,
     
     // Red giants override
     if (hashValues.x < redGiantRare && normalizedBrightness < 0.3f) {
-        outColor = float3(1.0f, 0.2f, 0.05f);
+        float3 baseColor = float3(1.0f, 0.5f, 0.3f); // Orange-red
         outTemp = 3500.0f;
+        outColor = ApplySaturation(baseColor, colorSaturation);
         return;
     }
     
-    // Main sequence color temperature mapping
+    // Calculate temperature based on main sequence position
+    // Map tempHash [0-1] to temperature range [3500K - 20000K]
+    float baseTemp;
     if (tempHash < 0.15f) {
-        outColor = float3(1.0f, 0.15f, 0.05f); // M-type
-        outTemp = 3500.0f;
+        baseTemp = 3500.0f;   // M-type
     } else if (tempHash < 0.35f) {
-        outColor = float3(1.0f, 0.4f, 0.1f);   // K-type
-        outTemp = 4500.0f;
+        baseTemp = 4500.0f;   // K-type
     } else if (tempHash < 0.55f) {
-        outColor = float3(1.0f, 0.9f, 0.5f);   // G-type (Sun-like)
-        outTemp = 5778.0f;
+        baseTemp = 5778.0f;   // G-type (Sun)
     } else if (tempHash < 0.75f) {
-        outColor = float3(0.85f, 0.95f, 1.0f); // F-type
-        outTemp = 7200.0f;
+        baseTemp = 7200.0f;   // F-type
     } else if (tempHash < 0.90f) {
-        outColor = float3(0.6f, 0.8f, 1.0f);   // A-type
-        outTemp = 9500.0f;
+        baseTemp = 9500.0f;   // A-type
     } else {
-        outColor = float3(0.4f, 0.65f, 1.0f);  // B/O-type
-        outTemp = 20000.0f;
+        baseTemp = 20000.0f;  // B/O-type
     }
+    
+    // Add some variation to temperature
+    outTemp = baseTemp * (0.9f + hashValues.x * 0.2f);
+    outTemp = fmaxf(2000.0f, fminf(40000.0f, outTemp));
+    
+    // Get blackbody color and apply saturation
+    float3 blackbody = BlackbodyRGB(outTemp);
+    outColor = ApplySaturation(blackbody, colorSaturation);
 }
 
 // Starfield Internal Functions
@@ -778,11 +835,13 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
         
         float3 heroColor;
         float heroTemp;
+        float colorSaturation = g_StarfieldState.colorSaturation;
         
         if (isRedGiant) {
-            // Red giant color
-            heroColor = float3(1.0f, 0.2f, 0.05f);
+            // Red giant color - orange-red
+            float3 baseColor = float3(1.0f, 0.5f, 0.3f);
             heroTemp = 3500.0f;
+            heroColor = ApplySaturation(baseColor, colorSaturation);
         } else {
             // Regular star - use population bias and main sequence strength
             // For heroes, we want brighter stars to tend toward blue (higher temp)
@@ -792,12 +851,19 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
             float tempHash = randomComponent * (1.0f - mainSequenceStrength) + sequenceComponent * mainSequenceStrength;
             tempHash = Frac(tempHash + populationBias * 0.3f);
             
-            if (tempHash < 0.15) { heroColor = float3(1.0f, 0.15f, 0.05f); heroTemp = 3500.0f; }
-            else if (tempHash < 0.35) { heroColor = float3(1.0f, 0.4f, 0.1f); heroTemp = 4500.0f; }
-            else if (tempHash < 0.55) { heroColor = float3(1.0f, 0.9f, 0.5f); heroTemp = 5778.0f; }
-            else if (tempHash < 0.75) { heroColor = float3(0.85f, 0.95f, 1.0f); heroTemp = 7200.0f; }
-            else if (tempHash < 0.90) { heroColor = float3(0.6f, 0.8f, 1.0f); heroTemp = 9500.0f; }
-            else { heroColor = float3(0.4f, 0.65f, 1.0f); heroTemp = 20000.0f; }
+            // Calculate temperature
+            if (tempHash < 0.15f) { heroTemp = 3500.0f; }
+            else if (tempHash < 0.35f) { heroTemp = 4500.0f; }
+            else if (tempHash < 0.55f) { heroTemp = 5778.0f; }
+            else if (tempHash < 0.75f) { heroTemp = 7200.0f; }
+            else if (tempHash < 0.90f) { heroTemp = 9500.0f; }
+            else { heroTemp = 20000.0f; }
+            
+            // Apply variation and get blackbody color with saturation
+            heroTemp = heroTemp * (0.9f + h.x * 0.2f);
+            heroTemp = fmaxf(2000.0f, fminf(40000.0f, heroTemp));
+            float3 blackbody = BlackbodyRGB(heroTemp);
+            heroColor = ApplySaturation(blackbody, colorSaturation);
         }
         
         // Add hero to catalog (at the end, we'll reverse to put heroes first)
@@ -879,17 +945,28 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
         
         float3 color;
         float temp;
+        float colorSaturation = g_StarfieldState.colorSaturation;
         
         // Red giants override (rare bright red stars)
         if (h.x < redGiantRarity && normalizedBrightness < 0.3f) {
-            color = float3(1.0f, 0.2f, 0.05f);
+            float3 baseColor = float3(1.0f, 0.5f, 0.3f);
             temp = 3500.0f;
-        } else if (tempHash < 0.15) { color = float3(1.0f, 0.15f, 0.05f); temp = 3500.0f; }
-        else if (tempHash < 0.35) { color = float3(1.0f, 0.4f, 0.1f); temp = 4500.0f; }
-        else if (tempHash < 0.55) { color = float3(1.0f, 0.9f, 0.5f); temp = 5778.0f; }
-        else if (tempHash < 0.75) { color = float3(0.85f, 0.95f, 1.0f); temp = 7200.0f; }
-        else if (tempHash < 0.90) { color = float3(0.6f, 0.8f, 1.0f); temp = 9500.0f; }
-        else { color = float3(0.4f, 0.65f, 1.0f); temp = 20000.0f; }
+            color = ApplySaturation(baseColor, colorSaturation);
+        } else {
+            // Calculate temperature
+            if (tempHash < 0.15f) { temp = 3500.0f; }
+            else if (tempHash < 0.35f) { temp = 4500.0f; }
+            else if (tempHash < 0.55f) { temp = 5778.0f; }
+            else if (tempHash < 0.75f) { temp = 7200.0f; }
+            else if (tempHash < 0.90f) { temp = 9500.0f; }
+            else { temp = 20000.0f; }
+            
+            // Apply variation and get blackbody color with saturation
+            temp = temp * (0.9f + h.x * 0.2f);
+            temp = fmaxf(2000.0f, fminf(40000.0f, temp));
+            float3 blackbody = BlackbodyRGB(temp);
+            color = ApplySaturation(blackbody, colorSaturation);
+        }
         
         // Regular stars acceptance based on magnitude bias (brighter = more likely)
         float existenceProb = powf((magnitude - regularMinMag) / (maxMagnitude - regularMinMag), magnitudeBias);
@@ -972,6 +1049,7 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
         context->Release();
         
         g_StarfieldState.catalogSize = finalCount;
+        g_StarfieldState.catalogHeroCount = heroesGenerated;  // Store actual hero count
         g_StarfieldState.catalogSeed = seed;
         LogToFile("[Starfield] Catalog generated: %d stars (%d heroes, %d regular, %d attempts)", finalCount, heroesGenerated, regularGenerated, totalAttempts);
     } else {
@@ -1037,6 +1115,7 @@ void CR_StarfieldSetSettings(const StarfieldSettingsNative* settings)
     g_StarfieldState.bulgeNoiseStrength = settings->BulgeNoiseStrength;
     g_StarfieldState.bloomThreshold = settings->BloomThreshold;
     g_StarfieldState.bloomIntensity = settings->BloomIntensity;
+    g_StarfieldState.colorSaturation = settings->ColorSaturation;
 }
 
 extern "C" __declspec(dllexport)
@@ -1071,4 +1150,106 @@ void CR_StarfieldShutdown()
     if (g_StarfieldState.device) { g_StarfieldState.device->Release(); g_StarfieldState.device = nullptr; }
     
     g_StarfieldState.initialized = false;
+}
+
+// ============================================================================
+// CATALOG SAVE/LOAD EXPORTS
+// ============================================================================
+
+extern "C" __declspec(dllexport)
+int CR_StarfieldGetCatalogData(StarData* outBuffer, int maxCount)
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
+    if (!g_StarfieldState.starCatalogBuffer || g_StarfieldState.catalogSize == 0) {
+        return 0;
+    }
+    
+    int countToCopy = (maxCount < g_StarfieldState.catalogSize) ? maxCount : g_StarfieldState.catalogSize;
+    
+    // Get immediate context for reading
+    ID3D11DeviceContext* context = nullptr;
+    g_StarfieldState.device->GetImmediateContext(&context);
+    if (!context) {
+        return 0;
+    }
+    
+    D3D11_MAPPED_SUBRESOURCE mapped;
+    if (SUCCEEDED(context->Map(g_StarfieldState.starCatalogBuffer, 0, D3D11_MAP_READ, 0, &mapped))) {
+        memcpy(outBuffer, mapped.pData, sizeof(StarData) * countToCopy);
+        context->Unmap(g_StarfieldState.starCatalogBuffer, 0);
+    }
+    
+    context->Release();
+    return countToCopy;
+}
+
+extern "C" __declspec(dllexport)
+void CR_StarfieldLoadCatalog(const StarData* buffer, int count, int heroCount)
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
+    if (!g_StarfieldState.device || count <= 0 || !buffer) {
+        LogToFile("[Starfield] Cannot load catalog - invalid params or no device");
+        return;
+    }
+    
+    // Clamp hero count
+    if (heroCount < 0) heroCount = 0;
+    if (heroCount > count) heroCount = count;
+    
+    // Ensure buffer capacity
+    if (count > g_StarfieldState.catalogCapacity || g_StarfieldState.starCatalogBuffer == nullptr) {
+        if (g_StarfieldState.starCatalogBuffer) {
+            g_StarfieldState.starCatalogBuffer->Release();
+            g_StarfieldState.starCatalogBuffer = nullptr;
+        }
+        
+        D3D11_BUFFER_DESC desc = {};
+        desc.ByteWidth = sizeof(StarData) * count;
+        desc.Usage = D3D11_USAGE_DYNAMIC;
+        desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+        desc.StructureByteStride = sizeof(StarData);
+        
+        HRESULT hr = g_StarfieldState.device->CreateBuffer(&desc, nullptr, &g_StarfieldState.starCatalogBuffer);
+        if (FAILED(hr)) {
+            LogToFile("[Starfield] Failed to create catalog buffer for loading");
+            return;
+        }
+        
+        g_StarfieldState.catalogCapacity = count;
+    }
+    
+    // Upload data
+    ID3D11DeviceContext* context = nullptr;
+    g_StarfieldState.device->GetImmediateContext(&context);
+    
+    if (context) {
+        D3D11_MAPPED_SUBRESOURCE mapped;
+        if (SUCCEEDED(context->Map(g_StarfieldState.starCatalogBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+            memcpy(mapped.pData, buffer, sizeof(StarData) * count);
+            context->Unmap(g_StarfieldState.starCatalogBuffer, 0);
+            
+            g_StarfieldState.catalogSize = count;
+            g_StarfieldState.catalogHeroCount = heroCount;
+            LogToFile("[Starfield] Loaded catalog: %d stars, %d heroes", count, heroCount);
+        }
+        context->Release();
+    }
+}
+
+extern "C" __declspec(dllexport)
+int CR_StarfieldGetCatalogSize()
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    return g_StarfieldState.catalogSize;
+}
+
+extern "C" __declspec(dllexport)
+int CR_StarfieldGetHeroCount()
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    return g_StarfieldState.catalogHeroCount;
 }
