@@ -376,3 +376,9 @@ FodyWeavers.xsd
 /NativePlugin/shaders/compile_GTAO_Filter_Fixed.bat
 /NativePlugin/shaders/GTAO_Filter_Fixed.hlsl
 /NativePlugin/shaders/GTAO_SmartBlur.hlsl
+/NativePlugin/hyg_v42.csv.gz
+/HipparcosData/hyg_v42.csv
+/HipparcosData/hyg_v42_truncated.csv
+/HipparcosData/convert_hyg.py
+/HipparcosData/verify_binary.py
+/HipparcosData/debug_parse.py
