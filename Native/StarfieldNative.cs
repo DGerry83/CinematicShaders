@@ -102,9 +102,13 @@ namespace CinematicShaders.Native
             public float ColorSaturation;  // 0.0-2.0: 0.5=realistic, 1.0=natural, 2.0=vivid
         }
 
-        [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 32)]
+        [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 44)]
         public struct StarDataNative
         {
+            public int HipparcosID;    // Hipparcos catalog ID (0 if procedural)
+            public float DistancePc;   // Distance in parsecs (0 if unknown)
+            public int SpectralType;   // 0=O,1=B,2=A,3=F,4=G,5=K,6=M,7=L,255=Unknown
+            
             public float DirectionX;
             public float DirectionY;
             public float DirectionZ;
@@ -115,8 +119,11 @@ namespace CinematicShaders.Native
             public float ColorB;
             public float Temperature;
 
-            public StarDataNative(Vector3 direction, float magnitude, Color color, float temperature)
+            public StarDataNative(int hipparcosID, float distancePc, int spectralType, Vector3 direction, float magnitude, Color color, float temperature)
             {
+                HipparcosID = hipparcosID;
+                DistancePc = distancePc;
+                SpectralType = spectralType;
                 DirectionX = direction.x;
                 DirectionY = direction.y;
                 DirectionZ = direction.z;

@@ -17,9 +17,9 @@ from datetime import datetime
 
 # Constants
 HEADER_SIZE = 256
-STAR_SIZE = 32  # 8 floats × 4 bytes = 32 bytes (DirXYZ, Mag, RGB, Temp)
+STAR_SIZE = 44  # 11 values × 4 bytes = 44 bytes (ID, Dist, Spectral, DirXYZ, Mag, RGB, Temp)
 MAGIC = 0x53545243  # 'STRC'
-VERSION = 1
+VERSION = 3  # Version 3: ID + Distance(pc) + SpectralType
 
 def blackbody_rgb(temperature):
     """
@@ -56,6 +56,24 @@ def blackbody_rgb(temperature):
     
     return (r / 255.0, g / 255.0, b / 255.0)
 
+def spectral_type_to_enum(spectral):
+    """Convert spectral type string to enum value."""
+    if not spectral:
+        return 255  # Unknown
+    
+    s = spectral[0].upper()
+    spectral_map = {
+        'O': 0,
+        'B': 1,
+        'A': 2,
+        'F': 3,
+        'G': 4,
+        'K': 5,
+        'M': 6,
+        'L': 7,
+    }
+    return spectral_map.get(s, 255)  # 255 for unknown/other
+
 def color_index_to_temp(ci):
     """
     Convert B-V color index to temperature using Ballesteros formula.
@@ -87,7 +105,7 @@ def normalize_direction(x, y, z):
 def parse_star(row):
     """
     Parse a CSV row into star data tuple.
-    Returns: (dx, dy, dz, mag, r, g, b, temp) or None if filtered
+    Returns: (hip_id, dist_pc, spectral_enum, dx, dy, dz, mag, r, g, b, temp) or None if filtered
     """
     try:
         # Skip Sun
@@ -126,7 +144,32 @@ def parse_star(row):
         # Normalize direction
         dx, dy, dz = normalize_direction(x, y, z)
         
-        return (dx, dy, dz, mag, r, g, b, temp)
+        # Get Hipparcos ID (column 'id' or 'hip')
+        hip_id = 0
+        if 'id' in row and row['id']:
+            try:
+                hip_id = int(row['id'])
+            except ValueError:
+                hip_id = 0
+        elif 'hip' in row and row['hip']:
+            try:
+                hip_id = int(row['hip'])
+            except ValueError:
+                hip_id = 0
+        
+        # Get distance in parsecs
+        dist_pc = 0.0
+        if 'dist' in row and row['dist']:
+            try:
+                dist_pc = float(row['dist'])
+            except ValueError:
+                dist_pc = 0.0
+        
+        # Get spectral type
+        spectral = row.get('spect', '')
+        spectral_enum = spectral_type_to_enum(spectral)
+        
+        return (hip_id, dist_pc, spectral_enum, dx, dy, dz, mag, r, g, b, temp)
         
     except (KeyError, ValueError) as e:
         # Missing required field or bad number
@@ -148,7 +191,10 @@ def write_catalog(filename, stars, display_name, read_only=True):
     - Offset 116: Date (32 bytes) - ISO-8601 timestamp
     - Offset 148: Reserved (108 bytes) - zeros
     
-    Star records (32 bytes each):
+    Star records (44 bytes each):
+    - HipparcosID (1 int32)
+    - DistancePc (1 float) - distance in parsecs
+    - SpectralType (1 int32) - 0=O,1=B,2=A,3=F,4=G,5=K,6=M,7=L,255=Unknown
     - DirectionX, DirectionY, DirectionZ, Magnitude (4 floats)
     - ColorR, ColorG, ColorB, Temperature (4 floats)
     """
@@ -191,10 +237,10 @@ def write_catalog(filename, stars, display_name, read_only=True):
         # Reserved (108 bytes) - zeros to reach 256 byte header
         f.write(b'\x00' * 108)
         
-        # Write star data (32 bytes each)
+        # Write star data (44 bytes each)
         for star in stars:
-            dx, dy, dz, mag, r, g, b, temp = star
-            f.write(struct.pack('<ffffffff', dx, dy, dz, mag, r, g, b, temp))
+            hip_id, dist_pc, spectral_enum, dx, dy, dz, mag, r, g, b, temp = star
+            f.write(struct.pack('<ififfffffff', hip_id, dist_pc, spectral_enum, dx, dy, dz, mag, r, g, b, temp))
     
     file_size = os.path.getsize(filename)
     expected_size = HEADER_SIZE + (len(stars) * STAR_SIZE)
@@ -238,7 +284,7 @@ def main():
             # Full parse
             star = parse_star(row)
             if star:
-                stars.append((star, star[3]))  # (data, mag for sorting)
+                stars.append((star, star[6]))  # (data, mag for sorting) - mag is now at index 6
             else:
                 skipped_bad_pos += 1
     

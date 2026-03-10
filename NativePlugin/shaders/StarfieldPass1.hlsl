@@ -8,8 +8,12 @@ RWTexture2D<float3> OutputHDR : register(u0);
 
 // StructuredBuffer containing pre-generated star catalog
 // Populated by CPU via CR_StarfieldGenerateCatalog
+// Version 3: 44 bytes including HipparcosID, Distance, and SpectralType
 struct StarData
 {
+    int HipparcosID;     // 4 bytes  - Hipparcos catalog ID (0 if procedural)
+    float DistancePc;    // 4 bytes  - Distance in parsecs (0 if unknown)
+    int SpectralType;    // 4 bytes  - 0=O,1=B,2=A,3=F,4=G,5=K,6=M,7=L,255=Unknown
     float3 Direction;    // 12 bytes - Normalized direction on celestial sphere
     float Magnitude;     // 4 bytes  - Absolute magnitude (lower = brighter)
     

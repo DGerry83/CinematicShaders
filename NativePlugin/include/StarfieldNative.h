@@ -16,9 +16,14 @@ struct float3 {
     float3(float _x, float _y, float _z) : x(_x), y(_y), z(_z) {}
 };
 
-// Star catalog entry - 32 bytes, 4-byte aligned for GPU StructuredBuffer
+// Star catalog entry - 44 bytes, 4-byte aligned for GPU StructuredBuffer
 // Layout matches C# StarDataNative and HLSL StarData exactly
+// Version 3: Added HipparcosID, DistancePc, and SpectralType
 struct StarData {
+    int32_t HipparcosID;   // 4 bytes - Hipparcos catalog ID (0 if not from real catalog)
+    float DistancePc;      // 4 bytes - Distance in parsecs (0 if unknown)
+    int32_t SpectralType;  // 4 bytes - 0=O,1=B,2=A,3=F,4=G,5=K,6=M,7=L,255=Unknown
+    
     float DirectionX;      // 4 bytes
     float DirectionY;      // 4 bytes  
     float DirectionZ;      // 4 bytes
@@ -30,11 +35,13 @@ struct StarData {
     float Temperature;     // 4 bytes - Kelvin, for future PSF shader use
     
     // Utility constructor for C++ generation code
-    StarData() : DirectionX(0), DirectionY(0), DirectionZ(0), Magnitude(10.0f),
+    StarData() : HipparcosID(0), DistancePc(0.0f), SpectralType(255), 
+                 DirectionX(0), DirectionY(0), DirectionZ(0), Magnitude(10.0f),
                  ColorR(1.0f), ColorG(1.0f), ColorB(1.0f), Temperature(5778.0f) {}
                  
-    StarData(float dx, float dy, float dz, float mag, float r, float g, float b, float temp)
-        : DirectionX(dx), DirectionY(dy), DirectionZ(dz), Magnitude(mag),
+    StarData(int32_t hip, float dist, int32_t spectral, float dx, float dy, float dz, float mag, float r, float g, float b, float temp)
+        : HipparcosID(hip), DistancePc(dist), SpectralType(spectral),
+          DirectionX(dx), DirectionY(dy), DirectionZ(dz), Magnitude(mag),
           ColorR(r), ColorG(g), ColorB(b), Temperature(temp) {}
 };
 
