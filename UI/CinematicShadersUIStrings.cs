@@ -90,7 +90,7 @@
             public const string BloomIntensityLabel = "Bloom Intensity";
             public const string BloomIntensityTooltip = "Bloom strength - logarithmic scale gives more precision at low values (0-2 range)";
             public const string ColorSaturationLabel = "Color Saturation";
-            public const string ColorSaturationTooltip = "Star color vividness. 0.5=Realistic (real sky), 1.0=Natural, 2.0=Vivid/Artistic";
+            public const string ColorSaturationTooltip = "Star color vividness. 0.5=Realistic (real sky), 1.0=Natural, 2.0=Vivid, 4.0=Hyper-saturated/Deep colors";
             public const string BeautySection = "BEAUTY";
         }
     }

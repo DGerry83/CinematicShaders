@@ -220,49 +220,7 @@ float3 generate_view_ray(float2 uv, float fov_rad, float aspect)
 }
 
 // ============================================
-// MODULE 5: STAR PROPERTIES
-// ============================================
-struct StarProperties
-{
-    float flux;
-    float3 color;
-    float magnitude;
-    float normalized_brightness;
-};
-
-StarProperties calculate_star_properties(float3 hash_values, float min_mag, float max_mag, 
-    float mag_bias, float pop_bias, float main_seq_str, float red_giant_rare)
-{
-    StarProperties star;
-    
-    star.normalized_brightness = pow(hash_values.y, mag_bias);
-    star.magnitude = lerp(min_mag, max_mag, star.normalized_brightness);
-    star.flux = pow(10.0, -0.4 * star.magnitude);
-    
-    float random_component = hash_values.z;
-    float sequence_component = (1.0 - star.normalized_brightness);
-    float temp_hash = lerp(random_component, sequence_component, main_seq_str);
-    temp_hash = frac(temp_hash + pop_bias * 0.3);
-    
-    // Red giants override
-    if(hash_values.x < red_giant_rare && star.normalized_brightness < 0.3)
-    {
-        star.color = float3(1.0, 0.2, 0.05);
-        return star;
-    }
-    
-    if(temp_hash < 0.15) star.color = float3(1.0, 0.15, 0.05);
-    else if(temp_hash < 0.35) star.color = float3(1.0, 0.4, 0.1);
-    else if(temp_hash < 0.55) star.color = float3(1.0, 0.9, 0.5);
-    else if(temp_hash < 0.75) star.color = float3(0.85, 0.95, 1.0);
-    else if(temp_hash < 0.90) star.color = float3(0.6, 0.8, 1.0);
-    else star.color = float3(0.4, 0.65, 1.0);
-    
-    return star;
-}
-
-// ============================================
-// MODULE 6: POINT SPREAD FUNCTION
+// MODULE 5: POINT SPREAD FUNCTION
 // ============================================
 // Normalized Gaussian PSF with flux conservation
 // Integral over all pixels equals 1.0 regardless of sigma
@@ -273,7 +231,7 @@ float calculate_psf(float dist_pixels, float sigma_pixels)
 }
 
 // ============================================
-// MODULE 7: GALAXY DENSITY
+// MODULE 6: GALAXY DENSITY
 // ============================================
 float get_galactic_density(float3 ray_direction, float flatness, float falloff, 
     float band_boost, float band_sharpness, float3 normal, float bulge_intensity,
@@ -328,7 +286,7 @@ float get_galactic_density(float3 ray_direction, float flatness, float falloff,
 }
 
 // ============================================
-// MODULE 8: SPATIAL CLUSTERING
+// MODULE 7: SPATIAL CLUSTERING
 // ============================================
 float calculate_clustering(float3 ray_dir, float density, float strength)
 {

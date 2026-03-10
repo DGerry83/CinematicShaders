@@ -140,8 +140,8 @@ namespace CinematicShaders.UI.Tabs
                 _bloomIntensity = (bloomIntensityDisplay * bloomIntensityDisplay) * 0.5f;
                 GUILayout.Label(CinematicShadersUIStrings.Starfield.BloomIntensityTooltip, helpStyle);
                 
-                // Color saturation slider: 0.5-2.0 range
-                DrawSlider(CinematicShadersUIStrings.Starfield.ColorSaturationLabel, ref _colorSaturation, 0.5f, 2.0f, "F2");
+                // Color saturation slider: 0.5-4.0 range (higher = more vivid colors)
+                DrawSlider(CinematicShadersUIStrings.Starfield.ColorSaturationLabel, ref _colorSaturation, 0.5f, 4.0f, "F2");
                 GUILayout.Label(CinematicShadersUIStrings.Starfield.ColorSaturationTooltip, helpStyle);
 
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);

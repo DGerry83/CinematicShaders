@@ -314,15 +314,35 @@ static float3 BlackbodyRGB(float temperature)
     return float3(r / 255.0f, g / 255.0f, b / 255.0f);
 }
 
-// Apply saturation to color: 0.5=realistic, 1.0=natural, 2.0=vivid
-static float3 ApplySaturation(float3 baseColor, float saturation)
+// Apply saturation to color: 0.5=realistic, 1.0=natural, 4.0=hyper-vivid
+static float3 ApplySaturation(float3 baseColor, float sliderValue)
 {
-    // Lerp toward white based on saturation
-    // saturation < 1.0 = more white (realistic)
-    // saturation = 1.0 = base color unchanged
-    // saturation > 1.0 = extrapolate away from white (vivid)
-    float3 white(1.0f, 1.0f, 1.0f);
-    return white + (baseColor - white) * saturation;
+    // Map slider to effective saturation with curve
+    // Keep exact: 0.5 -> 0.5 (realistic), 1.0 -> 1.0 (natural)
+    // Curve above 1.0: 2.0 -> 1.6, 3.0 -> 2.2, 4.0 -> 2.8
+    // This prevents abrupt clamping while keeping low-end linear
+    
+    float t;
+    if (sliderValue <= 1.0f) {
+        // Linear from 0 to 1 (0.5 stays exactly 0.5 for realistic)
+        t = sliderValue;
+    } else {
+        // Curve above 1.0: t = 1 + (slider-1)^0.8
+        // This compresses the high end so each slider step gives similar visual change
+        t = 1.0f + powf(sliderValue - 1.0f, 0.8f);
+    }
+    
+    // Calculate color: move away from white by factor t
+    float r = 1.0f + (baseColor.x - 1.0f) * t;
+    float g = 1.0f + (baseColor.y - 1.0f) * t;
+    float b = 1.0f + (baseColor.z - 1.0f) * t;
+    
+    // Clamp to valid range
+    r = fmaxf(0.0f, fminf(1.0f, r));
+    g = fmaxf(0.0f, fminf(1.0f, g));
+    b = fmaxf(0.0f, fminf(1.0f, b));
+    
+    return float3(r, g, b);
 }
 
 // Star properties calculation (matches HLSL calculate_star_properties)
@@ -746,6 +766,9 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
     float mainSequenceStrength = g_StarfieldState.mainSequenceStrength;
     float redGiantRarity = g_StarfieldState.redGiantRarity;
     
+    LogToFile("[Starfield] Generating catalog: popBias=%.2f, mainSeq=%.2f, colorSat=%.2f, seed=%d, count=%d",
+        populationBias, mainSequenceStrength, g_StarfieldState.colorSaturation, seed, requestedCount);
+    
     // Galactic structure params
     float3 planeNormal = g_StarfieldState.galacticPlaneNormal;
     float3 bulgeCenter = g_StarfieldState.bulgeCenterDirection;
@@ -849,7 +872,8 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
             float randomComponent = h.z;
             float sequenceComponent = (1.0f - brightnessNormalized);
             float tempHash = randomComponent * (1.0f - mainSequenceStrength) + sequenceComponent * mainSequenceStrength;
-            tempHash = Frac(tempHash + populationBias * 0.3f);
+            tempHash = tempHash + populationBias * 0.3f;
+            tempHash = fmaxf(0.0f, fminf(1.0f, tempHash));
             
             // Calculate temperature
             if (tempHash < 0.15f) { heroTemp = 3500.0f; }
@@ -941,7 +965,9 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
         float randomComponent = h.z;
         float sequenceComponent = (1.0f - brightnessNormalized);
         float tempHash = randomComponent * (1.0f - mainSequenceStrength) + sequenceComponent * mainSequenceStrength;
-        tempHash = Frac(tempHash + populationBias * 0.3f);
+        // Apply population bias (shift toward red=-1 or blue=+1) and clamp to [0,1]
+        tempHash = tempHash + populationBias * 0.3f;
+        tempHash = fmaxf(0.0f, fminf(1.0f, tempHash));
         
         float3 color;
         float temp;
@@ -1102,6 +1128,9 @@ void CR_StarfieldSetSettings(const StarfieldSettingsNative* settings)
     g_StarfieldState.clustering = settings->Clustering;
     g_StarfieldState.populationBias = settings->PopulationBias;
     g_StarfieldState.mainSequenceStrength = settings->MainSequenceStrength;
+    
+    LogToFile("[Starfield] Settings updated: PopulationBias=%.2f, MainSequence=%.2f, ColorSat=%.2f",
+        settings->PopulationBias, settings->MainSequenceStrength, settings->ColorSaturation);
     g_StarfieldState.redGiantRarity = settings->RedGiantRarity;
     g_StarfieldState.galacticFlatness = settings->GalacticFlatness;
     g_StarfieldState.galacticDiscFalloff = settings->GalacticDiscFalloff;
