@@ -35,20 +35,20 @@ cbuffer StarfieldParams : register(b0)
     float _padCamera3;
     
     // Star Distribution
-    float StarDensity;
     float MinMagnitude;
     float MaxMagnitude;
     float MagnitudeBias;
+    int HeroCount;       // 16-1024, CPU-side only but kept for struct alignment
     
-    float HeroRarity;
     float Clustering;
-    float StaggerAmount;
     float PopulationBias;
     
     float MainSequenceStrength;
     float RedGiantRarity;
     float Exposure;      // EV stops
     float BlurPixels;
+    
+    float2 _pad2;        // Pad after removing StarDensity, HeroRarity, StaggerAmount
     
     // Galactic Structure
     float GalacticFlatness;

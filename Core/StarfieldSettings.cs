@@ -12,13 +12,11 @@ namespace CinematicShaders.Core
         public static float BlurPixels { get; set; } = 1.0f;
 
         // Star Distribution
-        public static float StarDensity { get; set; } = 200.0f;
         public static float MinMagnitude { get; set; } = -1.0f;
         public static float MaxMagnitude { get; set; } = 10.0f;
         public static float MagnitudeBias { get; set; } = 0.08f;
-        public static float HeroRarity { get; set; } = 0.02f;
+        public static int HeroCount { get; set; } = 128;  // 16-1024 hero stars
         public static float Clustering { get; set; } = 0.6f;
-        public static float StaggerAmount { get; set; } = 0.5f;
         public static float PopulationBias { get; set; } = 0.0f;
         public static float MainSequenceStrength { get; set; } = 0.6f;
         public static float RedGiantRarity { get; set; } = 0.02f;
@@ -38,7 +36,6 @@ namespace CinematicShaders.Core
         // Beauty
         public static float BloomThreshold { get; set; } = 0.8f;
         public static float BloomIntensity { get; set; } = 2.0f;
-        public static float SpikeIntensity { get; set; } = 0.4f;
 
         // Catalog Generation
         public static int CatalogSeed { get; set; } = 12345;
@@ -47,13 +44,11 @@ namespace CinematicShaders.Core
         // Track last pushed values to detect changes requiring regeneration
         private static int _lastCatalogSeed = 12345;
         private static int _lastCatalogSize = 20000;
-        private static float _lastStarDensity = 200.0f;
         private static float _lastMinMagnitude = -1.0f;
         private static float _lastMaxMagnitude = 10.0f;
         private static float _lastMagnitudeBias = 0.08f;
-        private static float _lastHeroRarity = 0.02f;
+        private static int _lastHeroCount = 128;
         private static float _lastClustering = 0.6f;
-        private static float _lastStaggerAmount = 0.5f;
         private static float _lastPopulationBias = 0.0f;
         private static float _lastMainSequenceStrength = 0.6f;
         private static float _lastRedGiantRarity = 0.02f;
@@ -92,13 +87,11 @@ namespace CinematicShaders.Core
                 CatalogSize = int.Parse(settingsNode.GetValue("CatalogSize") ?? "20000");
                 Exposure = float.Parse(settingsNode.GetValue("Exposure") ?? "3.0");
                 BlurPixels = float.Parse(settingsNode.GetValue("BlurPixels") ?? "1.0");
-                StarDensity = float.Parse(settingsNode.GetValue("StarDensity") ?? "200.0");
                 MinMagnitude = float.Parse(settingsNode.GetValue("MinMagnitude") ?? "-1.0");
                 MaxMagnitude = float.Parse(settingsNode.GetValue("MaxMagnitude") ?? "10.0");
                 MagnitudeBias = float.Parse(settingsNode.GetValue("MagnitudeBias") ?? "0.08");
-                HeroRarity = float.Parse(settingsNode.GetValue("HeroRarity") ?? "0.02");
+                HeroCount = int.Parse(settingsNode.GetValue("HeroCount") ?? "128");
                 Clustering = float.Parse(settingsNode.GetValue("Clustering") ?? "0.6");
-                StaggerAmount = float.Parse(settingsNode.GetValue("StaggerAmount") ?? "0.5");
                 PopulationBias = float.Parse(settingsNode.GetValue("PopulationBias") ?? "0.0");
                 MainSequenceStrength = float.Parse(settingsNode.GetValue("MainSequenceStrength") ?? "0.6");
                 RedGiantRarity = float.Parse(settingsNode.GetValue("RedGiantRarity") ?? "0.02");
@@ -114,7 +107,6 @@ namespace CinematicShaders.Core
                 BulgeNoiseStrength = float.Parse(settingsNode.GetValue("BulgeNoiseStrength") ?? "0.0");
                 BloomThreshold = float.Parse(settingsNode.GetValue("BloomThreshold") ?? "0.8");
                 BloomIntensity = float.Parse(settingsNode.GetValue("BloomIntensity") ?? "2.0");
-                SpikeIntensity = float.Parse(settingsNode.GetValue("SpikeIntensity") ?? "0.4");
 
                 // Force regeneration on next push since we loaded new values
                 _catalogNeedsRegeneration = true;
@@ -138,13 +130,11 @@ namespace CinematicShaders.Core
             bool catalogParamsChanged = _catalogNeedsRegeneration ||
                 (CatalogSeed != _lastCatalogSeed) ||
                 (CatalogSize != _lastCatalogSize) ||
-                !Mathf.Approximately(StarDensity, _lastStarDensity) ||
                 !Mathf.Approximately(MinMagnitude, _lastMinMagnitude) ||
                 !Mathf.Approximately(MaxMagnitude, _lastMaxMagnitude) ||
                 !Mathf.Approximately(MagnitudeBias, _lastMagnitudeBias) ||
-                !Mathf.Approximately(HeroRarity, _lastHeroRarity) ||
+                (HeroCount != _lastHeroCount) ||
                 !Mathf.Approximately(Clustering, _lastClustering) ||
-                !Mathf.Approximately(StaggerAmount, _lastStaggerAmount) ||
                 !Mathf.Approximately(PopulationBias, _lastPopulationBias) ||
                 !Mathf.Approximately(MainSequenceStrength, _lastMainSequenceStrength) ||
                 !Mathf.Approximately(RedGiantRarity, _lastRedGiantRarity) ||
@@ -164,13 +154,11 @@ namespace CinematicShaders.Core
             {
                 Exposure = Exposure,
                 BlurPixels = BlurPixels,
-                StarDensity = StarDensity,
                 MinMagnitude = MinMagnitude,
                 MaxMagnitude = MaxMagnitude,
                 MagnitudeBias = MagnitudeBias,
-                HeroRarity = HeroRarity,
+                HeroCount = HeroCount,
                 Clustering = Clustering,
-                StaggerAmount = StaggerAmount,
                 PopulationBias = PopulationBias,
                 MainSequenceStrength = MainSequenceStrength,
                 RedGiantRarity = RedGiantRarity,
@@ -185,8 +173,7 @@ namespace CinematicShaders.Core
                 BulgeNoiseScale = BulgeNoiseScale,
                 BulgeNoiseStrength = BulgeNoiseStrength,
                 BloomThreshold = BloomThreshold,
-                BloomIntensity = BloomIntensity,
-                SpikeIntensity = SpikeIntensity
+                BloomIntensity = BloomIntensity
             };
 
             StarfieldNative.CR_StarfieldSetSettings(ref nativeSettings);
@@ -202,13 +189,11 @@ namespace CinematicShaders.Core
                     _lastCatalogGenerationTime = currentTime;
                     _lastCatalogSeed = CatalogSeed;
                     _lastCatalogSize = CatalogSize;
-                    _lastStarDensity = StarDensity;
                     _lastMinMagnitude = MinMagnitude;
                     _lastMaxMagnitude = MaxMagnitude;
                     _lastMagnitudeBias = MagnitudeBias;
-                    _lastHeroRarity = HeroRarity;
+                    _lastHeroCount = HeroCount;
                     _lastClustering = Clustering;
-                    _lastStaggerAmount = StaggerAmount;
                     _lastPopulationBias = PopulationBias;
                     _lastMainSequenceStrength = MainSequenceStrength;
                     _lastRedGiantRarity = RedGiantRarity;
@@ -255,13 +240,11 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("EnableStarfield", EnableStarfield);
                 settingsNode.AddValue("Exposure", Exposure);
                 settingsNode.AddValue("BlurPixels", BlurPixels);
-                settingsNode.AddValue("StarDensity", StarDensity);
                 settingsNode.AddValue("MinMagnitude", MinMagnitude);
                 settingsNode.AddValue("MaxMagnitude", MaxMagnitude);
                 settingsNode.AddValue("MagnitudeBias", MagnitudeBias);
-                settingsNode.AddValue("HeroRarity", HeroRarity);
+                settingsNode.AddValue("HeroCount", HeroCount);
                 settingsNode.AddValue("Clustering", Clustering);
-                settingsNode.AddValue("StaggerAmount", StaggerAmount);
                 settingsNode.AddValue("PopulationBias", PopulationBias);
                 settingsNode.AddValue("MainSequenceStrength", MainSequenceStrength);
                 settingsNode.AddValue("RedGiantRarity", RedGiantRarity);
@@ -277,7 +260,6 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("BulgeNoiseStrength", BulgeNoiseStrength);
                 settingsNode.AddValue("BloomThreshold", BloomThreshold);
                 settingsNode.AddValue("BloomIntensity", BloomIntensity);
-                settingsNode.AddValue("SpikeIntensity", SpikeIntensity);
                 settingsNode.AddValue("CatalogSeed", CatalogSeed);
                 settingsNode.AddValue("CatalogSize", CatalogSize);
 

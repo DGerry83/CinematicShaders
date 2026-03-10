@@ -11,7 +11,6 @@ namespace CinematicShaders.Shaders.Starfield
         private Camera _scaledSpaceCamera;
         private int _lastScreenWidth;
         private int _lastScreenHeight;
-        private CommandBuffer _normalCaptureBuffer;
         private CommandBuffer _starfieldRenderBuffer;
         private bool _initialized = false;
         private int _frameIndex = 0;

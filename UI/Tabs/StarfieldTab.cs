@@ -12,13 +12,11 @@ namespace CinematicShaders.UI.Tabs
         private float _blurPixels;
 
         // Distribution
-        private float _starDensity;
         private float _minMagnitude;
         private float _maxMagnitude;
         private float _magnitudeBias;
-        private float _heroRarity;
+        private int _heroCount;
         private float _clustering;
-        private float _staggerAmount;
         private float _populationBias;
         private float _mainSequenceStrength;
         private float _redGiantRarity;
@@ -38,7 +36,6 @@ namespace CinematicShaders.UI.Tabs
         // Beauty
         private float _bloomThreshold;
         private float _bloomIntensity;
-        private float _spikeIntensity;
         private int _catalogSeed;
         private int _catalogSize;
 
@@ -49,13 +46,11 @@ namespace CinematicShaders.UI.Tabs
             // Initialize from settings
             _exposure = StarfieldSettings.Exposure;
             _blurPixels = StarfieldSettings.BlurPixels;
-            _starDensity = StarfieldSettings.StarDensity;
             _minMagnitude = StarfieldSettings.MinMagnitude;
             _maxMagnitude = StarfieldSettings.MaxMagnitude;
             _magnitudeBias = StarfieldSettings.MagnitudeBias;
-            _heroRarity = StarfieldSettings.HeroRarity;
+            _heroCount = StarfieldSettings.HeroCount;
             _clustering = StarfieldSettings.Clustering;
-            _staggerAmount = StarfieldSettings.StaggerAmount;
             _populationBias = StarfieldSettings.PopulationBias;
             _mainSequenceStrength = StarfieldSettings.MainSequenceStrength;
             _redGiantRarity = StarfieldSettings.RedGiantRarity;
@@ -71,7 +66,6 @@ namespace CinematicShaders.UI.Tabs
             _bulgeNoiseStrength = StarfieldSettings.BulgeNoiseStrength;
             _bloomThreshold = StarfieldSettings.BloomThreshold;
             _bloomIntensity = StarfieldSettings.BloomIntensity;
-            _spikeIntensity = StarfieldSettings.SpikeIntensity;
             _catalogSeed = StarfieldSettings.CatalogSeed;
             _catalogSize = StarfieldSettings.CatalogSize;
         }
@@ -116,8 +110,6 @@ namespace CinematicShaders.UI.Tabs
                 GUILayout.Label(CinematicShadersUIStrings.Starfield.BloomThresholdTooltip, helpStyle);
                 DrawSlider(CinematicShadersUIStrings.Starfield.BloomIntensityLabel, ref _bloomIntensity, 0.0f, 5.0f, "F2");
                 GUILayout.Label(CinematicShadersUIStrings.Starfield.BloomIntensityTooltip, helpStyle);
-                DrawSlider(CinematicShadersUIStrings.Starfield.SpikeIntensityLabel, ref _spikeIntensity, 0.0f, 1.0f, "F2");
-                GUILayout.Label(CinematicShadersUIStrings.Starfield.SpikeIntensityTooltip, helpStyle);
 
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
                 GUILayout.Label("Catalog Generation", HighLogic.Skin.label);
@@ -131,13 +123,12 @@ namespace CinematicShaders.UI.Tabs
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
                 // Distribution
                 GUILayout.Label(CinematicShadersUIStrings.Starfield.DistributionSection, HighLogic.Skin.label);
-                DrawSlider(CinematicShadersUIStrings.Starfield.StarDensityLabel, ref _starDensity, 50.0f, 400.0f, "F0");
                 DrawSlider(CinematicShadersUIStrings.Starfield.MinMagnitudeLabel, ref _minMagnitude, -2.0f, 3.0f, "F1");
                 DrawSlider(CinematicShadersUIStrings.Starfield.MaxMagnitudeLabel, ref _maxMagnitude, 5.0f, 12.0f, "F1");
                 DrawSlider(CinematicShadersUIStrings.Starfield.MagnitudeBiasLabel, ref _magnitudeBias, 0.02f, 0.5f, "F2");
-                DrawSlider(CinematicShadersUIStrings.Starfield.HeroRarityLabel, ref _heroRarity, 0.001f, 0.5f, "F3");
+                DrawIntSlider("Hero Count", ref _heroCount, 16, 1024);
+                GUILayout.Label("Number of bright hero stars", helpStyle);
                 DrawSlider(CinematicShadersUIStrings.Starfield.ClusteringLabel, ref _clustering, 0.0f, 1.0f, "F2");
-                DrawSlider(CinematicShadersUIStrings.Starfield.StaggerAmountLabel, ref _staggerAmount, 0.0f, 5.0f, "F1");
                 DrawSlider(CinematicShadersUIStrings.Starfield.PopulationBiasLabel, ref _populationBias, -1.0f, 1.0f, "F2");
                 GUILayout.Label(CinematicShadersUIStrings.Starfield.PopulationBiasTooltip, helpStyle);
                 DrawSlider(CinematicShadersUIStrings.Starfield.MainSequenceLabel, ref _mainSequenceStrength, 0.0f, 1.0f, "F2");
@@ -237,13 +228,11 @@ namespace CinematicShaders.UI.Tabs
         {
             StarfieldSettings.Exposure = _exposure;
             StarfieldSettings.BlurPixels = _blurPixels;
-            StarfieldSettings.StarDensity = _starDensity;
             StarfieldSettings.MinMagnitude = _minMagnitude;
             StarfieldSettings.MaxMagnitude = _maxMagnitude;
             StarfieldSettings.MagnitudeBias = _magnitudeBias;
-            StarfieldSettings.HeroRarity = _heroRarity;
+            StarfieldSettings.HeroCount = _heroCount;
             StarfieldSettings.Clustering = _clustering;
-            StarfieldSettings.StaggerAmount = _staggerAmount;
             StarfieldSettings.PopulationBias = _populationBias;
             StarfieldSettings.MainSequenceStrength = _mainSequenceStrength;
             StarfieldSettings.RedGiantRarity = _redGiantRarity;
@@ -259,7 +248,6 @@ namespace CinematicShaders.UI.Tabs
             StarfieldSettings.BulgeNoiseStrength = _bulgeNoiseStrength;
             StarfieldSettings.BloomThreshold = _bloomThreshold;
             StarfieldSettings.BloomIntensity = _bloomIntensity;
-            StarfieldSettings.SpikeIntensity = _spikeIntensity;
 
             StarfieldSettings.PushSettingsToNative();
         }

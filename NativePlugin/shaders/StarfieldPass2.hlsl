@@ -13,9 +13,7 @@ cbuffer CompositeParams : register(b0)
     float DepthThreshold;    // Alpha < this = sky (0.0), Alpha >= this = geometry (1.0)
     float ExposureEV;        // Final exposure adjustment (if needed)
     int EnableTonemapping;   // 0 = linear, 1 = ACES
-    int Pad[3];  // Pad to 16 bytes
-    float SpikeIntensity;    // 0.0-1.0, strength of spikes
-    float SpikePad[3];       // Pad to 16 bytes
+    int Pad[7];  // Pad to 32 bytes (keep cb alignment)
 };
 
 // ============================================

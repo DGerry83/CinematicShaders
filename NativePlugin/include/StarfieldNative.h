@@ -46,13 +46,11 @@ extern "C" {
 struct StarfieldSettingsNative {
     float Exposure;
     float BlurPixels;
-    float StarDensity;
     float MinMagnitude;
     float MaxMagnitude;
     float MagnitudeBias;
-    float HeroRarity;
+    int HeroCount;  // 16 to 1024
     float Clustering;
-    float StaggerAmount;
     float PopulationBias;
     float MainSequenceStrength;
     float RedGiantRarity;
@@ -68,7 +66,6 @@ struct StarfieldSettingsNative {
     float BulgeNoiseStrength;
     float BloomThreshold;
     float BloomIntensity;
-    float SpikeIntensity;
 };
 
 __declspec(dllexport) void CR_StarfieldSetCameraMatrices(

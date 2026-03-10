@@ -60,14 +60,10 @@
             public const string BlurPixelsTooltip = "Gaussian sigma for point spread function (pixels)";
 
             public const string DistributionSection = "STAR DISTRIBUTION";
-            public const string StarDensityLabel = "Star Density";
-            public const string StarDensityTooltip = "Spatial grid density (higher = more stars)";
             public const string MinMagnitudeLabel = "Min Magnitude";
             public const string MaxMagnitudeLabel = "Max Magnitude";
             public const string MagnitudeBiasLabel = "Magnitude Bias";
-            public const string HeroRarityLabel = "Hero Star Rarity";
             public const string ClusteringLabel = "Clustering";
-            public const string StaggerAmountLabel = "Grid Stagger";
             public const string PopulationBiasLabel = "Population Bias";
             public const string PopulationBiasTooltip = "Shift toward red (-1) or blue (+1) stars";
             public const string MainSequenceLabel = "Main Sequence";
@@ -94,8 +90,6 @@
             public const string BloomIntensityLabel = "Bloom Intensity";
             public const string BloomIntensityTooltip = "Strength of bloom halos around bright stars";
             public const string BeautySection = "BEAUTY";
-            public const string SpikeIntensityLabel = "Spike Intensity";
-            public const string SpikeIntensityTooltip = "Strength of diffraction spikes on bright stars (0.0-1.0)";
         }
     }
 }

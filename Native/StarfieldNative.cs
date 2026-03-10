@@ -79,13 +79,11 @@ namespace CinematicShaders.Native
         {
             public float Exposure;
             public float BlurPixels;
-            public float StarDensity;
             public float MinMagnitude;
             public float MaxMagnitude;
             public float MagnitudeBias;
-            public float HeroRarity;
+            public int HeroCount;  // 16-1024
             public float Clustering;
-            public float StaggerAmount;
             public float PopulationBias;
             public float MainSequenceStrength;
             public float RedGiantRarity;
@@ -101,7 +99,6 @@ namespace CinematicShaders.Native
             public float BulgeNoiseStrength;
             public float BloomThreshold;
             public float BloomIntensity;
-            public float SpikeIntensity;
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 32)]

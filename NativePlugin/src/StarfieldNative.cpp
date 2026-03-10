@@ -46,13 +46,11 @@ static struct {
     float3 cameraForward;
     float _pad2;               // 16-byte alignment
     float exposure = 3.0f;
-    float starDensity = 200.0f;
     float minMagnitude = -1.0f;
     float maxMagnitude = 10.0f;
     float magnitudeBias = 0.08f;
-    float heroRarity = 0.02f;
+    int heroCount = 128;  // 16-1024, absolute count of hero stars
     float clustering = 0.6f;
-    float staggerAmount = 0.5f;
     float populationBias = 0.0f;
     float mainSequenceStrength = 0.6f;
     float redGiantRarity = 0.02f;
@@ -70,7 +68,6 @@ static struct {
     float bulgeNoiseStrength = 0.0f;
     float bloomThreshold = 0.8f;
     float bloomIntensity = 2.0f;
-    float spikeIntensity = 0.4f;
     float blurPixels = 1.0f;
     int frameIndex = 0;
     // Catalog buffer management
@@ -97,20 +94,19 @@ struct StarfieldPass1Params {
     float CameraForward[3];
     float _padCamera3;
     
-    float StarDensity;
     float MinMagnitude;
     float MaxMagnitude;
     float MagnitudeBias;
+    int HeroCount;      // 16-1024
     
-    float HeroRarity;
     float Clustering;
-    float StaggerAmount;
     float PopulationBias;
     
     float MainSequenceStrength;
     float RedGiantRarity;
     float Exposure;
     float BlurPixels;
+    float _pad2[2];  // Pad after removing StarDensity, HeroRarity, StaggerAmount
     
     float GalacticFlatness;
     float GalacticDiscFalloff;
@@ -154,9 +150,7 @@ struct StarfieldPass2Params {
     float DepthThreshold;
     float ExposureEV;
     int EnableTonemapping;
-    int Pad[3];  // Pad to 16 bytes
-    float SpikeIntensity;
-    float SpikePad[3]; // Pad to 16 bytes
+    int Pad[7];  // Pad to 32 bytes (keep constant buffer alignment)
 };
 
 // ============================================================================
@@ -514,14 +508,12 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         params->CameraForward[2] = g_StarfieldState.cameraForward.z;
         params->_padCamera3 = 0.0f;
         
-        params->StarDensity = g_StarfieldState.starDensity;
         params->MinMagnitude = g_StarfieldState.minMagnitude;
         params->MaxMagnitude = g_StarfieldState.maxMagnitude;
         params->MagnitudeBias = g_StarfieldState.magnitudeBias;
         
-        params->HeroRarity = g_StarfieldState.heroRarity;
+        params->HeroCount = g_StarfieldState.heroCount;
         params->Clustering = g_StarfieldState.clustering;
-        params->StaggerAmount = g_StarfieldState.staggerAmount;
         params->PopulationBias = g_StarfieldState.populationBias;
         
         params->MainSequenceStrength = g_StarfieldState.mainSequenceStrength;
@@ -609,12 +601,10 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         params->InvScreenSizeY = 1.0f / g_StarfieldState.height;
         params->BloomThreshold = g_StarfieldState.bloomThreshold;
         params->BloomIntensity = g_StarfieldState.bloomIntensity;
-        params->SpikeIntensity = g_StarfieldState.spikeIntensity;
         params->DepthThreshold = 0.5f;
         params->ExposureEV = g_StarfieldState.exposure;
         params->EnableTonemapping = 1;
-        params->Pad[0] = params->Pad[1] = params->Pad[2] = 0;
-        params->SpikePad[0] = params->SpikePad[1] = params->SpikePad[2] = 0;
+        params->Pad[0] = params->Pad[1] = params->Pad[2] = params->Pad[3] = params->Pad[4] = params->Pad[5] = params->Pad[6] = 0;
         context->Unmap(g_StarfieldState.pass2CB, 0);
     }
     
@@ -690,23 +680,26 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
     std::vector<StarData> tempCatalog;
     tempCatalog.reserve(requestedCount * 2); // Rough estimate
     
-    float starDensity = g_StarfieldState.starDensity;
+    int heroCount = g_StarfieldState.heroCount;
     float clustering = g_StarfieldState.clustering;
-    float heroRarity = g_StarfieldState.heroRarity;
     float minMagnitude = g_StarfieldState.minMagnitude;
     float maxMagnitude = g_StarfieldState.maxMagnitude;
     float magnitudeBias = g_StarfieldState.magnitudeBias;
     float populationBias = g_StarfieldState.populationBias;
     float mainSequenceStrength = g_StarfieldState.mainSequenceStrength;
     float redGiantRarity = g_StarfieldState.redGiantRarity;
-    float staggerAmount = g_StarfieldState.staggerAmount;
     
     // Galactic structure params
     float3 planeNormal = g_StarfieldState.galacticPlaneNormal;
     float3 bulgeCenter = g_StarfieldState.bulgeCenterDirection;
     
-    LogToFile("[Starfield] Generating catalog: seed=%d, requested=%d, density=%.1f", 
-        seed, requestedCount, starDensity);
+    // Clamp hero count to valid range
+    if (heroCount < 16) heroCount = 16;
+    if (heroCount > 1024) heroCount = 1024;
+    if (heroCount >= requestedCount) heroCount = requestedCount / 4; // Reserve at least 75% for regular stars
+    
+    LogToFile("[Starfield] Generating catalog: seed=%d, total=%d, heroes=%d", 
+        seed, requestedCount, heroCount);
     
     // SPHERICAL SAMPLING: Generate random directions on sphere surface
     // Use seed to initialize random sequence
@@ -740,18 +733,20 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
         return dir;
     };
     
-    // Maximum attempts before giving up (prevent infinite loop)
-    const int maxAttempts = requestedCount * 100;
-    int attempts = 0;
-    int candidatesGenerated = 0;
+    // ============================================
+    // PHASE 1: Generate Hero Stars (indices 0 to heroCount-1)
+    // ============================================
+    int heroesGenerated = 0;
+    int heroAttempts = 0;
+    const int maxHeroAttempts = heroCount * 100;
     
-    while ((int)tempCatalog.size() < requestedCount && attempts < maxAttempts) {
-        attempts++;
+    while (heroesGenerated < heroCount && heroAttempts < maxHeroAttempts) {
+        heroAttempts++;
         
-        // Generate random direction uniformly on sphere
+        // Generate random direction
         float3 dir = randomDirection();
         
-        // Calculate galactic density at this direction (probability factor)
+        // Heroes respect galactic density (user request)
         float galacticDensity = GetGalacticDensityCPU(dir,
             g_StarfieldState.galacticFlatness,
             g_StarfieldState.galacticDiscFalloff,
@@ -766,53 +761,145 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
             g_StarfieldState.bulgeNoiseScale,
             g_StarfieldState.bulgeNoiseStrength);
         
-        // Accept/reject based on galactic density (importance sampling)
-        // If density is 0.5, we accept with 50% probability
         if (randFloat() > galacticDensity) continue;
         
-        candidatesGenerated++;
+        // Generate hash for this position
+        float3 hashInput(dir.x * 1000.0f + (float)seed * 0.01f, dir.y * 1000.0f, dir.z * 1000.0f);
+        float3 h = Hash33(hashInput);
         
-        // Generate clustering noise at this position
-        // Use the direction scaled by density for spatial coherence
-        float3 clusterPos(dir.x * starDensity, dir.y * starDensity, dir.z * starDensity);
+        // Hero magnitude: brightest range exclusively for heroes
+        // Range: minMagnitude to minMagnitude + 1.5 (e.g., -2.0 to -0.5)
+        float heroMagRange = 1.5f;
+        float heroMag = minMagnitude + h.y * heroMagRange;
+        float heroFlux = powf(10.0f, -0.4f * heroMag);
+        
+        // Determine if this hero is a red giant
+        bool isRedGiant = (h.x < redGiantRarity);
+        
+        float3 heroColor;
+        float heroTemp;
+        
+        if (isRedGiant) {
+            // Red giant color
+            heroColor = float3(1.0f, 0.2f, 0.05f);
+            heroTemp = 3500.0f;
+        } else {
+            // Regular star - use population bias and main sequence strength
+            // For heroes, we want brighter stars to tend toward blue (higher temp)
+            float brightnessNormalized = (heroMag - minMagnitude) / heroMagRange; // 0=bright, 1=dim
+            float randomComponent = h.z;
+            float sequenceComponent = (1.0f - brightnessNormalized);
+            float tempHash = randomComponent * (1.0f - mainSequenceStrength) + sequenceComponent * mainSequenceStrength;
+            tempHash = Frac(tempHash + populationBias * 0.3f);
+            
+            if (tempHash < 0.15) { heroColor = float3(1.0f, 0.15f, 0.05f); heroTemp = 3500.0f; }
+            else if (tempHash < 0.35) { heroColor = float3(1.0f, 0.4f, 0.1f); heroTemp = 4500.0f; }
+            else if (tempHash < 0.55) { heroColor = float3(1.0f, 0.9f, 0.5f); heroTemp = 5778.0f; }
+            else if (tempHash < 0.75) { heroColor = float3(0.85f, 0.95f, 1.0f); heroTemp = 7200.0f; }
+            else if (tempHash < 0.90) { heroColor = float3(0.6f, 0.8f, 1.0f); heroTemp = 9500.0f; }
+            else { heroColor = float3(0.4f, 0.65f, 1.0f); heroTemp = 20000.0f; }
+        }
+        
+        // Add hero to catalog (at the end, we'll reverse to put heroes first)
+        StarData hero;
+        hero.DirectionX = dir.x;
+        hero.DirectionY = dir.y;
+        hero.DirectionZ = dir.z;
+        hero.Magnitude = heroMag;
+        hero.ColorR = heroColor.x;
+        hero.ColorG = heroColor.y;
+        hero.ColorB = heroColor.z;
+        hero.Temperature = heroTemp;
+        
+        tempCatalog.push_back(hero);
+        heroesGenerated++;
+    }
+    
+    // ============================================
+    // PHASE 2: Generate Regular Stars (fill remaining slots)
+    // ============================================
+    int regularGenerated = 0;
+    int regularAttempts = 0;
+    int regularCount = requestedCount - heroesGenerated;
+    const int maxRegularAttempts = requestedCount * 100;
+    
+    while (regularGenerated < regularCount && regularAttempts < maxRegularAttempts) {
+        regularAttempts++;
+        
+        // Generate random direction
+        float3 dir = randomDirection();
+        
+        // Calculate galactic density
+        float galacticDensity = GetGalacticDensityCPU(dir,
+            g_StarfieldState.galacticFlatness,
+            g_StarfieldState.galacticDiscFalloff,
+            g_StarfieldState.bandCenterBoost,
+            g_StarfieldState.bandCoreSharpness,
+            planeNormal,
+            g_StarfieldState.bulgeIntensity,
+            bulgeCenter,
+            g_StarfieldState.bulgeWidth,
+            g_StarfieldState.bulgeHeight,
+            g_StarfieldState.bulgeSoftness,
+            g_StarfieldState.bulgeNoiseScale,
+            g_StarfieldState.bulgeNoiseStrength);
+        
+        if (randFloat() > galacticDensity) continue;
+        
+        // Generate clustering noise
+        float3 clusterPos(dir.x * 100.0f, dir.y * 100.0f, dir.z * 100.0f);
         float3 megaCell(floorf(clusterPos.x * 0.1f), floorf(clusterPos.y * 0.1f), floorf(clusterPos.z * 0.1f));
         float clusterNoise = Hash13(megaCell);
         float clusterProb = 0.2f + clusterNoise * clustering * 0.6f;
         
-        // Apply clustering rejection
         if (randFloat() > clusterProb) continue;
         
         // Generate star properties
-        // Use direction + seed as hash input for deterministic star properties
         float3 hashInput(dir.x * 1000.0f + (float)seed * 0.01f, dir.y * 1000.0f, dir.z * 1000.0f);
         float3 h = Hash33(hashInput);
         
-        float flux, magnitude, temp;
+        // Regular stars: start dimmer than heroes, with ~0.33 magnitude overlap
+        // Hero max is minMagnitude + 1.5, so regular min is minMagnitude + 1.5 - 0.33
+        float regularMinMag = minMagnitude + 1.17f; // 1.5 - 0.33 overlap
+        
+        // Generate magnitude in regular range using power curve
+        float normalizedBrightness = powf(h.y, magnitudeBias);
+        float magnitude = regularMinMag + (maxMagnitude - regularMinMag) * normalizedBrightness;
+        
+        // Calculate flux from magnitude
+        float flux = powf(10.0f, -0.4f * magnitude);
+        
+        // Determine color based on magnitude and population bias
+        // For regular stars, brighter stars tend toward blue
+        float brightnessNormalized = (magnitude - regularMinMag) / (maxMagnitude - regularMinMag);
+        float randomComponent = h.z;
+        float sequenceComponent = (1.0f - brightnessNormalized);
+        float tempHash = randomComponent * (1.0f - mainSequenceStrength) + sequenceComponent * mainSequenceStrength;
+        tempHash = Frac(tempHash + populationBias * 0.3f);
+        
         float3 color;
-        CalculateStarPropertiesCPU(h, minMagnitude, maxMagnitude, 
-            magnitudeBias, populationBias, mainSequenceStrength, redGiantRarity,
-            flux, color, magnitude, temp);
+        float temp;
         
-        // Apply hero star rarity and magnitude bias
-        float existenceProb = heroRarity + (1.0f - heroRarity) * 
-            powf(magnitude / maxMagnitude, magnitudeBias);
+        // Red giants override (rare bright red stars)
+        if (h.x < redGiantRarity && normalizedBrightness < 0.3f) {
+            color = float3(1.0f, 0.2f, 0.05f);
+            temp = 3500.0f;
+        } else if (tempHash < 0.15) { color = float3(1.0f, 0.15f, 0.05f); temp = 3500.0f; }
+        else if (tempHash < 0.35) { color = float3(1.0f, 0.4f, 0.1f); temp = 4500.0f; }
+        else if (tempHash < 0.55) { color = float3(1.0f, 0.9f, 0.5f); temp = 5778.0f; }
+        else if (tempHash < 0.75) { color = float3(0.85f, 0.95f, 1.0f); temp = 7200.0f; }
+        else if (tempHash < 0.90) { color = float3(0.6f, 0.8f, 1.0f); temp = 9500.0f; }
+        else { color = float3(0.4f, 0.65f, 1.0f); temp = 20000.0f; }
         
+        // Regular stars acceptance based on magnitude bias (brighter = more likely)
+        float existenceProb = powf((magnitude - regularMinMag) / (maxMagnitude - regularMinMag), magnitudeBias);
         if (h.x > existenceProb) continue;
         
-        // Add small random jitter to position for anti-aliasing
-        float jitterScale = 0.001f; // Very small jitter
-        float3 jitter(
-            randFloatRange(-jitterScale, jitterScale),
-            randFloatRange(-jitterScale, jitterScale),
-            randFloatRange(-jitterScale, jitterScale)
-        );
-        float3 jitteredDir = Normalize(float3(dir.x + jitter.x, dir.y + jitter.y, dir.z + jitter.z));
-        
-        // Add to catalog
+        // Add regular star to catalog
         StarData star;
-        star.DirectionX = jitteredDir.x;
-        star.DirectionY = jitteredDir.y;
-        star.DirectionZ = jitteredDir.z;
+        star.DirectionX = dir.x;
+        star.DirectionY = dir.y;
+        star.DirectionZ = dir.z;
         star.Magnitude = magnitude;
         star.ColorR = color.x;
         star.ColorG = color.y;
@@ -820,13 +907,28 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
         star.Temperature = temp;
         
         tempCatalog.push_back(star);
+        regularGenerated++;
     }
     
-    // Sort by magnitude (brightest first - lower magnitude values first)
-    std::sort(tempCatalog.begin(), tempCatalog.end(), 
-        [](const StarData& a, const StarData& b) {
-            return a.Magnitude < b.Magnitude;
-        });
+    int totalGenerated = heroesGenerated + regularGenerated;
+    int totalAttempts = heroAttempts + regularAttempts;
+    
+    // Heroes are already at the front (generated first), but sort heroes by magnitude for consistency
+    // Sort only the hero portion (indices 0 to heroesGenerated-1)
+    if (heroesGenerated > 1) {
+        std::sort(tempCatalog.begin(), tempCatalog.begin() + heroesGenerated,
+            [](const StarData& a, const StarData& b) {
+                return a.Magnitude < b.Magnitude;
+            });
+    }
+    
+    // Sort regular stars by magnitude (indices heroesGenerated to end)
+    if (regularGenerated > 1) {
+        std::sort(tempCatalog.begin() + heroesGenerated, tempCatalog.end(),
+            [](const StarData& a, const StarData& b) {
+                return a.Magnitude < b.Magnitude;
+            });
+    }
     
     // Trim to requested count
     int finalCount = min((int)tempCatalog.size(), requestedCount);
@@ -871,7 +973,7 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
         
         g_StarfieldState.catalogSize = finalCount;
         g_StarfieldState.catalogSeed = seed;
-        LogToFile("[Starfield] Catalog generated: %d stars (from %d candidates, %d attempts)", finalCount, candidatesGenerated, attempts);
+        LogToFile("[Starfield] Catalog generated: %d stars (%d heroes, %d regular, %d attempts)", finalCount, heroesGenerated, regularGenerated, totalAttempts);
     } else {
         LogToFile("[Starfield] Failed to map catalog buffer");
         if (context) context->Release();
@@ -914,13 +1016,12 @@ void CR_StarfieldSetSettings(const StarfieldSettingsNative* settings)
     
     g_StarfieldState.exposure = settings->Exposure;
     g_StarfieldState.blurPixels = settings->BlurPixels;
-    g_StarfieldState.starDensity = settings->StarDensity;
+
     g_StarfieldState.minMagnitude = settings->MinMagnitude;
     g_StarfieldState.maxMagnitude = settings->MaxMagnitude;
     g_StarfieldState.magnitudeBias = settings->MagnitudeBias;
-    g_StarfieldState.heroRarity = settings->HeroRarity;
+    g_StarfieldState.heroCount = settings->HeroCount;
     g_StarfieldState.clustering = settings->Clustering;
-    g_StarfieldState.staggerAmount = settings->StaggerAmount;
     g_StarfieldState.populationBias = settings->PopulationBias;
     g_StarfieldState.mainSequenceStrength = settings->MainSequenceStrength;
     g_StarfieldState.redGiantRarity = settings->RedGiantRarity;
@@ -936,7 +1037,6 @@ void CR_StarfieldSetSettings(const StarfieldSettingsNative* settings)
     g_StarfieldState.bulgeNoiseStrength = settings->BulgeNoiseStrength;
     g_StarfieldState.bloomThreshold = settings->BloomThreshold;
     g_StarfieldState.bloomIntensity = settings->BloomIntensity;
-    g_StarfieldState.spikeIntensity = settings->SpikeIntensity;
 }
 
 extern "C" __declspec(dllexport)
