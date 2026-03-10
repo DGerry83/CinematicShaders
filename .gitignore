@@ -382,3 +382,4 @@ FodyWeavers.xsd
 /HipparcosData/convert_hyg.py
 /HipparcosData/verify_binary.py
 /HipparcosData/debug_parse.py
+/HipparcosData/check_constellations.py
