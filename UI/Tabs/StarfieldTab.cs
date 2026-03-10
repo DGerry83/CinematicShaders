@@ -39,6 +39,8 @@ namespace CinematicShaders.UI.Tabs
         private float _bloomThreshold;
         private float _bloomIntensity;
         private float _spikeIntensity;
+        private int _catalogSeed;
+        private int _catalogSize;
 
         private bool _initialized = false;
 
@@ -70,6 +72,8 @@ namespace CinematicShaders.UI.Tabs
             _bloomThreshold = StarfieldSettings.BloomThreshold;
             _bloomIntensity = StarfieldSettings.BloomIntensity;
             _spikeIntensity = StarfieldSettings.SpikeIntensity;
+            _catalogSeed = StarfieldSettings.CatalogSeed;
+            _catalogSize = StarfieldSettings.CatalogSize;
         }
 
         public void Draw()
@@ -114,6 +118,15 @@ namespace CinematicShaders.UI.Tabs
                 GUILayout.Label(CinematicShadersUIStrings.Starfield.BloomIntensityTooltip, helpStyle);
                 DrawSlider(CinematicShadersUIStrings.Starfield.SpikeIntensityLabel, ref _spikeIntensity, 0.0f, 1.0f, "F2");
                 GUILayout.Label(CinematicShadersUIStrings.Starfield.SpikeIntensityTooltip, helpStyle);
+
+                GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
+                GUILayout.Label("Catalog Generation", HighLogic.Skin.label);
+
+                DrawIntSlider("Catalog Seed", ref _catalogSeed, 0, 99999);
+                GUILayout.Label("Random seed for star placement", helpStyle);
+
+                DrawIntSlider("Catalog Size", ref _catalogSize, 1000, 100000);
+                GUILayout.Label("Number of stars to generate", helpStyle);
 
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
                 // Distribution
@@ -165,6 +178,10 @@ namespace CinematicShaders.UI.Tabs
                 if (newEnable != StarfieldSettings.EnableStarfield)
                 {
                     StarfieldSettings.EnableStarfield = newEnable;
+                    if (newEnable)
+                    {
+                        StarfieldSettings.InvalidateCatalog();
+                    }
                     StarfieldManager.OnToggleChanged();
                 }
             }
@@ -188,6 +205,30 @@ namespace CinematicShaders.UI.Tabs
             if (!Mathf.Approximately(newValue, value))
             {
                 value = newValue;
+                StarfieldSettings.InvalidateCatalog();
+                PushSettingsToNative();
+            }
+        }
+
+        private void DrawIntSlider(string label, ref int value, int min, int max)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.DEFAULT_WIDTH));
+
+            float floatValue = value;
+            float newValue = GUILayout.HorizontalSlider(floatValue, min, max, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.SLIDER_WIDTH));
+            string displayText = value.ToString();
+            GUILayout.Label(displayText, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.VALUE_WIDTH));
+
+            GUILayout.EndHorizontal();
+
+            if (!Mathf.Approximately(newValue, floatValue))
+            {
+                value = Mathf.RoundToInt(newValue);
+                // Trigger regeneration when catalog params change
+                StarfieldSettings.CatalogSeed = _catalogSeed;
+                StarfieldSettings.CatalogSize = _catalogSize;
+                StarfieldSettings.InvalidateCatalog();
                 PushSettingsToNative();
             }
         }

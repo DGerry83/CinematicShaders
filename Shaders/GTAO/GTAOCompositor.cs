@@ -151,8 +151,9 @@ namespace CinematicShaders.Shaders.GTAO
                 return;
 
             Matrix4x4 projMatrix = GL.GetGPUProjectionMatrix(_camera.projectionMatrix, false);
-            float tanHalfFOVY = Mathf.Tan(_camera.fieldOfView * Mathf.Deg2Rad * 0.5f);
-            float tanHalfFOVX = tanHalfFOVY * _camera.aspect;
+            Matrix4x4 invProj = projMatrix.inverse;
+            float tanHalfFOVX = invProj[0, 0];
+            float tanHalfFOVY = invProj[1, 1];
             float[] fovArray = new float[2] { tanHalfFOVX, tanHalfFOVY };
 
             Matrix4x4 worldToCamera = _camera.worldToCameraMatrix;

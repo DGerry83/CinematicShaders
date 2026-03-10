@@ -625,6 +625,10 @@ void CR_GTAODebugSetInput(ID3D11Texture2D* depthTex, ID3D11Texture2D* normalTex,
     }
     g_GTAOState.tanHalfFOVX = fovParams[0];
     g_GTAOState.tanHalfFOVY = fovParams[1];
+
+        // Logging disabled
+        // LogToFile("[GTAO Input] Received fovParams[0]=%.6f (X), fovParams[1]=%.6f (Y), Aspect=%.4f", 
+        //       fovParams[0], fovParams[1], fovParams[0]/fovParams[1]);
     
     // Initialize resources (one-time)
     if (depthTex) {
@@ -939,6 +943,10 @@ static void ExecuteGTAOCompute(ID3D11DeviceContext* context)
         // Use explicit FOV parameters for view-space reconstruction
         float tanHalfFOVX = g_GTAOState.tanHalfFOVX;
         float tanHalfFOVY = g_GTAOState.tanHalfFOVY;
+
+                // Logging disabled
+                // LogToFile("[GTAO CB] tanHalfFOVX=%.6f, tanHalfFOVY=%.6f, ndcToViewMul=[%.6f, %.6f]", 
+                //   tanHalfFOVX, tanHalfFOVY, tanHalfFOVX * 2.0f, tanHalfFOVY * -2.0f);
         
         // float4 #1 (offset 0)
         params->ndcToViewMul[0] = tanHalfFOVX * 2.0f;
@@ -1198,6 +1206,7 @@ void CR_GTAOShutdown()
     if (g_GTAOState.filterIntermediateTexture) { g_GTAOState.filterIntermediateTexture->Release(); g_GTAOState.filterIntermediateTexture = nullptr; }
     if (g_GTAOState.filterIntermediateUAV) { g_GTAOState.filterIntermediateUAV->Release(); g_GTAOState.filterIntermediateUAV = nullptr; }
     if (g_GTAOState.filterShader) { g_GTAOState.filterShader->Release(); g_GTAOState.filterShader = nullptr; }
+    if (g_GTAOState.filterCB) { g_GTAOState.filterCB->Release(); g_GTAOState.filterCB = nullptr; }
     if (g_GTAOState.filterCB) { g_GTAOState.filterCB->Release(); g_GTAOState.filterCB = nullptr; }
     
     if (g_GTAOState.blueNoiseSRV) { g_GTAOState.blueNoiseSRV->Release(); g_GTAOState.blueNoiseSRV = nullptr; }

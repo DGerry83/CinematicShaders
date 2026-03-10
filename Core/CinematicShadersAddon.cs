@@ -4,6 +4,7 @@ using CinematicShaders.Shaders.Starfield;
 using CinematicShaders.UI;
 using KSP.UI.Screens;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace CinematicShaders.Core
 {
@@ -65,6 +66,9 @@ namespace CinematicShaders.Core
         private void OnLevelWasLoadedGUIReady(GameScenes scene)
         {
             if (scene == GameScenes.MAINMENU) return;
+
+            // Invalidate starfield catalog on scene change to force GPU buffer refresh
+            StarfieldSettings.InvalidateCatalog();
 
             if (GTAOSettings.EnableGTAO)
             {

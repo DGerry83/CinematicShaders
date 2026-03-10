@@ -6,6 +6,19 @@ SamplerState pointSampler : register(s0);
 
 RWTexture2D<float3> OutputHDR : register(u0);
 
+// StructuredBuffer containing pre-generated star catalog
+// Populated by CPU via CR_StarfieldGenerateCatalog
+struct StarData
+{
+    float3 Direction;    // 12 bytes - Normalized direction on celestial sphere
+    float Magnitude;     // 4 bytes  - Absolute magnitude (lower = brighter)
+    
+    float3 Color;        // 12 bytes - RGB color (blackbody corrected)
+    float Temperature;   // 4 bytes  - Kelvin (for future PSF effects)
+};
+
+StructuredBuffer<StarData> StarCatalog : register(t0);
+
 cbuffer StarfieldParams : register(b0)
 {
     // Camera - First 16-byte chunk (8 bytes used, 8 bytes padding)
@@ -58,6 +71,7 @@ cbuffer StarfieldParams : register(b0)
     float2 ScreenSize;
     float2 InvScreenSize;
     int FrameIndex;
+    int CatalogSize;
 };
 
 // ============================================
@@ -322,90 +336,73 @@ float calculate_clustering(float3 ray_dir, float density, float strength)
 // ============================================
 // MAIN ENTRY POINT (Compute Shader)
 // ============================================
-[numthreads(8, 8, 1)]
+
+// ============================================================================
+// Scatter Approach: One thread per star
+// ============================================================================
+[numthreads(64, 1, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
-    uint2 coord = id.xy;
-    if (coord.x >= (uint)ScreenSize.x || coord.y >= (uint)ScreenSize.y)
-        return;
+    if (id.x >= (uint)CatalogSize) return;
     
-    float2 uv = (float2(coord) + 0.5) * InvScreenSize;
-    uv = (uv - 0.5) * 2.0; // -1 to 1 range
+    StarData star = StarCatalog[id.x];
     
-    // Pass radians directly - VerticalFOV calculated as camera.fieldOfView * Mathf.Deg2Rad on C# side
-    float3 rd = generate_view_ray(uv, VerticalFOV, AspectRatio);
+    // Transform star direction to view space (dot product with camera basis)
+    float viewX = dot(star.Direction, CameraRight);
+    float viewY = dot(star.Direction, CameraUp);
+    float viewZ = dot(star.Direction, CameraForward);
     
-    float3 raw_cell_id = floor(rd * StarDensity);
-    float3 star_accum = float3(0.0, 0.0, 0.0);
+    // Cull if behind camera (viewZ <= 0)
+    if (viewZ <= 0.001) return;
     
-    float screen_width = ScreenSize.x;
-    float pixels_per_rad = screen_width / VerticalFOV;
+    // Calculate projection scale factors
+    float tan_fov_y = tan(VerticalFOV * 0.5);
+    float tan_fov_x = tan_fov_y * AspectRatio;
     
-    float cluster_prob = calculate_clustering(rd, StarDensity, Clustering);
-    float galactic_mask = get_galactic_density(rd, GalacticFlatness, GalacticDiscFalloff,
-        BandCenterBoost, BandCoreSharpness, GalacticPlaneNormal, BulgeIntensity,
-        BulgeCenterDirection, BulgeWidth, BulgeHeight, BulgeSoftness,
-        BulgeNoiseScale, BulgeNoiseStrength);
+    // Project to UV space (-1 to 1) - use symmetric FOV for both axes
+    float uv_x = viewX / (viewZ * tan_fov_y * AspectRatio);
+    float uv_y = viewY / (viewZ * tan_fov_y);
     
-    if(galactic_mask >= 0.001)
+    // Cull if outside view frustum (with margin for splat)
+    if (uv_x < -1.2 || uv_x > 1.2 || uv_y < -1.2 || uv_y > 1.2) return;
+    
+    // Convert UV to pixel coordinates
+    float pixel_x = (uv_x * 0.5 + 0.5) * ScreenSize.x - 0.5;
+    float pixel_y = (uv_y * 0.5 + 0.5) * ScreenSize.y - 0.5;
+    
+    // Calculate flux from magnitude (same formula as original)
+    float flux = pow(10.0, -0.4 * star.Magnitude);
+    
+    // Calculate splat radius (3.5 sigma covers 99.95% of Gaussian)
+    // BlurPixels is the standard deviation (sigma) in pixels
+    int radius = ceil(BlurPixels * 3.5);
+    if (radius < 1) radius = 1;
+    
+    int2 center = int2(floor(pixel_x + 0.5), floor(pixel_y + 0.5));
+    
+    // Splat to neighborhood
+    for (int y = -radius; y <= radius; y++)
     {
-        [loop]
-        for(int x = -1; x <= 1; x++)
+        for (int x = -radius; x <= radius; x++)
         {
-            [loop]
-            for(int y = -1; y <= 1; y++)
-            {
-                [loop]
-                for(int z = -1; z <= 1; z++)
-                {
-                    float3 neighbor_raw = raw_cell_id + float3(float(x), float(y), float(z));
-                    
-                    float n_stagger_x = (hash13(float3(0.0, neighbor_raw.y, neighbor_raw.z)) - 0.5) * StaggerAmount;
-                    float n_stagger_y = (hash13(float3(neighbor_raw.x, 0.0, neighbor_raw.z)) - 0.5) * StaggerAmount;
-                    float n_stagger_z = (hash13(float3(neighbor_raw.x, neighbor_raw.y, 0.0)) - 0.5) * StaggerAmount;
-                    
-                    float3 h = hash33(neighbor_raw);
-                    StarProperties star = calculate_star_properties(h, MinMagnitude, MaxMagnitude,
-                        MagnitudeBias, PopulationBias, MainSequenceStrength, RedGiantRarity);
-                    
-                    float base_prob = cluster_prob * galactic_mask;
-                    float existence_prob = base_prob * (HeroRarity + (1.0 - HeroRarity) * star.normalized_brightness);
-                    
-                    if(h.x > existence_prob) continue;
-                    
-                    float rot_angle = hash13(neighbor_raw) * 6.283185;
-                    float cos_r = cos(rot_angle);
-                    float sin_r = sin(rot_angle);
-                    
-                    float2 offset = h.yz - 0.5;
-                    float2 rot_offset = float2(
-                        offset.x * cos_r - offset.y * sin_r,
-                        offset.x * sin_r + offset.y * cos_r
-                    );
-                    
-                    float3 star_pos = (neighbor_raw + float3(n_stagger_x, n_stagger_y, n_stagger_z) + float3(rot_offset.x, rot_offset.y, h.x - 0.5)) / StarDensity;
-                    star_pos = normalize(star_pos);
-                    
-                    float3 cross_prod = cross(rd, star_pos);
-                    float angle = length(cross_prod);
-                    
-                    float fade = 1.0 - smoothstep(0.0, 0.02, angle);
-                    if(fade < 0.001) continue;
-                    
-                    float dist_pixels = angle * pixels_per_rad;
-                    float psf = calculate_psf(dist_pixels, BlurPixels);
-                    
-                    star_accum += star.flux * psf * fade * star.color;
-                }
-            }
+            int2 pix = center + int2(x, y);
+            
+            // Bounds check
+            if (pix.x < 0 || pix.x >= (int)ScreenSize.x || pix.y < 0 || pix.y >= (int)ScreenSize.y) continue;
+            
+            // Distance from star center in pixels
+            float dist = length(float2(pix.x - pixel_x, pix.y - pixel_y));
+            
+            // Gaussian PSF (same function as original)
+            float psf = calculate_psf(dist, BlurPixels);
+            if (psf < 0.001) continue;
+            
+            // Calculate final contribution (flux * psf * exposure * color)
+            // Exposure applied here: pow(2.0, Exposure) matches original shader
+            float3 contribution = star.Color * flux * psf * pow(2.0, Exposure);
+            
+            // Additive blend (race conditions acceptable for Step 1)
+            OutputHDR[pix] += contribution;
         }
     }
-    
-    // Apply exposure (logarithmic EV stops), output linear HDR
-    float3 total = star_accum * pow(2.0, Exposure);
-    
-    // NO tonemapping here - that happens in Pass 2
-    // NO gamma correction here
-    
-    OutputHDR[coord] = total;
 }

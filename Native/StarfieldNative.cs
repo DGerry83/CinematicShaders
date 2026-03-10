@@ -104,6 +104,35 @@ namespace CinematicShaders.Native
             public float SpikeIntensity;
         }
 
+        [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 32)]
+        public struct StarDataNative
+        {
+            public float DirectionX;
+            public float DirectionY;
+            public float DirectionZ;
+            public float Magnitude;
+
+            public float ColorR;
+            public float ColorG;
+            public float ColorB;
+            public float Temperature;
+
+            public StarDataNative(Vector3 direction, float magnitude, Color color, float temperature)
+            {
+                DirectionX = direction.x;
+                DirectionY = direction.y;
+                DirectionZ = direction.z;
+                Magnitude = magnitude;
+                ColorR = color.r;
+                ColorG = color.g;
+                ColorB = color.b;
+                Temperature = temperature;
+            }
+
+            public Vector3 Direction => new Vector3(DirectionX, DirectionY, DirectionZ);
+            public Color Color => new Color(ColorR, ColorG, ColorB, 1.0f);
+        }
+
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_StarfieldSetCameraMatrices(
             IntPtr deviceSourceTexture,  // Pass Texture2D.whiteTexture.GetNativeTexturePtr()
@@ -124,5 +153,8 @@ namespace CinematicShaders.Native
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_StarfieldShutdown();
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_StarfieldGenerateCatalog(int seed, int count);
     }
 }

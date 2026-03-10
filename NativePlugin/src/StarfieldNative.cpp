@@ -2,6 +2,7 @@
 #include "../include/StarfieldPass1.h"
 #include "../include/StarfieldPass2.h"
 #include "../include/StarfieldVS.h"
+#include <vector>
 #include <mutex>
 #include <algorithm>
 #include <cmath>
@@ -72,6 +73,11 @@ static struct {
     float spikeIntensity = 0.4f;
     float blurPixels = 1.0f;
     int frameIndex = 0;
+    // Catalog buffer management
+    ID3D11Buffer* starCatalogBuffer = nullptr;
+    int catalogSize = 0;
+    int catalogCapacity = 0;     // Allocated capacity (may be larger than catalogSize)
+    int catalogSeed = 0;         // Track current seed for debugging
     
     std::mutex stateMutex;
 } g_StarfieldState;
@@ -134,7 +140,8 @@ struct StarfieldPass1Params {
     float InvScreenSizeY;
     
     int FrameIndex;
-    int Pad1[3];  // Pad to 16 bytes
+    int CatalogSize;
+    int Pad1[2];  // Pad to 16 bytes
 };
 
 struct StarfieldPass2Params {
@@ -151,6 +158,170 @@ struct StarfieldPass2Params {
     float SpikeIntensity;
     float SpikePad[3]; // Pad to 16 bytes
 };
+
+// ============================================================================
+// Catalog Generation Math (Ported from HLSL)
+// ============================================================================
+
+inline float Frac(float x) {
+    return x - floorf(x);
+}
+
+inline float Dot(const float3& a, const float3& b) {
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+inline float Length(const float3& v) {
+    return sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
+}
+
+inline float3 Normalize(const float3& v) {
+    float len = Length(v);
+    if (len < 0.0001f) return float3(0, 0, 0);
+    float inv = 1.0f / len;
+    return float3(v.x * inv, v.y * inv, v.z * inv);
+}
+
+// Hash functions (must match HLSL exactly)
+static float3 Hash33(const float3& p) {
+    float3 q;
+    q.x = Dot(p, float3(127.1f, 311.7f, 74.7f));
+    q.y = Dot(p, float3(269.5f, 183.3f, 246.1f));
+    q.z = Dot(p, float3(113.5f, 271.9f, 124.6f));
+    
+    return float3(
+        Frac(sinf(q.x) * 43758.5453f),
+        Frac(sinf(q.y) * 43758.5453f),
+        Frac(sinf(q.z) * 43758.5453f)
+    );
+}
+
+static float Hash13(const float3& p) {
+    float q = Dot(p, float3(12.9898f, 78.233f, 45.164f));
+    return Frac(sinf(q) * 43758.5453f);
+}
+
+// Value noise for bulge (simplified fbm)
+static float ValueNoise(const float3& p) {
+    float3 i = float3(floorf(p.x), floorf(p.y), floorf(p.z));
+    float3 f = float3(Frac(p.x), Frac(p.y), Frac(p.z));
+    f.x = f.x * f.x * (3.0f - 2.0f * f.x);
+    f.y = f.y * f.y * (3.0f - 2.0f * f.y);
+    f.z = f.z * f.z * (3.0f - 2.0f * f.z);
+    
+    // Simplified - just return hash of integer coords for now
+    return Hash13(i);
+}
+
+// Galactic density calculation (matches HLSL get_galactic_density)
+static float GetGalacticDensityCPU(const float3& rayDir, 
+    float flatness, float falloff, float bandBoost, float bandSharpness,
+    const float3& planeNormal, float bulgeIntensity, const float3& bulgeCenter,
+    float bulgeWidth, float bulgeHeight, float bulgeSoftness, 
+    float bulgeNoiseScale, float bulgeNoiseStr) 
+{
+    if (flatness <= 0.001f) return 1.0f;
+    
+    float3 n = Normalize(planeNormal);
+    float sinLatitude = Dot(rayDir, n);
+    float absSinLat = fabsf(sinLatitude);
+    float cosLatitude = sqrtf(max(0.0f, 1.0f - sinLatitude * sinLatitude));
+    
+    float exponent = falloff * flatness;
+    float baseDensity = powf(max(cosLatitude, 0.0f), exponent);
+    float coreDensity = bandBoost * powf(max(cosLatitude, 0.0f), bandSharpness);
+    
+    float bulgeDensity = 0.0f;
+    if (bulgeIntensity > 0.0f) {
+        float3 projectedRay = float3(
+            rayDir.x - sinLatitude * n.x,
+            rayDir.y - sinLatitude * n.y,
+            rayDir.z - sinLatitude * n.z
+        );
+        float3 centerDir = Normalize(bulgeCenter);
+        float3 projectedCenter = float3(
+            centerDir.x - Dot(centerDir, n) * n.x,
+            centerDir.y - Dot(centerDir, n) * n.y,
+            centerDir.z - Dot(centerDir, n) * n.z
+        );
+        
+        float centerLen = Length(projectedCenter);
+        if (centerLen > 0.001f) {
+            float3 normProjCenter = float3(
+                projectedCenter.x / centerLen,
+                projectedCenter.y / centerLen,
+                projectedCenter.z / centerLen
+            );
+            float3 normProjRay = Normalize(projectedRay);
+            
+            float cosLong = Dot(normProjRay, normProjCenter);
+            float longDist = 1.0f - cosLong;
+            float latDist = absSinLat;
+            
+            float dx = longDist / bulgeWidth;
+            float dy = latDist / bulgeHeight;
+            float t = sqrtf(dx*dx + dy*dy);
+            
+            float softnessCurve = powf(max(bulgeSoftness, 0.0f), 0.1f);
+            float edgeExponent = 20.0f * (1.0f - softnessCurve) + 0.1f * softnessCurve;
+            float baseFalloff = powf(max(0.0f, 1.0f - t), edgeExponent);
+            
+            float noise = ValueNoise(float3(rayDir.x * bulgeNoiseScale * 0.1f, 
+                                           rayDir.y * bulgeNoiseScale * 0.1f, 
+                                           rayDir.z * bulgeNoiseScale * 0.1f));
+            float densityMod = 1.0f - (noise * bulgeNoiseStr);
+            float falloffBulge = baseFalloff * densityMod;
+            
+            bulgeDensity = bulgeIntensity * falloffBulge;
+        }
+    }
+    
+    return baseDensity + coreDensity + bulgeDensity;
+}
+
+// Star properties calculation (matches HLSL calculate_star_properties)
+static void CalculateStarPropertiesCPU(const float3& hashValues, 
+    float minMag, float maxMag, float magBias, float popBias, 
+    float mainSeqStr, float redGiantRare,
+    float& outFlux, float3& outColor, float& outMagnitude, float& outTemp)
+{
+    float normalizedBrightness = powf(hashValues.y, magBias);
+    outMagnitude = minMag + (maxMag - minMag) * normalizedBrightness;
+    outFlux = powf(10.0f, -0.4f * outMagnitude);
+    
+    float randomComponent = hashValues.z;
+    float sequenceComponent = (1.0f - normalizedBrightness);
+    float tempHash = randomComponent * (1.0f - mainSeqStr) + sequenceComponent * mainSeqStr;
+    tempHash = Frac(tempHash + popBias * 0.3f);
+    
+    // Red giants override
+    if (hashValues.x < redGiantRare && normalizedBrightness < 0.3f) {
+        outColor = float3(1.0f, 0.2f, 0.05f);
+        outTemp = 3500.0f;
+        return;
+    }
+    
+    // Main sequence color temperature mapping
+    if (tempHash < 0.15f) {
+        outColor = float3(1.0f, 0.15f, 0.05f); // M-type
+        outTemp = 3500.0f;
+    } else if (tempHash < 0.35f) {
+        outColor = float3(1.0f, 0.4f, 0.1f);   // K-type
+        outTemp = 4500.0f;
+    } else if (tempHash < 0.55f) {
+        outColor = float3(1.0f, 0.9f, 0.5f);   // G-type (Sun-like)
+        outTemp = 5778.0f;
+    } else if (tempHash < 0.75f) {
+        outColor = float3(0.85f, 0.95f, 1.0f); // F-type
+        outTemp = 7200.0f;
+    } else if (tempHash < 0.90f) {
+        outColor = float3(0.6f, 0.8f, 1.0f);   // A-type
+        outTemp = 9500.0f;
+    } else {
+        outColor = float3(0.4f, 0.65f, 1.0f);  // B/O-type
+        outTemp = 20000.0f;
+    }
+}
 
 // Starfield Internal Functions
 static void EnsureStarfieldResources(ID3D11Device* device, int width, int height)
@@ -293,36 +464,32 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
 {
     if (!context) return;
     
-    // Get device from context (safe even if g_StarfieldState.device is null)
     ID3D11Device* device = nullptr;
     context->GetDevice(&device);
     if (!device) return;
     
-    // Lazy initialization: ensure resources match current dimensions
-    if (!g_StarfieldState.initialized || g_StarfieldState.width != g_StarfieldState.width || g_StarfieldState.height != g_StarfieldState.height) {
-        // Note: You'll need to pass width/height to this function or retrieve from context
-        // For now, using cached values from g_StarfieldState
-        EnsureStarfieldResources(device, g_StarfieldState.width, g_StarfieldState.height);
-    }
-    
-    if (!g_StarfieldState.initialized) {
-        LogToFile("[Starfield] ExecuteStarfieldRender skipped: resource initialization failed");
-        device->Release();
+    // Ensure resources and catalog are ready
+    if (!g_StarfieldState.initialized || !g_StarfieldState.starCatalogBuffer || g_StarfieldState.catalogSize == 0) {
+        if (device) device->Release();
         return;
     }
     
-    // Get current render target (to use as destination for Pass 2)
+    // Get current render target dimensions to verify match
     ID3D11RenderTargetView* currentRTV = nullptr;
     ID3D11DepthStencilView* currentDSV = nullptr;
     context->OMGetRenderTargets(1, &currentRTV, &currentDSV);
     
     if (!currentRTV) {
-        LogToFile("[Starfield] No current RTV");
+        device->Release();
         return;
     }
     
-    // ===== PASS 1: Compute Star Generation =====
-    // Update Pass 1 constant buffer
+    // ===== PASS 1: Scatter Stars to HDR Texture =====
+    // Clear HDR texture before scattering stars
+    UINT clearColor[4] = {0, 0, 0, 0};
+    context->ClearUnorderedAccessViewUint(g_StarfieldState.hdrUAV, clearColor);
+    
+    // Update constant buffer with current state
     D3D11_MAPPED_SUBRESOURCE mapped;
     if (SUCCEEDED(context->Map(g_StarfieldState.pass1CB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
         StarfieldPass1Params* params = (StarfieldPass1Params*)mapped.pData;
@@ -386,28 +553,53 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         params->ScreenSizeY = (float)g_StarfieldState.height;
         params->InvScreenSizeX = 1.0f / g_StarfieldState.width;
         params->InvScreenSizeY = 1.0f / g_StarfieldState.height;
+        
         params->FrameIndex = g_StarfieldState.frameIndex;
-        params->Pad1[0] = params->Pad1[1] = params->Pad1[2] = 0;
+        params->CatalogSize = g_StarfieldState.catalogSize;
+        params->Pad1[0] = params->Pad1[1] = 0;
         
         context->Unmap(g_StarfieldState.pass1CB, 0);
     }
     
+    // Create SRV for catalog buffer
+    ID3D11ShaderResourceView* catalogSRV = nullptr;
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+    srvDesc.Buffer.ElementOffset = 0;
+    srvDesc.Buffer.ElementWidth = sizeof(StarData);
+    srvDesc.Buffer.NumElements = g_StarfieldState.catalogSize;
+    
+    HRESULT hr = device->CreateShaderResourceView(g_StarfieldState.starCatalogBuffer, &srvDesc, &catalogSRV);
+    if (FAILED(hr) || !catalogSRV) {
+        LogToFile("[Starfield] Failed to create catalog SRV (0x%08X)", hr);
+        if (catalogSRV) catalogSRV->Release();
+        currentRTV->Release();
+        if (currentDSV) currentDSV->Release();
+        device->Release();
+        return;
+    }
+    
+    // Setup compute shader
     context->CSSetShader(g_StarfieldState.pass1CS, nullptr, 0);
     context->CSSetConstantBuffers(0, 1, &g_StarfieldState.pass1CB);
+    context->CSSetShaderResources(0, 1, &catalogSRV);
     ID3D11UnorderedAccessView* uavs[1] = {g_StarfieldState.hdrUAV};
     context->CSSetUnorderedAccessViews(0, 1, uavs, nullptr);
     
-    // Dispatch: 8x8 threads per group
-    UINT dispatchX = (g_StarfieldState.width + 7) / 8;
-    UINT dispatchY = (g_StarfieldState.height + 7) / 8;
-    context->Dispatch(dispatchX, dispatchY, 1);
+    // Dispatch: One thread per star (64 threads per group)
+    UINT dispatchX = (g_StarfieldState.catalogSize + 63) / 64;
+    context->Dispatch(dispatchX, 1, 1);
     
-    // Unbind compute UAV to avoid conflict with PS SRV
+    // Unbind compute resources
     ID3D11UnorderedAccessView* nullUAV[1] = {nullptr};
+    ID3D11ShaderResourceView* nullSRV[1] = {nullptr};
     context->CSSetUnorderedAccessViews(0, 1, nullUAV, nullptr);
+    context->CSSetShaderResources(0, 1, nullSRV);
     context->CSSetShader(nullptr, nullptr, 0);
+    catalogSRV->Release();
     
-    // ===== PASS 2: Composite with Normal Alpha Mask =====
+    // ===== PASS 2: Composite HDR to Screen =====
     // Update Pass 2 constant buffer
     if (SUCCEEDED(context->Map(g_StarfieldState.pass2CB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
         StarfieldPass2Params* params = (StarfieldPass2Params*)mapped.pData;
@@ -418,15 +610,16 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         params->BloomThreshold = g_StarfieldState.bloomThreshold;
         params->BloomIntensity = g_StarfieldState.bloomIntensity;
         params->SpikeIntensity = g_StarfieldState.spikeIntensity;
-        params->DepthThreshold = 0.5f;  // Alpha threshold: < 0.5 = sky (0), >= 0.5 = geometry (1)
+        params->DepthThreshold = 0.5f;
         params->ExposureEV = g_StarfieldState.exposure;
         params->EnableTonemapping = 1;
         params->Pad[0] = params->Pad[1] = params->Pad[2] = 0;
+        params->SpikePad[0] = params->SpikePad[1] = params->SpikePad[2] = 0;
         context->Unmap(g_StarfieldState.pass2CB, 0);
     }
     
     // Setup output merger
-    context->OMSetRenderTargets(1, &currentRTV, nullptr);  // No depth testing
+    context->OMSetRenderTargets(1, &currentRTV, nullptr);
     context->OMSetDepthStencilState(g_StarfieldState.depthState, 0);
     context->OMSetBlendState(g_StarfieldState.blendState, nullptr, 0xFFFFFFFF);
     context->RSSetState(g_StarfieldState.rasterState);
@@ -448,27 +641,17 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
     context->IASetInputLayout(nullptr);
     context->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
     context->IASetIndexBuffer(nullptr, DXGI_FORMAT_UNKNOWN, 0);
-    
-    if (!g_StarfieldState.pass2VS || !g_StarfieldState.pass2PS) {
-        LogToFile("[Starfield] CRITICAL: VS=%p PS=%p", g_StarfieldState.pass2VS, g_StarfieldState.pass2PS);
-    }
-
     context->Draw(3, 0);
     
     // Cleanup bindings
-    ID3D11ShaderResourceView* nullSRV[1] = {nullptr};
+    ID3D11ShaderResourceView* psNullSRV[1] = {nullptr};
     ID3D11RenderTargetView* nullRTV = nullptr;
-    ID3D11DepthStencilState* nullDS = nullptr;
-    ID3D11BlendState* nullBlend = nullptr;
-    
-    context->PSSetShaderResources(0, 1, nullSRV);
+    context->PSSetShaderResources(0, 1, psNullSRV);
     context->OMSetRenderTargets(1, &nullRTV, nullptr);
-    context->OMSetDepthStencilState(nullDS, 0);
-    context->OMSetBlendState(nullBlend, nullptr, 0xFFFFFFFF);
     
     currentRTV->Release();
     if (currentDSV) currentDSV->Release();
-    device->Release();  // Release the reference we obtained at start
+    device->Release();
 }
 
 static void UNITY_INTERFACE_API OnStarfieldRenderEvent(int eventId)
@@ -487,6 +670,212 @@ static void UNITY_INTERFACE_API OnStarfieldRenderEvent(int eventId)
     
     // Increment temporal frame index
     g_StarfieldState.frameIndex = (g_StarfieldState.frameIndex + 1) & 7;
+}
+
+extern "C" __declspec(dllexport)
+void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
+    if (!g_StarfieldState.device) {
+        LogToFile("[Starfield] Cannot generate catalog - device not initialized");
+        return;
+    }
+    
+    // Use seed to offset hash calculations - apply to all axes with significant offset
+    float seedOffsetX = (float)((seed * 12345) % 100000) * 0.01f;
+    float seedOffsetY = (float)((seed * 54321) % 100000) * 0.01f;
+    float seedOffsetZ = (float)((seed * 98765) % 100000) * 0.01f;
+    
+    std::vector<StarData> tempCatalog;
+    tempCatalog.reserve(requestedCount * 2); // Rough estimate
+    
+    float starDensity = g_StarfieldState.starDensity;
+    float clustering = g_StarfieldState.clustering;
+    float heroRarity = g_StarfieldState.heroRarity;
+    float minMagnitude = g_StarfieldState.minMagnitude;
+    float maxMagnitude = g_StarfieldState.maxMagnitude;
+    float magnitudeBias = g_StarfieldState.magnitudeBias;
+    float populationBias = g_StarfieldState.populationBias;
+    float mainSequenceStrength = g_StarfieldState.mainSequenceStrength;
+    float redGiantRarity = g_StarfieldState.redGiantRarity;
+    float staggerAmount = g_StarfieldState.staggerAmount;
+    
+    // Galactic structure params
+    float3 planeNormal = g_StarfieldState.galacticPlaneNormal;
+    float3 bulgeCenter = g_StarfieldState.bulgeCenterDirection;
+    
+    LogToFile("[Starfield] Generating catalog: seed=%d, requested=%d, density=%.1f", 
+        seed, requestedCount, starDensity);
+    
+    // SPHERICAL SAMPLING: Generate random directions on sphere surface
+    // Use seed to initialize random sequence
+    unsigned int rngState = (unsigned int)seed * 0x9E3779B9u;
+    auto randFloat = [&]() -> float {
+        // PCG random number generator
+        rngState = rngState * 747796405u + 2891336453u;
+        unsigned int word = ((rngState >> ((rngState >> 28u) + 4u)) ^ rngState) * 277803737u;
+        word = (word >> 22u) ^ word;
+        return (float)word / 4294967295.0f; // [0, 1)
+    };
+    
+    auto randFloatRange = [&](float min, float max) -> float {
+        return min + randFloat() * (max - min);
+    };
+    
+    // Generate uniform random point on sphere
+    auto randomDirection = [&]() -> float3 {
+        // Marsaglia method for uniform sphere distribution
+        float u, v, s;
+        do {
+            u = randFloatRange(-1.0f, 1.0f);
+            v = randFloatRange(-1.0f, 1.0f);
+            s = u*u + v*v;
+        } while (s >= 1.0f || s == 0.0f);
+        
+        float3 dir;
+        dir.x = 2.0f * u * sqrtf(1.0f - s);
+        dir.y = 2.0f * v * sqrtf(1.0f - s);
+        dir.z = 1.0f - 2.0f * s;
+        return dir;
+    };
+    
+    // Maximum attempts before giving up (prevent infinite loop)
+    const int maxAttempts = requestedCount * 100;
+    int attempts = 0;
+    int candidatesGenerated = 0;
+    
+    while ((int)tempCatalog.size() < requestedCount && attempts < maxAttempts) {
+        attempts++;
+        
+        // Generate random direction uniformly on sphere
+        float3 dir = randomDirection();
+        
+        // Calculate galactic density at this direction (probability factor)
+        float galacticDensity = GetGalacticDensityCPU(dir,
+            g_StarfieldState.galacticFlatness,
+            g_StarfieldState.galacticDiscFalloff,
+            g_StarfieldState.bandCenterBoost,
+            g_StarfieldState.bandCoreSharpness,
+            planeNormal,
+            g_StarfieldState.bulgeIntensity,
+            bulgeCenter,
+            g_StarfieldState.bulgeWidth,
+            g_StarfieldState.bulgeHeight,
+            g_StarfieldState.bulgeSoftness,
+            g_StarfieldState.bulgeNoiseScale,
+            g_StarfieldState.bulgeNoiseStrength);
+        
+        // Accept/reject based on galactic density (importance sampling)
+        // If density is 0.5, we accept with 50% probability
+        if (randFloat() > galacticDensity) continue;
+        
+        candidatesGenerated++;
+        
+        // Generate clustering noise at this position
+        // Use the direction scaled by density for spatial coherence
+        float3 clusterPos(dir.x * starDensity, dir.y * starDensity, dir.z * starDensity);
+        float3 megaCell(floorf(clusterPos.x * 0.1f), floorf(clusterPos.y * 0.1f), floorf(clusterPos.z * 0.1f));
+        float clusterNoise = Hash13(megaCell);
+        float clusterProb = 0.2f + clusterNoise * clustering * 0.6f;
+        
+        // Apply clustering rejection
+        if (randFloat() > clusterProb) continue;
+        
+        // Generate star properties
+        // Use direction + seed as hash input for deterministic star properties
+        float3 hashInput(dir.x * 1000.0f + (float)seed * 0.01f, dir.y * 1000.0f, dir.z * 1000.0f);
+        float3 h = Hash33(hashInput);
+        
+        float flux, magnitude, temp;
+        float3 color;
+        CalculateStarPropertiesCPU(h, minMagnitude, maxMagnitude, 
+            magnitudeBias, populationBias, mainSequenceStrength, redGiantRarity,
+            flux, color, magnitude, temp);
+        
+        // Apply hero star rarity and magnitude bias
+        float existenceProb = heroRarity + (1.0f - heroRarity) * 
+            powf(magnitude / maxMagnitude, magnitudeBias);
+        
+        if (h.x > existenceProb) continue;
+        
+        // Add small random jitter to position for anti-aliasing
+        float jitterScale = 0.001f; // Very small jitter
+        float3 jitter(
+            randFloatRange(-jitterScale, jitterScale),
+            randFloatRange(-jitterScale, jitterScale),
+            randFloatRange(-jitterScale, jitterScale)
+        );
+        float3 jitteredDir = Normalize(float3(dir.x + jitter.x, dir.y + jitter.y, dir.z + jitter.z));
+        
+        // Add to catalog
+        StarData star;
+        star.DirectionX = jitteredDir.x;
+        star.DirectionY = jitteredDir.y;
+        star.DirectionZ = jitteredDir.z;
+        star.Magnitude = magnitude;
+        star.ColorR = color.x;
+        star.ColorG = color.y;
+        star.ColorB = color.z;
+        star.Temperature = temp;
+        
+        tempCatalog.push_back(star);
+    }
+    
+    // Sort by magnitude (brightest first - lower magnitude values first)
+    std::sort(tempCatalog.begin(), tempCatalog.end(), 
+        [](const StarData& a, const StarData& b) {
+            return a.Magnitude < b.Magnitude;
+        });
+    
+    // Trim to requested count
+    int finalCount = min((int)tempCatalog.size(), requestedCount);
+    if (finalCount == 0) {
+        LogToFile("[Starfield] Warning: Generated 0 stars. Check galactic density parameters.");
+        return;
+    }
+    
+    // Ensure buffer capacity
+    if (finalCount > g_StarfieldState.catalogCapacity || g_StarfieldState.starCatalogBuffer == nullptr) {
+        if (g_StarfieldState.starCatalogBuffer) {
+            g_StarfieldState.starCatalogBuffer->Release();
+            g_StarfieldState.starCatalogBuffer = nullptr;
+        }
+        
+        D3D11_BUFFER_DESC desc = {};
+        desc.ByteWidth = sizeof(StarData) * finalCount;
+        desc.Usage = D3D11_USAGE_DYNAMIC;
+        desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+        desc.StructureByteStride = sizeof(StarData);
+        
+        HRESULT hr = g_StarfieldState.device->CreateBuffer(&desc, nullptr, &g_StarfieldState.starCatalogBuffer);
+        if (FAILED(hr)) {
+            LogToFile("[Starfield] Failed to create catalog buffer (0x%08X)", hr);
+            return;
+        }
+        
+        g_StarfieldState.catalogCapacity = finalCount;
+    }
+    
+    // Upload data
+    D3D11_MAPPED_SUBRESOURCE mapped;
+    ID3D11DeviceContext* context = nullptr;
+    g_StarfieldState.device->GetImmediateContext(&context);
+    
+    if (context && SUCCEEDED(context->Map(g_StarfieldState.starCatalogBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+        memcpy(mapped.pData, tempCatalog.data(), sizeof(StarData) * finalCount);
+        context->Unmap(g_StarfieldState.starCatalogBuffer, 0);
+        context->Release();
+        
+        g_StarfieldState.catalogSize = finalCount;
+        g_StarfieldState.catalogSeed = seed;
+        LogToFile("[Starfield] Catalog generated: %d stars (from %d candidates, %d attempts)", finalCount, candidatesGenerated, attempts);
+    } else {
+        LogToFile("[Starfield] Failed to map catalog buffer");
+        if (context) context->Release();
+    }
 }
 
 // Starfield Exports
@@ -572,6 +961,12 @@ void CR_StarfieldShutdown()
     if (g_StarfieldState.blendState) { g_StarfieldState.blendState->Release(); g_StarfieldState.blendState = nullptr; }
     if (g_StarfieldState.rasterState) { g_StarfieldState.rasterState->Release(); g_StarfieldState.rasterState = nullptr; }
     if (g_StarfieldState.pass1CB) { g_StarfieldState.pass1CB->Release(); g_StarfieldState.pass1CB = nullptr; }
+        if (g_StarfieldState.starCatalogBuffer) { 
+        g_StarfieldState.starCatalogBuffer->Release(); 
+        g_StarfieldState.starCatalogBuffer = nullptr; 
+        g_StarfieldState.catalogSize = 0;
+        g_StarfieldState.catalogCapacity = 0;
+    }
     if (g_StarfieldState.pass2CB) { g_StarfieldState.pass2CB->Release(); g_StarfieldState.pass2CB = nullptr; }
     if (g_StarfieldState.device) { g_StarfieldState.device->Release(); g_StarfieldState.device = nullptr; }
     

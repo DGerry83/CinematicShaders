@@ -92,6 +92,9 @@ namespace CinematicShaders.Shaders.Starfield
         {
             if (StarfieldSettings.EnableStarfield)
             {
+                // Force catalog regeneration on scene change to ensure GPU buffer is valid
+                // Device resets and scene transitions may invalidate GPU memory
+                StarfieldSettings.InvalidateCatalog();
                 EnableStarfield();
             }
         }

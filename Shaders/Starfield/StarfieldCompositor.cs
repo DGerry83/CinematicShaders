@@ -25,7 +25,7 @@ namespace CinematicShaders.Shaders.Starfield
             Initialize();
             if (_initialized)
             {
-                Camera.onPreRender += OnPreRender;
+                Camera.onPreRender += OnCameraPreRender;
             }
         }
 
@@ -33,7 +33,7 @@ namespace CinematicShaders.Shaders.Starfield
         {
             _initialized = false;
             Cleanup();
-            Camera.onPreRender -= OnPreRender;
+            Camera.onPreRender -= OnCameraPreRender;
         }
 
         void OnDestroy()
@@ -89,6 +89,13 @@ namespace CinematicShaders.Shaders.Starfield
             _lastScreenHeight = Screen.height;
 
             _initialized = true;
+
+            // Ensure catalog is generated if settings indicate we should have one
+            if (StarfieldSettings.EnableStarfield && StarfieldNative.IsLoaded)
+            {
+                // If catalog hasn't been generated yet for this scene, trigger it
+                StarfieldSettings.PushSettingsToNative();
+            }
         }
 
         private void Cleanup()
@@ -108,7 +115,7 @@ namespace CinematicShaders.Shaders.Starfield
             }
         }
 
-        void OnPreRender(Camera cam)
+        void OnCameraPreRender(Camera cam)
         {
             // Only process for our target galaxy camera
             if (cam != _scaledSpaceCamera) return;

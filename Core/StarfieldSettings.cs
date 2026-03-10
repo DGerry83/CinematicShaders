@@ -40,6 +40,38 @@ namespace CinematicShaders.Core
         public static float BloomIntensity { get; set; } = 2.0f;
         public static float SpikeIntensity { get; set; } = 0.4f;
 
+        // Catalog Generation
+        public static int CatalogSeed { get; set; } = 12345;
+        public static int CatalogSize { get; set; } = 20000;
+
+        // Track last pushed values to detect changes requiring regeneration
+        private static int _lastCatalogSeed = 12345;
+        private static int _lastCatalogSize = 20000;
+        private static float _lastStarDensity = 200.0f;
+        private static float _lastMinMagnitude = -1.0f;
+        private static float _lastMaxMagnitude = 10.0f;
+        private static float _lastMagnitudeBias = 0.08f;
+        private static float _lastHeroRarity = 0.02f;
+        private static float _lastClustering = 0.6f;
+        private static float _lastStaggerAmount = 0.5f;
+        private static float _lastPopulationBias = 0.0f;
+        private static float _lastMainSequenceStrength = 0.6f;
+        private static float _lastRedGiantRarity = 0.02f;
+        private static float _lastGalacticFlatness = 0.85f;
+        private static float _lastGalacticDiscFalloff = 3.0f;
+        private static float _lastBandCenterBoost = 0.0f;
+        private static float _lastBandCoreSharpness = 20.0f;
+        private static float _lastBulgeIntensity = 5.0f;
+        private static float _lastBulgeWidth = 0.5f;
+        private static float _lastBulgeHeight = 0.5f;
+        private static float _lastBulgeSoftness = 0.0f;
+        private static float _lastBulgeNoiseScale = 20.0f;
+        private static float _lastBulgeNoiseStrength = 0.0f;
+
+        private static bool _catalogNeedsRegeneration = true;
+        private static float _lastCatalogGenerationTime = -1f;
+        private const float CATALOG_GENERATION_DEBOUNCE = 0.3f; // 300ms
+
         private static readonly string SettingsPath = System.IO.Path.Combine(
             KSPUtil.ApplicationRootPath, "GameData", "CinematicShaders", "PluginData", "Settings.cfg");
 
@@ -56,6 +88,8 @@ namespace CinematicShaders.Core
                 if (settingsNode == null) return;
 
                 EnableStarfield = bool.Parse(settingsNode.GetValue("EnableStarfield") ?? "false");
+                CatalogSeed = int.Parse(settingsNode.GetValue("CatalogSeed") ?? "12345");
+                CatalogSize = int.Parse(settingsNode.GetValue("CatalogSize") ?? "20000");
                 Exposure = float.Parse(settingsNode.GetValue("Exposure") ?? "3.0");
                 BlurPixels = float.Parse(settingsNode.GetValue("BlurPixels") ?? "1.0");
                 StarDensity = float.Parse(settingsNode.GetValue("StarDensity") ?? "200.0");
@@ -81,6 +115,9 @@ namespace CinematicShaders.Core
                 BloomThreshold = float.Parse(settingsNode.GetValue("BloomThreshold") ?? "0.8");
                 BloomIntensity = float.Parse(settingsNode.GetValue("BloomIntensity") ?? "2.0");
                 SpikeIntensity = float.Parse(settingsNode.GetValue("SpikeIntensity") ?? "0.4");
+
+                // Force regeneration on next push since we loaded new values
+                _catalogNeedsRegeneration = true;
             }
             catch (System.Exception ex)
             {
@@ -93,6 +130,36 @@ namespace CinematicShaders.Core
             if (!StarfieldNative.IsLoaded)
                 return;
 
+            // Safety: Ensure catalog size is valid
+            if (CatalogSize < 100) CatalogSize = 100;
+            if (CatalogSize > 500000) CatalogSize = 500000; // Upper sanity limit
+
+            // Check if any catalog generation parameters changed
+            bool catalogParamsChanged = _catalogNeedsRegeneration ||
+                (CatalogSeed != _lastCatalogSeed) ||
+                (CatalogSize != _lastCatalogSize) ||
+                !Mathf.Approximately(StarDensity, _lastStarDensity) ||
+                !Mathf.Approximately(MinMagnitude, _lastMinMagnitude) ||
+                !Mathf.Approximately(MaxMagnitude, _lastMaxMagnitude) ||
+                !Mathf.Approximately(MagnitudeBias, _lastMagnitudeBias) ||
+                !Mathf.Approximately(HeroRarity, _lastHeroRarity) ||
+                !Mathf.Approximately(Clustering, _lastClustering) ||
+                !Mathf.Approximately(StaggerAmount, _lastStaggerAmount) ||
+                !Mathf.Approximately(PopulationBias, _lastPopulationBias) ||
+                !Mathf.Approximately(MainSequenceStrength, _lastMainSequenceStrength) ||
+                !Mathf.Approximately(RedGiantRarity, _lastRedGiantRarity) ||
+                !Mathf.Approximately(GalacticFlatness, _lastGalacticFlatness) ||
+                !Mathf.Approximately(GalacticDiscFalloff, _lastGalacticDiscFalloff) ||
+                !Mathf.Approximately(BandCenterBoost, _lastBandCenterBoost) ||
+                !Mathf.Approximately(BandCoreSharpness, _lastBandCoreSharpness) ||
+                !Mathf.Approximately(BulgeIntensity, _lastBulgeIntensity) ||
+                !Mathf.Approximately(BulgeWidth, _lastBulgeWidth) ||
+                !Mathf.Approximately(BulgeHeight, _lastBulgeHeight) ||
+                !Mathf.Approximately(BulgeSoftness, _lastBulgeSoftness) ||
+                !Mathf.Approximately(BulgeNoiseScale, _lastBulgeNoiseScale) ||
+                !Mathf.Approximately(BulgeNoiseStrength, _lastBulgeNoiseStrength);
+
+            // Update native settings (exposure, etc.) - always done
             var nativeSettings = new StarfieldNative.StarfieldSettingsNative
             {
                 Exposure = Exposure,
@@ -123,6 +190,50 @@ namespace CinematicShaders.Core
             };
 
             StarfieldNative.CR_StarfieldSetSettings(ref nativeSettings);
+
+            // Regenerate catalog if needed (with debounce)
+            float currentTime = Time.time;
+            if (catalogParamsChanged && EnableStarfield &&
+                (currentTime - _lastCatalogGenerationTime > CATALOG_GENERATION_DEBOUNCE || _lastCatalogGenerationTime < 0))
+            {
+                try
+                {
+                    StarfieldNative.CR_StarfieldGenerateCatalog(CatalogSeed, CatalogSize);
+                    _lastCatalogGenerationTime = currentTime;
+                    _lastCatalogSeed = CatalogSeed;
+                    _lastCatalogSize = CatalogSize;
+                    _lastStarDensity = StarDensity;
+                    _lastMinMagnitude = MinMagnitude;
+                    _lastMaxMagnitude = MaxMagnitude;
+                    _lastMagnitudeBias = MagnitudeBias;
+                    _lastHeroRarity = HeroRarity;
+                    _lastClustering = Clustering;
+                    _lastStaggerAmount = StaggerAmount;
+                    _lastPopulationBias = PopulationBias;
+                    _lastMainSequenceStrength = MainSequenceStrength;
+                    _lastRedGiantRarity = RedGiantRarity;
+                    _lastGalacticFlatness = GalacticFlatness;
+                    _lastGalacticDiscFalloff = GalacticDiscFalloff;
+                    _lastBandCenterBoost = BandCenterBoost;
+                    _lastBandCoreSharpness = BandCoreSharpness;
+                    _lastBulgeIntensity = BulgeIntensity;
+                    _lastBulgeWidth = BulgeWidth;
+                    _lastBulgeHeight = BulgeHeight;
+                    _lastBulgeSoftness = BulgeSoftness;
+                    _lastBulgeNoiseScale = BulgeNoiseScale;
+                    _lastBulgeNoiseStrength = BulgeNoiseStrength;
+                    _catalogNeedsRegeneration = false;
+                }
+                catch (System.Exception ex)
+                {
+                    UnityEngine.Debug.LogError($"[StarfieldSettings] Failed to generate catalog: {ex}");
+                }
+            }
+        }
+
+        public static void InvalidateCatalog()
+        {
+            _catalogNeedsRegeneration = true;
         }
 
         public static void Save()
@@ -167,6 +278,8 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("BloomThreshold", BloomThreshold);
                 settingsNode.AddValue("BloomIntensity", BloomIntensity);
                 settingsNode.AddValue("SpikeIntensity", SpikeIntensity);
+                settingsNode.AddValue("CatalogSeed", CatalogSeed);
+                settingsNode.AddValue("CatalogSize", CatalogSize);
 
                 node.Save(SettingsPath);
             }
