@@ -345,55 +345,6 @@ static float3 ApplySaturation(float3 baseColor, float sliderValue)
     return float3(r, g, b);
 }
 
-// Star properties calculation (matches HLSL calculate_star_properties)
-static void CalculateStarPropertiesCPU(const float3& hashValues, 
-    float minMag, float maxMag, float magBias, float popBias, 
-    float mainSeqStr, float redGiantRare, float colorSaturation,
-    float& outFlux, float3& outColor, float& outMagnitude, float& outTemp)
-{
-    float normalizedBrightness = powf(hashValues.y, magBias);
-    outMagnitude = minMag + (maxMag - minMag) * normalizedBrightness;
-    outFlux = powf(10.0f, -0.4f * outMagnitude);
-    
-    float randomComponent = hashValues.z;
-    float sequenceComponent = (1.0f - normalizedBrightness);
-    float tempHash = randomComponent * (1.0f - mainSeqStr) + sequenceComponent * mainSeqStr;
-    tempHash = Frac(tempHash + popBias * 0.3f);
-    
-    // Red giants override
-    if (hashValues.x < redGiantRare && normalizedBrightness < 0.3f) {
-        float3 baseColor = float3(1.0f, 0.5f, 0.3f); // Orange-red
-        outTemp = 3500.0f;
-        outColor = ApplySaturation(baseColor, colorSaturation);
-        return;
-    }
-    
-    // Calculate temperature based on main sequence position
-    // Map tempHash [0-1] to temperature range [3500K - 20000K]
-    float baseTemp;
-    if (tempHash < 0.15f) {
-        baseTemp = 3500.0f;   // M-type
-    } else if (tempHash < 0.35f) {
-        baseTemp = 4500.0f;   // K-type
-    } else if (tempHash < 0.55f) {
-        baseTemp = 5778.0f;   // G-type (Sun)
-    } else if (tempHash < 0.75f) {
-        baseTemp = 7200.0f;   // F-type
-    } else if (tempHash < 0.90f) {
-        baseTemp = 9500.0f;   // A-type
-    } else {
-        baseTemp = 20000.0f;  // B/O-type
-    }
-    
-    // Add some variation to temperature
-    outTemp = baseTemp * (0.9f + hashValues.x * 0.2f);
-    outTemp = fmaxf(2000.0f, fminf(40000.0f, outTemp));
-    
-    // Get blackbody color and apply saturation
-    float3 blackbody = BlackbodyRGB(outTemp);
-    outColor = ApplySaturation(blackbody, colorSaturation);
-}
-
 // Starfield Internal Functions
 static void EnsureStarfieldResources(ID3D11Device* device, int width, int height)
 {
@@ -875,9 +826,10 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
             tempHash = tempHash + populationBias * 0.3f;
             tempHash = fmaxf(0.0f, fminf(1.0f, tempHash));
             
-            // Calculate temperature
-            if (tempHash < 0.15f) { heroTemp = 3500.0f; }
-            else if (tempHash < 0.35f) { heroTemp = 4500.0f; }
+            // Calculate temperature - symmetric distribution for PopulationBias effect
+            if (tempHash < 0.10f) { heroTemp = 1500.0f; }
+            else if (tempHash < 0.25f) { heroTemp = 3500.0f; }
+            else if (tempHash < 0.45f) { heroTemp = 4500.0f; }
             else if (tempHash < 0.55f) { heroTemp = 5778.0f; }
             else if (tempHash < 0.75f) { heroTemp = 7200.0f; }
             else if (tempHash < 0.90f) { heroTemp = 9500.0f; }
@@ -885,7 +837,7 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
             
             // Apply variation and get blackbody color with saturation
             heroTemp = heroTemp * (0.9f + h.x * 0.2f);
-            heroTemp = fmaxf(2000.0f, fminf(40000.0f, heroTemp));
+            heroTemp = fmaxf(1000.0f, fminf(40000.0f, heroTemp));
             float3 blackbody = BlackbodyRGB(heroTemp);
             heroColor = ApplySaturation(blackbody, colorSaturation);
         }
@@ -979,17 +931,19 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
             temp = 3500.0f;
             color = ApplySaturation(baseColor, colorSaturation);
         } else {
-            // Calculate temperature
-            if (tempHash < 0.15f) { temp = 3500.0f; }
-            else if (tempHash < 0.35f) { temp = 4500.0f; }
-            else if (tempHash < 0.55f) { temp = 5778.0f; }
-            else if (tempHash < 0.75f) { temp = 7200.0f; }
-            else if (tempHash < 0.90f) { temp = 9500.0f; }
-            else { temp = 20000.0f; }
+            // Calculate temperature - symmetric distribution for PopulationBias effect
+            // Young/blue (high bias) vs Old/red (low bias) - extremes at +/- 1.0
+            if (tempHash < 0.10f) { temp = 1500.0f; }       // 10% - Deep red (M9 dwarf)
+            else if (tempHash < 0.25f) { temp = 3500.0f; }  // 15% - Red-orange (M-type)
+            else if (tempHash < 0.45f) { temp = 4500.0f; }  // 20% - Orange (K-type)
+            else if (tempHash < 0.55f) { temp = 5778.0f; }  // 10% - Yellow (G-type, Sun)
+            else if (tempHash < 0.75f) { temp = 7200.0f; }  // 20% - White (F-type)
+            else if (tempHash < 0.90f) { temp = 9500.0f; }  // 15% - Blue-white (A-type)
+            else { temp = 20000.0f; }                       // 10% - Deep blue (B/O-type)
             
             // Apply variation and get blackbody color with saturation
             temp = temp * (0.9f + h.x * 0.2f);
-            temp = fmaxf(2000.0f, fminf(40000.0f, temp));
+            temp = fmaxf(1000.0f, fminf(40000.0f, temp));
             float3 blackbody = BlackbodyRGB(temp);
             color = ApplySaturation(blackbody, colorSaturation);
         }
