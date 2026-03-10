@@ -3,7 +3,7 @@ name: Create Release
 on:
   push:
     tags:
-      - 'v*'  # Triggers on tags starting with 'v' (v1.0.0, v0.5.0-beta, etc.)
+      - '[0-9]*'  # Triggers on tags starting with a digit (1.0.0, 2023.1.0, etc.)
 
 permissions:
   contents: write  # Required to create releases
