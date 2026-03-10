@@ -844,6 +844,7 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
         
         // Add hero to catalog (at the end, we'll reverse to put heroes first)
         StarData hero;
+        hero.Flags = StarData::FLAG_IS_HERO;  // Mark as hero (can be named)
         hero.DirectionX = dir.x;
         hero.DirectionY = dir.y;
         hero.DirectionZ = dir.z;
@@ -954,6 +955,7 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
         
         // Add regular star to catalog
         StarData star;
+        star.Flags = 0;  // Not a hero
         star.DirectionX = dir.x;
         star.DirectionY = dir.y;
         star.DirectionZ = dir.z;

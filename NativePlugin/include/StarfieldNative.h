@@ -16,13 +16,14 @@ struct float3 {
     float3(float _x, float _y, float _z) : x(_x), y(_y), z(_z) {}
 };
 
-// Star catalog entry - 44 bytes, 4-byte aligned for GPU StructuredBuffer
+// Star catalog entry - 48 bytes, 4-byte aligned for GPU StructuredBuffer
 // Layout matches C# StarDataNative and HLSL StarData exactly
-// Version 3: Added HipparcosID, DistancePc, and SpectralType
+// Version 4: Added HipparcosID, DistancePc, SpectralType, and Flags
 struct StarData {
     int32_t HipparcosID;   // 4 bytes - Hipparcos catalog ID (0 if not from real catalog)
     float DistancePc;      // 4 bytes - Distance in parsecs (0 if unknown)
     int32_t SpectralType;  // 4 bytes - 0=O,1=B,2=A,3=F,4=G,5=K,6=M,7=L,255=Unknown
+    uint32_t Flags;        // 4 bytes - Bit 0=IsHero (can be named)
     
     float DirectionX;      // 4 bytes
     float DirectionY;      // 4 bytes  
@@ -34,13 +35,16 @@ struct StarData {
     float ColorB;          // 4 bytes
     float Temperature;     // 4 bytes - Kelvin, for future PSF shader use
     
+    // Flag constants
+    static constexpr uint32_t FLAG_IS_HERO = 1;  // Bit 0: Star can be named/is important
+    
     // Utility constructor for C++ generation code
-    StarData() : HipparcosID(0), DistancePc(0.0f), SpectralType(255), 
+    StarData() : HipparcosID(0), DistancePc(0.0f), SpectralType(255), Flags(0),
                  DirectionX(0), DirectionY(0), DirectionZ(0), Magnitude(10.0f),
                  ColorR(1.0f), ColorG(1.0f), ColorB(1.0f), Temperature(5778.0f) {}
                  
-    StarData(int32_t hip, float dist, int32_t spectral, float dx, float dy, float dz, float mag, float r, float g, float b, float temp)
-        : HipparcosID(hip), DistancePc(dist), SpectralType(spectral),
+    StarData(int32_t hip, float dist, int32_t spectral, uint32_t flags, float dx, float dy, float dz, float mag, float r, float g, float b, float temp)
+        : HipparcosID(hip), DistancePc(dist), SpectralType(spectral), Flags(flags),
           DirectionX(dx), DirectionY(dy), DirectionZ(dz), Magnitude(mag),
           ColorR(r), ColorG(g), ColorB(b), Temperature(temp) {}
 };

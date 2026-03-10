@@ -102,12 +102,13 @@ namespace CinematicShaders.Native
             public float ColorSaturation;  // 0.0-2.0: 0.5=realistic, 1.0=natural, 2.0=vivid
         }
 
-        [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 44)]
+        [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 48)]
         public struct StarDataNative
         {
             public int HipparcosID;    // Hipparcos catalog ID (0 if procedural)
             public float DistancePc;   // Distance in parsecs (0 if unknown)
             public int SpectralType;   // 0=O,1=B,2=A,3=F,4=G,5=K,6=M,7=L,255=Unknown
+            public uint Flags;         // Bit 0=IsHero (can be named/important)
             
             public float DirectionX;
             public float DirectionY;
@@ -119,11 +120,15 @@ namespace CinematicShaders.Native
             public float ColorB;
             public float Temperature;
 
-            public StarDataNative(int hipparcosID, float distancePc, int spectralType, Vector3 direction, float magnitude, Color color, float temperature)
+            // Flag constants
+            public const uint FLAG_IS_HERO = 1;  // Bit 0: Star can be named/is important
+
+            public StarDataNative(int hipparcosID, float distancePc, int spectralType, uint flags, Vector3 direction, float magnitude, Color color, float temperature)
             {
                 HipparcosID = hipparcosID;
                 DistancePc = distancePc;
                 SpectralType = spectralType;
+                Flags = flags;
                 DirectionX = direction.x;
                 DirectionY = direction.y;
                 DirectionZ = direction.z;
@@ -136,6 +141,7 @@ namespace CinematicShaders.Native
 
             public Vector3 Direction => new Vector3(DirectionX, DirectionY, DirectionZ);
             public Color Color => new Color(ColorR, ColorG, ColorB, 1.0f);
+            public bool IsHero => (Flags & FLAG_IS_HERO) != 0;
         }
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]

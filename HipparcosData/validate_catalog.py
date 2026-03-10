@@ -8,7 +8,7 @@ import sys
 import os
 
 HEADER_SIZE = 256
-STAR_SIZE = 44  # Version 3: includes Hipparcos ID, Distance, SpectralType
+STAR_SIZE = 48  # Version 4: includes Hipparcos ID, Distance, SpectralType, Flags
 MAGIC = 0x53545243
 
 def read_header(f):
@@ -44,11 +44,12 @@ def read_star(f, index):
     offset = HEADER_SIZE + (index * STAR_SIZE)
     f.seek(offset)
     
-    hip_id, dist_pc, spectral, dx, dy, dz, mag, r, g, b, temp = struct.unpack('<ififfffffff', f.read(44))
+    hip_id, dist_pc, spectral, flags, dx, dy, dz, mag, r, g, b, temp = struct.unpack('<ifiiffffffff', f.read(48))
     return {
         'hip_id': hip_id,
         'dist_pc': dist_pc,
         'spectral': spectral,
+        'flags': flags,
         'dir': (dx, dy, dz),
         'mag': mag,
         'color': (r, g, b),
@@ -100,9 +101,11 @@ def validate_file(filepath):
                 hip = star.get('hip_id', 0)
                 dist = star.get('dist_pc', 0)
                 spec = star.get('spectral', 255)
+                flags = star.get('flags', 0)
+                is_hero = '*' if (flags & 1) else ' '
                 spectral_names = {0:'O', 1:'B', 2:'A', 3:'F', 4:'G', 5:'K', 6:'M', 7:'L', 255:'?'}
                 spec_name = spectral_names.get(spec, '?')
-                print(f"  [{i:6d}] HIP={hip:6d} {spec_name} {dist:7.2f}pc "
+                print(f"  [{i:6d}]{is_hero}HIP={hip:6d} {spec_name} {dist:7.2f}pc "
                       f"dir=({dx:7.4f},{dy:7.4f},{dz:7.4f}) mag={star['mag']:6.2f} "
                       f"T={star['temp']:6.0f}K")
         

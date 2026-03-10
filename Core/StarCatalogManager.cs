@@ -16,9 +16,9 @@ namespace CinematicShaders.Core
     {
         // Binary format constants
         private const uint MAGIC = 0x53545243; // 'STRC'
-        private const ushort VERSION = 3;       // Version 3: includes HipparcosID, Distance, SpectralType
+        private const ushort VERSION = 4;       // Version 4: includes Flags (IsHero)
         private const int HEADER_SIZE = 256;
-        private const int STAR_SIZE = 44; // sizeof(StarDataNative)
+        private const int STAR_SIZE = 48; // sizeof(StarDataNative)
         
         [Flags]
         private enum CatalogFlags : ushort
@@ -322,6 +322,7 @@ namespace CinematicShaders.Core
                         writer.Write(star.HipparcosID);
                         writer.Write(star.DistancePc);
                         writer.Write(star.SpectralType);
+                        writer.Write(star.Flags);
                         writer.Write(star.DirectionX);
                         writer.Write(star.DirectionY);
                         writer.Write(star.DirectionZ);

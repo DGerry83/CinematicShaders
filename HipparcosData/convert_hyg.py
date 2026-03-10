@@ -17,9 +17,12 @@ from datetime import datetime
 
 # Constants
 HEADER_SIZE = 256
-STAR_SIZE = 44  # 11 values × 4 bytes = 44 bytes (ID, Dist, Spectral, DirXYZ, Mag, RGB, Temp)
+STAR_SIZE = 48  # 12 values × 4 bytes = 48 bytes (ID, Dist, Spectral, Flags, DirXYZ, Mag, RGB, Temp)
 MAGIC = 0x53545243  # 'STRC'
-VERSION = 3  # Version 3: ID + Distance(pc) + SpectralType
+VERSION = 4  # Version 4: Added Flags field (IsHero for named/generated stars)
+
+# Flags bitfield
+FLAG_IS_HERO = 1  # Bit 0: Star can be named/is important enough for billboard PSF
 
 def blackbody_rgb(temperature):
     """
@@ -105,7 +108,7 @@ def normalize_direction(x, y, z):
 def parse_star(row):
     """
     Parse a CSV row into star data tuple.
-    Returns: (hip_id, dist_pc, spectral_enum, dx, dy, dz, mag, r, g, b, temp) or None if filtered
+    Returns: (hip_id, dist_pc, spectral_enum, flags, dx, dy, dz, mag, r, g, b, temp) or None if filtered
     """
     try:
         # Skip Sun
@@ -169,7 +172,13 @@ def parse_star(row):
         spectral = row.get('spect', '')
         spectral_enum = spectral_type_to_enum(spectral)
         
-        return (hip_id, dist_pc, spectral_enum, dx, dy, dz, mag, r, g, b, temp)
+        # Set IsHero flag for named stars (proper name exists and not Sol)
+        flags = 0
+        proper = row.get('proper', '').strip()
+        if proper and proper != 'Sol':
+            flags |= FLAG_IS_HERO
+        
+        return (hip_id, dist_pc, spectral_enum, flags, dx, dy, dz, mag, r, g, b, temp)
         
     except (KeyError, ValueError) as e:
         # Missing required field or bad number
@@ -191,10 +200,11 @@ def write_catalog(filename, stars, display_name, read_only=True):
     - Offset 116: Date (32 bytes) - ISO-8601 timestamp
     - Offset 148: Reserved (108 bytes) - zeros
     
-    Star records (44 bytes each):
+    Star records (48 bytes each):
     - HipparcosID (1 int32)
     - DistancePc (1 float) - distance in parsecs
     - SpectralType (1 int32) - 0=O,1=B,2=A,3=F,4=G,5=K,6=M,7=L,255=Unknown
+    - Flags (1 uint32) - Bit 0=IsHero (can be named)
     - DirectionX, DirectionY, DirectionZ, Magnitude (4 floats)
     - ColorR, ColorG, ColorB, Temperature (4 floats)
     """
@@ -237,10 +247,10 @@ def write_catalog(filename, stars, display_name, read_only=True):
         # Reserved (108 bytes) - zeros to reach 256 byte header
         f.write(b'\x00' * 108)
         
-        # Write star data (44 bytes each)
+        # Write star data (48 bytes each)
         for star in stars:
-            hip_id, dist_pc, spectral_enum, dx, dy, dz, mag, r, g, b, temp = star
-            f.write(struct.pack('<ififfffffff', hip_id, dist_pc, spectral_enum, dx, dy, dz, mag, r, g, b, temp))
+            hip_id, dist_pc, spectral_enum, flags, dx, dy, dz, mag, r, g, b, temp = star
+            f.write(struct.pack('<ifiiffffffff', hip_id, dist_pc, spectral_enum, flags, dx, dy, dz, mag, r, g, b, temp))
     
     file_size = os.path.getsize(filename)
     expected_size = HEADER_SIZE + (len(stars) * STAR_SIZE)
@@ -284,7 +294,7 @@ def main():
             # Full parse
             star = parse_star(row)
             if star:
-                stars.append((star, star[6]))  # (data, mag for sorting) - mag is now at index 6
+                stars.append((star, star[7]))  # (data, mag for sorting) - mag is now at index 7
             else:
                 skipped_bad_pos += 1
     
