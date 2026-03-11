@@ -3,60 +3,98 @@ name: Create Release
 on:
   push:
     tags:
-      - '[0-9]*'  # Triggers on tags starting with a digit (1.0.0, 2023.1.0, etc.)
+      - '[0-9]+.[0-9]+.[0-9]+*'  # Matches: 0.1.0, 1.0.0, 1.0.0-beta, etc.
+      - 'v[0-9]+.[0-9]+.[0-9]+*' # Matches: v0.1.0, v1.0.0, etc.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (must exist, e.g., 0.1.0 or v1.0.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as prerelease?'
+        type: boolean
+        default: false
+        required: false
 
 permissions:
-  contents: write  # Required to create releases
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
     
     steps:
+      - name: Determine tag name
+        id: get_tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG=${GITHUB_REF#refs/tags/}
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Using tag: $TAG"
+      
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Required to fetch tag annotations
+          fetch-depth: 0  # Full history for tag annotations
+          ref: ${{ steps.get_tag.outputs.tag }}
       
-      - name: Extract tag information
+      - name: Verify GameData exists
+        run: |
+          if [ ! -d "GameData" ]; then
+            echo "Error: GameData directory not found in repository!"
+            exit 1
+          fi
+          echo "GameData structure:"
+          find GameData -type f | head -20
+      
+      - name: Extract tag annotation
         id: tag_info
         shell: bash
         run: |
-          TAG=${GITHUB_REF#refs/tags/}
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          TAG="${{ steps.get_tag.outputs.tag }}"
           
-          # Get the annotation message (annotated tags only)
-          # This handles multiline messages properly for GitHub Actions
-          MESSAGE=$(git tag -l --format='%(contents)' $TAG)
+          # Try to get annotated tag message
+          MESSAGE=$(git tag -l --format='%(contents)' "$TAG" 2>/dev/null || echo "")
           
-          # Escape special characters for GitHub Actions
+          # If lightweight tag (no annotation) or empty, use default
+          if [ -z "$MESSAGE" ] || [ "$MESSAGE" = "$(git log -1 --pretty=%B HEAD)" ]; then
+            MESSAGE="Release ${TAG}"
+          fi
+          
+          # Handle multiline output for GitHub Actions
           DELIMITER=$(openssl rand -hex 12)
           echo "message<<$DELIMITER" >> $GITHUB_OUTPUT
           echo "$MESSAGE" >> $GITHUB_OUTPUT
           echo "$DELIMITER" >> $GITHUB_OUTPUT
-          
-          echo "Creating release for tag: $TAG"
       
       - name: Create release ZIP
         run: |
-          # Create zip preserving GameData structure
-          # Add README.md and LICENSE.txt if they exist at repo root
-          zip -r "CinematicShaders-${{ steps.tag_info.outputs.tag }}.zip" \
-            GameData/ \
-            README.md \
-            LICENSE.txt \
-            2>/dev/null || true
+          TAG="${{ steps.get_tag.outputs.tag }}"
+          ZIP_NAME="CinematicShaders-${TAG}.zip"
           
-          # Verify contents
-          echo "ZIP contents:"
-          unzip -l "CinematicShaders-${{ steps.tag_info.outputs.tag }}.zip"
+          # Build file list dynamically
+          FILES="GameData/"
+          [ -f "README.md" ] && FILES="$FILES README.md"
+          [ -f "LICENSE.txt" ] && FILES="$FILES LICENSE.txt"
+          
+          # Create zip preserving directory structure
+          zip -r "$ZIP_NAME" $FILES
+          
+          echo "Created: $ZIP_NAME"
+          echo "Contents:"
+          unzip -l "$ZIP_NAME"
       
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          name: Release ${{ steps.tag_info.outputs.tag }}
+          name: Release ${{ steps.get_tag.outputs.tag }}
           body: ${{ steps.tag_info.outputs.message }}
           files: CinematicShaders-*.zip
           fail_on_unmatched_files: true
+          prerelease: ${{ github.event.inputs.prerelease || false }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
