@@ -49,7 +49,7 @@ cbuffer StarfieldParams : register(b0)
     float PopulationBias;
     
     float MainSequenceStrength;
-    float RedGiantRarity;
+    float RedGiantFrequency;
     float Exposure;      // EV stops
     float BlurPixels;
     

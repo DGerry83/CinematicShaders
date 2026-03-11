@@ -20,7 +20,7 @@ namespace CinematicShaders.UI.Tabs
         private float _clustering;
         private float _populationBias;
         private float _mainSequenceStrength;
-        private float _redGiantRarity;
+        private float _redGiantFrequency;
 
         // Galactic Structure
         private float _galacticFlatness;
@@ -51,6 +51,11 @@ namespace CinematicShaders.UI.Tabs
         private bool _catalogDropdownOpen = false;
         private string[] _catalogNames = new string[0];
         private string[] _catalogPaths = new string[0];
+        
+        // Section collapsible states
+        private bool _showRenderingSection = true;
+        private bool _showMainGenerationSection = true;
+        private bool _showAdvancedGenerationSection = false;  // Collapsed by default
 
         public StarfieldTab()
         {
@@ -64,7 +69,7 @@ namespace CinematicShaders.UI.Tabs
             _clustering = StarfieldSettings.Clustering;
             _populationBias = StarfieldSettings.PopulationBias;
             _mainSequenceStrength = StarfieldSettings.MainSequenceStrength;
-            _redGiantRarity = StarfieldSettings.RedGiantRarity;
+            _redGiantFrequency = StarfieldSettings.RedGiantFrequency;
             _galacticFlatness = StarfieldSettings.GalacticFlatness;
             _galacticDiscFalloff = StarfieldSettings.GalacticDiscFalloff;
             _bandCenterBoost = StarfieldSettings.BandCenterBoost;
@@ -108,88 +113,109 @@ namespace CinematicShaders.UI.Tabs
                 
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
 
-                GUILayout.Label(CinematicShadersUIStrings.Starfield.RenderingSection, HighLogic.Skin.label);
-
-                DrawEnableToggle(oldEnabled);
-
-                if (!StarfieldSettings.EnableStarfield)
-                    GUI.enabled = false;
-
-                DrawSlider(CinematicShadersUIStrings.Starfield.ExposureLabel, ref _exposure, -2.0f, 8.0f, "F1");
-                GUILayout.Label(CinematicShadersUIStrings.Starfield.ExposureTooltip, helpStyle);
-                // BlurPixels is angular sigma in radians; display as arcminutes (1' = 1/60° ≈ 0.00029 rad)
-                // Range: 1-2 arcminutes for sharp stars (0.00029 to 0.00058 radians)
-                // Values above 2 look out of focus and are reserved for special effects
-                float blurArcminutes = _blurPixels * 3437.75f;  // rad to arcmin (180*60/π)
-                DrawSlider(CinematicShadersUIStrings.Starfield.BlurPixelsLabel, ref blurArcminutes, 1.0f, 2.0f, "F1");
-                _blurPixels = blurArcminutes / 3437.75f;
-
-                GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
-
-                // Beauty
-                GUILayout.Label(CinematicShadersUIStrings.Starfield.BeautySection, HighLogic.Skin.label);
-                // Bloom threshold slider 0-10 maps to actual 0-0.1 for finer control
-                float bloomThresholdDisplay = _bloomThreshold * 100.0f;  // 0.01 actual = 1.0 display
-                DrawSlider(CinematicShadersUIStrings.Starfield.BloomThresholdLabel, ref bloomThresholdDisplay, 0.0f, 10.0f, "F1");
-                _bloomThreshold = bloomThresholdDisplay / 100.0f;
-                GUILayout.Label(CinematicShadersUIStrings.Starfield.BloomThresholdTooltip, helpStyle);
-                // Bloom intensity 0-2 with logarithmic mapping for more precision at low end
-                // Display value 0-2, actual = display^2 / 2 (gives 0.125 at 0.5, 0.5 at 1.0, 2.0 at 2.0)
-                float bloomIntensityDisplay = Mathf.Sqrt(_bloomIntensity * 2.0f);
-                DrawSlider(CinematicShadersUIStrings.Starfield.BloomIntensityLabel, ref bloomIntensityDisplay, 0.0f, 2.0f, "F2");
-                _bloomIntensity = (bloomIntensityDisplay * bloomIntensityDisplay) * 0.5f;
-                GUILayout.Label(CinematicShadersUIStrings.Starfield.BloomIntensityTooltip, helpStyle);
-                
-                // Color saturation slider: 0.5-4.0 range (higher = more vivid colors)
-                DrawSlider(CinematicShadersUIStrings.Starfield.ColorSaturationLabel, ref _colorSaturation, 0.5f, 4.0f, "F2");
-                GUILayout.Label(CinematicShadersUIStrings.Starfield.ColorSaturationTooltip, helpStyle);
-
-                GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
-                GUILayout.Label("Catalog Generation", HighLogic.Skin.label);
-                
-                // Disable generation sliders if read-only
-                bool wasEnabled = GUI.enabled;
-                if (StarfieldSettings.IsReadOnly)
+                // === RENDERING SECTION ===
+                _showRenderingSection = GUILayout.Toggle(_showRenderingSection, CinematicShadersUIStrings.Starfield.RenderingSection, HighLogic.Skin.label);
+                if (_showRenderingSection)
                 {
-                    GUI.enabled = false;
-                    GUILayout.Label("🔒 Generation parameters locked (Read-Only mode)", CinematicShadersUIResources.Styles.Help());
+                    DrawEnableToggle(oldEnabled);
+
+                    if (!StarfieldSettings.EnableStarfield)
+                        GUI.enabled = false;
+
+                    DrawSlider(CinematicShadersUIStrings.Starfield.ExposureLabel, ref _exposure, -2.0f, 8.0f, "F1");
+                    GUILayout.Label(CinematicShadersUIStrings.Starfield.ExposureTooltip, helpStyle);
+                    
+                    // BlurPixels is angular sigma in radians; display as arcminutes (1' = 1/60° ≈ 0.00029 rad)
+                    float blurArcminutes = _blurPixels * 3437.75f;  // rad to arcmin (180*60/π)
+                    DrawSlider(CinematicShadersUIStrings.Starfield.BlurPixelsLabel, ref blurArcminutes, 1.0f, 2.0f, "F1");
+                    _blurPixels = blurArcminutes / 3437.75f;
+                    GUILayout.Label(CinematicShadersUIStrings.Starfield.BlurPixelsTooltip, helpStyle);
+
+                    // Bloom threshold slider 0-10 maps to actual 0-0.1 for finer control
+                    float bloomThresholdDisplay = _bloomThreshold * 100.0f;
+                    DrawSlider(CinematicShadersUIStrings.Starfield.BloomThresholdLabel, ref bloomThresholdDisplay, 0.0f, 10.0f, "F1");
+                    _bloomThreshold = bloomThresholdDisplay / 100.0f;
+                    GUILayout.Label(CinematicShadersUIStrings.Starfield.BloomThresholdTooltip, helpStyle);
+                    
+                    // Bloom intensity 0-2 with logarithmic mapping
+                    float bloomIntensityDisplay = Mathf.Sqrt(_bloomIntensity * 2.0f);
+                    DrawSlider(CinematicShadersUIStrings.Starfield.BloomIntensityLabel, ref bloomIntensityDisplay, 0.0f, 2.0f, "F2");
+                    _bloomIntensity = (bloomIntensityDisplay * bloomIntensityDisplay) * 0.5f;
+                    GUILayout.Label(CinematicShadersUIStrings.Starfield.BloomIntensityTooltip, helpStyle);
+                    
+                    // Color saturation slider: 0.5-4.0 range
+                    DrawSlider(CinematicShadersUIStrings.Starfield.ColorSaturationLabel, ref _colorSaturation, 0.5f, 4.0f, "F2");
+                    GUILayout.Label(CinematicShadersUIStrings.Starfield.ColorSaturationTooltip, helpStyle);
                 }
 
-                DrawIntSlider("Catalog Seed", ref _catalogSeed, 0, 99999);
-                GUILayout.Label("Random seed for star placement", helpStyle);
+                GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
 
-                DrawIntSlider("Catalog Size", ref _catalogSize, 1000, 100000);
-                GUILayout.Label("Number of stars to generate", helpStyle);
-                
-                GUI.enabled = wasEnabled;
+                // === MAIN GENERATION SECTION ===
+                _showMainGenerationSection = GUILayout.Toggle(_showMainGenerationSection, CinematicShadersUIStrings.Starfield.MainGenerationSection, HighLogic.Skin.label);
+                if (_showMainGenerationSection)
+                {
+                    // Disable generation sliders if read-only
+                    bool wasEnabled = GUI.enabled;
+                    if (StarfieldSettings.IsReadOnly)
+                    {
+                        GUI.enabled = false;
+                        GUILayout.Label(CinematicShadersUIStrings.Starfield.ReadOnlyLockMessage, CinematicShadersUIResources.Styles.Help());
+                    }
+
+                    DrawIntSlider(CinematicShadersUIStrings.Starfield.CatalogSeedLabel, ref _catalogSeed, 0, 99999);
+                    GUILayout.Label(CinematicShadersUIStrings.Starfield.CatalogSeedTooltip, helpStyle);
+
+                    DrawIntSlider(CinematicShadersUIStrings.Starfield.CatalogSizeLabel, ref _catalogSize, 1000, 100000);
+                    GUILayout.Label(CinematicShadersUIStrings.Starfield.CatalogSizeTooltip, helpStyle);
+
+                    DrawSlider(CinematicShadersUIStrings.Starfield.MinMagnitudeLabel, ref _minMagnitude, -2.0f, 3.0f, "F1");
+                    DrawSlider(CinematicShadersUIStrings.Starfield.MaxMagnitudeLabel, ref _maxMagnitude, 5.0f, 12.0f, "F1");
+                    
+                    DrawIntSlider(CinematicShadersUIStrings.Starfield.HeroCountLabel, ref _heroCount, 16, 1024);
+                    GUILayout.Label(CinematicShadersUIStrings.Starfield.HeroCountTooltip, helpStyle);
+                    
+                    DrawSlider(CinematicShadersUIStrings.Starfield.MainSequenceLabel, ref _mainSequenceStrength, 0.0f, 1.0f, "F2");
+                    GUILayout.Label(CinematicShadersUIStrings.Starfield.MainSequenceTooltip, helpStyle);
+                    
+                    DrawSlider(CinematicShadersUIStrings.Starfield.RedGiantFrequencyLabel, ref _redGiantFrequency, 0.0f, 1.0f, "F2");
+                    
+                    GUI.enabled = wasEnabled;
+                }
 
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
-                // Distribution
-                GUILayout.Label(CinematicShadersUIStrings.Starfield.DistributionSection, HighLogic.Skin.label);
-                DrawSlider(CinematicShadersUIStrings.Starfield.MinMagnitudeLabel, ref _minMagnitude, -2.0f, 3.0f, "F1");
-                DrawSlider(CinematicShadersUIStrings.Starfield.MaxMagnitudeLabel, ref _maxMagnitude, 5.0f, 12.0f, "F1");
-                DrawSlider(CinematicShadersUIStrings.Starfield.MagnitudeBiasLabel, ref _magnitudeBias, 0.02f, 0.5f, "F2");
-                DrawIntSlider("Hero Count", ref _heroCount, 16, 1024);
-                GUILayout.Label("Number of bright hero stars", helpStyle);
-                DrawSlider(CinematicShadersUIStrings.Starfield.ClusteringLabel, ref _clustering, 0.0f, 1.0f, "F2");
-                DrawSlider(CinematicShadersUIStrings.Starfield.PopulationBiasLabel, ref _populationBias, -1.0f, 1.0f, "F2");
-                GUILayout.Label(CinematicShadersUIStrings.Starfield.PopulationBiasTooltip, helpStyle);
-                DrawSlider(CinematicShadersUIStrings.Starfield.MainSequenceLabel, ref _mainSequenceStrength, 0.0f, 1.0f, "F2");
-                DrawSlider(CinematicShadersUIStrings.Starfield.RedGiantRarityLabel, ref _redGiantRarity, 0.0f, 0.5f, "F2");
 
-                GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
-                // Structure
-                GUILayout.Label(CinematicShadersUIStrings.Starfield.GalacticStructureSection, HighLogic.Skin.label);
-                DrawSlider(CinematicShadersUIStrings.Starfield.DiscFlatnessLabel, ref _galacticFlatness, 0.0f, 1.0f, "F2");
-                DrawSlider(CinematicShadersUIStrings.Starfield.DiscFalloffLabel, ref _galacticDiscFalloff, 0.5f, 10.0f, "F1");
-                DrawSlider(CinematicShadersUIStrings.Starfield.BandCenterBoostLabel, ref _bandCenterBoost, 0.0f, 10.0f, "F1");
-                DrawSlider(CinematicShadersUIStrings.Starfield.BandCoreSharpnessLabel, ref _bandCoreSharpness, 1.0f, 50.0f, "F0");
-                DrawSlider(CinematicShadersUIStrings.Starfield.BulgeIntensityLabel, ref _bulgeIntensity, 0.0f, 20.0f, "F1");
-                DrawSlider(CinematicShadersUIStrings.Starfield.BulgeWidthLabel, ref _bulgeWidth, 0.01f, 1.57f, "F2");
-                DrawSlider(CinematicShadersUIStrings.Starfield.BulgeHeightLabel, ref _bulgeHeight, 0.01f, 1.0f, "F2");
-                DrawSlider(CinematicShadersUIStrings.Starfield.BulgeSoftnessLabel, ref _bulgeSoftness, 0.0f, 1.0f, "F2");
-                DrawSlider(CinematicShadersUIStrings.Starfield.BulgeNoiseScaleLabel, ref _bulgeNoiseScale, 0.0f, 100.0f, "F1");
-                DrawSlider(CinematicShadersUIStrings.Starfield.BulgeNoiseStrengthLabel, ref _bulgeNoiseStrength, 0.0f, 1.0f, "F2");
+                // === ADVANCED GENERATION SECTION (collapsed by default) ===
+                _showAdvancedGenerationSection = GUILayout.Toggle(_showAdvancedGenerationSection, "▶ " + CinematicShadersUIStrings.Starfield.AdvancedGenerationSection, HighLogic.Skin.label);
+                if (_showAdvancedGenerationSection)
+                {
+                    // Disable generation sliders if read-only
+                    bool wasEnabled = GUI.enabled;
+                    if (StarfieldSettings.IsReadOnly)
+                    {
+                        GUI.enabled = false;
+                    }
+
+                    DrawSlider(CinematicShadersUIStrings.Starfield.BrightnessDistributionLabel, ref _magnitudeBias, 0.02f, 0.5f, "F2");
+                    DrawSlider(CinematicShadersUIStrings.Starfield.StellarPopulationLabel, ref _populationBias, -1.0f, 1.0f, "F2");
+                    GUILayout.Label(CinematicShadersUIStrings.Starfield.StellarPopulationTooltip, helpStyle);
+                    DrawSlider(CinematicShadersUIStrings.Starfield.ClusteringLabel, ref _clustering, 0.0f, 1.0f, "F2");
+
+                    GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.TIGHT);
+                    GUILayout.Label(CinematicShadersUIStrings.Starfield.GalacticStructureSection, HighLogic.Skin.label);
+                    
+                    DrawSlider(CinematicShadersUIStrings.Starfield.DiscFlatnessLabel, ref _galacticFlatness, 0.0f, 1.0f, "F2");
+                    DrawSlider(CinematicShadersUIStrings.Starfield.DiscFalloffLabel, ref _galacticDiscFalloff, 0.5f, 10.0f, "F1");
+                    DrawSlider(CinematicShadersUIStrings.Starfield.BandCenterBoostLabel, ref _bandCenterBoost, 0.0f, 10.0f, "F1");
+                    DrawSlider(CinematicShadersUIStrings.Starfield.BandCoreSharpnessLabel, ref _bandCoreSharpness, 1.0f, 50.0f, "F0");
+                    DrawSlider(CinematicShadersUIStrings.Starfield.BulgeIntensityLabel, ref _bulgeIntensity, 0.0f, 20.0f, "F1");
+                    DrawSlider(CinematicShadersUIStrings.Starfield.BulgeWidthLabel, ref _bulgeWidth, 0.01f, 1.57f, "F2");
+                    DrawSlider(CinematicShadersUIStrings.Starfield.BulgeHeightLabel, ref _bulgeHeight, 0.01f, 1.0f, "F2");
+                    DrawSlider(CinematicShadersUIStrings.Starfield.BulgeSoftnessLabel, ref _bulgeSoftness, 0.0f, 1.0f, "F2");
+                    DrawSlider(CinematicShadersUIStrings.Starfield.BulgeNoiseScaleLabel, ref _bulgeNoiseScale, 0.0f, 100.0f, "F1");
+                    DrawSlider(CinematicShadersUIStrings.Starfield.BulgeNoiseStrengthLabel, ref _bulgeNoiseStrength, 0.0f, 1.0f, "F2");
+                    
+                    GUI.enabled = wasEnabled;
+                }
             }
             finally
             {
@@ -505,7 +531,7 @@ namespace CinematicShaders.UI.Tabs
             StarfieldSettings.Clustering = _clustering;
             StarfieldSettings.PopulationBias = _populationBias;
             StarfieldSettings.MainSequenceStrength = _mainSequenceStrength;
-            StarfieldSettings.RedGiantRarity = _redGiantRarity;
+            StarfieldSettings.RedGiantFrequency = _redGiantFrequency;
             StarfieldSettings.GalacticFlatness = _galacticFlatness;
             StarfieldSettings.GalacticDiscFalloff = _galacticDiscFalloff;
             StarfieldSettings.BandCenterBoost = _bandCenterBoost;

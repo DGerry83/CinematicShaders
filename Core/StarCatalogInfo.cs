@@ -22,7 +22,7 @@ namespace CinematicShaders.Core
         public float Clustering { get; set; }
         public float PopulationBias { get; set; }
         public float MainSequenceStrength { get; set; }
-        public float RedGiantRarity { get; set; }
+        public float RedGiantFrequency { get; set; }
         public float GalacticFlatness { get; set; }
         
         /// <summary>

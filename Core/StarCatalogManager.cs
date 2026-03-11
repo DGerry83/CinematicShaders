@@ -137,7 +137,7 @@ namespace CinematicShaders.Core
                     float clustering = reader.ReadSingle();
                     float popBias = reader.ReadSingle();
                     float mainSeqStr = reader.ReadSingle();
-                    float redGiantRarity = reader.ReadSingle();
+                    float redGiantFrequency = reader.ReadSingle();
                     float galacticFlatness = reader.ReadSingle();
                     
                     // Skip to display name (offset 52: after magic(4)+version(2)+flags(2)+count(4)+heroes(4)+seed(4)+params(32))
@@ -166,7 +166,7 @@ namespace CinematicShaders.Core
                         Clustering = clustering,
                         PopulationBias = popBias,
                         MainSequenceStrength = mainSeqStr,
-                        RedGiantRarity = redGiantRarity,
+                        RedGiantFrequency = redGiantFrequency,
                         GalacticFlatness = galacticFlatness,
                         CreatedDate = createdDate
                     };
@@ -276,26 +276,29 @@ namespace CinematicShaders.Core
                 using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write))
                 using (var writer = new BinaryWriter(fs))
                 {
-                    // Write header
+                    // Write header (256 bytes total)
+                    // Offset 0: Magic (4) + Version (2) + Flags (2) = 8 bytes
                     writer.Write(MAGIC);
                     writer.Write(VERSION);
                     writer.Write(flags);
+                    
+                    // Offset 8: Count (4) + HeroCount (4) + Seed (4) = 12 bytes, total 20
                     writer.Write(count);
                     writer.Write(heroCount);
                     writer.Write(StarfieldSettings.CatalogSeed);
                     
-                    // Write generation params
+                    // Offset 20: Gen params (8 floats = 32 bytes), total 52
                     writer.Write(StarfieldSettings.MinMagnitude);
                     writer.Write(StarfieldSettings.MaxMagnitude);
                     writer.Write(StarfieldSettings.MagnitudeBias);
                     writer.Write(StarfieldSettings.Clustering);
                     writer.Write(StarfieldSettings.PopulationBias);
                     writer.Write(StarfieldSettings.MainSequenceStrength);
-                    writer.Write(StarfieldSettings.RedGiantRarity);
+                    writer.Write(StarfieldSettings.RedGiantFrequency);
                     writer.Write(StarfieldSettings.GalacticFlatness);
                     
-                    // Pad to offset 48
-                    writer.Write(new byte[48 - 36]);
+                    // Offset 52: Pad to 64 (12 bytes), total 64
+                    writer.Write(new byte[12]);
                     
                     // Display name (64 bytes)
                     byte[] nameBytes = new byte[64];
@@ -306,15 +309,15 @@ namespace CinematicShaders.Core
                     }
                     writer.Write(nameBytes);
                     
-                    // Date (32 bytes)
+                    // Date (32 bytes) - offset 128
                     byte[] dateBytes = new byte[32];
                     string dateStr = DateTime.Now.ToString("O");
                     byte[] dateSrc = Encoding.UTF8.GetBytes(dateStr);
                     Array.Copy(dateSrc, dateBytes, Math.Min(dateSrc.Length, 31));
                     writer.Write(dateBytes);
                     
-                    // Reserved (128 bytes) - rest of 256 byte header
-                    writer.Write(new byte[128]);
+                    // Reserved (96 bytes) - offset 160 to 256
+                    writer.Write(new byte[96]);
                     
                     // Write star data
                     foreach (var star in stars)

@@ -66,7 +66,7 @@ struct StarfieldSettingsNative {
     float Clustering;
     float PopulationBias;
     float MainSequenceStrength;
-    float RedGiantRarity;
+    float RedGiantFrequency;
     float GalacticFlatness;
     float GalacticDiscFalloff;
     float BandCenterBoost;

@@ -59,16 +59,26 @@
             public const string BlurPixelsLabel = "Star Softness";
             public const string BlurPixelsTooltip = "Angular size of star blur in arcminutes (1-2 for sharp stars, higher values look out of focus)";
 
-            public const string DistributionSection = "STAR DISTRIBUTION";
+            public const string MainGenerationSection = "MAIN GENERATION";
+            public const string AdvancedGenerationSection = "ADVANCED GENERATION";
+            
+            public const string CatalogSeedLabel = "Catalog Seed";
+            public const string CatalogSeedTooltip = "Random seed for star placement";
+            public const string CatalogSizeLabel = "Catalog Size";
+            public const string CatalogSizeTooltip = "Number of stars to generate";
+            public const string HeroCountLabel = "Hero Count";
+            public const string HeroCountTooltip = "Number of bright hero stars (named/important stars)";
+            public const string ReadOnlyLockMessage = "🔒 Generation parameters locked (Read-Only mode)";
+            
             public const string MinMagnitudeLabel = "Min Magnitude";
             public const string MaxMagnitudeLabel = "Max Magnitude";
-            public const string MagnitudeBiasLabel = "Magnitude Bias";
-            public const string ClusteringLabel = "Clustering";
-            public const string PopulationBiasLabel = "Population Bias";
-            public const string PopulationBiasTooltip = "Shift toward red (-1) or blue (+1) stars";
-            public const string MainSequenceLabel = "Main Sequence";
-            public const string MainSequenceTooltip = "Correlation between brightness and temperature";
-            public const string RedGiantRarityLabel = "Red Giant Rarity";
+            public const string BrightnessDistributionLabel = "Brightness Distribution";
+            public const string ClusteringLabel = "Star Clustering";
+            public const string StellarPopulationLabel = "Stellar Population";
+            public const string StellarPopulationTooltip = "Star age bias: shift toward old/red (-1) or young/blue (+1) stars";
+            public const string MainSequenceLabel = "Main Sequence Strength";
+            public const string MainSequenceTooltip = "Realism enforcement: 0.0=Wild West (any star type), 1.0=Strict (bright stars must be hot)";
+            public const string RedGiantFrequencyLabel = "Red Giant Frequency";
 
             public const string GalacticStructureSection = "GALACTIC STRUCTURE";
             public const string DiscFlatnessLabel = "Disc Flatness";

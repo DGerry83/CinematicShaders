@@ -1,0 +1,5398 @@
+{
+  "metadata": {
+    "version": 1,
+    "source_catalog": "HYG v42",
+    "bin_file": "hyg_v42_20k.bin",
+    "star_count": 20000,
+    "named_star_count": 565,
+    "constellation_count": 64,
+    "generated": "2026-03-10T19:40:55.997924"
+  },
+  "stars": {
+    "88": {
+      "bayer": "Tau",
+      "constellation": "Phe",
+      "full_designation": "Tau Phe",
+      "spectral": "G",
+      "magnitude": 5.71
+    },
+    "122": {
+      "bayer": "The",
+      "constellation": "Oct",
+      "full_designation": "Theta Oct",
+      "spectral": "K",
+      "magnitude": 4.78
+    },
+    "145": {
+      "flamsteed": 29,
+      "constellation": "Psc",
+      "full_designation": "29 Psc",
+      "spectral": "B",
+      "magnitude": 5.13
+    },
+    "154": {
+      "flamsteed": 30,
+      "constellation": "Psc",
+      "full_designation": "30 Psc",
+      "spectral": "M",
+      "magnitude": 4.37
+    },
+    "171": {
+      "flamsteed": 85,
+      "constellation": "Peg",
+      "full_designation": "85 Peg",
+      "spectral": "G",
+      "magnitude": 5.8
+    },
+    "183": {
+      "bayer": "Zet",
+      "constellation": "Scl",
+      "full_designation": "Zeta Scl",
+      "spectral": "B",
+      "magnitude": 5.04
+    },
+    "186": {
+      "flamsteed": 31,
+      "constellation": "Psc",
+      "full_designation": "31 Psc",
+      "spectral": "A",
+      "magnitude": 6.33
+    },
+    "194": {
+      "flamsteed": 32,
+      "constellation": "Psc",
+      "full_designation": "32 Psc",
+      "spectral": "F",
+      "magnitude": 5.7
+    },
+    "355": {
+      "flamsteed": 3,
+      "constellation": "Cet",
+      "full_designation": "3 Cet",
+      "spectral": "K",
+      "magnitude": 4.99
+    },
+    "765": {
+      "bayer": "Eps",
+      "constellation": "Phe",
+      "full_designation": "Epsilon Phe",
+      "spectral": "K",
+      "magnitude": 3.88
+    },
+    "930": {
+      "bayer": "Kap-2",
+      "constellation": "Scl",
+      "full_designation": "Kap-2 Scl",
+      "spectral": "K",
+      "magnitude": 5.41
+    },
+    "1473": {
+      "bayer": "Sig",
+      "flamsteed": 25,
+      "constellation": "And",
+      "full_designation": "Sigma And",
+      "spectral": "A",
+      "magnitude": 4.51
+    },
+    "1547": {
+      "proper": "Citadelle",
+      "constellation": "Psc",
+      "full_designation": "Psc",
+      "spectral": "K",
+      "magnitude": 8.36
+    },
+    "1595": {
+      "flamsteed": 40,
+      "constellation": "Psc",
+      "full_designation": "40 Psc",
+      "spectral": "K",
+      "magnitude": 6.6
+    },
+    "1599": {
+      "bayer": "Zet",
+      "constellation": "Tuc",
+      "full_designation": "Zeta Tuc",
+      "spectral": "F",
+      "magnitude": 4.23
+    },
+    "2081": {
+      "proper": "Ankaa",
+      "bayer": "Alp",
+      "constellation": "Phe",
+      "full_designation": "Alpha Phe",
+      "spectral": "K",
+      "magnitude": 2.4
+    },
+    "2213": {
+      "flamsteed": 46,
+      "constellation": "Psc",
+      "full_designation": "46 Psc",
+      "spectral": "K",
+      "magnitude": 6.4
+    },
+    "2474": {
+      "flamsteed": 13,
+      "constellation": "Cas",
+      "full_designation": "13 Cas",
+      "spectral": "B",
+      "magnitude": 6.18
+    },
+    "2484": {
+      "bayer": "Bet-1",
+      "constellation": "Tuc",
+      "full_designation": "Bet-1 Tuc",
+      "spectral": "B",
+      "magnitude": 4.36
+    },
+    "2707": {
+      "flamsteed": 16,
+      "constellation": "Cas",
+      "full_designation": "16 Cas",
+      "spectral": "B",
+      "magnitude": 6.47
+    },
+    "2920": {
+      "proper": "Fulu",
+      "bayer": "Zet",
+      "flamsteed": 17,
+      "constellation": "Cas",
+      "full_designation": "Zeta Cas",
+      "spectral": "B",
+      "magnitude": 3.69
+    },
+    "3632": {
+      "flamsteed": 57,
+      "constellation": "Psc",
+      "full_designation": "57 Psc",
+      "spectral": "M",
+      "magnitude": 5.36
+    },
+    "3685": {
+      "flamsteed": 59,
+      "constellation": "Psc",
+      "full_designation": "59 Psc",
+      "spectral": "F",
+      "magnitude": 6.11
+    },
+    "3821": {
+      "proper": "Achird",
+      "bayer": "Eta",
+      "flamsteed": 24,
+      "constellation": "Cas",
+      "full_designation": "Eta Cas",
+      "spectral": "G",
+      "magnitude": 3.46
+    },
+    "3909": {
+      "bayer": "Phi-2",
+      "flamsteed": 19,
+      "constellation": "Cet",
+      "full_designation": "Phi-2 Cet",
+      "spectral": "F",
+      "magnitude": 5.17
+    },
+    "4257": {
+      "flamsteed": 21,
+      "constellation": "Cet",
+      "full_designation": "21 Cet",
+      "spectral": "G",
+      "magnitude": 6.15
+    },
+    "4288": {
+      "flamsteed": 36,
+      "constellation": "And",
+      "full_designation": "36 And",
+      "spectral": "K",
+      "magnitude": 5.46
+    },
+    "4436": {
+      "bayer": "Mu",
+      "flamsteed": 37,
+      "constellation": "And",
+      "full_designation": "Mu And",
+      "spectral": "A",
+      "magnitude": 3.86
+    },
+    "4510": {
+      "flamsteed": 68,
+      "constellation": "Psc",
+      "full_designation": "68 Psc",
+      "spectral": "G",
+      "magnitude": 5.44
+    },
+    "4577": {
+      "bayer": "Alp",
+      "constellation": "Scl",
+      "full_designation": "Alpha Scl",
+      "spectral": "B",
+      "magnitude": 4.3
+    },
+    "4979": {
+      "flamsteed": 26,
+      "constellation": "Cet",
+      "full_designation": "26 Cet",
+      "spectral": "F",
+      "magnitude": 6.06
+    },
+    "5121": {
+      "flamsteed": 27,
+      "constellation": "Cet",
+      "full_designation": "27 Cet",
+      "spectral": "K",
+      "magnitude": 6.09
+    },
+    "5165": {
+      "bayer": "Bet",
+      "constellation": "Phe",
+      "full_designation": "Beta Phe",
+      "spectral": "G",
+      "magnitude": 3.32
+    },
+    "5336": {
+      "bayer": "Mu",
+      "flamsteed": 30,
+      "constellation": "Cas",
+      "full_designation": "Mu Cas",
+      "spectral": "G",
+      "magnitude": 5.17
+    },
+    "5447": {
+      "proper": "Mirach",
+      "bayer": "Bet",
+      "flamsteed": 43,
+      "constellation": "And",
+      "full_designation": "Beta And",
+      "spectral": "M",
+      "magnitude": 2.07
+    },
+    "5454": {
+      "bayer": "Psi-3",
+      "flamsteed": 81,
+      "constellation": "Psc",
+      "full_designation": "Psi-3 Psc",
+      "spectral": "G",
+      "magnitude": 5.57
+    },
+    "5742": {
+      "bayer": "Phi",
+      "flamsteed": 85,
+      "constellation": "Psc",
+      "full_designation": "Phi Psc",
+      "spectral": "K",
+      "magnitude": 4.67
+    },
+    "6048": {
+      "flamsteed": 41,
+      "constellation": "Cet",
+      "full_designation": "41 Cet",
+      "spectral": "A",
+      "magnitude": 6.8
+    },
+    "6537": {
+      "bayer": "The",
+      "flamsteed": 45,
+      "constellation": "Cet",
+      "full_designation": "Theta Cet",
+      "spectral": "K",
+      "magnitude": 3.6
+    },
+    "6692": {
+      "bayer": "Psi",
+      "flamsteed": 36,
+      "constellation": "Cas",
+      "full_designation": "Psi Cas",
+      "spectral": "K",
+      "magnitude": 4.72
+    },
+    "6999": {
+      "flamsteed": 49,
+      "constellation": "And",
+      "full_designation": "49 And",
+      "spectral": "K",
+      "magnitude": 5.27
+    },
+    "7083": {
+      "bayer": "Del",
+      "constellation": "Phe",
+      "full_designation": "Delta Phe",
+      "spectral": "K",
+      "magnitude": 3.93
+    },
+    "7345": {
+      "flamsteed": 49,
+      "constellation": "Cet",
+      "full_designation": "49 Cet",
+      "spectral": "A",
+      "magnitude": 5.62
+    },
+    "7436": {
+      "flamsteed": 101,
+      "constellation": "Psc",
+      "full_designation": "101 Psc",
+      "spectral": "B",
+      "magnitude": 6.23
+    },
+    "7535": {
+      "bayer": "Pi",
+      "flamsteed": 102,
+      "constellation": "Psc",
+      "full_designation": "Pi Psc",
+      "spectral": "F",
+      "magnitude": 5.54
+    },
+    "7719": {
+      "bayer": "Chi",
+      "flamsteed": 52,
+      "constellation": "And",
+      "full_designation": "Chi And",
+      "spectral": "G",
+      "magnitude": 5.01
+    },
+    "7948": {
+      "flamsteed": 1,
+      "constellation": "Tri",
+      "full_designation": "1 Tri",
+      "spectral": "A",
+      "magnitude": 7.53
+    },
+    "8814": {
+      "flamsteed": 55,
+      "constellation": "And",
+      "full_designation": "55 And",
+      "spectral": "K",
+      "magnitude": 5.42
+    },
+    "8837": {
+      "bayer": "Psi",
+      "constellation": "Phe",
+      "full_designation": "Psi Phe",
+      "spectral": "M",
+      "magnitude": 4.39
+    },
+    "8903": {
+      "proper": "Sheratan",
+      "bayer": "Bet",
+      "flamsteed": 6,
+      "constellation": "Ari",
+      "full_designation": "Beta Ari",
+      "spectral": "A",
+      "magnitude": 2.64
+    },
+    "9353": {
+      "flamsteed": 112,
+      "constellation": "Psc",
+      "full_designation": "112 Psc",
+      "spectral": "G",
+      "magnitude": 5.89
+    },
+    "9763": {
+      "flamsteed": 49,
+      "constellation": "Cas",
+      "full_designation": "49 Cas",
+      "spectral": "G",
+      "magnitude": 5.22
+    },
+    "9836": {
+      "bayer": "Kap",
+      "flamsteed": 12,
+      "constellation": "Ari",
+      "full_designation": "Kappa Ari",
+      "spectral": "A",
+      "magnitude": 5.03
+    },
+    "10031": {
+      "flamsteed": 54,
+      "constellation": "Cas",
+      "full_designation": "54 Cas",
+      "spectral": "F",
+      "magnitude": 6.57
+    },
+    "10180": {
+      "flamsteed": 59,
+      "constellation": "And",
+      "full_designation": "59 And",
+      "spectral": "A",
+      "magnitude": 6.82
+    },
+    "10418": {
+      "bayer": "Pi-1",
+      "constellation": "Hyi",
+      "full_designation": "Pi-1 Hyi",
+      "spectral": "M",
+      "magnitude": 5.57
+    },
+    "10438": {
+      "flamsteed": 55,
+      "constellation": "Cas",
+      "full_designation": "55 Cas",
+      "spectral": "B",
+      "magnitude": 6.05
+    },
+    "10535": {
+      "flamsteed": 21,
+      "constellation": "Ari",
+      "full_designation": "21 Ari",
+      "spectral": "F",
+      "magnitude": 5.57
+    },
+    "10793": {
+      "flamsteed": 10,
+      "constellation": "Tri",
+      "full_designation": "10 Tri",
+      "spectral": "A",
+      "magnitude": 5.29
+    },
+    "11046": {
+      "flamsteed": 70,
+      "constellation": "Cet",
+      "full_designation": "70 Cet",
+      "spectral": "F",
+      "magnitude": 5.42
+    },
+    "11407": {
+      "bayer": "Kap",
+      "constellation": "Eri",
+      "full_designation": "Kappa Eri",
+      "spectral": "B",
+      "magnitude": 4.24
+    },
+    "11486": {
+      "flamsteed": 12,
+      "constellation": "Tri",
+      "full_designation": "12 Tri",
+      "spectral": "F",
+      "magnitude": 5.29
+    },
+    "11757": {
+      "bayer": "Mu",
+      "constellation": "Hyi",
+      "full_designation": "Mu Hyi",
+      "spectral": "G",
+      "magnitude": 5.27
+    },
+    "11784": {
+      "flamsteed": 14,
+      "constellation": "Tri",
+      "full_designation": "14 Tri",
+      "spectral": "K",
+      "magnitude": 5.15
+    },
+    "12114": {
+      "proper": "268 G. Cet",
+      "constellation": "Cet",
+      "full_designation": "Cet",
+      "spectral": "K",
+      "magnitude": 5.79
+    },
+    "12623": {
+      "flamsteed": 12,
+      "constellation": "Per",
+      "full_designation": "12 Per",
+      "spectral": "F",
+      "magnitude": 4.91
+    },
+    "12653": {
+      "bayer": "Iot",
+      "constellation": "Hor",
+      "full_designation": "Iota Hor",
+      "spectral": "G",
+      "magnitude": 5.4
+    },
+    "12692": {
+      "flamsteed": 11,
+      "constellation": "Per",
+      "full_designation": "11 Per",
+      "spectral": "B",
+      "magnitude": 5.76
+    },
+    "12770": {
+      "bayer": "Pi",
+      "flamsteed": 89,
+      "constellation": "Cet",
+      "full_designation": "Pi Cet",
+      "spectral": "B",
+      "magnitude": 4.24
+    },
+    "12843": {
+      "bayer": "Tau-1",
+      "flamsteed": 1,
+      "constellation": "Eri",
+      "full_designation": "Tau-1 Eri",
+      "spectral": "F",
+      "magnitude": 4.47
+    },
+    "13108": {
+      "flamsteed": 40,
+      "constellation": "Ari",
+      "full_designation": "40 Ari",
+      "spectral": "K",
+      "magnitude": 5.83
+    },
+    "13192": {
+      "proper": "Nushagak",
+      "constellation": "Cas",
+      "full_designation": "Cas",
+      "spectral": "G",
+      "magnitude": 8.17
+    },
+    "13254": {
+      "flamsteed": 16,
+      "constellation": "Per",
+      "full_designation": "16 Per",
+      "spectral": "F",
+      "magnitude": 4.22
+    },
+    "13905": {
+      "flamsteed": 24,
+      "constellation": "Per",
+      "full_designation": "24 Per",
+      "spectral": "K",
+      "magnitude": 4.94
+    },
+    "13914": {
+      "bayer": "Eps",
+      "flamsteed": 48,
+      "constellation": "Ari",
+      "full_designation": "Epsilon Ari",
+      "spectral": "A",
+      "magnitude": 4.63
+    },
+    "14109": {
+      "flamsteed": 49,
+      "constellation": "Ari",
+      "full_designation": "49 Ari",
+      "spectral": "A",
+      "magnitude": 5.91
+    },
+    "14632": {
+      "bayer": "Iot",
+      "constellation": "Per",
+      "full_designation": "Iota Per",
+      "spectral": "G",
+      "magnitude": 4.05
+    },
+    "14838": {
+      "proper": "Botein",
+      "bayer": "Del",
+      "flamsteed": 57,
+      "constellation": "Ari",
+      "full_designation": "Delta Ari",
+      "spectral": "K",
+      "magnitude": 4.35
+    },
+    "14879": {
+      "proper": "Dalim",
+      "bayer": "Alp",
+      "constellation": "For",
+      "full_designation": "Alpha For",
+      "spectral": "F",
+      "magnitude": 3.8
+    },
+    "15201": {
+      "bayer": "Iot",
+      "constellation": "Hyi",
+      "full_designation": "Iota Hyi",
+      "spectral": "F",
+      "magnitude": 5.51
+    },
+    "15244": {
+      "flamsteed": 14,
+      "constellation": "Eri",
+      "full_designation": "14 Eri",
+      "spectral": "F",
+      "magnitude": 6.14
+    },
+    "15510": {
+      "proper": "82 G. Eri",
+      "constellation": "Eri",
+      "full_designation": "Eri",
+      "spectral": "G",
+      "magnitude": 4.26
+    },
+    "15737": {
+      "bayer": "Tau-2",
+      "flamsteed": 63,
+      "constellation": "Ari",
+      "full_designation": "Tau-2 Ari",
+      "spectral": "K",
+      "magnitude": 5.1
+    },
+    "15861": {
+      "flamsteed": 64,
+      "constellation": "Ari",
+      "full_designation": "64 Ari",
+      "spectral": "K",
+      "magnitude": 5.5
+    },
+    "16244": {
+      "flamsteed": 34,
+      "constellation": "Per",
+      "full_designation": "34 Per",
+      "spectral": "B",
+      "magnitude": 4.67
+    },
+    "16369": {
+      "flamsteed": 5,
+      "constellation": "Tau",
+      "full_designation": "5 Tau",
+      "spectral": "K",
+      "magnitude": 4.14
+    },
+    "16859": {
+      "flamsteed": 9,
+      "constellation": "Tau",
+      "full_designation": "9 Tau",
+      "spectral": "A",
+      "magnitude": 6.72
+    },
+    "17007": {
+      "bayer": "Tau",
+      "constellation": "For",
+      "full_designation": "Tau For",
+      "spectral": "A",
+      "magnitude": 6.01
+    },
+    "17181": {
+      "flamsteed": 11,
+      "constellation": "Tau",
+      "full_designation": "11 Tau",
+      "spectral": "A",
+      "magnitude": 6.11
+    },
+    "17309": {
+      "flamsteed": 13,
+      "constellation": "Tau",
+      "full_designation": "13 Tau",
+      "spectral": "B",
+      "magnitude": 5.68
+    },
+    "17378": {
+      "proper": "Rana",
+      "bayer": "Del",
+      "flamsteed": 23,
+      "constellation": "Eri",
+      "full_designation": "Delta Eri",
+      "spectral": "K",
+      "magnitude": 3.52
+    },
+    "17440": {
+      "bayer": "Bet",
+      "constellation": "Ret",
+      "full_designation": "Beta Ret",
+      "spectral": "K",
+      "magnitude": 3.84
+    },
+    "17457": {
+      "flamsteed": 24,
+      "constellation": "Eri",
+      "full_designation": "24 Eri",
+      "spectral": "B",
+      "magnitude": 5.24
+    },
+    "17489": {
+      "proper": "Celaeno",
+      "flamsteed": 16,
+      "constellation": "Tau",
+      "full_designation": "16 Tau",
+      "spectral": "B",
+      "magnitude": 5.45
+    },
+    "17506": {
+      "flamsteed": 25,
+      "constellation": "Eri",
+      "full_designation": "25 Eri",
+      "spectral": "K",
+      "magnitude": 5.56
+    },
+    "17593": {
+      "bayer": "Pi",
+      "flamsteed": 26,
+      "constellation": "Eri",
+      "full_designation": "Pi Eri",
+      "spectral": "M",
+      "magnitude": 4.43
+    },
+    "17651": {
+      "bayer": "Tau-6",
+      "flamsteed": 27,
+      "constellation": "Eri",
+      "full_designation": "Tau-6 Eri",
+      "spectral": "F",
+      "magnitude": 4.22
+    },
+    "17702": {
+      "proper": "Alcyone",
+      "bayer": "Eta",
+      "flamsteed": 25,
+      "constellation": "Tau",
+      "full_designation": "Eta Tau",
+      "spectral": "B",
+      "magnitude": 2.85
+    },
+    "17717": {
+      "bayer": "Tau-7",
+      "flamsteed": 28,
+      "constellation": "Eri",
+      "full_designation": "Tau-7 Eri",
+      "spectral": "A",
+      "magnitude": 5.24
+    },
+    "17851": {
+      "proper": "Pleione",
+      "flamsteed": 28,
+      "constellation": "Tau",
+      "full_designation": "28 Tau",
+      "spectral": "B",
+      "magnitude": 5.05
+    },
+    "18471": {
+      "flamsteed": 32,
+      "constellation": "Tau",
+      "full_designation": "32 Tau",
+      "spectral": "F",
+      "magnitude": 5.62
+    },
+    "18485": {
+      "flamsteed": 33,
+      "constellation": "Tau",
+      "full_designation": "33 Tau",
+      "spectral": "B",
+      "magnitude": 6.05
+    },
+    "18724": {
+      "bayer": "Lam",
+      "flamsteed": 35,
+      "constellation": "Tau",
+      "full_designation": "Lambda Tau",
+      "spectral": "B",
+      "magnitude": 3.41
+    },
+    "18907": {
+      "bayer": "Nu",
+      "flamsteed": 38,
+      "constellation": "Tau",
+      "full_designation": "Nu Tau",
+      "spectral": "A",
+      "magnitude": 3.91
+    },
+    "19513": {
+      "flamsteed": 44,
+      "constellation": "Tau",
+      "full_designation": "44 Tau",
+      "spectral": "F",
+      "magnitude": 5.39
+    },
+    "19719": {
+      "flamsteed": 46,
+      "constellation": "Tau",
+      "full_designation": "46 Tau",
+      "spectral": "F",
+      "magnitude": 5.29
+    },
+    "19740": {
+      "flamsteed": 47,
+      "constellation": "Tau",
+      "full_designation": "47 Tau",
+      "spectral": "G",
+      "magnitude": 4.84
+    },
+    "20205": {
+      "proper": "Prima Hyadum",
+      "bayer": "Gam",
+      "flamsteed": 54,
+      "constellation": "Tau",
+      "full_designation": "Gamma Tau",
+      "spectral": "G",
+      "magnitude": 3.65
+    },
+    "20219": {
+      "flamsteed": 57,
+      "constellation": "Tau",
+      "full_designation": "57 Tau",
+      "spectral": "F",
+      "magnitude": 5.58
+    },
+    "20297": {
+      "bayer": "Nu",
+      "constellation": "Men",
+      "full_designation": "Nu Men",
+      "spectral": "F",
+      "magnitude": 5.78
+    },
+    "20455": {
+      "proper": "Secunda Hyadum",
+      "bayer": "Del-1",
+      "flamsteed": 61,
+      "constellation": "Tau",
+      "full_designation": "Del-1 Tau",
+      "spectral": "G",
+      "magnitude": 3.77
+    },
+    "20661": {
+      "flamsteed": 70,
+      "constellation": "Tau",
+      "full_designation": "70 Tau",
+      "spectral": "F",
+      "magnitude": 6.44
+    },
+    "20713": {
+      "flamsteed": 71,
+      "constellation": "Tau",
+      "full_designation": "71 Tau",
+      "spectral": "F",
+      "magnitude": 4.48
+    },
+    "20732": {
+      "bayer": "Pi",
+      "flamsteed": 73,
+      "constellation": "Tau",
+      "full_designation": "Pi Tau",
+      "spectral": "G",
+      "magnitude": 4.69
+    },
+    "20901": {
+      "flamsteed": 79,
+      "constellation": "Tau",
+      "full_designation": "79 Tau",
+      "spectral": "A",
+      "magnitude": 5.02
+    },
+    "21139": {
+      "flamsteed": 45,
+      "constellation": "Eri",
+      "full_designation": "45 Eri",
+      "spectral": "K",
+      "magnitude": 4.91
+    },
+    "21242": {
+      "flamsteed": 57,
+      "constellation": "Per",
+      "full_designation": "57 Per",
+      "spectral": "F",
+      "magnitude": 6.09
+    },
+    "21393": {
+      "proper": "Theemin",
+      "bayer": "Ups-2",
+      "flamsteed": 52,
+      "constellation": "Eri",
+      "full_designation": "Ups-2 Eri",
+      "spectral": "G",
+      "magnitude": 3.81
+    },
+    "21402": {
+      "flamsteed": 88,
+      "constellation": "Tau",
+      "full_designation": "88 Tau",
+      "spectral": "A",
+      "magnitude": 4.25
+    },
+    "21421": {
+      "proper": "Aldebaran",
+      "bayer": "Alp",
+      "flamsteed": 87,
+      "constellation": "Tau",
+      "full_designation": "Alpha Tau",
+      "spectral": "K",
+      "magnitude": 0.87
+    },
+    "21588": {
+      "flamsteed": 89,
+      "constellation": "Tau",
+      "full_designation": "89 Tau",
+      "spectral": "F",
+      "magnitude": 5.78
+    },
+    "21770": {
+      "bayer": "Alp",
+      "constellation": "Cae",
+      "full_designation": "Alpha Cae",
+      "spectral": "F",
+      "magnitude": 4.44
+    },
+    "21861": {
+      "bayer": "Bet",
+      "constellation": "Cae",
+      "full_designation": "Beta Cae",
+      "spectral": "F",
+      "magnitude": 5.04
+    },
+    "22040": {
+      "bayer": "Kap",
+      "constellation": "Dor",
+      "full_designation": "Kappa Dor",
+      "spectral": "A",
+      "magnitude": 5.28
+    },
+    "22325": {
+      "flamsteed": 59,
+      "constellation": "Eri",
+      "full_designation": "59 Eri",
+      "spectral": "F",
+      "magnitude": 5.76
+    },
+    "22667": {
+      "bayer": "Omi-1",
+      "flamsteed": 4,
+      "constellation": "Ori",
+      "full_designation": "Omi-1 Ori",
+      "spectral": "M",
+      "magnitude": 4.71
+    },
+    "22701": {
+      "bayer": "Ome",
+      "flamsteed": 61,
+      "constellation": "Eri",
+      "full_designation": "Omega Eri",
+      "spectral": "A",
+      "magnitude": 4.36
+    },
+    "22797": {
+      "bayer": "Pi-5",
+      "flamsteed": 8,
+      "constellation": "Ori",
+      "full_designation": "Pi-5 Ori",
+      "spectral": "B",
+      "magnitude": 3.71
+    },
+    "22845": {
+      "bayer": "Pi-1",
+      "flamsteed": 7,
+      "constellation": "Ori",
+      "full_designation": "Pi-1 Ori",
+      "spectral": "A",
+      "magnitude": 4.64
+    },
+    "22957": {
+      "bayer": "Omi-2",
+      "flamsteed": 9,
+      "constellation": "Ori",
+      "full_designation": "Omi-2 Ori",
+      "spectral": "K",
+      "magnitude": 4.06
+    },
+    "23214": {
+      "flamsteed": 101,
+      "constellation": "Tau",
+      "full_designation": "101 Tau",
+      "spectral": "F",
+      "magnitude": 6.75
+    },
+    "23364": {
+      "bayer": "Psi",
+      "flamsteed": 65,
+      "constellation": "Eri",
+      "full_designation": "Psi Eri",
+      "spectral": "B",
+      "magnitude": 4.8
+    },
+    "23467": {
+      "bayer": "Bet",
+      "constellation": "Men",
+      "full_designation": "Beta Men",
+      "spectral": "G",
+      "magnitude": 5.3
+    },
+    "23871": {
+      "flamsteed": 106,
+      "constellation": "Tau",
+      "full_designation": "106 Tau",
+      "spectral": "A",
+      "magnitude": 5.28
+    },
+    "23875": {
+      "proper": "Cursa",
+      "bayer": "Bet",
+      "flamsteed": 67,
+      "constellation": "Eri",
+      "full_designation": "Beta Eri",
+      "spectral": "A",
+      "magnitude": 2.78
+    },
+    "23949": {
+      "flamsteed": 107,
+      "constellation": "Tau",
+      "full_designation": "107 Tau",
+      "spectral": "G",
+      "magnitude": 6.51
+    },
+    "23983": {
+      "flamsteed": 16,
+      "constellation": "Ori",
+      "full_designation": "16 Ori",
+      "spectral": "A",
+      "magnitude": 5.43
+    },
+    "24372": {
+      "bayer": "The",
+      "constellation": "Dor",
+      "full_designation": "Theta Dor",
+      "spectral": "K",
+      "magnitude": 4.81
+    },
+    "24813": {
+      "bayer": "Lam",
+      "flamsteed": 15,
+      "constellation": "Aur",
+      "full_designation": "Lambda Aur",
+      "spectral": "G",
+      "magnitude": 4.69
+    },
+    "24817": {
+      "flamsteed": 21,
+      "constellation": "Ori",
+      "full_designation": "21 Ori",
+      "spectral": "F",
+      "magnitude": 5.34
+    },
+    "24822": {
+      "flamsteed": 109,
+      "constellation": "Tau",
+      "full_designation": "109 Tau",
+      "spectral": "G",
+      "magnitude": 4.96
+    },
+    "25044": {
+      "flamsteed": 22,
+      "constellation": "Ori",
+      "full_designation": "22 Ori",
+      "spectral": "B",
+      "magnitude": 4.72
+    },
+    "25142": {
+      "flamsteed": 23,
+      "constellation": "Ori",
+      "full_designation": "23 Ori",
+      "spectral": "B",
+      "magnitude": 4.99
+    },
+    "25302": {
+      "bayer": "Psi-1",
+      "flamsteed": 25,
+      "constellation": "Ori",
+      "full_designation": "Psi-1 Ori",
+      "spectral": "B",
+      "magnitude": 4.89
+    },
+    "25428": {
+      "proper": "Elnath",
+      "bayer": "Bet",
+      "flamsteed": 112,
+      "constellation": "Tau",
+      "full_designation": "Beta Tau",
+      "spectral": "B",
+      "magnitude": 1.65
+    },
+    "25429": {
+      "bayer": "Lam",
+      "constellation": "Dor",
+      "full_designation": "Lambda Dor",
+      "spectral": "G",
+      "magnitude": 5.14
+    },
+    "25583": {
+      "flamsteed": 117,
+      "constellation": "Tau",
+      "full_designation": "117 Tau",
+      "spectral": "M",
+      "magnitude": 5.77
+    },
+    "25853": {
+      "flamsteed": 10,
+      "constellation": "Lep",
+      "full_designation": "10 Lep",
+      "spectral": "A",
+      "magnitude": 5.53
+    },
+    "25930": {
+      "proper": "Mintaka",
+      "bayer": "Del",
+      "flamsteed": 34,
+      "constellation": "Ori",
+      "full_designation": "Delta Ori",
+      "spectral": "O",
+      "magnitude": 2.25
+    },
+    "25985": {
+      "proper": "Arneb",
+      "bayer": "Alp",
+      "flamsteed": 11,
+      "constellation": "Lep",
+      "full_designation": "Alpha Lep",
+      "spectral": "F",
+      "magnitude": 2.58
+    },
+    "26176": {
+      "bayer": "Phi-1",
+      "flamsteed": 37,
+      "constellation": "Ori",
+      "full_designation": "Phi-1 Ori",
+      "spectral": "B",
+      "magnitude": 4.39
+    },
+    "26235": {
+      "bayer": "The-2",
+      "flamsteed": 43,
+      "constellation": "Ori",
+      "full_designation": "The-2 Ori",
+      "spectral": "O",
+      "magnitude": 4.98
+    },
+    "26241": {
+      "proper": "Hatysa",
+      "bayer": "Iot",
+      "flamsteed": 44,
+      "constellation": "Ori",
+      "full_designation": "Iota Ori",
+      "spectral": "O",
+      "magnitude": 2.75
+    },
+    "26777": {
+      "flamsteed": 126,
+      "constellation": "Tau",
+      "full_designation": "126 Tau",
+      "spectral": "B",
+      "magnitude": 4.84
+    },
+    "26865": {
+      "flamsteed": 12,
+      "constellation": "Lep",
+      "full_designation": "12 Lep",
+      "spectral": "A",
+      "magnitude": 5.88
+    },
+    "27100": {
+      "bayer": "Del",
+      "constellation": "Dor",
+      "full_designation": "Delta Dor",
+      "spectral": "A",
+      "magnitude": 4.34
+    },
+    "27249": {
+      "flamsteed": 26,
+      "constellation": "Cam",
+      "full_designation": "26 Cam",
+      "spectral": "A",
+      "magnitude": 5.93
+    },
+    "27468": {
+      "flamsteed": 132,
+      "constellation": "Tau",
+      "full_designation": "132 Tau",
+      "spectral": "G",
+      "magnitude": 4.88
+    },
+    "27592": {
+      "flamsteed": 29,
+      "constellation": "Cam",
+      "full_designation": "29 Cam",
+      "spectral": "A",
+      "magnitude": 6.53
+    },
+    "27654": {
+      "bayer": "Del",
+      "flamsteed": 15,
+      "constellation": "Lep",
+      "full_designation": "Delta Lep",
+      "spectral": "G",
+      "magnitude": 3.76
+    },
+    "27673": {
+      "bayer": "Nu",
+      "flamsteed": 32,
+      "constellation": "Aur",
+      "full_designation": "Nu Aur",
+      "spectral": "K",
+      "magnitude": 3.97
+    },
+    "27949": {
+      "bayer": "Xi",
+      "flamsteed": 30,
+      "constellation": "Aur",
+      "full_designation": "Xi Aur",
+      "spectral": "A",
+      "magnitude": 4.96
+    },
+    "27989": {
+      "proper": "Betelgeuse",
+      "bayer": "Alp",
+      "flamsteed": 58,
+      "constellation": "Ori",
+      "full_designation": "Alpha Ori",
+      "spectral": "M",
+      "magnitude": 0.45
+    },
+    "28010": {
+      "bayer": "Xi",
+      "constellation": "Col",
+      "full_designation": "Xi Col",
+      "spectral": "K",
+      "magnitude": 4.97
+    },
+    "28199": {
+      "bayer": "Gam",
+      "constellation": "Col",
+      "full_designation": "Gamma Col",
+      "spectral": "B",
+      "magnitude": 4.36
+    },
+    "28237": {
+      "flamsteed": 139,
+      "constellation": "Tau",
+      "full_designation": "139 Tau",
+      "spectral": "B",
+      "magnitude": 4.81
+    },
+    "28271": {
+      "flamsteed": 59,
+      "constellation": "Ori",
+      "full_designation": "59 Ori",
+      "spectral": "A",
+      "magnitude": 5.89
+    },
+    "28358": {
+      "bayer": "Del",
+      "flamsteed": 33,
+      "constellation": "Aur",
+      "full_designation": "Delta Aur",
+      "spectral": "K",
+      "magnitude": 3.72
+    },
+    "28455": {
+      "flamsteed": 140,
+      "constellation": "Tau",
+      "full_designation": "140 Tau",
+      "spectral": "A",
+      "magnitude": 7.04
+    },
+    "28716": {
+      "bayer": "Chi-2",
+      "flamsteed": 62,
+      "constellation": "Ori",
+      "full_designation": "Chi-2 Ori",
+      "spectral": "B",
+      "magnitude": 4.64
+    },
+    "28814": {
+      "flamsteed": 66,
+      "constellation": "Ori",
+      "full_designation": "66 Ori",
+      "spectral": "G",
+      "magnitude": 5.63
+    },
+    "28909": {
+      "bayer": "Eta-1",
+      "constellation": "Dor",
+      "full_designation": "Eta-1 Dor",
+      "spectral": "A",
+      "magnitude": 5.72
+    },
+    "29315": {
+      "flamsteed": 38,
+      "constellation": "Cam",
+      "full_designation": "38 Cam",
+      "spectral": "K",
+      "magnitude": 7.14
+    },
+    "29353": {
+      "bayer": "Eta-2",
+      "constellation": "Dor",
+      "full_designation": "Eta-2 Dor",
+      "spectral": "M",
+      "magnitude": 5.01
+    },
+    "29434": {
+      "flamsteed": 69,
+      "constellation": "Ori",
+      "full_designation": "69 Ori",
+      "spectral": "B",
+      "magnitude": 4.95
+    },
+    "29655": {
+      "proper": "Propus",
+      "bayer": "Eta",
+      "flamsteed": 7,
+      "constellation": "Gem",
+      "full_designation": "Eta Gem",
+      "spectral": "M",
+      "magnitude": 3.31
+    },
+    "29800": {
+      "flamsteed": 74,
+      "constellation": "Ori",
+      "full_designation": "74 Ori",
+      "spectral": "F",
+      "magnitude": 5.04
+    },
+    "29840": {
+      "flamsteed": 9,
+      "constellation": "Gem",
+      "full_designation": "9 Gem",
+      "spectral": "B",
+      "magnitude": 6.24
+    },
+    "30046": {
+      "flamsteed": 11,
+      "constellation": "Gem",
+      "full_designation": "11 Gem",
+      "spectral": "B",
+      "magnitude": 6.91
+    },
+    "30049": {
+      "flamsteed": 12,
+      "constellation": "Gem",
+      "full_designation": "12 Gem",
+      "spectral": "A",
+      "magnitude": 6.95
+    },
+    "30278": {
+      "flamsteed": 3,
+      "constellation": "Lyn",
+      "full_designation": "3 Lyn",
+      "spectral": "F",
+      "magnitude": 7.2
+    },
+    "30324": {
+      "proper": "Mirzam",
+      "bayer": "Bet",
+      "flamsteed": 2,
+      "constellation": "CMa",
+      "full_designation": "Beta CMa",
+      "spectral": "B",
+      "magnitude": 1.98
+    },
+    "30419": {
+      "bayer": "Eps",
+      "flamsteed": 8,
+      "constellation": "Mon",
+      "full_designation": "Epsilon Mon",
+      "spectral": "A",
+      "magnitude": 4.39
+    },
+    "30520": {
+      "bayer": "Psi-1",
+      "flamsteed": 46,
+      "constellation": "Aur",
+      "full_designation": "Psi-1 Aur",
+      "spectral": "K",
+      "magnitude": 4.92
+    },
+    "31592": {
+      "bayer": "Nu-2",
+      "flamsteed": 7,
+      "constellation": "CMa",
+      "full_designation": "Nu-2 CMa",
+      "spectral": "K",
+      "magnitude": 3.95
+    },
+    "31685": {
+      "proper": "Pipit",
+      "bayer": "Nu",
+      "constellation": "Pup",
+      "full_designation": "Nu Pup",
+      "spectral": "B",
+      "magnitude": 3.17
+    },
+    "31771": {
+      "flamsteed": 51,
+      "constellation": "Aur",
+      "full_designation": "51 Aur",
+      "spectral": "K",
+      "magnitude": 5.7
+    },
+    "31789": {
+      "bayer": "Psi-3",
+      "flamsteed": 52,
+      "constellation": "Aur",
+      "full_designation": "Psi-3 Aur",
+      "spectral": "B",
+      "magnitude": 5.34
+    },
+    "31895": {
+      "proper": "Nosaxa",
+      "constellation": "Pup",
+      "full_designation": "Pup",
+      "spectral": "G",
+      "magnitude": 8.05
+    },
+    "32019": {
+      "flamsteed": 25,
+      "constellation": "Gem",
+      "full_designation": "25 Gem",
+      "spectral": "G",
+      "magnitude": 6.45
+    },
+    "32311": {
+      "flamsteed": 28,
+      "constellation": "Gem",
+      "full_designation": "28 Gem",
+      "spectral": "K",
+      "magnitude": 5.42
+    },
+    "32463": {
+      "flamsteed": 16,
+      "constellation": "Mon",
+      "full_designation": "16 Mon",
+      "spectral": "B",
+      "magnitude": 5.92
+    },
+    "32492": {
+      "flamsteed": 11,
+      "constellation": "CMa",
+      "full_designation": "11 CMa",
+      "spectral": "B",
+      "magnitude": 5.28
+    },
+    "32753": {
+      "flamsteed": 33,
+      "constellation": "Gem",
+      "full_designation": "33 Gem",
+      "spectral": "B",
+      "magnitude": 5.87
+    },
+    "32844": {
+      "bayer": "Psi-7",
+      "flamsteed": 58,
+      "constellation": "Aur",
+      "full_designation": "Psi-7 Aur",
+      "spectral": "K",
+      "magnitude": 4.99
+    },
+    "32916": {
+      "proper": "Nervia",
+      "constellation": "Aur",
+      "full_designation": "Aur",
+      "spectral": "G",
+      "magnitude": 8.1
+    },
+    "33092": {
+      "flamsteed": 15,
+      "constellation": "CMa",
+      "full_designation": "15 CMa",
+      "spectral": "B",
+      "magnitude": 4.82
+    },
+    "33152": {
+      "bayer": "Omi-1",
+      "flamsteed": 16,
+      "constellation": "CMa",
+      "full_designation": "Omi-1 CMa",
+      "spectral": "K",
+      "magnitude": 3.89
+    },
+    "33579": {
+      "proper": "Adhara",
+      "bayer": "Eps",
+      "flamsteed": 21,
+      "constellation": "CMa",
+      "full_designation": "Epsilon CMa",
+      "spectral": "B",
+      "magnitude": 1.5
+    },
+    "33595": {
+      "flamsteed": 39,
+      "constellation": "Gem",
+      "full_designation": "39 Gem",
+      "spectral": "F",
+      "magnitude": 6.2
+    },
+    "33614": {
+      "flamsteed": 62,
+      "constellation": "Aur",
+      "full_designation": "62 Aur",
+      "spectral": "K",
+      "magnitude": 6.02
+    },
+    "33971": {
+      "flamsteed": 19,
+      "constellation": "Mon",
+      "full_designation": "19 Mon",
+      "spectral": "B",
+      "magnitude": 4.99
+    },
+    "33977": {
+      "bayer": "Omi-2",
+      "flamsteed": 24,
+      "constellation": "CMa",
+      "full_designation": "Omi-2 CMa",
+      "spectral": "B",
+      "magnitude": 3.02
+    },
+    "34440": {
+      "flamsteed": 45,
+      "constellation": "Gem",
+      "full_designation": "45 Gem",
+      "spectral": "G",
+      "magnitude": 5.47
+    },
+    "34481": {
+      "bayer": "Gam-2",
+      "constellation": "Vol",
+      "full_designation": "Gam-2 Vol",
+      "spectral": "G",
+      "magnitude": 3.78
+    },
+    "34693": {
+      "bayer": "Tau",
+      "flamsteed": 46,
+      "constellation": "Gem",
+      "full_designation": "Tau Gem",
+      "spectral": "K",
+      "magnitude": 4.41
+    },
+    "34722": {
+      "flamsteed": 47,
+      "constellation": "Gem",
+      "full_designation": "47 Gem",
+      "spectral": "A",
+      "magnitude": 5.75
+    },
+    "34724": {
+      "flamsteed": 21,
+      "constellation": "Mon",
+      "full_designation": "21 Mon",
+      "spectral": "F",
+      "magnitude": 5.44
+    },
+    "34819": {
+      "flamsteed": 48,
+      "constellation": "Gem",
+      "full_designation": "48 Gem",
+      "spectral": "F",
+      "magnitude": 5.85
+    },
+    "34861": {
+      "flamsteed": 49,
+      "constellation": "Gem",
+      "full_designation": "49 Gem",
+      "spectral": "A",
+      "magnitude": 7.05
+    },
+    "35152": {
+      "flamsteed": 53,
+      "constellation": "Gem",
+      "full_designation": "53 Gem",
+      "spectral": "M",
+      "magnitude": 5.75
+    },
+    "35412": {
+      "flamsteed": 29,
+      "constellation": "CMa",
+      "full_designation": "29 CMa",
+      "spectral": "O",
+      "magnitude": 4.88
+    },
+    "35550": {
+      "proper": "Wasat",
+      "bayer": "Del",
+      "flamsteed": 55,
+      "constellation": "Gem",
+      "full_designation": "Delta Gem",
+      "spectral": "F",
+      "magnitude": 3.5
+    },
+    "35735": {
+      "flamsteed": 47,
+      "constellation": "Cam",
+      "full_designation": "47 Cam",
+      "spectral": "A",
+      "magnitude": 6.36
+    },
+    "35941": {
+      "flamsteed": 59,
+      "constellation": "Gem",
+      "full_designation": "59 Gem",
+      "spectral": "F",
+      "magnitude": 5.77
+    },
+    "35987": {
+      "flamsteed": 1,
+      "constellation": "CMi",
+      "full_designation": "1 CMi",
+      "spectral": "A",
+      "magnitude": 5.37
+    },
+    "36039": {
+      "bayer": "Eps",
+      "constellation": "Men",
+      "full_designation": "Epsilon Men",
+      "spectral": "K",
+      "magnitude": 5.54
+    },
+    "36156": {
+      "flamsteed": 61,
+      "constellation": "Gem",
+      "full_designation": "61 Gem",
+      "spectral": "F",
+      "magnitude": 5.94
+    },
+    "36238": {
+      "flamsteed": 63,
+      "constellation": "Gem",
+      "full_designation": "63 Gem",
+      "spectral": "F",
+      "magnitude": 5.2
+    },
+    "36393": {
+      "flamsteed": 64,
+      "constellation": "Gem",
+      "full_designation": "64 Gem",
+      "spectral": "A",
+      "magnitude": 5.07
+    },
+    "36425": {
+      "flamsteed": 6,
+      "constellation": "CMi",
+      "full_designation": "6 CMi",
+      "spectral": "K",
+      "magnitude": 4.55
+    },
+    "36812": {
+      "bayer": "Del-3",
+      "flamsteed": 9,
+      "constellation": "CMi",
+      "full_designation": "Del-3 CMi",
+      "spectral": "A",
+      "magnitude": 5.83
+    },
+    "37279": {
+      "proper": "Procyon",
+      "bayer": "Alp",
+      "flamsteed": 10,
+      "constellation": "CMi",
+      "full_designation": "Alpha CMi",
+      "spectral": "F",
+      "magnitude": 0.4
+    },
+    "37300": {
+      "flamsteed": 74,
+      "constellation": "Gem",
+      "full_designation": "74 Gem",
+      "spectral": "M",
+      "magnitude": 5.04
+    },
+    "37504": {
+      "bayer": "Zet",
+      "constellation": "Vol",
+      "full_designation": "Zeta Vol",
+      "spectral": "K",
+      "magnitude": 3.93
+    },
+    "37826": {
+      "proper": "Pollux",
+      "bayer": "Bet",
+      "flamsteed": 78,
+      "constellation": "Gem",
+      "full_designation": "Beta Gem",
+      "spectral": "K",
+      "magnitude": 1.16
+    },
+    "37843": {
+      "flamsteed": 2,
+      "constellation": "Pup",
+      "full_designation": "2 Pup",
+      "spectral": "A",
+      "magnitude": 6.06
+    },
+    "37908": {
+      "flamsteed": 81,
+      "constellation": "Gem",
+      "full_designation": "81 Gem",
+      "spectral": "K",
+      "magnitude": 4.89
+    },
+    "38835": {
+      "flamsteed": 11,
+      "constellation": "Pup",
+      "full_designation": "11 Pup",
+      "spectral": "F",
+      "magnitude": 4.2
+    },
+    "39177": {
+      "flamsteed": 3,
+      "constellation": "Cnc",
+      "full_designation": "3 Cnc",
+      "spectral": "K",
+      "magnitude": 5.6
+    },
+    "39191": {
+      "bayer": "Ome-1",
+      "flamsteed": 2,
+      "constellation": "Cnc",
+      "full_designation": "Ome-1 Cnc",
+      "spectral": "G",
+      "magnitude": 5.87
+    },
+    "39261": {
+      "flamsteed": 53,
+      "constellation": "Cam",
+      "full_designation": "53 Cam",
+      "spectral": "A",
+      "magnitude": 6.02
+    },
+    "39424": {
+      "bayer": "Chi",
+      "constellation": "Gem",
+      "full_designation": "Chi Gem",
+      "spectral": "K",
+      "magnitude": 4.94
+    },
+    "39659": {
+      "bayer": "Mu-1",
+      "flamsteed": 9,
+      "constellation": "Cnc",
+      "full_designation": "Mu-1 Cnc",
+      "spectral": "M",
+      "magnitude": 5.96
+    },
+    "39888": {
+      "flamsteed": 11,
+      "constellation": "Cnc",
+      "full_designation": "11 Cnc",
+      "spectral": "K",
+      "magnitude": 6.88
+    },
+    "40167": {
+      "proper": "Tegmine",
+      "bayer": "Zet-2",
+      "flamsteed": 16,
+      "constellation": "Cnc",
+      "full_designation": "Zet-2 Cnc",
+      "spectral": "G",
+      "magnitude": 4.67
+    },
+    "40817": {
+      "bayer": "Kap-1",
+      "constellation": "Vol",
+      "full_designation": "Kap-1 Vol",
+      "spectral": "B",
+      "magnitude": 5.33
+    },
+    "40875": {
+      "flamsteed": 30,
+      "constellation": "Lyn",
+      "full_designation": "30 Lyn",
+      "spectral": "F",
+      "magnitude": 5.89
+    },
+    "40888": {
+      "bayer": "The",
+      "constellation": "Cha",
+      "full_designation": "Theta Cha",
+      "spectral": "K",
+      "magnitude": 4.34
+    },
+    "41037": {
+      "proper": "Avior",
+      "bayer": "Eps",
+      "constellation": "Car",
+      "full_designation": "Epsilon Car",
+      "spectral": "K",
+      "magnitude": 1.86
+    },
+    "41163": {
+      "flamsteed": 21,
+      "constellation": "Cnc",
+      "full_designation": "21 Cnc",
+      "spectral": "M",
+      "magnitude": 6.11
+    },
+    "41312": {
+      "bayer": "Bet",
+      "constellation": "Vol",
+      "full_designation": "Beta Vol",
+      "spectral": "K",
+      "magnitude": 3.77
+    },
+    "41400": {
+      "flamsteed": 27,
+      "constellation": "Cnc",
+      "full_designation": "27 Cnc",
+      "spectral": "M",
+      "magnitude": 5.56
+    },
+    "41704": {
+      "proper": "Muscida",
+      "bayer": "Omi",
+      "flamsteed": 1,
+      "constellation": "UMa",
+      "full_designation": "Omicron UMa",
+      "spectral": "G",
+      "magnitude": 3.35
+    },
+    "41816": {
+      "bayer": "Ups-1",
+      "flamsteed": 30,
+      "constellation": "Cnc",
+      "full_designation": "Ups-1 Cnc",
+      "spectral": "F",
+      "magnitude": 5.71
+    },
+    "41822": {
+      "bayer": "The",
+      "flamsteed": 31,
+      "constellation": "Cnc",
+      "full_designation": "Theta Cnc",
+      "spectral": "K",
+      "magnitude": 5.33
+    },
+    "41909": {
+      "bayer": "Eta",
+      "flamsteed": 33,
+      "constellation": "Cnc",
+      "full_designation": "Eta Cnc",
+      "spectral": "K",
+      "magnitude": 5.33
+    },
+    "42146": {
+      "flamsteed": 3,
+      "constellation": "Hya",
+      "full_designation": "3 Hya",
+      "spectral": "A",
+      "magnitude": 5.72
+    },
+    "42353": {
+      "flamsteed": 37,
+      "constellation": "Cnc",
+      "full_designation": "37 Cnc",
+      "spectral": "A",
+      "magnitude": 6.54
+    },
+    "42425": {
+      "bayer": "The",
+      "constellation": "Vol",
+      "full_designation": "Theta Vol",
+      "spectral": "A",
+      "magnitude": 5.19
+    },
+    "42485": {
+      "flamsteed": 38,
+      "constellation": "Cnc",
+      "full_designation": "38 Cnc",
+      "spectral": "F",
+      "magnitude": 6.65
+    },
+    "42509": {
+      "flamsteed": 6,
+      "constellation": "Hya",
+      "full_designation": "6 Hya",
+      "spectral": "K",
+      "magnitude": 4.98
+    },
+    "42911": {
+      "proper": "Asellus Australis",
+      "bayer": "Del",
+      "flamsteed": 47,
+      "constellation": "Cnc",
+      "full_designation": "Delta Cnc",
+      "spectral": "K",
+      "magnitude": 3.94
+    },
+    "42954": {
+      "flamsteed": 46,
+      "constellation": "Cnc",
+      "full_designation": "46 Cnc",
+      "spectral": "G",
+      "magnitude": 6.12
+    },
+    "43067": {
+      "flamsteed": 12,
+      "constellation": "Hya",
+      "full_designation": "12 Hya",
+      "spectral": "G",
+      "magnitude": 4.32
+    },
+    "43121": {
+      "flamsteed": 50,
+      "constellation": "Cnc",
+      "full_designation": "50 Cnc",
+      "spectral": "A",
+      "magnitude": 5.89
+    },
+    "43234": {
+      "bayer": "Rho",
+      "flamsteed": 13,
+      "constellation": "Hya",
+      "full_designation": "Rho Hya",
+      "spectral": "A",
+      "magnitude": 4.35
+    },
+    "43305": {
+      "flamsteed": 14,
+      "constellation": "Hya",
+      "full_designation": "14 Hya",
+      "spectral": "B",
+      "magnitude": 5.3
+    },
+    "43674": {
+      "proper": "Stribor",
+      "constellation": "Lyn",
+      "full_designation": "Lyn",
+      "spectral": "G",
+      "magnitude": 8.03
+    },
+    "44336": {
+      "flamsteed": 68,
+      "constellation": "Cnc",
+      "full_designation": "68 Cnc",
+      "spectral": "B",
+      "magnitude": 7.39
+    },
+    "44471": {
+      "proper": "Alkaphrah",
+      "bayer": "Kap",
+      "flamsteed": 12,
+      "constellation": "UMa",
+      "full_designation": "Kappa UMa",
+      "spectral": "A",
+      "magnitude": 3.57
+    },
+    "45038": {
+      "bayer": "Sig-2",
+      "flamsteed": 13,
+      "constellation": "UMa",
+      "full_designation": "Sig-2 UMa",
+      "spectral": "F",
+      "magnitude": 4.8
+    },
+    "45290": {
+      "flamsteed": 36,
+      "constellation": "Lyn",
+      "full_designation": "36 Lyn",
+      "spectral": "B",
+      "magnitude": 5.3
+    },
+    "45527": {
+      "flamsteed": 23,
+      "constellation": "Hya",
+      "full_designation": "23 Hya",
+      "spectral": "K",
+      "magnitude": 5.24
+    },
+    "46239": {
+      "flamsteed": 21,
+      "constellation": "UMa",
+      "full_designation": "21 UMa",
+      "spectral": "A",
+      "magnitude": 7.36
+    },
+    "46390": {
+      "proper": "Alphard",
+      "bayer": "Alp",
+      "flamsteed": 30,
+      "constellation": "Hya",
+      "full_designation": "Alpha Hya",
+      "spectral": "K",
+      "magnitude": 1.99
+    },
+    "46515": {
+      "bayer": "Eps",
+      "constellation": "Ant",
+      "full_designation": "Epsilon Ant",
+      "spectral": "K",
+      "magnitude": 4.51
+    },
+    "46771": {
+      "bayer": "Xi",
+      "flamsteed": 5,
+      "constellation": "Leo",
+      "full_designation": "Xi Leo",
+      "spectral": "K",
+      "magnitude": 4.99
+    },
+    "47247": {
+      "flamsteed": 9,
+      "constellation": "Leo",
+      "full_designation": "9 Leo",
+      "spectral": "G",
+      "magnitude": 6.61
+    },
+    "47249": {
+      "flamsteed": 34,
+      "constellation": "Hya",
+      "full_designation": "34 Hya",
+      "spectral": "A",
+      "magnitude": 6.4
+    },
+    "47911": {
+      "flamsteed": 28,
+      "constellation": "UMa",
+      "full_designation": "28 UMa",
+      "spectral": "F",
+      "magnitude": 6.51
+    },
+    "47959": {
+      "flamsteed": 18,
+      "constellation": "Leo",
+      "full_designation": "18 Leo",
+      "spectral": "K",
+      "magnitude": 5.67
+    },
+    "48087": {
+      "flamsteed": 3,
+      "constellation": "Sex",
+      "full_designation": "3 Sex",
+      "spectral": "B",
+      "magnitude": 7.04
+    },
+    "48390": {
+      "flamsteed": 22,
+      "constellation": "Leo",
+      "full_designation": "22 Leo",
+      "spectral": "A",
+      "magnitude": 5.29
+    },
+    "48455": {
+      "proper": "Rasalas",
+      "bayer": "Mu",
+      "flamsteed": 24,
+      "constellation": "Leo",
+      "full_designation": "Mu Leo",
+      "spectral": "K",
+      "magnitude": 3.88
+    },
+    "48711": {
+      "proper": "Bibhā",
+      "constellation": "Sex",
+      "full_designation": "Sex",
+      "spectral": "F",
+      "magnitude": 8.73
+    },
+    "49081": {
+      "flamsteed": 20,
+      "constellation": "LMi",
+      "full_designation": "20 LMi",
+      "spectral": "G",
+      "magnitude": 5.37
+    },
+    "49583": {
+      "bayer": "Eta",
+      "flamsteed": 30,
+      "constellation": "Leo",
+      "full_designation": "Eta Leo",
+      "spectral": "A",
+      "magnitude": 3.48
+    },
+    "49739": {
+      "flamsteed": 16,
+      "constellation": "Sex",
+      "full_designation": "16 Sex",
+      "spectral": "K",
+      "magnitude": 6.6
+    },
+    "49929": {
+      "flamsteed": 34,
+      "constellation": "Leo",
+      "full_designation": "34 Leo",
+      "spectral": "F",
+      "magnitude": 6.43
+    },
+    "50099": {
+      "bayer": "Ome",
+      "constellation": "Car",
+      "full_designation": "Omega Car",
+      "spectral": "B",
+      "magnitude": 3.29
+    },
+    "50100": {
+      "flamsteed": 20,
+      "constellation": "Sex",
+      "full_designation": "20 Sex",
+      "spectral": "F",
+      "magnitude": 7.21
+    },
+    "50319": {
+      "flamsteed": 35,
+      "constellation": "Leo",
+      "full_designation": "35 Leo",
+      "spectral": "G",
+      "magnitude": 5.95
+    },
+    "50384": {
+      "flamsteed": 39,
+      "constellation": "Leo",
+      "full_designation": "39 Leo",
+      "spectral": "F",
+      "magnitude": 5.81
+    },
+    "50684": {
+      "flamsteed": 23,
+      "constellation": "Sex",
+      "full_designation": "23 Sex",
+      "spectral": "B",
+      "magnitude": 6.66
+    },
+    "51437": {
+      "bayer": "Bet",
+      "flamsteed": 30,
+      "constellation": "Sex",
+      "full_designation": "Beta Sex",
+      "spectral": "B",
+      "magnitude": 5.08
+    },
+    "51814": {
+      "flamsteed": 37,
+      "constellation": "UMa",
+      "full_designation": "37 UMa",
+      "spectral": "F",
+      "magnitude": 5.16
+    },
+    "51914": {
+      "flamsteed": 35,
+      "constellation": "LMi",
+      "full_designation": "35 LMi",
+      "spectral": "F",
+      "magnitude": 6.29
+    },
+    "52120": {
+      "flamsteed": 50,
+      "constellation": "Leo",
+      "full_designation": "50 Leo",
+      "spectral": "F",
+      "magnitude": 6.61
+    },
+    "52240": {
+      "flamsteed": 39,
+      "constellation": "LMi",
+      "full_designation": "39 LMi",
+      "spectral": "A",
+      "magnitude": 7.11
+    },
+    "52584": {
+      "flamsteed": 36,
+      "constellation": "Sex",
+      "full_designation": "36 Sex",
+      "spectral": "K",
+      "magnitude": 6.27
+    },
+    "52650": {
+      "flamsteed": 40,
+      "constellation": "UMa",
+      "full_designation": "40 UMa",
+      "spectral": "A",
+      "magnitude": 7.11
+    },
+    "52727": {
+      "bayer": "Mu",
+      "constellation": "Vel",
+      "full_designation": "Mu Vel",
+      "spectral": "G",
+      "magnitude": 2.69
+    },
+    "52980": {
+      "flamsteed": 41,
+      "constellation": "Sex",
+      "full_designation": "41 Sex",
+      "spectral": "A",
+      "magnitude": 5.8
+    },
+    "53449": {
+      "flamsteed": 56,
+      "constellation": "Leo",
+      "full_designation": "56 Leo",
+      "spectral": "M",
+      "magnitude": 5.91
+    },
+    "53807": {
+      "flamsteed": 58,
+      "constellation": "Leo",
+      "full_designation": "58 Leo",
+      "spectral": "K",
+      "magnitude": 4.84
+    },
+    "53907": {
+      "flamsteed": 61,
+      "constellation": "Leo",
+      "full_designation": "61 Leo",
+      "spectral": "K",
+      "magnitude": 4.73
+    },
+    "53954": {
+      "flamsteed": 60,
+      "constellation": "Leo",
+      "full_designation": "60 Leo",
+      "spectral": "A",
+      "magnitude": 4.42
+    },
+    "54336": {
+      "flamsteed": 65,
+      "constellation": "Leo",
+      "full_designation": "65 Leo",
+      "spectral": "G",
+      "magnitude": 5.52
+    },
+    "55016": {
+      "flamsteed": 73,
+      "constellation": "Leo",
+      "full_designation": "73 Leo",
+      "spectral": "K",
+      "magnitude": 5.31
+    },
+    "55650": {
+      "flamsteed": 79,
+      "constellation": "Leo",
+      "full_designation": "79 Leo",
+      "spectral": "G",
+      "magnitude": 5.39
+    },
+    "55664": {
+      "proper": "Shama",
+      "constellation": "Leo",
+      "full_designation": "Leo",
+      "spectral": "K",
+      "magnitude": 9.1
+    },
+    "55769": {
+      "flamsteed": 82,
+      "constellation": "Leo",
+      "full_designation": "82 Leo",
+      "spectral": "A",
+      "magnitude": 6.73
+    },
+    "56445": {
+      "flamsteed": 89,
+      "constellation": "Leo",
+      "full_designation": "89 Leo",
+      "spectral": "F",
+      "magnitude": 5.76
+    },
+    "56633": {
+      "bayer": "The",
+      "flamsteed": 21,
+      "constellation": "Crt",
+      "full_designation": "Theta Crt",
+      "spectral": "B",
+      "magnitude": 4.7
+    },
+    "57111": {
+      "flamsteed": 3,
+      "constellation": "Dra",
+      "full_designation": "3 Dra",
+      "spectral": "K",
+      "magnitude": 5.32
+    },
+    "57632": {
+      "proper": "Denebola",
+      "bayer": "Bet",
+      "flamsteed": 94,
+      "constellation": "Leo",
+      "full_designation": "Beta Leo",
+      "spectral": "A",
+      "magnitude": 2.14
+    },
+    "57939": {
+      "proper": "Groombridge 1830",
+      "constellation": "UMa",
+      "full_designation": "UMa",
+      "spectral": "G",
+      "magnitude": 6.42
+    },
+    "58112": {
+      "flamsteed": 65,
+      "constellation": "UMa",
+      "full_designation": "65 UMa",
+      "spectral": "A",
+      "magnitude": 6.54
+    },
+    "58159": {
+      "flamsteed": 95,
+      "constellation": "Leo",
+      "full_designation": "95 Leo",
+      "spectral": "A",
+      "magnitude": 5.53
+    },
+    "58181": {
+      "flamsteed": 66,
+      "constellation": "UMa",
+      "full_designation": "66 UMa",
+      "spectral": "K",
+      "magnitude": 5.83
+    },
+    "58188": {
+      "bayer": "Eta",
+      "flamsteed": 30,
+      "constellation": "Crt",
+      "full_designation": "Eta Crt",
+      "spectral": "A",
+      "magnitude": 5.17
+    },
+    "58590": {
+      "bayer": "Pi",
+      "flamsteed": 8,
+      "constellation": "Vir",
+      "full_designation": "Pi Vir",
+      "spectral": "A",
+      "magnitude": 4.65
+    },
+    "58684": {
+      "flamsteed": 67,
+      "constellation": "UMa",
+      "full_designation": "67 UMa",
+      "spectral": "A",
+      "magnitude": 5.22
+    },
+    "58858": {
+      "flamsteed": 2,
+      "constellation": "Com",
+      "full_designation": "2 Com",
+      "spectral": "F",
+      "magnitude": 5.89
+    },
+    "59747": {
+      "proper": "Imai",
+      "bayer": "Del",
+      "constellation": "Cru",
+      "full_designation": "Delta Cru",
+      "spectral": "B",
+      "magnitude": 2.79
+    },
+    "59803": {
+      "proper": "Gienah",
+      "bayer": "Gam",
+      "flamsteed": 4,
+      "constellation": "Crv",
+      "full_designation": "Gamma Crv",
+      "spectral": "B",
+      "magnitude": 2.58
+    },
+    "60123": {
+      "flamsteed": 10,
+      "constellation": "Com",
+      "full_designation": "10 Com",
+      "spectral": "A",
+      "magnitude": 6.64
+    },
+    "60189": {
+      "bayer": "Zet",
+      "flamsteed": 5,
+      "constellation": "Crv",
+      "full_designation": "Zeta Crv",
+      "spectral": "B",
+      "magnitude": 5.2
+    },
+    "60212": {
+      "flamsteed": 70,
+      "constellation": "UMa",
+      "full_designation": "70 UMa",
+      "spectral": "K",
+      "magnitude": 5.54
+    },
+    "60353": {
+      "flamsteed": 17,
+      "constellation": "Vir",
+      "full_designation": "17 Vir",
+      "spectral": "F",
+      "magnitude": 6.46
+    },
+    "60795": {
+      "flamsteed": 73,
+      "constellation": "UMa",
+      "full_designation": "73 UMa",
+      "spectral": "M",
+      "magnitude": 5.68
+    },
+    "60988": {
+      "flamsteed": 7,
+      "constellation": "CVn",
+      "full_designation": "7 CVn",
+      "spectral": "F",
+      "magnitude": 6.21
+    },
+    "61932": {
+      "bayer": "Gam",
+      "constellation": "Cen",
+      "full_designation": "Gamma Cen",
+      "spectral": "A",
+      "magnitude": 2.2
+    },
+    "62207": {
+      "flamsteed": 10,
+      "constellation": "CVn",
+      "full_designation": "10 CVn",
+      "spectral": "G",
+      "magnitude": 5.95
+    },
+    "62423": {
+      "proper": "Tianyi",
+      "flamsteed": 7,
+      "constellation": "Dra",
+      "full_designation": "7 Dra",
+      "spectral": "K",
+      "magnitude": 5.43
+    },
+    "62576": {
+      "flamsteed": 30,
+      "constellation": "Com",
+      "full_designation": "30 Com",
+      "spectral": "A",
+      "magnitude": 5.76
+    },
+    "62757": {
+      "flamsteed": 37,
+      "constellation": "Vir",
+      "full_designation": "37 Vir",
+      "spectral": "K",
+      "magnitude": 6.02
+    },
+    "62807": {
+      "flamsteed": 32,
+      "constellation": "Com",
+      "full_designation": "32 Com",
+      "spectral": "M",
+      "magnitude": 6.32
+    },
+    "63608": {
+      "proper": "Vindemiatrix",
+      "bayer": "Eps",
+      "flamsteed": 47,
+      "constellation": "Vir",
+      "full_designation": "Epsilon Vir",
+      "spectral": "G",
+      "magnitude": 2.85
+    },
+    "64244": {
+      "flamsteed": 16,
+      "constellation": "CVn",
+      "full_designation": "16 CVn",
+      "spectral": "A",
+      "magnitude": 7.16
+    },
+    "64520": {
+      "flamsteed": 54,
+      "constellation": "Vir",
+      "full_designation": "54 Vir",
+      "spectral": "A",
+      "magnitude": 6.26
+    },
+    "65323": {
+      "flamsteed": 65,
+      "constellation": "Vir",
+      "full_designation": "65 Vir",
+      "spectral": "K",
+      "magnitude": 5.88
+    },
+    "65721": {
+      "flamsteed": 70,
+      "constellation": "Vir",
+      "full_designation": "70 Vir",
+      "spectral": "G",
+      "magnitude": 4.97
+    },
+    "66249": {
+      "proper": "Heze",
+      "bayer": "Zet",
+      "flamsteed": 79,
+      "constellation": "Vir",
+      "full_designation": "Zeta Vir",
+      "spectral": "A",
+      "magnitude": 3.38
+    },
+    "66458": {
+      "flamsteed": 25,
+      "constellation": "CVn",
+      "full_designation": "25 CVn",
+      "spectral": "A",
+      "magnitude": 4.82
+    },
+    "67172": {
+      "flamsteed": 86,
+      "constellation": "Vir",
+      "full_designation": "86 Vir",
+      "spectral": "G",
+      "magnitude": 5.5
+    },
+    "67459": {
+      "bayer": "Ups",
+      "flamsteed": 5,
+      "constellation": "Boo",
+      "full_designation": "Upsilon Boo",
+      "spectral": "K",
+      "magnitude": 4.05
+    },
+    "67786": {
+      "flamsteed": 4,
+      "constellation": "Cen",
+      "full_designation": "4 Cen",
+      "spectral": "B",
+      "magnitude": 4.75
+    },
+    "67848": {
+      "flamsteed": 86,
+      "constellation": "UMa",
+      "full_designation": "86 UMa",
+      "spectral": "A",
+      "magnitude": 5.7
+    },
+    "68520": {
+      "bayer": "Tau",
+      "flamsteed": 93,
+      "constellation": "Vir",
+      "full_designation": "Tau Vir",
+      "spectral": "A",
+      "magnitude": 4.23
+    },
+    "69481": {
+      "bayer": "Kap-1",
+      "flamsteed": 17,
+      "constellation": "Boo",
+      "full_designation": "Kap-1 Boo",
+      "spectral": "F",
+      "magnitude": 6.62
+    },
+    "69673": {
+      "proper": "Arcturus",
+      "bayer": "Alp",
+      "flamsteed": 16,
+      "constellation": "Boo",
+      "full_designation": "Alpha Boo",
+      "spectral": "K",
+      "magnitude": -0.05
+    },
+    "69732": {
+      "proper": "Xuange",
+      "bayer": "Lam",
+      "flamsteed": 19,
+      "constellation": "Boo",
+      "full_designation": "Lambda Boo",
+      "spectral": "A",
+      "magnitude": 4.18
+    },
+    "70680": {
+      "flamsteed": 104,
+      "constellation": "Vir",
+      "full_designation": "104 Vir",
+      "spectral": "A",
+      "magnitude": 6.18
+    },
+    "71284": {
+      "bayer": "Sig",
+      "flamsteed": 28,
+      "constellation": "Boo",
+      "full_designation": "Sigma Boo",
+      "spectral": "F",
+      "magnitude": 4.47
+    },
+    "71536": {
+      "bayer": "Rho",
+      "constellation": "Lup",
+      "full_designation": "Rho Lup",
+      "spectral": "B",
+      "magnitude": 4.05
+    },
+    "71957": {
+      "bayer": "Mu",
+      "flamsteed": 107,
+      "constellation": "Vir",
+      "full_designation": "Mu Vir",
+      "spectral": "F",
+      "magnitude": 3.87
+    },
+    "71995": {
+      "flamsteed": 34,
+      "constellation": "Boo",
+      "full_designation": "34 Boo",
+      "spectral": "M",
+      "magnitude": 4.8
+    },
+    "72194": {
+      "flamsteed": 5,
+      "constellation": "Lib",
+      "full_designation": "5 Lib",
+      "spectral": "K",
+      "magnitude": 6.33
+    },
+    "72197": {
+      "flamsteed": 54,
+      "constellation": "Hya",
+      "full_designation": "54 Hya",
+      "spectral": "F",
+      "magnitude": 5.15
+    },
+    "72622": {
+      "proper": "Zubenelgenubi",
+      "bayer": "Alp-2",
+      "flamsteed": 9,
+      "constellation": "Lib",
+      "full_designation": "Alp-2 Lib",
+      "spectral": "A",
+      "magnitude": 2.75
+    },
+    "72702": {
+      "flamsteed": 10,
+      "constellation": "Lib",
+      "full_designation": "10 Lib",
+      "spectral": "K",
+      "magnitude": 6.27
+    },
+    "72929": {
+      "flamsteed": 12,
+      "constellation": "Lib",
+      "full_designation": "12 Lib",
+      "spectral": "K",
+      "magnitude": 5.27
+    },
+    "73249": {
+      "flamsteed": 17,
+      "constellation": "Lib",
+      "full_designation": "17 Lib",
+      "spectral": "A",
+      "magnitude": 6.61
+    },
+    "73273": {
+      "bayer": "Bet",
+      "constellation": "Lup",
+      "full_designation": "Beta Lup",
+      "spectral": "B",
+      "magnitude": 2.68
+    },
+    "73953": {
+      "flamsteed": 22,
+      "constellation": "Lib",
+      "full_designation": "22 Lib",
+      "spectral": "A",
+      "magnitude": 6.41
+    },
+    "73996": {
+      "flamsteed": 45,
+      "constellation": "Boo",
+      "full_designation": "45 Boo",
+      "spectral": "F",
+      "magnitude": 4.93
+    },
+    "74376": {
+      "bayer": "Kap-1",
+      "constellation": "Lup",
+      "full_designation": "Kap-1 Lup",
+      "spectral": "B",
+      "magnitude": 3.88
+    },
+    "74395": {
+      "bayer": "Zet",
+      "constellation": "Lup",
+      "full_designation": "Zeta Lup",
+      "spectral": "G",
+      "magnitude": 3.41
+    },
+    "74666": {
+      "bayer": "Del",
+      "flamsteed": 49,
+      "constellation": "Boo",
+      "full_designation": "Delta Boo",
+      "spectral": "G",
+      "magnitude": 3.46
+    },
+    "75206": {
+      "bayer": "Nu-1",
+      "constellation": "Lup",
+      "full_designation": "Nu-1 Lup",
+      "spectral": "F",
+      "magnitude": 4.99
+    },
+    "75323": {
+      "bayer": "Gam",
+      "constellation": "Cir",
+      "full_designation": "Gamma Cir",
+      "spectral": "B",
+      "magnitude": 4.48
+    },
+    "75342": {
+      "flamsteed": 8,
+      "constellation": "Ser",
+      "full_designation": "8 Ser",
+      "spectral": "F",
+      "magnitude": 6.11
+    },
+    "75848": {
+      "flamsteed": 33,
+      "constellation": "Lib",
+      "full_designation": "33 Lib",
+      "spectral": "A",
+      "magnitude": 6.69
+    },
+    "76133": {
+      "flamsteed": 11,
+      "constellation": "Ser",
+      "full_designation": "11 Ser",
+      "spectral": "K",
+      "magnitude": 5.5
+    },
+    "76297": {
+      "bayer": "Gam",
+      "constellation": "Lup",
+      "full_designation": "Gamma Lup",
+      "spectral": "B",
+      "magnitude": 2.8
+    },
+    "76333": {
+      "proper": "Zubenelhakrabi",
+      "bayer": "Gam",
+      "flamsteed": 38,
+      "constellation": "Lib",
+      "full_designation": "Gamma Lib",
+      "spectral": "K",
+      "magnitude": 3.91
+    },
+    "76351": {
+      "proper": "Karaka",
+      "constellation": "Aps",
+      "full_designation": "Aps",
+      "spectral": "K",
+      "magnitude": 8.71
+    },
+    "76600": {
+      "bayer": "Tau",
+      "flamsteed": 40,
+      "constellation": "Lib",
+      "full_designation": "Tau Lib",
+      "spectral": "B",
+      "magnitude": 3.66
+    },
+    "76866": {
+      "bayer": "Chi",
+      "flamsteed": 20,
+      "constellation": "Ser",
+      "full_designation": "Chi Ser",
+      "spectral": "A",
+      "magnitude": 5.34
+    },
+    "77227": {
+      "flamsteed": 25,
+      "constellation": "Ser",
+      "full_designation": "25 Ser",
+      "spectral": "B",
+      "magnitude": 5.39
+    },
+    "77622": {
+      "bayer": "Eps",
+      "flamsteed": 37,
+      "constellation": "Ser",
+      "full_designation": "Epsilon Ser",
+      "spectral": "A",
+      "magnitude": 3.71
+    },
+    "77982": {
+      "bayer": "Kap",
+      "constellation": "TrA",
+      "full_designation": "Kappa TrA",
+      "spectral": "G",
+      "magnitude": 5.11
+    },
+    "78265": {
+      "proper": "Fang",
+      "bayer": "Pi",
+      "flamsteed": 6,
+      "constellation": "Sco",
+      "full_designation": "Pi Sco",
+      "spectral": "B",
+      "magnitude": 2.89
+    },
+    "78400": {
+      "flamsteed": 49,
+      "constellation": "Lib",
+      "full_designation": "49 Lib",
+      "spectral": "F",
+      "magnitude": 5.47
+    },
+    "78933": {
+      "bayer": "Ome-1",
+      "flamsteed": 9,
+      "constellation": "Sco",
+      "full_designation": "Ome-1 Sco",
+      "spectral": "B",
+      "magnitude": 3.93
+    },
+    "78990": {
+      "bayer": "Ome-2",
+      "flamsteed": 10,
+      "constellation": "Sco",
+      "full_designation": "Ome-2 Sco",
+      "spectral": "G",
+      "magnitude": 4.31
+    },
+    "79248": {
+      "flamsteed": 14,
+      "constellation": "Her",
+      "full_designation": "14 Her",
+      "spectral": "K",
+      "magnitude": 6.61
+    },
+    "79420": {
+      "flamsteed": 20,
+      "constellation": "UMi",
+      "full_designation": "20 UMi",
+      "spectral": "K",
+      "magnitude": 6.36
+    },
+    "79431": {
+      "proper": "Sharjah",
+      "constellation": "Sco",
+      "full_designation": "Sco",
+      "magnitude": 11.34
+    },
+    "79488": {
+      "flamsteed": 9,
+      "constellation": "Her",
+      "full_designation": "9 Her",
+      "spectral": "K",
+      "magnitude": 5.46
+    },
+    "80179": {
+      "bayer": "Sig",
+      "flamsteed": 50,
+      "constellation": "Ser",
+      "full_designation": "Sigma Ser",
+      "spectral": "F",
+      "magnitude": 4.82
+    },
+    "80460": {
+      "flamsteed": 25,
+      "constellation": "Her",
+      "full_designation": "25 Her",
+      "spectral": "A",
+      "magnitude": 5.53
+    },
+    "80648": {
+      "flamsteed": 26,
+      "constellation": "Her",
+      "full_designation": "26 Her",
+      "spectral": "K",
+      "magnitude": 6.87
+    },
+    "80816": {
+      "proper": "Kornephoros",
+      "bayer": "Bet",
+      "flamsteed": 27,
+      "constellation": "Her",
+      "full_designation": "Beta Her",
+      "spectral": "G",
+      "magnitude": 2.78
+    },
+    "81066": {
+      "flamsteed": 32,
+      "constellation": "Her",
+      "full_designation": "32 Her",
+      "spectral": "F",
+      "magnitude": 6.87
+    },
+    "81634": {
+      "flamsteed": 36,
+      "constellation": "Her",
+      "full_designation": "36 Her",
+      "spectral": "A",
+      "magnitude": 6.92
+    },
+    "81660": {
+      "flamsteed": 18,
+      "constellation": "Dra",
+      "full_designation": "18 Dra",
+      "spectral": "K",
+      "magnitude": 4.84
+    },
+    "82073": {
+      "flamsteed": 43,
+      "constellation": "Her",
+      "full_designation": "43 Her",
+      "spectral": "K",
+      "magnitude": 5.15
+    },
+    "82369": {
+      "flamsteed": 20,
+      "constellation": "Oph",
+      "full_designation": "20 Oph",
+      "spectral": "F",
+      "magnitude": 4.64
+    },
+    "82729": {
+      "bayer": "Zet-2",
+      "constellation": "Sco",
+      "full_designation": "Zet-2 Sco",
+      "spectral": "K",
+      "magnitude": 3.62
+    },
+    "82758": {
+      "flamsteed": 22,
+      "constellation": "Oph",
+      "full_designation": "22 Oph",
+      "spectral": "G",
+      "magnitude": 6.76
+    },
+    "82802": {
+      "flamsteed": 54,
+      "constellation": "Her",
+      "full_designation": "54 Her",
+      "spectral": "K",
+      "magnitude": 5.35
+    },
+    "82898": {
+      "flamsteed": 20,
+      "constellation": "Dra",
+      "full_designation": "20 Dra",
+      "spectral": "F",
+      "magnitude": 6.4
+    },
+    "83000": {
+      "bayer": "Kap",
+      "flamsteed": 27,
+      "constellation": "Oph",
+      "full_designation": "Kappa Oph",
+      "spectral": "K",
+      "magnitude": 3.19
+    },
+    "83081": {
+      "bayer": "Zet",
+      "constellation": "Ara",
+      "full_designation": "Zeta Ara",
+      "spectral": "K",
+      "magnitude": 3.12
+    },
+    "83431": {
+      "bayer": "Eps-2",
+      "constellation": "Ara",
+      "full_designation": "Eps-2 Ara",
+      "spectral": "F",
+      "magnitude": 5.27
+    },
+    "83508": {
+      "flamsteed": 28,
+      "constellation": "Oph",
+      "full_designation": "28 Oph",
+      "spectral": "B",
+      "magnitude": 6.66
+    },
+    "84380": {
+      "bayer": "Pi",
+      "flamsteed": 67,
+      "constellation": "Her",
+      "full_designation": "Pi Her",
+      "spectral": "K",
+      "magnitude": 3.16
+    },
+    "84405": {
+      "proper": "Guniibuu",
+      "flamsteed": 36,
+      "constellation": "Oph",
+      "full_designation": "36 Oph",
+      "spectral": "K",
+      "magnitude": 4.33
+    },
+    "84625": {
+      "bayer": "Omi",
+      "flamsteed": 39,
+      "constellation": "Oph",
+      "full_designation": "Omicron Oph",
+      "spectral": "G",
+      "magnitude": 6.59
+    },
+    "84880": {
+      "bayer": "Nu",
+      "flamsteed": 53,
+      "constellation": "Ser",
+      "full_designation": "Nu Ser",
+      "spectral": "A",
+      "magnitude": 4.32
+    },
+    "85423": {
+      "flamsteed": 45,
+      "constellation": "Oph",
+      "full_designation": "45 Oph",
+      "spectral": "F",
+      "magnitude": 4.28
+    },
+    "85790": {
+      "flamsteed": 78,
+      "constellation": "Her",
+      "full_designation": "78 Her",
+      "spectral": "A",
+      "magnitude": 5.66
+    },
+    "85829": {
+      "bayer": "Nu-2",
+      "flamsteed": 25,
+      "constellation": "Dra",
+      "full_designation": "Nu-2 Dra",
+      "spectral": "A",
+      "magnitude": 4.86
+    },
+    "85998": {
+      "flamsteed": 53,
+      "constellation": "Oph",
+      "full_designation": "53 Oph",
+      "spectral": "A",
+      "magnitude": 5.8
+    },
+    "86036": {
+      "flamsteed": 26,
+      "constellation": "Dra",
+      "full_designation": "26 Dra",
+      "spectral": "G",
+      "magnitude": 5.23
+    },
+    "86060": {
+      "flamsteed": 52,
+      "constellation": "Oph",
+      "full_designation": "52 Oph",
+      "spectral": "A",
+      "magnitude": 6.47
+    },
+    "86201": {
+      "bayer": "Ome",
+      "flamsteed": 28,
+      "constellation": "Dra",
+      "full_designation": "Omega Dra",
+      "spectral": "F",
+      "magnitude": 4.77
+    },
+    "86667": {
+      "flamsteed": 83,
+      "constellation": "Her",
+      "full_designation": "83 Her",
+      "spectral": "K",
+      "magnitude": 5.56
+    },
+    "86831": {
+      "flamsteed": 61,
+      "constellation": "Oph",
+      "full_designation": "61 Oph",
+      "spectral": "A",
+      "magnitude": 6.16
+    },
+    "87073": {
+      "bayer": "Iot-1",
+      "constellation": "Sco",
+      "full_designation": "Iot-1 Sco",
+      "spectral": "F",
+      "magnitude": 2.99
+    },
+    "87108": {
+      "proper": "Bake-eo",
+      "bayer": "Gam",
+      "flamsteed": 62,
+      "constellation": "Oph",
+      "full_designation": "Gamma Oph",
+      "spectral": "A",
+      "magnitude": 3.75
+    },
+    "87261": {
+      "proper": "Fuyue",
+      "constellation": "Sco",
+      "full_designation": "Sco",
+      "spectral": "K",
+      "magnitude": 3.19
+    },
+    "88142": {
+      "flamsteed": 5,
+      "constellation": "Sgr",
+      "full_designation": "5 Sgr",
+      "spectral": "K",
+      "magnitude": 6.64
+    },
+    "88267": {
+      "proper": "Bodu",
+      "flamsteed": 95,
+      "constellation": "Her",
+      "full_designation": "95 Her",
+      "spectral": "G",
+      "magnitude": 4.26
+    },
+    "88469": {
+      "flamsteed": 9,
+      "constellation": "Sgr",
+      "full_designation": "9 Sgr",
+      "spectral": "O",
+      "magnitude": 5.89
+    },
+    "88601": {
+      "flamsteed": 70,
+      "constellation": "Oph",
+      "full_designation": "70 Oph",
+      "spectral": "K",
+      "magnitude": 4.03
+    },
+    "88745": {
+      "flamsteed": 99,
+      "constellation": "Her",
+      "full_designation": "99 Her",
+      "spectral": "F",
+      "magnitude": 5.05
+    },
+    "88765": {
+      "flamsteed": 71,
+      "constellation": "Oph",
+      "full_designation": "71 Oph",
+      "spectral": "G",
+      "magnitude": 4.64
+    },
+    "88818": {
+      "flamsteed": 100,
+      "constellation": "Her",
+      "full_designation": "100 Her",
+      "spectral": "A",
+      "magnitude": 5.83
+    },
+    "88866": {
+      "bayer": "Pi",
+      "constellation": "Pav",
+      "full_designation": "Pi Pav",
+      "spectral": "A",
+      "magnitude": 4.33
+    },
+    "89594": {
+      "flamsteed": 38,
+      "constellation": "Dra",
+      "full_designation": "38 Dra",
+      "spectral": "A",
+      "magnitude": 6.79
+    },
+    "89642": {
+      "bayer": "Eta",
+      "constellation": "Sgr",
+      "full_designation": "Eta Sgr",
+      "spectral": "M",
+      "magnitude": 3.1
+    },
+    "89861": {
+      "flamsteed": 106,
+      "constellation": "Her",
+      "full_designation": "106 Her",
+      "spectral": "M",
+      "magnitude": 4.92
+    },
+    "89908": {
+      "bayer": "Phi",
+      "flamsteed": 43,
+      "constellation": "Dra",
+      "full_designation": "Phi Dra",
+      "spectral": "A",
+      "magnitude": 4.22
+    },
+    "90135": {
+      "bayer": "Zet",
+      "constellation": "Sct",
+      "full_designation": "Zeta Sct",
+      "spectral": "K",
+      "magnitude": 4.66
+    },
+    "90830": {
+      "bayer": "Del-1",
+      "constellation": "Tel",
+      "full_designation": "Del-1 Tel",
+      "spectral": "B",
+      "magnitude": 4.92
+    },
+    "90853": {
+      "bayer": "Del-2",
+      "constellation": "Tel",
+      "full_designation": "Del-2 Tel",
+      "spectral": "B",
+      "magnitude": 5.07
+    },
+    "90969": {
+      "bayer": "Kap-2",
+      "constellation": "CrA",
+      "full_designation": "Kap-2 CrA",
+      "spectral": "B",
+      "magnitude": 6.31
+    },
+    "90968": {
+      "bayer": "Kap-1",
+      "constellation": "CrA",
+      "full_designation": "Kap-1 CrA",
+      "spectral": "B",
+      "magnitude": 5.67
+    },
+    "91792": {
+      "bayer": "Zet",
+      "constellation": "Pav",
+      "full_designation": "Zeta Pav",
+      "spectral": "K",
+      "magnitude": 4.01
+    },
+    "91973": {
+      "bayer": "Zet-2",
+      "flamsteed": 7,
+      "constellation": "Lyr",
+      "full_designation": "Zet-2 Lyr",
+      "spectral": "F",
+      "magnitude": 5.73
+    },
+    "91975": {
+      "flamsteed": 4,
+      "constellation": "Aql",
+      "full_designation": "4 Aql",
+      "spectral": "B",
+      "magnitude": 5.02
+    },
+    "92117": {
+      "flamsteed": 5,
+      "constellation": "Aql",
+      "full_designation": "5 Aql",
+      "spectral": "A",
+      "magnitude": 5.89
+    },
+    "92161": {
+      "flamsteed": 111,
+      "constellation": "Her",
+      "full_designation": "111 Her",
+      "spectral": "A",
+      "magnitude": 4.34
+    },
+    "92175": {
+      "bayer": "Bet",
+      "constellation": "Sct",
+      "full_designation": "Beta Sct",
+      "spectral": "G",
+      "magnitude": 4.22
+    },
+    "92382": {
+      "bayer": "Eta-2",
+      "constellation": "CrA",
+      "full_designation": "Eta-2 CrA",
+      "spectral": "B",
+      "magnitude": 5.6
+    },
+    "92524": {
+      "flamsteed": 8,
+      "constellation": "Aql",
+      "full_designation": "8 Aql",
+      "spectral": "F",
+      "magnitude": 6.08
+    },
+    "92609": {
+      "bayer": "Lam",
+      "constellation": "Pav",
+      "full_designation": "Lambda Pav",
+      "spectral": "B",
+      "magnitude": 4.22
+    },
+    "92824": {
+      "bayer": "Chi",
+      "constellation": "Oct",
+      "full_designation": "Chi Oct",
+      "spectral": "K",
+      "magnitude": 5.29
+    },
+    "92845": {
+      "bayer": "Nu-2",
+      "flamsteed": 35,
+      "constellation": "Sgr",
+      "full_designation": "Nu-2 Sgr",
+      "spectral": "K",
+      "magnitude": 5.0
+    },
+    "92855": {
+      "proper": "Nunki",
+      "bayer": "Sig",
+      "flamsteed": 34,
+      "constellation": "Sgr",
+      "full_designation": "Sigma Sgr",
+      "spectral": "B",
+      "magnitude": 2.05
+    },
+    "92895": {
+      "proper": "Kaveh",
+      "constellation": "Ser",
+      "full_designation": "Ser",
+      "spectral": "G",
+      "magnitude": 8.02
+    },
+    "92951": {
+      "proper": "Alya B",
+      "bayer": "The-2",
+      "flamsteed": 63,
+      "constellation": "Ser",
+      "full_designation": "The-2 Ser",
+      "spectral": "A",
+      "magnitude": 4.98
+    },
+    "93015": {
+      "bayer": "Kap",
+      "constellation": "Pav",
+      "full_designation": "Kappa Pav",
+      "spectral": "F",
+      "magnitude": 4.4
+    },
+    "93057": {
+      "bayer": "Xi-1",
+      "flamsteed": 36,
+      "constellation": "Sgr",
+      "full_designation": "Xi-1 Sgr",
+      "spectral": "B",
+      "magnitude": 5.02
+    },
+    "93244": {
+      "bayer": "Eps",
+      "flamsteed": 13,
+      "constellation": "Aql",
+      "full_designation": "Epsilon Aql",
+      "spectral": "K",
+      "magnitude": 4.02
+    },
+    "93279": {
+      "bayer": "Lam",
+      "flamsteed": 15,
+      "constellation": "Lyr",
+      "full_designation": "Lambda Lyr",
+      "spectral": "K",
+      "magnitude": 4.94
+    },
+    "93506": {
+      "proper": "Ascella",
+      "bayer": "Zet",
+      "flamsteed": 38,
+      "constellation": "Sgr",
+      "full_designation": "Zeta Sgr",
+      "spectral": "A",
+      "magnitude": 2.6
+    },
+    "94083": {
+      "flamsteed": 59,
+      "constellation": "Dra",
+      "full_designation": "59 Dra",
+      "spectral": "A",
+      "magnitude": 5.11
+    },
+    "94141": {
+      "proper": "Albaldah",
+      "bayer": "Pi",
+      "flamsteed": 41,
+      "constellation": "Sgr",
+      "full_designation": "Pi Sgr",
+      "spectral": "F",
+      "magnitude": 2.88
+    },
+    "94385": {
+      "flamsteed": 20,
+      "constellation": "Aql",
+      "full_designation": "20 Aql",
+      "spectral": "B",
+      "magnitude": 5.35
+    },
+    "94620": {
+      "flamsteed": 1,
+      "constellation": "Sge",
+      "full_designation": "1 Sge",
+      "spectral": "A",
+      "magnitude": 5.65
+    },
+    "94645": {
+      "proper": "Gumala",
+      "constellation": "Sgr",
+      "full_designation": "Sgr",
+      "spectral": "F",
+      "magnitude": 6.25
+    },
+    "95073": {
+      "flamsteed": 27,
+      "constellation": "Aql",
+      "full_designation": "27 Aql",
+      "spectral": "B",
+      "magnitude": 5.46
+    },
+    "95260": {
+      "flamsteed": 3,
+      "constellation": "Vul",
+      "full_designation": "3 Vul",
+      "spectral": "B",
+      "magnitude": 5.22
+    },
+    "95261": {
+      "bayer": "Eta",
+      "constellation": "Tel",
+      "full_designation": "Eta Tel",
+      "spectral": "A",
+      "magnitude": 5.03
+    },
+    "95771": {
+      "proper": "Anser",
+      "bayer": "Alp",
+      "flamsteed": 6,
+      "constellation": "Vul",
+      "full_designation": "Alpha Vul",
+      "spectral": "M",
+      "magnitude": 4.44
+    },
+    "95932": {
+      "bayer": "Mu",
+      "constellation": "Tel",
+      "full_designation": "Mu Tel",
+      "spectral": "F",
+      "magnitude": 6.29
+    },
+    "96295": {
+      "proper": "Campbell's Hydrogen Star",
+      "constellation": "Cyg",
+      "full_designation": "Cyg",
+      "magnitude": 10.0
+    },
+    "96837": {
+      "bayer": "Bet",
+      "flamsteed": 6,
+      "constellation": "Sge",
+      "full_designation": "Beta Sge",
+      "spectral": "G",
+      "magnitude": 4.39
+    },
+    "97229": {
+      "bayer": "Ups",
+      "flamsteed": 49,
+      "constellation": "Aql",
+      "full_designation": "Upsilon Aql",
+      "spectral": "A",
+      "magnitude": 5.89
+    },
+    "97365": {
+      "bayer": "Del",
+      "flamsteed": 7,
+      "constellation": "Sge",
+      "full_designation": "Delta Sge",
+      "spectral": "M",
+      "magnitude": 3.68
+    },
+    "97650": {
+      "flamsteed": 51,
+      "constellation": "Aql",
+      "full_designation": "51 Aql",
+      "spectral": "F",
+      "magnitude": 5.38
+    },
+    "97679": {
+      "flamsteed": 12,
+      "constellation": "Vul",
+      "full_designation": "12 Vul",
+      "spectral": "B",
+      "magnitude": 4.9
+    },
+    "97980": {
+      "flamsteed": 58,
+      "constellation": "Aql",
+      "full_designation": "58 Aql",
+      "spectral": "A",
+      "magnitude": 5.6
+    },
+    "98032": {
+      "bayer": "Iot",
+      "constellation": "Sgr",
+      "full_designation": "Iota Sgr",
+      "spectral": "K",
+      "magnitude": 4.12
+    },
+    "98068": {
+      "flamsteed": 22,
+      "constellation": "Cyg",
+      "full_designation": "22 Cyg",
+      "spectral": "B",
+      "magnitude": 4.95
+    },
+    "98110": {
+      "bayer": "Eta",
+      "flamsteed": 21,
+      "constellation": "Cyg",
+      "full_designation": "Eta Cyg",
+      "spectral": "K",
+      "magnitude": 3.89
+    },
+    "98298": {
+      "proper": "Cygnus X-1",
+      "constellation": "Cyg",
+      "full_designation": "Cyg",
+      "spectral": "B",
+      "magnitude": 8.84
+    },
+    "98375": {
+      "flamsteed": 14,
+      "constellation": "Vul",
+      "full_designation": "14 Vul",
+      "spectral": "F",
+      "magnitude": 5.68
+    },
+    "98425": {
+      "flamsteed": 25,
+      "constellation": "Cyg",
+      "full_designation": "25 Cyg",
+      "spectral": "B",
+      "magnitude": 5.15
+    },
+    "98495": {
+      "bayer": "Eps",
+      "constellation": "Pav",
+      "full_designation": "Epsilon Pav",
+      "spectral": "A",
+      "magnitude": 3.97
+    },
+    "98543": {
+      "flamsteed": 15,
+      "constellation": "Vul",
+      "full_designation": "15 Vul",
+      "spectral": "A",
+      "magnitude": 4.66
+    },
+    "98953": {
+      "flamsteed": 65,
+      "constellation": "Sgr",
+      "full_designation": "65 Sgr",
+      "spectral": "A",
+      "magnitude": 6.53
+    },
+    "99352": {
+      "bayer": "The",
+      "flamsteed": 17,
+      "constellation": "Sge",
+      "full_designation": "Theta Sge",
+      "spectral": "F",
+      "magnitude": 6.51
+    },
+    "99404": {
+      "flamsteed": 18,
+      "constellation": "Vul",
+      "full_designation": "18 Vul",
+      "spectral": "A",
+      "magnitude": 5.51
+    },
+    "99529": {
+      "bayer": "Xi-1",
+      "flamsteed": 1,
+      "constellation": "Cap",
+      "full_designation": "Xi-1 Cap",
+      "spectral": "K",
+      "magnitude": 6.34
+    },
+    "99631": {
+      "flamsteed": 66,
+      "constellation": "Aql",
+      "full_designation": "66 Aql",
+      "spectral": "K",
+      "magnitude": 5.44
+    },
+    "99853": {
+      "flamsteed": 22,
+      "constellation": "Vul",
+      "full_designation": "22 Vul",
+      "spectral": "G",
+      "magnitude": 5.18
+    },
+    "99918": {
+      "flamsteed": 3,
+      "constellation": "Cap",
+      "full_designation": "3 Cap",
+      "spectral": "B",
+      "magnitude": 6.3
+    },
+    "100108": {
+      "flamsteed": 36,
+      "constellation": "Cyg",
+      "full_designation": "36 Cyg",
+      "spectral": "A",
+      "magnitude": 5.58
+    },
+    "100453": {
+      "proper": "Sadr",
+      "bayer": "Gam",
+      "flamsteed": 37,
+      "constellation": "Cyg",
+      "full_designation": "Gamma Cyg",
+      "spectral": "F",
+      "magnitude": 2.23
+    },
+    "101101": {
+      "flamsteed": 69,
+      "constellation": "Aql",
+      "full_designation": "69 Aql",
+      "spectral": "K",
+      "magnitude": 4.91
+    },
+    "101483": {
+      "bayer": "Eta",
+      "flamsteed": 3,
+      "constellation": "Del",
+      "full_designation": "Eta Del",
+      "spectral": "A",
+      "magnitude": 5.39
+    },
+    "101765": {
+      "flamsteed": 48,
+      "constellation": "Cyg",
+      "full_designation": "48 Cyg",
+      "spectral": "B",
+      "magnitude": 6.32
+    },
+    "102157": {
+      "bayer": "Ups",
+      "constellation": "Pav",
+      "full_designation": "Upsilon Pav",
+      "spectral": "B",
+      "magnitude": 5.14
+    },
+    "102253": {
+      "flamsteed": 4,
+      "constellation": "Cep",
+      "full_designation": "4 Cep",
+      "spectral": "A",
+      "magnitude": 5.59
+    },
+    "102488": {
+      "proper": "Aljanah",
+      "bayer": "Eps",
+      "flamsteed": 53,
+      "constellation": "Cyg",
+      "full_designation": "Epsilon Cyg",
+      "spectral": "K",
+      "magnitude": 2.48
+    },
+    "102589": {
+      "bayer": "Lam",
+      "flamsteed": 54,
+      "constellation": "Cyg",
+      "full_designation": "Lambda Cyg",
+      "spectral": "B",
+      "magnitude": 4.53
+    },
+    "102618": {
+      "proper": "Albali",
+      "bayer": "Eps",
+      "flamsteed": 2,
+      "constellation": "Aqr",
+      "full_designation": "Epsilon Aqr",
+      "spectral": "A",
+      "magnitude": 3.78
+    },
+    "102693": {
+      "bayer": "Iot",
+      "constellation": "Mic",
+      "full_designation": "Iota Mic",
+      "spectral": "F",
+      "magnitude": 5.11
+    },
+    "102831": {
+      "bayer": "Alp",
+      "constellation": "Mic",
+      "full_designation": "Alpha Mic",
+      "spectral": "G",
+      "magnitude": 4.89
+    },
+    "102945": {
+      "flamsteed": 4,
+      "constellation": "Aqr",
+      "full_designation": "4 Aqr",
+      "spectral": "F",
+      "magnitude": 5.99
+    },
+    "102950": {
+      "bayer": "Iot",
+      "constellation": "Ind",
+      "full_designation": "Iota Ind",
+      "spectral": "K",
+      "magnitude": 5.06
+    },
+    "103200": {
+      "flamsteed": 32,
+      "constellation": "Vul",
+      "full_designation": "32 Vul",
+      "spectral": "K",
+      "magnitude": 5.03
+    },
+    "103226": {
+      "flamsteed": 19,
+      "constellation": "Cap",
+      "full_designation": "19 Cap",
+      "spectral": "K",
+      "magnitude": 5.78
+    },
+    "103227": {
+      "bayer": "Bet",
+      "constellation": "Ind",
+      "full_designation": "Beta Ind",
+      "spectral": "K",
+      "magnitude": 3.67
+    },
+    "103813": {
+      "flamsteed": 2,
+      "constellation": "Equ",
+      "full_designation": "2 Equ",
+      "spectral": "F",
+      "magnitude": 6.72
+    },
+    "104429": {
+      "flamsteed": 26,
+      "constellation": "Cap",
+      "full_designation": "26 Cap",
+      "spectral": "K",
+      "magnitude": 6.73
+    },
+    "104963": {
+      "bayer": "Phi",
+      "flamsteed": 28,
+      "constellation": "Cap",
+      "full_designation": "Phi Cap",
+      "spectral": "K",
+      "magnitude": 5.17
+    },
+    "105138": {
+      "bayer": "Ups",
+      "flamsteed": 66,
+      "constellation": "Cyg",
+      "full_designation": "Upsilon Cyg",
+      "spectral": "B",
+      "magnitude": 4.41
+    },
+    "105199": {
+      "proper": "Alderamin",
+      "bayer": "Alp",
+      "flamsteed": 5,
+      "constellation": "Cep",
+      "full_designation": "Alpha Cep",
+      "spectral": "A",
+      "magnitude": 2.45
+    },
+    "105319": {
+      "bayer": "The",
+      "constellation": "Ind",
+      "full_designation": "Theta Ind",
+      "spectral": "A",
+      "magnitude": 4.39
+    },
+    "105515": {
+      "bayer": "Iot",
+      "flamsteed": 32,
+      "constellation": "Cap",
+      "full_designation": "Iota Cap",
+      "spectral": "G",
+      "magnitude": 4.28
+    },
+    "105767": {
+      "flamsteed": 21,
+      "constellation": "Aqr",
+      "full_designation": "21 Aqr",
+      "spectral": "K",
+      "magnitude": 5.48
+    },
+    "105942": {
+      "flamsteed": 70,
+      "constellation": "Cyg",
+      "full_designation": "70 Cyg",
+      "spectral": "B",
+      "magnitude": 5.3
+    },
+    "106067": {
+      "flamsteed": 5,
+      "constellation": "PsA",
+      "full_designation": "5 PsA",
+      "spectral": "A",
+      "magnitude": 6.52
+    },
+    "106703": {
+      "flamsteed": 7,
+      "constellation": "PsA",
+      "full_designation": "7 PsA",
+      "spectral": "A",
+      "magnitude": 6.1
+    },
+    "106783": {
+      "flamsteed": 3,
+      "constellation": "Peg",
+      "full_designation": "3 Peg",
+      "spectral": "A",
+      "magnitude": 6.19
+    },
+    "106786": {
+      "proper": "Bunda",
+      "bayer": "Xi",
+      "flamsteed": 23,
+      "constellation": "Aqr",
+      "full_designation": "Xi Aqr",
+      "spectral": "A",
+      "magnitude": 4.68
+    },
+    "106801": {
+      "flamsteed": 9,
+      "constellation": "Cep",
+      "full_designation": "9 Cep",
+      "spectral": "B",
+      "magnitude": 4.76
+    },
+    "107119": {
+      "flamsteed": 11,
+      "constellation": "Cep",
+      "full_designation": "11 Cep",
+      "spectral": "K",
+      "magnitude": 4.55
+    },
+    "107144": {
+      "flamsteed": 26,
+      "constellation": "Aqr",
+      "full_designation": "26 Aqr",
+      "spectral": "K",
+      "magnitude": 5.66
+    },
+    "107188": {
+      "bayer": "Kap",
+      "flamsteed": 43,
+      "constellation": "Cap",
+      "full_designation": "Kappa Cap",
+      "spectral": "G",
+      "magnitude": 4.72
+    },
+    "107232": {
+      "flamsteed": 44,
+      "constellation": "Cap",
+      "full_designation": "44 Cap",
+      "spectral": "A",
+      "magnitude": 5.88
+    },
+    "107310": {
+      "bayer": "Mu-1",
+      "flamsteed": 78,
+      "constellation": "Cyg",
+      "full_designation": "Mu-1 Cyg",
+      "spectral": "F",
+      "magnitude": 4.49
+    },
+    "107380": {
+      "bayer": "Iot",
+      "flamsteed": 9,
+      "constellation": "PsA",
+      "full_designation": "Iota PsA",
+      "spectral": "B",
+      "magnitude": 4.35
+    },
+    "107472": {
+      "flamsteed": 12,
+      "constellation": "Peg",
+      "full_designation": "12 Peg",
+      "spectral": "K",
+      "magnitude": 5.29
+    },
+    "107586": {
+      "flamsteed": 12,
+      "constellation": "Cep",
+      "full_designation": "12 Cep",
+      "spectral": "M",
+      "magnitude": 5.53
+    },
+    "108868": {
+      "flamsteed": 30,
+      "constellation": "Aqr",
+      "full_designation": "30 Aqr",
+      "spectral": "K",
+      "magnitude": 5.55
+    },
+    "108874": {
+      "bayer": "Omi",
+      "flamsteed": 31,
+      "constellation": "Aqr",
+      "full_designation": "Omicron Aqr",
+      "spectral": "B",
+      "magnitude": 4.74
+    },
+    "109081": {
+      "bayer": "Kap-2",
+      "constellation": "Ind",
+      "full_designation": "Kap-2 Ind",
+      "spectral": "K",
+      "magnitude": 5.62
+    },
+    "109176": {
+      "bayer": "Iot",
+      "flamsteed": 24,
+      "constellation": "Peg",
+      "full_designation": "Iota Peg",
+      "spectral": "F",
+      "magnitude": 3.77
+    },
+    "109240": {
+      "flamsteed": 25,
+      "constellation": "Peg",
+      "full_designation": "25 Peg",
+      "spectral": "B",
+      "magnitude": 5.79
+    },
+    "109268": {
+      "proper": "Alnair",
+      "bayer": "Alp",
+      "constellation": "Gru",
+      "full_designation": "Alpha Gru",
+      "spectral": "B",
+      "magnitude": 1.73
+    },
+    "109285": {
+      "bayer": "Mu",
+      "flamsteed": 14,
+      "constellation": "PsA",
+      "full_designation": "Mu PsA",
+      "spectral": "A",
+      "magnitude": 4.5
+    },
+    "109400": {
+      "flamsteed": 24,
+      "constellation": "Cep",
+      "full_designation": "24 Cep",
+      "spectral": "G",
+      "magnitude": 4.79
+    },
+    "109492": {
+      "bayer": "Zet",
+      "flamsteed": 21,
+      "constellation": "Cep",
+      "full_designation": "Zeta Cep",
+      "spectral": "K",
+      "magnitude": 3.39
+    },
+    "109789": {
+      "bayer": "Lam",
+      "flamsteed": 16,
+      "constellation": "PsA",
+      "full_designation": "Lambda PsA",
+      "spectral": "B",
+      "magnitude": 5.45
+    },
+    "110000": {
+      "flamsteed": 42,
+      "constellation": "Aqr",
+      "full_designation": "42 Aqr",
+      "spectral": "K",
+      "magnitude": 5.34
+    },
+    "110256": {
+      "bayer": "Eps",
+      "constellation": "Oct",
+      "full_designation": "Epsilon Oct",
+      "spectral": "M",
+      "magnitude": 5.09
+    },
+    "110273": {
+      "bayer": "Rho",
+      "flamsteed": 46,
+      "constellation": "Aqr",
+      "full_designation": "Rho Aqr",
+      "spectral": "B",
+      "magnitude": 5.35
+    },
+    "111086": {
+      "flamsteed": 56,
+      "constellation": "Aqr",
+      "full_designation": "56 Aqr",
+      "spectral": "B",
+      "magnitude": 6.36
+    },
+    "111196": {
+      "bayer": "Ups",
+      "constellation": "Oct",
+      "full_designation": "Upsilon Oct",
+      "spectral": "K",
+      "magnitude": 5.76
+    },
+    "111200": {
+      "flamsteed": 58,
+      "constellation": "Aqr",
+      "full_designation": "58 Aqr",
+      "spectral": "A",
+      "magnitude": 6.39
+    },
+    "111310": {
+      "bayer": "Nu",
+      "constellation": "Tuc",
+      "full_designation": "Nu Tuc",
+      "spectral": "M",
+      "magnitude": 4.91
+    },
+    "111449": {
+      "bayer": "Ups",
+      "flamsteed": 59,
+      "constellation": "Aqr",
+      "full_designation": "Upsilon Aqr",
+      "spectral": "F",
+      "magnitude": 5.21
+    },
+    "111544": {
+      "flamsteed": 8,
+      "constellation": "Lac",
+      "full_designation": "8 Lac",
+      "spectral": "B",
+      "magnitude": 6.6
+    },
+    "112158": {
+      "proper": "Matar",
+      "bayer": "Eta",
+      "flamsteed": 44,
+      "constellation": "Peg",
+      "full_designation": "Eta Peg",
+      "spectral": "G",
+      "magnitude": 2.93
+    },
+    "112358": {
+      "flamsteed": 45,
+      "constellation": "Peg",
+      "full_designation": "45 Peg",
+      "spectral": "G",
+      "magnitude": 6.27
+    },
+    "112362": {
+      "flamsteed": 20,
+      "constellation": "PsA",
+      "full_designation": "20 PsA",
+      "spectral": "A",
+      "magnitude": 6.52
+    },
+    "112724": {
+      "bayer": "Iot",
+      "flamsteed": 32,
+      "constellation": "Cep",
+      "full_designation": "Iota Cep",
+      "spectral": "K",
+      "magnitude": 3.5
+    },
+    "112862": {
+      "flamsteed": 21,
+      "constellation": "PsA",
+      "full_designation": "21 PsA",
+      "spectral": "G",
+      "magnitude": 5.99
+    },
+    "113085": {
+      "flamsteed": 75,
+      "constellation": "Aqr",
+      "full_designation": "75 Aqr",
+      "spectral": "K",
+      "magnitude": 6.86
+    },
+    "113521": {
+      "flamsteed": 2,
+      "constellation": "Psc",
+      "full_designation": "2 Psc",
+      "spectral": "K",
+      "magnitude": 5.43
+    },
+    "113638": {
+      "bayer": "Zet",
+      "constellation": "Gru",
+      "full_designation": "Zeta Gru",
+      "spectral": "G",
+      "magnitude": 4.11
+    },
+    "113674": {
+      "flamsteed": 81,
+      "constellation": "Aqr",
+      "full_designation": "81 Aqr",
+      "spectral": "K",
+      "magnitude": 6.23
+    },
+    "114046": {
+      "proper": "Lacaille 9352",
+      "constellation": "PsA",
+      "full_designation": "PsA",
+      "spectral": "M",
+      "magnitude": 7.35
+    },
+    "114164": {
+      "flamsteed": 87,
+      "constellation": "Aqr",
+      "full_designation": "87 Aqr",
+      "spectral": "A",
+      "magnitude": 7.39
+    },
+    "114855": {
+      "bayer": "Psi-1",
+      "flamsteed": 91,
+      "constellation": "Aqr",
+      "full_designation": "Psi-1 Aqr",
+      "spectral": "K",
+      "magnitude": 4.24
+    },
+    "114996": {
+      "bayer": "Gam",
+      "constellation": "Tuc",
+      "full_designation": "Gamma Tuc",
+      "spectral": "F",
+      "magnitude": 3.99
+    },
+    "115054": {
+      "bayer": "Phi",
+      "constellation": "Gru",
+      "full_designation": "Phi Gru",
+      "spectral": "F",
+      "magnitude": 5.54
+    },
+    "115142": {
+      "flamsteed": 96,
+      "constellation": "Aqr",
+      "full_designation": "96 Aqr",
+      "spectral": "F",
+      "magnitude": 5.56
+    },
+    "115280": {
+      "flamsteed": 12,
+      "constellation": "And",
+      "full_designation": "12 And",
+      "spectral": "F",
+      "magnitude": 5.77
+    },
+    "115404": {
+      "flamsteed": 97,
+      "constellation": "Aqr",
+      "full_designation": "97 Aqr",
+      "spectral": "A",
+      "magnitude": 5.19
+    },
+    "115407": {
+      "flamsteed": 65,
+      "constellation": "Peg",
+      "full_designation": "65 Peg",
+      "spectral": "B",
+      "magnitude": 6.28
+    },
+    "115669": {
+      "flamsteed": 99,
+      "constellation": "Aqr",
+      "full_designation": "99 Aqr",
+      "spectral": "K",
+      "magnitude": 4.38
+    },
+    "116247": {
+      "flamsteed": 101,
+      "constellation": "Aqr",
+      "full_designation": "101 Aqr",
+      "spectral": "A",
+      "magnitude": 4.7
+    },
+    "116758": {
+      "bayer": "Ome-1",
+      "flamsteed": 102,
+      "constellation": "Aqr",
+      "full_designation": "Ome-1 Aqr",
+      "spectral": "A",
+      "magnitude": 4.97
+    },
+    "117218": {
+      "flamsteed": 107,
+      "constellation": "Aqr",
+      "full_designation": "107 Aqr",
+      "spectral": "F",
+      "magnitude": 5.28
+    },
+    "117315": {
+      "bayer": "Sig",
+      "constellation": "Phe",
+      "full_designation": "Sigma Phe",
+      "spectral": "B",
+      "magnitude": 5.18
+    },
+    "117447": {
+      "flamsteed": 6,
+      "constellation": "Cas",
+      "full_designation": "6 Cas",
+      "spectral": "A",
+      "magnitude": 5.43
+    }
+  },
+  "constellations": {
+    "And": {
+      "name": "Andromeda",
+      "lines": [
+        [
+          677,
+          3092,
+          5447,
+          9640
+        ],
+        [
+          2912,
+          5447,
+          4436,
+          3881,
+          5434,
+          7607
+        ]
+      ]
+    },
+    "Ant": {
+      "name": "Antlia",
+      "lines": [
+        [
+          53502,
+          51172,
+          46515
+        ]
+      ]
+    },
+    "Aql": {
+      "name": "Aquila",
+      "lines": [
+        [
+          93244,
+          93747
+        ]
+      ]
+    },
+    "Aqr": {
+      "name": "Aquarius",
+      "lines": [
+        [
+          102618,
+          106278,
+          109074,
+          110395,
+          110960,
+          111497,
+          110960,
+          110672,
+          109074
+        ]
+      ]
+    },
+    "Ara": {
+      "name": "Ara",
+      "lines": [
+        [
+          85267,
+          85727,
+          82363,
+          83081,
+          83153,
+          85792,
+          88714,
+          85792,
+          85258
+        ]
+      ]
+    },
+    "Ari": {
+      "name": "Aries",
+      "lines": [
+        [
+          8832,
+          8903,
+          9884,
+          13209
+        ]
+      ]
+    },
+    "Aur": {
+      "name": "Auriga",
+      "lines": [
+        [
+          25428,
+          23015,
+          23767,
+          24608,
+          28360,
+          28380,
+          25428
+        ],
+        [
+          23767,
+          23453,
+          23416,
+          24608,
+          28358,
+          28360
+        ]
+      ]
+    },
+    "Boo": {
+      "name": "Boötes",
+      "lines": [
+        [
+          69673,
+          72105,
+          74666,
+          73555,
+          71075,
+          71053,
+          69673,
+          67927,
+          67275
+        ],
+        [
+          69673,
+          71795
+        ],
+        [
+          71075,
+          69732,
+          70497,
+          69483,
+          69732
+        ]
+      ]
+    },
+    "CMa": {
+      "name": "Canis Major",
+      "lines": [
+        [
+          30324,
+          32349,
+          34444,
+          33579,
+          34444,
+          35904
+        ],
+        [
+          30324,
+          31592,
+          33152,
+          33579
+        ]
+      ]
+    },
+    "CMi": {
+      "name": "Canis Minor",
+      "lines": [
+        [
+          37279,
+          36188
+        ]
+      ]
+    },
+    "Cae": {
+      "name": "Caelum",
+      "lines": [
+        [
+          23595,
+          21861,
+          21770,
+          21060
+        ]
+      ]
+    },
+    "Cam": {
+      "name": "Camelopardalis",
+      "lines": [
+        [
+          23040,
+          23522,
+          22783,
+          29997,
+          33694,
+          29997,
+          22783,
+          17959,
+          17884,
+          16228
+        ]
+      ]
+    },
+    "Car": {
+      "name": "Carina",
+      "lines": [
+        [
+          30438,
+          45238,
+          50099,
+          52419,
+          51576,
+          50371,
+          45556,
+          42913
+        ],
+        [
+          45556,
+          41037,
+          38827,
+          39953
+        ]
+      ]
+    },
+    "Cen": {
+      "name": "Centaurus",
+      "lines": [
+        [
+          61932,
+          66657,
+          68702,
+          71683,
+          68702,
+          66657,
+          68002,
+          61932,
+          68002,
+          68282,
+          68245,
+          71352,
+          68245,
+          68862,
+          70090,
+          68933,
+          67464,
+          68002
+        ],
+        [
+          55425,
+          59196,
+          60823,
+          61932,
+          60823,
+          59449,
+          56243
+        ],
+        [
+          67464,
+          65936,
+          65109,
+          61789
+        ]
+      ]
+    },
+    "Cep": {
+      "name": "Cepheus",
+      "lines": [
+        [
+          102422,
+          105199,
+          106032,
+          112724,
+          106032,
+          116727,
+          112724,
+          110991,
+          109492,
+          109857,
+          107259,
+          105199
+        ]
+      ]
+    },
+    "Cet": {
+      "name": "Cetus",
+      "lines": [
+        [
+          12706,
+          14135,
+          13954,
+          12828,
+          11484,
+          12706,
+          12387,
+          10826,
+          8645,
+          8102,
+          3419,
+          1562,
+          5364,
+          6537,
+          8645
+        ]
+      ]
+    },
+    "Cir": {
+      "name": "Circinus",
+      "lines": [
+        [
+          74824,
+          71908,
+          75323
+        ]
+      ]
+    },
+    "Cnc": {
+      "name": "Cancer",
+      "lines": [
+        [
+          44066,
+          42911,
+          40526,
+          42911,
+          42806,
+          43103
+        ]
+      ]
+    },
+    "Col": {
+      "name": "Columba",
+      "lines": [
+        [
+          28328,
+          27628,
+          28199,
+          30277
+        ]
+      ]
+    },
+    "Crt": {
+      "name": "Crater",
+      "lines": [
+        [
+          53740,
+          54682,
+          55705,
+          57283,
+          58188,
+          57283,
+          55705,
+          55282,
+          55687,
+          56633,
+          55687,
+          55282,
+          53740
+        ]
+      ]
+    },
+    "Cru": {
+      "name": "Crux",
+      "lines": [
+        [
+          62434,
+          59747
+        ],
+        [
+          62434,
+          59747
+        ]
+      ]
+    },
+    "Crv": {
+      "name": "Corvus",
+      "lines": [
+        [
+          60965,
+          59803,
+          59316,
+          61359,
+          60965
+        ]
+      ]
+    },
+    "Cyg": {
+      "name": "Cygnus",
+      "lines": [
+        [
+          102098,
+          100453,
+          102488,
+          100453,
+          95947,
+          100453,
+          97165,
+          95853,
+          94779,
+          95853,
+          99848,
+          102098,
+          103413,
+          104732,
+          102488
+        ]
+      ]
+    },
+    "Dor": {
+      "name": "Dorado",
+      "lines": [
+        [
+          19893,
+          21281,
+          23693,
+          26069,
+          21281,
+          26069,
+          27100,
+          27890,
+          26069
+        ]
+      ]
+    },
+    "Dra": {
+      "name": "Draco",
+      "lines": [
+        [
+          56211,
+          61281,
+          68756,
+          75458,
+          78527,
+          80331,
+          83895,
+          89908,
+          89937,
+          89908,
+          94376,
+          97433,
+          94376,
+          87585,
+          85829,
+          85670,
+          87833,
+          87585,
+          94376
+        ]
+      ]
+    },
+    "Eri": {
+      "name": "Eridanus",
+      "lines": [
+        [
+          23875,
+          22109,
+          21444,
+          19587,
+          18543,
+          17593,
+          17378,
+          16537,
+          13701,
+          12770,
+          12770,
+          12843,
+          14146,
+          15474,
+          16611,
+          17651,
+          18216,
+          18673,
+          21248,
+          21393,
+          20535,
+          20042,
+          17874,
+          17874,
+          16870,
+          15510,
+          13847,
+          12486,
+          12413,
+          11407,
+          9007,
+          7588
+        ]
+      ]
+    },
+    "For": {
+      "name": "Fornax",
+      "lines": [
+        [
+          14879,
+          13147,
+          9677
+        ]
+      ]
+    },
+    "Gem": {
+      "name": "Gemini",
+      "lines": [
+        [
+          32362,
+          35350,
+          35550,
+          34088,
+          31681,
+          34088,
+          35550,
+          36962,
+          37740,
+          36962,
+          37826,
+          36962,
+          36046,
+          34693,
+          36850,
+          34693,
+          33018,
+          34693,
+          32246,
+          30883,
+          32246,
+          30343,
+          29655,
+          28734
+        ]
+      ]
+    },
+    "Gru": {
+      "name": "Grus",
+      "lines": [
+        [
+          108085,
+          109111,
+          110997,
+          109268,
+          112122,
+          110997,
+          112122,
+          112623,
+          113638
+        ]
+      ]
+    },
+    "Her": {
+      "name": "Hercules",
+      "lines": [
+        [
+          84379,
+          84345,
+          80816,
+          80170,
+          80816,
+          81693,
+          83207,
+          81693,
+          81833,
+          81126,
+          79992,
+          81126,
+          81833,
+          84380,
+          85112,
+          87808,
+          86414,
+          87808,
+          85112,
+          84380,
+          83207,
+          84379,
+          85693,
+          86974,
+          87933,
+          88794
+        ]
+      ]
+    },
+    "Hor": {
+      "name": "Horologium",
+      "lines": [
+        [
+          19747,
+          12653,
+          12225,
+          12484,
+          14240,
+          13884
+        ]
+      ]
+    },
+    "Hya": {
+      "name": "Hydra",
+      "lines": [
+        [
+          43234,
+          42799,
+          42402,
+          42313,
+          43109,
+          43813,
+          45336,
+          47431,
+          46390,
+          48356,
+          49402,
+          49841,
+          51069,
+          52943,
+          53740
+        ]
+      ]
+    },
+    "Ind": {
+      "name": "Indus",
+      "lines": [
+        [
+          103227,
+          102333,
+          101772,
+          105319,
+          108431,
+          103227
+        ]
+      ]
+    },
+    "Leo": {
+      "name": "Leo",
+      "lines": [
+        [
+          49669,
+          49583,
+          50583,
+          50335,
+          48455,
+          47908
+        ],
+        [
+          50583,
+          54872,
+          57632,
+          54879,
+          54872,
+          54879,
+          49583
+        ],
+        [
+          48455,
+          46146,
+          46750,
+          47908,
+          49583
+        ]
+      ]
+    },
+    "Lep": {
+      "name": "Lepus",
+      "lines": [
+        [
+          23685,
+          24305,
+          25985,
+          25606,
+          23685
+        ],
+        [
+          25606,
+          27072,
+          27654,
+          28910,
+          28103,
+          27288,
+          25985
+        ]
+      ]
+    },
+    "Lib": {
+      "name": "Libra",
+      "lines": [
+        [
+          72622,
+          74785
+        ],
+        [
+          72622,
+          73714
+        ],
+        [
+          74785,
+          76333,
+          72622,
+          76333,
+          76470,
+          76600
+        ]
+      ]
+    },
+    "Lup": {
+      "name": "Lupus",
+      "lines": [
+        [
+          71860,
+          74395,
+          75264,
+          76297,
+          75141,
+          73273,
+          75141,
+          76297,
+          78384,
+          75177,
+          77634,
+          78384,
+          74395
+        ]
+      ]
+    },
+    "Men": {
+      "name": "Mensa",
+      "lines": [
+        [
+          29271,
+          23467
+        ]
+      ]
+    },
+    "Mic": {
+      "name": "Microscopium",
+      "lines": [
+        [
+          102831,
+          102989
+        ]
+      ]
+    },
+    "Mon": {
+      "name": "Monoceros",
+      "lines": [
+        [
+          31978,
+          31216,
+          30419,
+          30419,
+          32578,
+          31216,
+          32578,
+          34769,
+          30867,
+          29651,
+          30867,
+          34769,
+          39863,
+          37447
+        ]
+      ]
+    },
+    "Oph": {
+      "name": "Ophiuchus",
+      "lines": [
+        [
+          86032,
+          83000,
+          80883,
+          79593,
+          79882,
+          80628,
+          81377,
+          80628,
+          79882,
+          79593,
+          80883,
+          83000,
+          81377,
+          84012,
+          86742,
+          87108,
+          88048,
+          87108,
+          86742,
+          86032
+        ],
+        [
+          84012,
+          84970,
+          85423
+        ]
+      ]
+    },
+    "Ori": {
+      "name": "Orion",
+      "lines": [
+        [
+          27989,
+          26727,
+          27366,
+          26727,
+          26311,
+          25930,
+          25336,
+          25930,
+          25281,
+          24436
+        ],
+        [
+          27989,
+          25336,
+          26207,
+          26207,
+          27989
+        ],
+        [
+          23607,
+          22957,
+          22845,
+          22509,
+          22449,
+          25336,
+          22449,
+          22549,
+          22797,
+          23123
+        ],
+        [
+          27989,
+          28614,
+          29038
+        ],
+        [
+          29426,
+          28716,
+          27913,
+          29038
+        ]
+      ]
+    },
+    "Pav": {
+      "name": "Pavo",
+      "lines": [
+        [
+          91792,
+          99240,
+          98495,
+          99240,
+          93015,
+          88866,
+          86929,
+          88866,
+          90098,
+          92609,
+          99240
+        ]
+      ]
+    },
+    "Peg": {
+      "name": "Pegasus",
+      "lines": [
+        [
+          109410,
+          112158,
+          113881,
+          112748,
+          112440,
+          109176,
+          107354
+        ]
+      ]
+    },
+    "Per": {
+      "name": "Perseus",
+      "lines": [
+        [
+          17448,
+          18246,
+          18614,
+          18532,
+          17358,
+          15863,
+          14328,
+          13268,
+          13531,
+          14328,
+          13531,
+          14632,
+          15863,
+          14632,
+          14668,
+          14576,
+          18532,
+          14576,
+          14354
+        ],
+        [
+          14632,
+          12777,
+          8068
+        ]
+      ]
+    },
+    "Phe": {
+      "name": "Phoenix",
+      "lines": [
+        [
+          2081,
+          5165,
+          6867
+        ],
+        [
+          2081,
+          765,
+          5165,
+          5348,
+          7083,
+          6867
+        ]
+      ]
+    },
+    "PsA": {
+      "name": "Piscis Austrinus",
+      "lines": [
+        [
+          113368,
+          113246,
+          112948,
+          111188,
+          109285,
+          107380,
+          107608,
+          109285,
+          111954,
+          113368
+        ]
+      ]
+    },
+    "Psc": {
+      "name": "Pisces",
+      "lines": [
+        [
+          5742,
+          6193,
+          5586,
+          5742,
+          7097,
+          8198,
+          9487,
+          7884,
+          4906,
+          3786,
+          118268,
+          116771,
+          115830,
+          114971,
+          115738,
+          116928,
+          116771
+        ]
+      ]
+    },
+    "Pup": {
+      "name": "Puppis",
+      "lines": [
+        [
+          39953,
+          39429,
+          39757,
+          38170,
+          37229,
+          36917,
+          35264,
+          31685,
+          30438
+        ]
+      ]
+    },
+    "Ret": {
+      "name": "Reticulum",
+      "lines": [
+        [
+          19780,
+          17440,
+          18597,
+          19921,
+          19780
+        ]
+      ]
+    },
+    "Scl": {
+      "name": "Sculptor",
+      "lines": [
+        [
+          4577,
+          117452,
+          115102,
+          116231
+        ]
+      ]
+    },
+    "Sco": {
+      "name": "Scorpius",
+      "lines": [
+        [
+          78820,
+          78401,
+          78265,
+          78401,
+          80112,
+          80763,
+          81266,
+          82396,
+          82514,
+          82729,
+          84143,
+          86228,
+          87073,
+          86670,
+          85696,
+          85927,
+          87261
+        ],
+        [
+          78265,
+          78104
+        ]
+      ]
+    },
+    "Sct": {
+      "name": "Scutum",
+      "lines": [
+        [
+          92175,
+          91117,
+          90595,
+          91726,
+          92175
+        ]
+      ]
+    },
+    "Ser": {
+      "name": "Serpens",
+      "lines": [
+        [
+          77233,
+          78072,
+          77450,
+          76852,
+          77233,
+          76276,
+          77070,
+          77622,
+          77516,
+          79593
+        ]
+      ]
+    },
+    "Sex": {
+      "name": "Sextans",
+      "lines": [
+        [
+          48437,
+          49641,
+          51437,
+          51362
+        ]
+      ]
+    },
+    "Sge": {
+      "name": "Sagitta",
+      "lines": [
+        [
+          98337,
+          97365,
+          96757,
+          97365,
+          96837
+        ]
+      ]
+    },
+    "Sgr": {
+      "name": "Sagittarius",
+      "lines": [
+        [
+          90185,
+          88635,
+          89931,
+          90185,
+          89931,
+          90496,
+          92041,
+          89931,
+          92041,
+          92855,
+          93864,
+          93506,
+          92041,
+          93506,
+          90185,
+          89642
+        ],
+        [
+          95168,
+          94141,
+          93683,
+          93085,
+          94141
+        ]
+      ]
+    },
+    "Tau": {
+      "name": "Taurus",
+      "lines": [
+        [
+          26451,
+          21421,
+          20894,
+          20205,
+          20455,
+          20889,
+          25428
+        ],
+        [
+          16083,
+          18907
+        ],
+        [
+          20205,
+          18724,
+          16083
+        ]
+      ]
+    },
+    "Tuc": {
+      "name": "Tucana",
+      "lines": [
+        [
+          2484,
+          1599,
+          118322,
+          110838,
+          110130,
+          114996,
+          2484
+        ]
+      ]
+    },
+    "UMa": {
+      "name": "Ursa Major",
+      "lines": [
+        [
+          54061,
+          46733,
+          48319,
+          46733,
+          41704,
+          48319,
+          53910,
+          48319,
+          46853,
+          44471,
+          44127
+        ]
+      ]
+    },
+    "Vel": {
+      "name": "Vela",
+      "lines": [
+        [
+          42913,
+          39953,
+          44816,
+          46651,
+          50191,
+          52727,
+          48774,
+          45941,
+          42913
+        ]
+      ]
+    },
+    "Vir": {
+      "name": "Virgo",
+      "lines": [
+        [
+          60129,
+          58948,
+          57380,
+          57757,
+          60129,
+          61941,
+          63090,
+          63608,
+          63090,
+          61941,
+          64238,
+          65474,
+          64238,
+          61941,
+          66249,
+          68520,
+          72220,
+          68520,
+          66249,
+          69701,
+          71957
+        ]
+      ]
+    },
+    "Vol": {
+      "name": "Volans",
+      "lines": [
+        [
+          44382,
+          41312,
+          39794,
+          35228,
+          34481,
+          39794,
+          44382
+        ]
+      ]
+    },
+    "Vul": {
+      "name": "Vulpecula",
+      "lines": [
+        [
+          95771,
+          97886
+        ]
+      ]
+    }
+  }
+}

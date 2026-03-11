@@ -86,7 +86,7 @@ namespace CinematicShaders.Native
             public float Clustering;
             public float PopulationBias;
             public float MainSequenceStrength;
-            public float RedGiantRarity;
+            public float RedGiantFrequency;
             public float GalacticFlatness;
             public float GalacticDiscFalloff;
             public float BandCenterBoost;

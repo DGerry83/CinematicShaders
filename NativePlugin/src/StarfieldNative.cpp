@@ -53,7 +53,7 @@ static struct {
     float clustering = 0.6f;
     float populationBias = 0.0f;
     float mainSequenceStrength = 0.6f;
-    float redGiantRarity = 0.02f;
+    float redGiantFrequency = 0.05f;
     float galacticFlatness = 0.85f;
     float galacticDiscFalloff = 3.0f;
     float bandCenterBoost = 0.0f;
@@ -77,6 +77,9 @@ static struct {
     int catalogCapacity = 0;     // Allocated capacity (may be larger than catalogSize)
     int catalogSeed = 0;         // Track current seed for debugging
     int catalogHeroCount = 0;    // Actual hero count in loaded/generated catalog
+    
+    // CPU-side copy for save operations (GPU buffer is DYNAMIC with WRITE-only access)
+    std::vector<StarData> catalogDataCPU;
     
     std::mutex stateMutex;
 } g_StarfieldState;
@@ -105,7 +108,7 @@ struct StarfieldPass1Params {
     float PopulationBias;
     
     float MainSequenceStrength;
-    float RedGiantRarity;
+    float RedGiantFrequency;
     float Exposure;
     float BlurPixels;
     float _pad2[2];  // Pad after removing StarDensity, HeroRarity, StaggerAmount
@@ -154,6 +157,127 @@ struct StarfieldPass2Params {
     int EnableTonemapping;
     int Pad[7];  // Pad to 32 bytes (keep constant buffer alignment)
 };
+
+// ============================================================================
+// Utility Functions for Star Generation
+// ============================================================================
+
+// Calculate spectral type enum from temperature
+static int32_t TemperatureToSpectralType(float temp) {
+    if (temp < 3500.0f) return 6;      // M-type (red)
+    else if (temp < 4500.0f) return 5; // K-type (orange)
+    else if (temp < 5778.0f) return 4; // G-type (yellow)
+    else if (temp < 7200.0f) return 3; // F-type (yellow-white)
+    else if (temp < 9500.0f) return 2; // A-type (white)
+    else if (temp < 20000.0f) return 1; // B-type (blue-white)
+    else return 0;                      // O-type (blue)
+}
+
+// Luminosity class enum
+enum LuminosityClass {
+    LUM_SUPERGIANT = 0,  // Ia, Ib
+    LUM_GIANT = 1,       // II, III
+    LUM_SUBGIANT = 2,    // IV
+    LUM_DWARF = 3,       // V (Main Sequence) - 90% of stars
+    LUM_COUNT = 4
+};
+
+// Absolute Magnitude (M_v) lookup table for Main Sequence (Dwarf) stars by spectral type
+// Spectral types: O=0, B=1, A=2, F=3, G=4, K=5, M=6
+static const float AbsMag_MainSequence[7] = {
+    -4.0f,   // O-type (Blue) - Very luminous
+    -1.5f,   // B-type (Blue-white)
+    +0.7f,   // A-type (White) - Sirius-like
+    +2.5f,   // F-type (Yellow-white)
+    +4.8f,   // G-type (Yellow) - Sun-like
+    +6.5f,   // K-type (Orange)
+    +9.0f    // M-type (Red) - Very dim
+};
+
+// Absolute Magnitude for Giant stars (luminous evolved stars)
+static const float AbsMag_Giant[7] = {
+    -6.5f,   // O-type giants (rare)
+    -4.0f,   // B-type giants
+    -0.5f,   // A-type giants
+    +1.0f,   // F-type giants
+    +2.5f,   // G-type giants
+    +4.0f,   // K-type giants
+    +5.5f    // M-type giants (very luminous, e.g., Betelgeuse)
+};
+
+// Absolute Magnitude for Supergiant stars (extremely luminous)
+static const float AbsMag_Supergiant[7] = {
+    -7.5f,   // O-type supergiants
+    -6.5f,   // B-type supergiants (e.g., Rigel)
+    -3.0f,   // A-type supergiants
+    -1.0f,   // F-type supergiants
+    +1.0f,   // G-type supergiants
+    +2.5f,   // K-type supergiants (e.g., Betelgeuse)
+    +4.0f    // M-type supergiants (e.g., Antares)
+};
+
+// Assign luminosity class based on random hash and star properties
+// 90% Dwarfs (main sequence), 9% Giants, 1% Supergiants
+static LuminosityClass AssignLuminosityClass(float randomHash, int32_t spectralType, float normalizedBrightness) {
+    // Bright red stars are likely giants/supergiants (red giant branch)
+    if (spectralType >= 5 && normalizedBrightness < 0.2f) {
+        // 30% chance of being a giant/supergiant if bright and red
+        if (randomHash < 0.3f) {
+            return (randomHash < 0.1f) ? LUM_SUPERGIANT : LUM_GIANT;
+        }
+    }
+    
+    // Standard distribution
+    if (randomHash < 0.90f) return LUM_DWARF;        // 90% main sequence
+    else if (randomHash < 0.99f) return LUM_GIANT;   // 9% giants
+    else return LUM_SUPERGIANT;                       // 1% supergiants
+}
+
+// Get absolute magnitude based on spectral type and luminosity class
+static float GetAbsoluteMagnitude(int32_t spectralType, LuminosityClass lumClass) {
+    // Clamp spectral type to valid range
+    if (spectralType < 0) spectralType = 0;
+    if (spectralType > 6) spectralType = 6;
+    
+    switch (lumClass) {
+        case LUM_SUPERGIANT:
+            return AbsMag_Supergiant[spectralType];
+        case LUM_GIANT:
+            return AbsMag_Giant[spectralType];
+        case LUM_SUBGIANT:
+            // Subgiants are between dwarfs and giants
+            return (AbsMag_MainSequence[spectralType] + AbsMag_Giant[spectralType]) * 0.5f;
+        case LUM_DWARF:
+        default:
+            return AbsMag_MainSequence[spectralType];
+    }
+}
+
+// Calculate distance in parsecs using the Distance Modulus
+// d = 10^((m - M + 5) / 5)
+// where m = apparent magnitude, M = absolute magnitude
+// forcedLumClass: optional override for luminosity class (for realistic mode)
+static float CalculateDistancePc(float apparentMag, int32_t spectralType, float randomHash, float normalizedBrightness, LuminosityClass forcedLumClass = LUM_COUNT, int heroIndex = -1) {
+    // Assign luminosity class (or use forced class if provided)
+    LuminosityClass lumClass = (forcedLumClass != LUM_COUNT) ? forcedLumClass : AssignLuminosityClass(randomHash, spectralType, normalizedBrightness);
+    
+    
+    // Get absolute magnitude for this spectral type and luminosity class
+    float absoluteMag = GetAbsoluteMagnitude(spectralType, lumClass);
+    
+    // Add some random variation to absolute magnitude (stars aren't all identical)
+    // +/- 0.5 magnitude scatter
+    absoluteMag += (randomHash - 0.5f) * 1.0f;
+    
+    // Distance Modulus: m - M = 5 * log10(d) - 5
+    // Solving for d: d = 10^((m - M + 5) / 5)
+    float distanceModulus = apparentMag - absoluteMag + 5.0f;
+    float distance = powf(10.0f, distanceModulus / 5.0f);
+    
+    // Clamp to reasonable astronomical range
+    // Nearest stars: ~1.3 pc (Proxima), Galaxy: ~50,000 pc
+    return fmaxf(0.5f, fminf(50000.0f, distance));
+}
 
 // ============================================================================
 // Catalog Generation Math (Ported from HLSL)
@@ -545,7 +669,7 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         params->PopulationBias = g_StarfieldState.populationBias;
         
         params->MainSequenceStrength = g_StarfieldState.mainSequenceStrength;
-        params->RedGiantRarity = g_StarfieldState.redGiantRarity;
+        params->RedGiantFrequency = g_StarfieldState.redGiantFrequency;
         params->Exposure = g_StarfieldState.exposure;
         params->BlurPixels = g_StarfieldState.blurPixels;
         
@@ -715,7 +839,7 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
     float magnitudeBias = g_StarfieldState.magnitudeBias;
     float populationBias = g_StarfieldState.populationBias;
     float mainSequenceStrength = g_StarfieldState.mainSequenceStrength;
-    float redGiantRarity = g_StarfieldState.redGiantRarity;
+    float redGiantFrequency = g_StarfieldState.redGiantFrequency;
     
     LogToFile("[Starfield] Generating catalog: popBias=%.2f, mainSeq=%.2f, colorSat=%.2f, seed=%d, count=%d",
         populationBias, mainSequenceStrength, g_StarfieldState.colorSaturation, seed, requestedCount);
@@ -770,6 +894,7 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
     int heroesGenerated = 0;
     int heroAttempts = 0;
     const int maxHeroAttempts = heroCount * 100;
+    int32_t nextProceduralID = 1;  // Sequential IDs for procedural stars
     
     while (heroesGenerated < heroCount && heroAttempts < maxHeroAttempts) {
         heroAttempts++;
@@ -805,11 +930,13 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
         float heroFlux = powf(10.0f, -0.4f * heroMag);
         
         // Determine if this hero is a red giant
-        bool isRedGiant = (h.x < redGiantRarity);
+        // Inverted logic: Frequency 0=none, 1=many (was Rarity 0=many, 1=none)
+        bool isRedGiant = (h.x < (1.0f - redGiantFrequency));
         
         float3 heroColor;
         float heroTemp;
         float colorSaturation = g_StarfieldState.colorSaturation;
+        LuminosityClass forcedLumClass = LUM_COUNT;  // Default (no override)
         
         if (isRedGiant) {
             // Red giant color - orange-red
@@ -826,24 +953,76 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
             tempHash = tempHash + populationBias * 0.3f;
             tempHash = fmaxf(0.0f, fminf(1.0f, tempHash));
             
-            // Calculate temperature - symmetric distribution for PopulationBias effect
-            if (tempHash < 0.10f) { heroTemp = 1500.0f; }
-            else if (tempHash < 0.25f) { heroTemp = 3500.0f; }
-            else if (tempHash < 0.45f) { heroTemp = 4500.0f; }
-            else if (tempHash < 0.55f) { heroTemp = 5778.0f; }
-            else if (tempHash < 0.75f) { heroTemp = 7200.0f; }
-            else if (tempHash < 0.90f) { heroTemp = 9500.0f; }
-            else { heroTemp = 20000.0f; }
+            // ENFORCE REALISTIC SPECTRAL TYPE FOR MAGNITUDE (Main Sequence Strength)
+            // Brighter stars must be hotter (O, B, A) - dimmer stars can be cooler (G, K, M)
+            // At mainSequenceStrength=1.0: strict correlation
+            // At mainSequenceStrength=0.0: any spectral type at any magnitude
+            
+            // Calculate max realistic spectral type for this magnitude
+            // Mag -4: Type 0 (O), Mag -2: Type 1 (B), Mag 0: Type 2 (A), Mag 2: Type 3 (F)
+            // Mag 4: Type 4 (G), Mag 6: Type 5 (K), Mag 8+: Type 6 (M)
+            float maxRealisticSpectral = (heroMag + 4.0f) / 2.0f;
+            maxRealisticSpectral = fmaxf(0.0f, fminf(6.0f, maxRealisticSpectral));
+            
+            // ENFORCE REALISTIC SPECTRAL TYPE FOR MAGNITUDE (Main Sequence Strength)
+            // Bright stars must be hot (O, B, A) - directly set temperature based on magnitude
+            // At mainSequenceStrength=1.0: strict correlation
+            // At mainSequenceStrength=0.0: use randomized tempHash (wild west)
+            
+            // Base temperature from hash
+            float baseTemp;
+            if (tempHash < 0.10f) { baseTemp = 1500.0f; }
+            else if (tempHash < 0.25f) { baseTemp = 3500.0f; }
+            else if (tempHash < 0.45f) { baseTemp = 4500.0f; }
+            else if (tempHash < 0.55f) { baseTemp = 5778.0f; }
+            else if (tempHash < 0.75f) { baseTemp = 7200.0f; }
+            else if (tempHash < 0.90f) { baseTemp = 9500.0f; }
+            else { baseTemp = 20000.0f; }
+            
+            // Target temperature based on magnitude (for main sequence stars)
+            // Mag -2 -> B-type (~20000K), Mag 0 -> A-type (~9500K), Mag 2 -> F-type (~7200K), etc.
+            float targetTemp;
+            if (heroMag < -2.0f) { targetTemp = 25000.0f; }      // O-type
+            else if (heroMag < 0.0f) { targetTemp = 15000.0f; }  // B-type
+            else if (heroMag < 1.5f) { targetTemp = 8500.0f; }   // A-type
+            else if (heroMag < 3.0f) { targetTemp = 6500.0f; }   // F-type
+            else if (heroMag < 5.0f) { targetTemp = 5500.0f; }   // G-type
+            else if (heroMag < 7.0f) { targetTemp = 4000.0f; }   // K-type
+            else { targetTemp = 3000.0f; }                       // M-type
+            
+            // Blend based on mainSequenceStrength
+            heroTemp = baseTemp * (1.0f - mainSequenceStrength) + targetTemp * mainSequenceStrength;
+            
+            // If we're forcing a hot star (targetTemp > 8000K) with high mainSequenceStrength, 
+            // we might need supergiant luminosity
+            if (mainSequenceStrength > 0.9f && heroMag < -1.0f) {
+                forcedLumClass = LUM_SUPERGIANT;
+            } else if (mainSequenceStrength > 0.7f && heroMag < 1.0f && heroTemp < 6000.0f) {
+                // Would be impossible dwarf - force at least giant
+                forcedLumClass = LUM_GIANT;
+            }
+            
             
             // Apply variation and get blackbody color with saturation
             heroTemp = heroTemp * (0.9f + h.x * 0.2f);
             heroTemp = fmaxf(1000.0f, fminf(40000.0f, heroTemp));
+            
             float3 blackbody = BlackbodyRGB(heroTemp);
             heroColor = ApplySaturation(blackbody, colorSaturation);
         }
         
+        // Calculate brightness normalized for hero stars
+        float heroBrightnessNormalized = (heroMag - minMagnitude) / heroMagRange;
+        
+        // Calculate spectral type and distance
+        int32_t spectralType = TemperatureToSpectralType(heroTemp);
+        float distancePc = CalculateDistancePc(heroMag, spectralType, h.x, heroBrightnessNormalized, forcedLumClass, heroesGenerated);
+        
         // Add hero to catalog (at the end, we'll reverse to put heroes first)
         StarData hero;
+        hero.HipparcosID = nextProceduralID++;  // Sequential procedural ID
+        hero.DistancePc = distancePc;
+        hero.SpectralType = spectralType;
         hero.Flags = StarData::FLAG_IS_HERO;  // Mark as hero (can be named)
         hero.DirectionX = dir.x;
         hero.DirectionY = dir.y;
@@ -925,13 +1104,34 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
         float3 color;
         float temp;
         float colorSaturation = g_StarfieldState.colorSaturation;
+        LuminosityClass forcedLumClass = LUM_COUNT;  // Default (no override)
         
         // Red giants override (rare bright red stars)
-        if (h.x < redGiantRarity && normalizedBrightness < 0.3f) {
+        // Inverted logic: Frequency 0=none, 1=many (was Rarity 0=many, 1=none)
+        if (h.x < (1.0f - redGiantFrequency) && normalizedBrightness < 0.3f) {
             float3 baseColor = float3(1.0f, 0.5f, 0.3f);
             temp = 3500.0f;
             color = ApplySaturation(baseColor, colorSaturation);
         } else {
+            // ENFORCE REALISTIC SPECTRAL TYPE FOR MAGNITUDE (Main Sequence Strength)
+            // Brighter stars must be hotter (O, B, A) - dimmer stars can be cooler (G, K, M)
+            
+            // Calculate max realistic spectral type for this magnitude
+            float maxRealisticSpectral = (magnitude + 4.0f) / 2.0f;
+            maxRealisticSpectral = fmaxf(0.0f, fminf(6.0f, maxRealisticSpectral));
+            
+            // Clamp tempHash to realistic range based on mainSequenceStrength
+            float maxAllowedHash = maxRealisticSpectral / 6.0f;
+            float clampedTempHash = fminf(tempHash, maxAllowedHash);
+            bool wasClamped = tempHash > maxAllowedHash;
+            tempHash = tempHash * (1.0f - mainSequenceStrength) + clampedTempHash * mainSequenceStrength;
+            tempHash = fmaxf(0.0f, fminf(1.0f, tempHash));
+            
+            // If clamped and mainSequenceStrength is high, force giant/supergiant luminosity
+            if (wasClamped && mainSequenceStrength > 0.7f) {
+                forcedLumClass = (mainSequenceStrength > 0.9f && magnitude < 0.0f) ? LUM_SUPERGIANT : LUM_GIANT;
+            }
+            
             // Calculate temperature - symmetric distribution for PopulationBias effect
             // Young/blue (high bias) vs Old/red (low bias) - extremes at +/- 1.0
             if (tempHash < 0.10f) { temp = 1500.0f; }       // 10% - Deep red (M9 dwarf)
@@ -953,8 +1153,15 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
         float existenceProb = powf((magnitude - regularMinMag) / (maxMagnitude - regularMinMag), magnitudeBias);
         if (h.x > existenceProb) continue;
         
+        // Calculate spectral type and distance
+        int32_t starSpectralType = TemperatureToSpectralType(temp);
+        float starDistancePc = CalculateDistancePc(magnitude, starSpectralType, h.x, brightnessNormalized, forcedLumClass);
+        
         // Add regular star to catalog
         StarData star;
+        star.HipparcosID = nextProceduralID++;  // Sequential procedural ID
+        star.DistancePc = starDistancePc;
+        star.SpectralType = starSpectralType;
         star.Flags = 0;  // Not a hero
         star.DirectionX = dir.x;
         star.DirectionY = dir.y;
@@ -1033,6 +1240,11 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
         g_StarfieldState.catalogSize = finalCount;
         g_StarfieldState.catalogHeroCount = heroesGenerated;  // Store actual hero count
         g_StarfieldState.catalogSeed = seed;
+        
+        // Store CPU-side copy for save operations
+        g_StarfieldState.catalogDataCPU.resize(finalCount);
+        memcpy(g_StarfieldState.catalogDataCPU.data(), tempCatalog.data(), sizeof(StarData) * finalCount);
+        
         LogToFile("[Starfield] Catalog generated: %d stars (%d heroes, %d regular, %d attempts)", finalCount, heroesGenerated, regularGenerated, totalAttempts);
     } else {
         LogToFile("[Starfield] Failed to map catalog buffer");
@@ -1087,7 +1299,7 @@ void CR_StarfieldSetSettings(const StarfieldSettingsNative* settings)
     
     LogToFile("[Starfield] Settings updated: PopulationBias=%.2f, MainSequence=%.2f, ColorSat=%.2f",
         settings->PopulationBias, settings->MainSequenceStrength, settings->ColorSaturation);
-    g_StarfieldState.redGiantRarity = settings->RedGiantRarity;
+    g_StarfieldState.redGiantFrequency = settings->RedGiantFrequency;
     g_StarfieldState.galacticFlatness = settings->GalacticFlatness;
     g_StarfieldState.galacticDiscFalloff = settings->GalacticDiscFalloff;
     g_StarfieldState.bandCenterBoost = settings->BandCenterBoost;
@@ -1126,11 +1338,12 @@ void CR_StarfieldShutdown()
     if (g_StarfieldState.rasterState) { g_StarfieldState.rasterState->Release(); g_StarfieldState.rasterState = nullptr; }
     if (g_StarfieldState.pass1CB) { g_StarfieldState.pass1CB->Release(); g_StarfieldState.pass1CB = nullptr; }
         if (g_StarfieldState.starCatalogBuffer) { 
-        g_StarfieldState.starCatalogBuffer->Release(); 
-        g_StarfieldState.starCatalogBuffer = nullptr; 
-        g_StarfieldState.catalogSize = 0;
-        g_StarfieldState.catalogCapacity = 0;
-    }
+            g_StarfieldState.starCatalogBuffer->Release(); 
+            g_StarfieldState.starCatalogBuffer = nullptr; 
+            g_StarfieldState.catalogSize = 0;
+            g_StarfieldState.catalogCapacity = 0;
+        }
+        g_StarfieldState.catalogDataCPU.clear();
     if (g_StarfieldState.pass2CB) { g_StarfieldState.pass2CB->Release(); g_StarfieldState.pass2CB = nullptr; }
     if (g_StarfieldState.device) { g_StarfieldState.device->Release(); g_StarfieldState.device = nullptr; }
     
@@ -1152,20 +1365,8 @@ int CR_StarfieldGetCatalogData(StarData* outBuffer, int maxCount)
     
     int countToCopy = (maxCount < g_StarfieldState.catalogSize) ? maxCount : g_StarfieldState.catalogSize;
     
-    // Get immediate context for reading
-    ID3D11DeviceContext* context = nullptr;
-    g_StarfieldState.device->GetImmediateContext(&context);
-    if (!context) {
-        return 0;
-    }
-    
-    D3D11_MAPPED_SUBRESOURCE mapped;
-    if (SUCCEEDED(context->Map(g_StarfieldState.starCatalogBuffer, 0, D3D11_MAP_READ, 0, &mapped))) {
-        memcpy(outBuffer, mapped.pData, sizeof(StarData) * countToCopy);
-        context->Unmap(g_StarfieldState.starCatalogBuffer, 0);
-    }
-    
-    context->Release();
+    // Copy from CPU-side cache (GPU buffer is DYNAMIC with WRITE-only access, cannot be read)
+    memcpy(outBuffer, g_StarfieldState.catalogDataCPU.data(), sizeof(StarData) * countToCopy);
     return countToCopy;
 }
 
@@ -1219,6 +1420,11 @@ void CR_StarfieldLoadCatalog(const StarData* buffer, int count, int heroCount)
             
             g_StarfieldState.catalogSize = count;
             g_StarfieldState.catalogHeroCount = heroCount;
+            
+            // Store CPU-side copy for save operations
+            g_StarfieldState.catalogDataCPU.resize(count);
+            memcpy(g_StarfieldState.catalogDataCPU.data(), buffer, sizeof(StarData) * count);
+            
             LogToFile("[Starfield] Loaded catalog: %d stars, %d heroes", count, heroCount);
         }
         context->Release();

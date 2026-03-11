@@ -21,8 +21,8 @@ namespace CinematicShaders.Core
         public static int HeroCount { get; set; } = 128;  // 16-1024 hero stars
         public static float Clustering { get; set; } = 0.6f;
         public static float PopulationBias { get; set; } = 0.0f;
-        public static float MainSequenceStrength { get; set; } = 0.6f;
-        public static float RedGiantRarity { get; set; } = 0.02f;
+        public static float MainSequenceStrength { get; set; } = 0.8f;  // Mostly realistic
+        public static float RedGiantFrequency { get; set; } = 0.05f;
 
         // Galactic Structure
         public static float GalacticFlatness { get; set; } = 0.85f;
@@ -45,7 +45,7 @@ namespace CinematicShaders.Core
 
         // Catalog Generation
         public static int CatalogSeed { get; set; } = 12345;
-        public static int CatalogSize { get; set; } = 20000;
+        public static int CatalogSize { get; set; } = 50000;  // 50k stars - good balance
         
         // Active Catalog
         public static string ActiveCatalogPath { get; set; } = "";
@@ -61,7 +61,7 @@ namespace CinematicShaders.Core
         private static float _lastClustering = 0.6f;
         private static float _lastPopulationBias = 0.0f;
         private static float _lastMainSequenceStrength = 0.6f;
-        private static float _lastRedGiantRarity = 0.02f;
+        private static float _lastRedGiantFrequency = 0.05f;
         private static float _lastGalacticFlatness = 0.85f;
         private static float _lastGalacticDiscFalloff = 3.0f;
         private static float _lastBandCenterBoost = 0.0f;
@@ -104,7 +104,8 @@ namespace CinematicShaders.Core
                 Clustering = float.Parse(settingsNode.GetValue("Clustering") ?? "0.6");
                 PopulationBias = float.Parse(settingsNode.GetValue("PopulationBias") ?? "0.0");
                 MainSequenceStrength = float.Parse(settingsNode.GetValue("MainSequenceStrength") ?? "0.6");
-                RedGiantRarity = float.Parse(settingsNode.GetValue("RedGiantRarity") ?? "0.02");
+                // Note: Changed from RedGiantRarity (legacy) to RedGiantFrequency
+                RedGiantFrequency = float.Parse(settingsNode.GetValue("RedGiantFrequency") ?? "0.05");
                 GalacticFlatness = float.Parse(settingsNode.GetValue("GalacticFlatness") ?? "0.85");
                 GalacticDiscFalloff = float.Parse(settingsNode.GetValue("GalacticDiscFalloff") ?? "3.0");
                 BandCenterBoost = float.Parse(settingsNode.GetValue("BandCenterBoost") ?? "0.0");
@@ -150,7 +151,7 @@ namespace CinematicShaders.Core
                 !Mathf.Approximately(Clustering, _lastClustering) ||
                 !Mathf.Approximately(PopulationBias, _lastPopulationBias) ||
                 !Mathf.Approximately(MainSequenceStrength, _lastMainSequenceStrength) ||
-                !Mathf.Approximately(RedGiantRarity, _lastRedGiantRarity) ||
+                !Mathf.Approximately(RedGiantFrequency, _lastRedGiantFrequency) ||
                 !Mathf.Approximately(GalacticFlatness, _lastGalacticFlatness) ||
                 !Mathf.Approximately(GalacticDiscFalloff, _lastGalacticDiscFalloff) ||
                 !Mathf.Approximately(BandCenterBoost, _lastBandCenterBoost) ||
@@ -174,7 +175,7 @@ namespace CinematicShaders.Core
                 Clustering = Clustering,
                 PopulationBias = PopulationBias,
                 MainSequenceStrength = MainSequenceStrength,
-                RedGiantRarity = RedGiantRarity,
+                RedGiantFrequency = RedGiantFrequency,
                 GalacticFlatness = GalacticFlatness,
                 GalacticDiscFalloff = GalacticDiscFalloff,
                 BandCenterBoost = BandCenterBoost,
@@ -210,7 +211,7 @@ namespace CinematicShaders.Core
                     _lastClustering = Clustering;
                     _lastPopulationBias = PopulationBias;
                     _lastMainSequenceStrength = MainSequenceStrength;
-                    _lastRedGiantRarity = RedGiantRarity;
+                    _lastRedGiantFrequency = RedGiantFrequency;
                     _lastGalacticFlatness = GalacticFlatness;
                     _lastGalacticDiscFalloff = GalacticDiscFalloff;
                     _lastBandCenterBoost = BandCenterBoost;
@@ -267,7 +268,7 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("Clustering", Clustering);
                 settingsNode.AddValue("PopulationBias", PopulationBias);
                 settingsNode.AddValue("MainSequenceStrength", MainSequenceStrength);
-                settingsNode.AddValue("RedGiantRarity", RedGiantRarity);
+                settingsNode.AddValue("RedGiantFrequency", RedGiantFrequency);
                 settingsNode.AddValue("GalacticFlatness", GalacticFlatness);
                 settingsNode.AddValue("GalacticDiscFalloff", GalacticDiscFalloff);
                 settingsNode.AddValue("BandCenterBoost", BandCenterBoost);
