@@ -7,7 +7,7 @@ namespace CinematicShaders.UI
 {
     public class CinematicShadersWindow : MonoBehaviour
     {
-        private Rect windowRect = new Rect(300, 60, 320, 450);
+        private Rect windowRect = new Rect(300, 60, 320, 500);
         private bool isVisible = false;
         private bool stylesInitialized = false;
         private GUIStyle windowStyle;
@@ -62,7 +62,9 @@ namespace CinematicShaders.UI
                 windowRect,
                 DrawWindow,
                 CinematicShadersUIStrings.Common.WindowTitle,
-                windowStyle
+                windowStyle,
+                GUILayout.Width(320),
+                GUILayout.Height(500)
             );
         }
 
@@ -90,7 +92,8 @@ namespace CinematicShaders.UI
                     return;
                 }
 
-                GUILayout.BeginVertical();
+                // Begin vertical layout with fixed width to prevent content from stretching window
+                GUILayout.BeginVertical(GUILayout.Width(300));
 
                 DrawTabs();
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);

@@ -11,13 +11,13 @@ namespace CinematicShaders.Core
         // Rendering
         public static float Exposure { get; set; } = 3.0f;
         // BlurPixels is now ANGULAR SIGMA in radians (not screen pixels)
-        // Default 0.001 rad ≈ 3.4 arcminutes (was 1.0 pixel at 60° FOV on 1080p)
-        public static float BlurPixels { get; set; } = 0.001f;
+        // Default 0.00029 rad ≈ 1.0 arcminute (minimum for sharp stars)
+        public static float BlurPixels { get; set; } = 0.00029f;
 
         // Star Distribution
         public static float MinMagnitude { get; set; } = -1.0f;
         public static float MaxMagnitude { get; set; } = 10.0f;
-        public static float MagnitudeBias { get; set; } = 0.08f;
+        public static float MagnitudeBias { get; set; } = 0.25f;  // 0.25 closer to real HYG distribution (was 0.08)
         public static int HeroCount { get; set; } = 128;  // 16-1024 hero stars
         public static float Clustering { get; set; } = 0.6f;
         public static float PopulationBias { get; set; } = 0.0f;
@@ -37,8 +37,8 @@ namespace CinematicShaders.Core
         public static float BulgeNoiseStrength { get; set; } = 0.0f;
 
         // Beauty
-        public static float BloomThreshold { get; set; } = 0.8f;
-        public static float BloomIntensity { get; set; } = 2.0f;
+        public static float BloomThreshold { get; set; } = 0.08f;  // Display 0-10, default 8.0
+        public static float BloomIntensity { get; set; } = 0.5f;  // sqrt(0.5*2)=1.0 display
         
         // Color
         public static float ColorSaturation { get; set; } = 1.0f;  // 0.5=realistic, 1.0=natural, 2.0=vivid
@@ -56,7 +56,7 @@ namespace CinematicShaders.Core
         private static int _lastCatalogSize = 20000;
         private static float _lastMinMagnitude = -1.0f;
         private static float _lastMaxMagnitude = 10.0f;
-        private static float _lastMagnitudeBias = 0.08f;
+        private static float _lastMagnitudeBias = 0.25f;
         private static int _lastHeroCount = 128;
         private static float _lastClustering = 0.6f;
         private static float _lastPopulationBias = 0.0f;
@@ -99,7 +99,7 @@ namespace CinematicShaders.Core
                 BlurPixels = float.Parse(settingsNode.GetValue("BlurPixels") ?? "0.001");
                 MinMagnitude = float.Parse(settingsNode.GetValue("MinMagnitude") ?? "-1.0");
                 MaxMagnitude = float.Parse(settingsNode.GetValue("MaxMagnitude") ?? "10.0");
-                MagnitudeBias = float.Parse(settingsNode.GetValue("MagnitudeBias") ?? "0.08");
+                MagnitudeBias = float.Parse(settingsNode.GetValue("MagnitudeBias") ?? "0.25");
                 HeroCount = int.Parse(settingsNode.GetValue("HeroCount") ?? "128");
                 Clustering = float.Parse(settingsNode.GetValue("Clustering") ?? "0.6");
                 PopulationBias = float.Parse(settingsNode.GetValue("PopulationBias") ?? "0.0");
@@ -116,8 +116,8 @@ namespace CinematicShaders.Core
                 BulgeSoftness = float.Parse(settingsNode.GetValue("BulgeSoftness") ?? "0.0");
                 BulgeNoiseScale = float.Parse(settingsNode.GetValue("BulgeNoiseScale") ?? "20.0");
                 BulgeNoiseStrength = float.Parse(settingsNode.GetValue("BulgeNoiseStrength") ?? "0.0");
-                BloomThreshold = float.Parse(settingsNode.GetValue("BloomThreshold") ?? "0.8");
-                BloomIntensity = float.Parse(settingsNode.GetValue("BloomIntensity") ?? "2.0");
+                BloomThreshold = float.Parse(settingsNode.GetValue("BloomThreshold") ?? "0.08");
+                BloomIntensity = float.Parse(settingsNode.GetValue("BloomIntensity") ?? "0.5");
                 ColorSaturation = float.Parse(settingsNode.GetValue("ColorSaturation") ?? "1.0");
                 ActiveCatalogPath = settingsNode.GetValue("ActiveCatalogPath") ?? "";
                 IsReadOnly = bool.Parse(settingsNode.GetValue("IsReadOnly") ?? "false");

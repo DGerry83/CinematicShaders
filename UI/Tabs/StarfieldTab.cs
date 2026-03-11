@@ -142,10 +142,6 @@ namespace CinematicShaders.UI.Tabs
                     DrawSlider(CinematicShadersUIStrings.Starfield.BloomIntensityLabel, ref bloomIntensityDisplay, 0.0f, 2.0f, "F2");
                     _bloomIntensity = (bloomIntensityDisplay * bloomIntensityDisplay) * 0.5f;
                     GUILayout.Label(CinematicShadersUIStrings.Starfield.BloomIntensityTooltip, helpStyle);
-                    
-                    // Color saturation slider: 0.5-4.0 range
-                    DrawSlider(CinematicShadersUIStrings.Starfield.ColorSaturationLabel, ref _colorSaturation, 0.5f, 4.0f, "F2");
-                    GUILayout.Label(CinematicShadersUIStrings.Starfield.ColorSaturationTooltip, helpStyle);
                 }
 
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
@@ -178,6 +174,10 @@ namespace CinematicShaders.UI.Tabs
                     GUILayout.Label(CinematicShadersUIStrings.Starfield.MainSequenceTooltip, helpStyle);
                     
                     DrawSlider(CinematicShadersUIStrings.Starfield.RedGiantFrequencyLabel, ref _redGiantFrequency, 0.0f, 1.0f, "F2");
+                    
+                    // Color saturation affects generation (star colors), not post-processing
+                    DrawSlider(CinematicShadersUIStrings.Starfield.ColorSaturationLabel, ref _colorSaturation, 0.5f, 4.0f, "F2");
+                    GUILayout.Label(CinematicShadersUIStrings.Starfield.ColorSaturationTooltip, helpStyle);
                     
                     GUI.enabled = wasEnabled;
                 }
@@ -256,7 +256,12 @@ namespace CinematicShaders.UI.Tabs
             GUILayout.BeginHorizontal();
             GUILayout.Label(label, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.DEFAULT_WIDTH));
 
-            float newValue = GUILayout.HorizontalSlider(value, min, max, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.SLIDER_WIDTH));
+            // Use MinWidth/MaxWidth instead of fixed Width to prevent handle disappearing at extremes
+            float newValue = GUILayout.HorizontalSlider(value, min, max, 
+                GUILayout.MinWidth(80f), 
+                GUILayout.MaxWidth(140f),
+                GUILayout.ExpandWidth(true));
+            
             string displayText = value.ToString(format) + suffix;
             GUILayout.Label(displayText, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.VALUE_WIDTH));
 
@@ -407,6 +412,9 @@ namespace CinematicShaders.UI.Tabs
             // New button (generate fresh catalog)
             if (GUILayout.Button("New", GUILayout.Width(60)))
             {
+                // Reset all UI fields to StarfieldSettings defaults
+                ResetToDefaults();
+                
                 // Generate new random seed
                 _catalogSeed = new System.Random().Next(0, 99999);
                 StarfieldSettings.CatalogSeed = _catalogSeed;
@@ -547,6 +555,38 @@ namespace CinematicShaders.UI.Tabs
             StarfieldSettings.ColorSaturation = _colorSaturation;
 
             StarfieldSettings.PushSettingsToNative();
+        }
+
+        private void ResetToDefaults()
+        {
+            // Reset all UI fields to match StarfieldSettings default values
+            _exposure = 3.0f;
+            _blurPixels = 0.00029f;  // 1.0 arcminute (minimum)
+            
+            _minMagnitude = -1.0f;
+            _maxMagnitude = 10.0f;
+            _magnitudeBias = 0.25f;  // Closer to real HYG distribution
+            _heroCount = 128;
+            _clustering = 0.6f;
+            _populationBias = 0.0f;
+            _mainSequenceStrength = 0.8f;  // Default: mostly realistic
+            _redGiantFrequency = 0.05f;    // Default: ~5% red giants
+            
+            _galacticFlatness = 0.85f;
+            _galacticDiscFalloff = 3.0f;
+            _bandCenterBoost = 0.0f;
+            _bandCoreSharpness = 20.0f;
+            _bulgeIntensity = 5.0f;
+            _bulgeWidth = 0.5f;
+            _bulgeHeight = 0.5f;
+            _bulgeSoftness = 0.0f;
+            _bulgeNoiseScale = 20.0f;
+            _bulgeNoiseStrength = 0.0f;
+            
+            _bloomThreshold = 0.08f;  // Displays as 8.0
+            _bloomIntensity = 0.5f;  // Displays as 1.0
+            _colorSaturation = 1.0f;
+            _catalogSize = 50000;  // Default: 50k stars
         }
     }
 }
