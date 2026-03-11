@@ -364,16 +364,13 @@ FodyWeavers.xsd
 /NativePlugin/build/intermediate/CinematicShadersNative.exp
 /NativePlugin/build/intermediate
 /NativePlugin/build
-/GTAO Standalone Mod Extraction.md
 /structure.txt
 /dll_copy_config.txt
-/BOOTUP.md
 /HipparcosData/starnamereference.txt
 /StellariumReference
 /HipparcosData/verify_names.py
 /HipparcosData/generate_starnames_json.py
 /HipparcosData/check_json.py
 /HipparcosData/check_hyg_cols.py
-/UI_FINALIZATION.md
 /IMGUI.md
 /ReferenceNotes
