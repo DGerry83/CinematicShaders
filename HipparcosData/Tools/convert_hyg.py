@@ -2,17 +2,20 @@
 """
 Convert HYG v42 CSV to CinematicShaders binary star catalog format.
 
-Input: hyg_v42.csv (full catalog with all columns)
+Input: hyg_v42csv/hyg_v42.csv (CSV is in subdirectory relative to script)
 Output: hyg_v42.bin (full), hyg_v42_80k.bin, hyg_v42_50k.bin, hyg_v42_20k.bin
+
+Run from HipparcosData root: python Tools/convert_hyg.py
 
 CSV columns expected: id,hip,hd,hr,gl,bf,proper,ra,dec,dist,pmra,pmdec,rv,mag,absmag,spect,ci,x,y,z,vx,vy,vz,rarad,decrad,pmrarad,pmdecrad,bayer,flam,con,comp,comp_primary,base,lum,var,var_min,var_max
 
-Uses only: id (stored but not used), x, y, z, mag, ci, dist, proper
+Uses only: hip, x, y, z, mag, ci, dist, proper
 """
 import csv
 import struct
 import os
 import math
+import argparse
 from datetime import datetime
 
 # Constants
@@ -147,14 +150,23 @@ def parse_star(row):
         # Normalize direction
         dx, dy, dz = normalize_direction(x, y, z)
         
-        # Get Hipparcos ID (column 'id' or 'hip')
+        # Rotate to align with procedural coordinate system (galactic plane orientation fix)
+        # Step 1: Rotate +90° around Z axis: (x, y, z) -> (-y, x, z)
+        # This transforms the real sky galactic plane to match the shader's expected orientation
+        dx, dy, dz = -dy, dx, dz
+        
+        # Step 2: Apply Earth's axial tilt (23.5°) relative to solar system
+        # Kerbin has 0° tilt, so we rotate equatorial coordinates to align
+        # Rotate -23.5° around X axis: Earth's pole -> Solar system pole
+        tilt = -0.4102  # -23.5 degrees in radians
+        cos_tilt = 0.9171  # cos(-23.5°)
+        sin_tilt = -0.3987  # sin(-23.5°)
+        dy, dz = dy * cos_tilt - dz * sin_tilt, dy * sin_tilt + dz * cos_tilt
+        
+        # Get Hipparcos ID (column 'hip' - the actual Hipparcos catalog number)
+        # NOTE: Do NOT use 'id' column - that's just the CSV row index
         hip_id = 0
-        if 'id' in row and row['id']:
-            try:
-                hip_id = int(row['id'])
-            except ValueError:
-                hip_id = 0
-        elif 'hip' in row and row['hip']:
+        if 'hip' in row and row['hip']:
             try:
                 hip_id = int(row['hip'])
             except ValueError:
@@ -184,7 +196,7 @@ def parse_star(row):
         # Missing required field or bad number
         return None
 
-def write_catalog(filename, stars, display_name, read_only=True):
+def write_catalog(filename, stars, display_name, hero_count=0, read_only=True):
     """
     Write stars to binary catalog file.
     
@@ -193,7 +205,7 @@ def write_catalog(filename, stars, display_name, read_only=True):
     - Offset 4:   Version (2 bytes) - 1
     - Offset 6:   Flags (2 bytes) - Bit 0=ReadOnly
     - Offset 8:   StarCount (4 bytes)
-    - Offset 12:  HeroCount (4 bytes) - 0 for real sky
+    - Offset 12:  HeroCount (4 bytes) - count of stars with IsHero flag
     - Offset 16:  GenerationSeed (4 bytes) - 42 for real sky
     - Offset 20:  GenParams (32 bytes) - 8 floats, all 0 for real sky
     - Offset 52:  DisplayName (64 bytes) - UTF-8, null-padded
@@ -225,8 +237,8 @@ def write_catalog(filename, stars, display_name, read_only=True):
         # Star count (4 bytes)
         f.write(struct.pack('<i', len(stars)))
         
-        # Hero count (4 bytes) - 0 for real sky
-        f.write(struct.pack('<i', 0))
+        # Hero count (4 bytes) - actual count of stars with IsHero flag
+        f.write(struct.pack('<i', hero_count))
         
         # Generation seed (4 bytes) - 42 for real sky
         f.write(struct.pack('<i', 42))
@@ -258,17 +270,27 @@ def write_catalog(filename, stars, display_name, read_only=True):
     print(f"  File size: {file_size} bytes (expected: {expected_size})")
 
 def main():
-    # Try current directory first, then subdirectory
-    csv_path = 'hyg_v42.csv'
-    if not os.path.exists(csv_path):
-        csv_path = os.path.join('hyg_v42csv', 'hyg_v42.csv')
+    parser = argparse.ArgumentParser(description='Convert HYG v42 CSV to binary star catalog format')
+    parser.add_argument('--output', '-o', default='.', 
+                        help='Output directory for .bin files (default: current directory)')
+    args = parser.parse_args()
+    
+    # CSV is always in hyg_v42csv/ subdirectory relative to script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    csv_path = os.path.join(script_dir, '..', 'hyg_v42csv', 'hyg_v42.csv')
     
     if not os.path.exists(csv_path):
         print(f"Error: {csv_path} not found")
         print("Please download HYG v42 from https://github.com/astronexus/HYG-Database")
         return 1
     
-    print("Reading HYG catalog...")
+    # Ensure output directory exists
+    os.makedirs(args.output, exist_ok=True)
+    
+    print(f"Reading HYG catalog from: {csv_path}")
+    print(f"Output directory: {args.output}")
+    print()
+    
     stars = []
     skipped_bad_dist = 0
     skipped_sol = 0
@@ -294,11 +316,11 @@ def main():
             # Full parse
             star = parse_star(row)
             if star:
-                stars.append((star, star[7]))  # (data, mag for sorting) - mag is now at index 7
+                stars.append((star, star[7]))  # (data, mag for sorting)
             else:
                 skipped_bad_pos += 1
     
-    print(f"\nProcessing complete:")
+    print(f"Processing complete:")
     print(f"  Valid stars: {len(stars)}")
     print(f"  Skipped (Sol): {skipped_sol}")
     print(f"  Skipped (bad parallax): {skipped_bad_dist}")
@@ -314,23 +336,53 @@ def main():
     # Extract just the star data
     all_stars = [s[0] for s in stars]
     
+    # Count heroes
+    hero_count = sum(1 for star in all_stars if star[3] & FLAG_IS_HERO)
+    print(f"  Heroes (named stars): {hero_count}")
+    
     # Create output files
     print("\nWriting catalog files...")
     
     # Full catalog
-    write_catalog('hyg_v42.bin', all_stars, 'HYG v42 Full Catalog (Real Sky)', read_only=True)
+    output_path = os.path.join(args.output, 'hyg_v42.bin')
+    write_catalog(output_path, all_stars, 'HYG v42 Full Catalog (Real Sky)', hero_count, read_only=True)
     
     # 80k brightest
     if len(all_stars) >= 80000:
-        write_catalog('hyg_v42_80k.bin', all_stars[:80000], 'HYG v42 Brightest 80k', read_only=True)
+        subset_80k = all_stars[:80000]
+        hero_80k = sum(1 for star in subset_80k if star[3] & FLAG_IS_HERO)
+        output_path = os.path.join(args.output, 'hyg_v42_80k.bin')
+        write_catalog(output_path, subset_80k, 'HYG v42 Brightest 80k', hero_80k, read_only=True)
     
     # 50k brightest
     if len(all_stars) >= 50000:
-        write_catalog('hyg_v42_50k.bin', all_stars[:50000], 'HYG v42 Brightest 50k', read_only=True)
+        subset_50k = all_stars[:50000]
+        hero_50k = sum(1 for star in subset_50k if star[3] & FLAG_IS_HERO)
+        output_path = os.path.join(args.output, 'hyg_v42_50k.bin')
+        write_catalog(output_path, subset_50k, 'HYG v42 Brightest 50k', hero_50k, read_only=True)
     
     # 20k brightest
     if len(all_stars) >= 20000:
-        write_catalog('hyg_v42_20k.bin', all_stars[:20000], 'HYG v42 Brightest 20k', read_only=True)
+        subset_20k = all_stars[:20000]
+        hero_20k = sum(1 for star in subset_20k if star[3] & FLAG_IS_HERO)
+        output_path = os.path.join(args.output, 'hyg_v42_20k.bin')
+        write_catalog(output_path, subset_20k, 'HYG v42 Brightest 20k', hero_20k, read_only=True)
+    
+    # DEBUG: Polaris highlight version
+    polaris_stars = []
+    for star in all_stars:
+        hip_id, dist_pc, spectral_enum, flags, dx, dy, dz, mag, r, g, b, temp = star
+        if hip_id == 11767:  # Polaris
+            polaris_stars.append((hip_id, dist_pc, spectral_enum, flags | FLAG_IS_HERO, dx, dy, dz, -2.0, 0.0, 0.2, 1.0, temp))
+            print(f"  >>> Polaris (HIP 11767) highlighted: mag=-2.0, color=blue")
+        else:
+            polaris_stars.append(star)
+    
+    # Re-sort to put bright Polaris at the beginning
+    polaris_stars.sort(key=lambda x: x[7])
+    
+    output_path = os.path.join(args.output, 'hyg_v42_polaris_debug.bin')
+    write_catalog(output_path, polaris_stars, 'HYG v42 DEBUG - Polaris Blue', hero_count, read_only=True)
     
     print("\n" + "="*60)
     print("Magnitude ranges:")

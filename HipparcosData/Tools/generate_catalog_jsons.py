@@ -3,12 +3,16 @@
 Generate matching JSON files for each star catalog bin.
 Each JSON contains only the named stars and constellation lines relevant to that specific bin.
 
+Run from HipparcosData root: python Tools/generate_catalog_jsons.py
+
 Output: hyg_v42.json, hyg_v42_80k.json, hyg_v42_50k.json, hyg_v42_20k.json
 """
 import csv
 import json
+import os
 import re
 import struct
+import argparse
 from datetime import datetime
 
 # Constants
@@ -80,7 +84,10 @@ def format_full_designation(bayer, flamsteed, constellation):
 
 def load_stellarium_constellations():
     """Load constellation line data from Stellarium."""
-    with open('../StellariumReference/modern_st_index.json', 'r', encoding='utf-8') as f:
+    # StellariumReference is at same level as HipparcosData (parent of Tools)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    ref_path = os.path.join(script_dir, '..', '..', 'StellariumReference', 'modern_st_index.json')
+    with open(ref_path, 'r', encoding='utf-8') as f:
         stellarium = json.load(f)
     
     constellations = {}
@@ -226,22 +233,38 @@ def generate_catalog_json(bin_file, csv_path, constellations, output_name):
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
     
-    import os
-    print(f"  Written: {output_file} ({os.path.getsize(output_file)} bytes)")
+    print(f"  Written: {os.path.basename(output_file)} ({os.path.getsize(output_file)} bytes)")
     return True
 
 def main():
-    csv_path = 'hyg_v42.csv'
-    if not os.path.exists(csv_path):
-        csv_path = os.path.join('hyg_v42csv', 'hyg_v42.csv')
+    parser = argparse.ArgumentParser(description='Generate JSON metadata files for star catalogs')
+    parser.add_argument('--input', '-i', default='.',
+                        help='Input directory containing .bin files (default: current directory)')
+    parser.add_argument('--output', '-o', default='.',
+                        help='Output directory for .json files (default: current directory)')
+    args = parser.parse_args()
+    
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # CSV is always in hyg_v42csv/ subdirectory
+    csv_path = os.path.join(script_dir, '..', 'hyg_v42csv', 'hyg_v42.csv')
     
     if not os.path.exists(csv_path):
         print(f"Error: HYG CSV not found at {csv_path}")
         return 1
     
+    # Ensure output directory exists
+    os.makedirs(args.output, exist_ok=True)
+    
+    print(f"CSV path: {csv_path}")
+    print(f"Input directory: {args.input}")
+    print(f"Output directory: {args.output}")
+    print()
+    
     print("Loading constellation data...")
     constellations = load_stellarium_constellations()
     print(f"Loaded {len(constellations)} constellations")
+    print()
     
     # Generate JSON for each bin file
     catalogs = [
@@ -249,21 +272,22 @@ def main():
         ('hyg_v42_80k.bin', 'hyg_v42_80k'),
         ('hyg_v42_50k.bin', 'hyg_v42_50k'),
         ('hyg_v42_20k.bin', 'hyg_v42_20k'),
+        ('hyg_v42_polaris_debug.bin', 'hyg_v42_polaris_debug'),
     ]
     
     for bin_file, output_name in catalogs:
-        if os.path.exists(bin_file):
-            generate_catalog_json(bin_file, csv_path, constellations, output_name)
+        bin_path = os.path.join(args.input, bin_file)
+        if os.path.exists(bin_path):
+            generate_catalog_json(bin_path, csv_path, constellations, 
+                                  os.path.join(args.output, output_name))
         else:
-            print(f"\nSkipping {bin_file} (not found)")
+            print(f"\nSkipping {bin_file} (not found in {args.input})")
     
     print("\n" + "="*60)
     print("JSON generation complete!")
     print("Each .bin file now has a matching .json file")
-    print("For generated catalogs, create an empty JSON or copy the template")
     
     return 0
 
 if __name__ == '__main__':
-    import os
     exit(main())

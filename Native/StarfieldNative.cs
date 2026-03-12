@@ -100,6 +100,11 @@ namespace CinematicShaders.Native
             public float BloomThreshold;
             public float BloomIntensity;
             public float ColorSaturation;  // 0.0-2.0: 0.5=realistic, 1.0=natural, 2.0=vivid
+            
+            // Galactic plane orientation
+            public float GalacticPlaneNormalX;
+            public float GalacticPlaneNormalY;
+            public float GalacticPlaneNormalZ;
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 48)]
@@ -181,6 +186,60 @@ namespace CinematicShaders.Native
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern int CR_StarfieldGetHeroCount();
 
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern byte CR_StarfieldIsDeviceReady();
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern byte CR_StarfieldCatalogNeedsReload();
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_StarfieldInvalidateResources();
+
+        /// <summary>
+        /// Check if the D3D11 device is initialized and ready
+        /// </summary>
+        public static bool IsDeviceReady()
+        {
+            try
+            {
+                return CR_StarfieldIsDeviceReady() != 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Check if catalog needs reload (device was acquired but catalog empty). Resets flag after reading.
+        /// </summary>
+        public static bool CatalogNeedsReload()
+        {
+            try
+            {
+                return CR_StarfieldCatalogNeedsReload() != 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Invalidate GPU resources (call on scene change to force recreation, preserves catalog)
+        /// </summary>
+        public static void InvalidateResources()
+        {
+            try
+            {
+                CR_StarfieldInvalidateResources();
+            }
+            catch
+            {
+                // Ignore if DLL not loaded
+            }
+        }
+
         /// <summary>
         /// Get current catalog data from native plugin
         /// </summary>
@@ -236,5 +295,7 @@ namespace CinematicShaders.Native
         {
             return CR_StarfieldGetHeroCount();
         }
+
+        
     }
 }

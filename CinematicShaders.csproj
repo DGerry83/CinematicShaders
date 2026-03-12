@@ -47,6 +47,7 @@
     <Compile Include="Core\GTAOSettings.cs" />
     <Compile Include="Core\StarCatalogInfo.cs" />
     <Compile Include="Core\StarCatalogManager.cs" />
+    <Compile Include="Core\StarfieldPerSaveSettings.cs" />
     <Compile Include="Core\StarfieldSettings.cs" />
     <Compile Include="Native\GTAONative.cs" />
     <Compile Include="Native\StarfieldNative.cs" />

@@ -45,15 +45,9 @@ namespace CinematicShaders.Shaders.Starfield
 
             Cleanup();
 
-            try
-            {
-                if (StarfieldNative.IsLoaded)
-                    StarfieldNative.CR_StarfieldShutdown();
-            }
-            catch (System.Exception)
-            {
-                /* DLL already unloaded, ignore */
-            }
+            // Invalidate native resources so they get recreated on next init
+            // This preserves the catalog while ensuring fresh GPU resources
+            StarfieldNative.InvalidateResources();
         }
 
         private void Initialize()
@@ -68,8 +62,8 @@ namespace CinematicShaders.Shaders.Starfield
 
             if (_scaledSpaceCamera == null)
             {
-                Debug.Log("[StarfieldCompositor] Galaxy Camera not found - no sky to draw");
-                enabled = false;
+                Debug.Log("[StarfieldCompositor] Galaxy Camera not found - will retry next frame");
+                // Don't disable immediately - let Update() retry
                 return;
             }
 
@@ -89,12 +83,22 @@ namespace CinematicShaders.Shaders.Starfield
 
             _initialized = true;
 
-            // Ensure catalog is generated if settings indicate we should have one
+            // Ensure catalog is loaded/generated if settings indicate we should have one
             if (StarfieldSettings.EnableStarfield && StarfieldNative.IsLoaded)
             {
-                // If catalog hasn't been generated yet for this scene, trigger it
+                // Check if native plugin has a catalog loaded
+                int nativeCatalogSize = StarfieldNative.GetCatalogSize();
+                if (nativeCatalogSize == 0)
+                {
+                    // Native plugin has no catalog - force reload
+                    Debug.Log("[StarfieldCompositor] No catalog in native plugin, forcing reload...");
+                    StarfieldSettings.InvalidateCatalogForReload();
+                }
+                // Push settings (this will load/generate catalog if needed)
                 StarfieldSettings.PushSettingsToNative();
             }
+            
+            Debug.Log("[StarfieldCompositor] Initialization complete");
         }
 
         private void Cleanup()
@@ -121,6 +125,8 @@ namespace CinematicShaders.Shaders.Starfield
 
             if (!_initialized || !StarfieldNative.IsLoaded || _scaledSpaceCamera == null)
                 return;
+            
+
 
             float verticalFOV = _scaledSpaceCamera.fieldOfView * Mathf.Deg2Rad;
 
@@ -182,6 +188,14 @@ namespace CinematicShaders.Shaders.Starfield
                 _cachedFOV = _scaledSpaceCamera.fieldOfView;
                 _cachedAspect = _scaledSpaceCamera.aspect;
                 // Matrices will be updated in next OnPreRender
+            }
+            
+            // Check if native plugin needs catalog reload (device acquired late)
+            if (StarfieldNative.CatalogNeedsReload())
+            {
+                Debug.Log("[StarfieldCompositor] Native plugin signaled catalog reload needed");
+                StarfieldSettings.InvalidateCatalogForReload();
+                StarfieldSettings.PushSettingsToNative();
             }
         }
 

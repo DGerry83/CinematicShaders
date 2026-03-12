@@ -112,6 +112,15 @@ __declspec(dllexport) void CR_StarfieldLoadCatalog(const StarData* buffer, int c
 __declspec(dllexport) int CR_StarfieldGetCatalogSize();
 __declspec(dllexport) int CR_StarfieldGetHeroCount();
 
+// Check if D3D11 device is initialized and ready
+__declspec(dllexport) unsigned char CR_StarfieldIsDeviceReady();
+
+// Check if catalog needs reload (device was acquired but catalog empty). Resets flag after reading.
+__declspec(dllexport) unsigned char CR_StarfieldCatalogNeedsReload();
+
+// Invalidate GPU resources (call on scene change to force recreation, preserves catalog)
+__declspec(dllexport) void CR_StarfieldInvalidateResources();
+
 #ifdef __cplusplus
 }
 #endif

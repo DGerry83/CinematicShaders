@@ -74,6 +74,7 @@ namespace CinematicShaders.Core
         private static float _lastBulgeNoiseStrength = 0.0f;
 
         private static bool _catalogNeedsRegeneration = true;
+        private static bool _catalogNeedsReload = false;  // Set when device reinitializes or scene changes
         private static float _lastCatalogGenerationTime = -1f;
         private const float CATALOG_GENERATION_DEBOUNCE = 0.3f; // 300ms
 
@@ -193,13 +194,62 @@ namespace CinematicShaders.Core
 
             StarfieldNative.CR_StarfieldSetSettings(ref nativeSettings);
 
-            // Regenerate catalog if needed (with debounce) - but NOT if read-only
+            // Check if we need to load an existing catalog
+            bool catalogPathExists = !string.IsNullOrEmpty(ActiveCatalogPath) && System.IO.File.Exists(ActiveCatalogPath);
+            bool shouldLoadCatalog = _catalogNeedsReload && EnableStarfield && catalogPathExists;
+            
+            UnityEngine.Debug.Log($"[StarfieldSettings] Catalog check: needsReload={_catalogNeedsReload}, enabled={EnableStarfield}, pathExists={catalogPathExists}, path={ActiveCatalogPath}");
+
+            // Check if we need to generate a new catalog
             float currentTime = Time.time;
-            if (catalogParamsChanged && EnableStarfield && !IsReadOnly &&
-                (currentTime - _lastCatalogGenerationTime > CATALOG_GENERATION_DEBOUNCE || _lastCatalogGenerationTime < 0))
+            bool shouldGenerateCatalog = catalogParamsChanged && EnableStarfield && !IsReadOnly &&
+                (currentTime - _lastCatalogGenerationTime > CATALOG_GENERATION_DEBOUNCE || _lastCatalogGenerationTime < 0);
+
+            if (shouldLoadCatalog)
+            {
+                // Load existing catalog instead of generating
+                try
+                {
+                    UnityEngine.Debug.Log($"[StarfieldSettings] Loading catalog: {ActiveCatalogPath}");
+                    StarCatalogManager.LoadCatalog(ActiveCatalogPath);
+                    _catalogNeedsReload = false;
+                    
+                    // Update tracking vars to match loaded catalog
+                    _lastCatalogSeed = CatalogSeed;
+                    _lastCatalogSize = CatalogSize;
+                    _lastMinMagnitude = MinMagnitude;
+                    _lastMaxMagnitude = MaxMagnitude;
+                    _lastMagnitudeBias = MagnitudeBias;
+                    _lastHeroCount = HeroCount;
+                    _lastClustering = Clustering;
+                    _lastPopulationBias = PopulationBias;
+                    _lastMainSequenceStrength = MainSequenceStrength;
+                    _lastRedGiantFrequency = RedGiantFrequency;
+                    _lastGalacticFlatness = GalacticFlatness;
+                    _lastGalacticDiscFalloff = GalacticDiscFalloff;
+                    _lastBandCenterBoost = BandCenterBoost;
+                    _lastBandCoreSharpness = BandCoreSharpness;
+                    _lastBulgeIntensity = BulgeIntensity;
+                    _lastBulgeWidth = BulgeWidth;
+                    _lastBulgeHeight = BulgeHeight;
+                    _lastBulgeSoftness = BulgeSoftness;
+                    _lastBulgeNoiseScale = BulgeNoiseScale;
+                    _lastBulgeNoiseStrength = BulgeNoiseStrength;
+                    _catalogNeedsRegeneration = false;
+                }
+                catch (System.Exception ex)
+                {
+                    UnityEngine.Debug.LogError($"[StarfieldSettings] Failed to load catalog: {ex}");
+                    // Fall through to generation if loading fails
+                    shouldGenerateCatalog = true;
+                }
+            }
+
+            if (shouldGenerateCatalog)
             {
                 try
                 {
+                    UnityEngine.Debug.Log($"[StarfieldSettings] Generating new catalog: seed={CatalogSeed}, size={CatalogSize}");
                     StarfieldNative.CR_StarfieldGenerateCatalog(CatalogSeed, CatalogSize);
                     _lastCatalogGenerationTime = currentTime;
                     _lastCatalogSeed = CatalogSeed;
@@ -223,6 +273,7 @@ namespace CinematicShaders.Core
                     _lastBulgeNoiseScale = BulgeNoiseScale;
                     _lastBulgeNoiseStrength = BulgeNoiseStrength;
                     _catalogNeedsRegeneration = false;
+                    _catalogNeedsReload = false;
                     
                     // Auto-save to current catalog file if one is active
                     if (!string.IsNullOrEmpty(ActiveCatalogPath) && !IsReadOnly)
@@ -240,6 +291,12 @@ namespace CinematicShaders.Core
         public static void InvalidateCatalog()
         {
             _catalogNeedsRegeneration = true;
+        }
+        
+        public static void InvalidateCatalogForReload()
+        {
+            // Call this when device reinitializes or scene changes - triggers reload, not regeneration
+            _catalogNeedsReload = true;
         }
 
         public static void Save()

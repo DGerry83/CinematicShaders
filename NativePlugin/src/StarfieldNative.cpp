@@ -58,7 +58,7 @@ static struct {
     float galacticDiscFalloff = 3.0f;
     float bandCenterBoost = 0.0f;
     float bandCoreSharpness = 20.0f;
-    float3 galacticPlaneNormal = float3(0.0f, 1.0f, 0.0f);
+    float3 galacticPlaneNormal = float3(0.0f, 1.0f, 0.0f);  // Y-axis: galactic plane is X-Z
     float bulgeIntensity = 5.0f;
     float3 bulgeCenterDirection = float3(1.0f, 0.0f, 0.0f);
     float bulgeWidth = 0.5f;
@@ -80,6 +80,9 @@ static struct {
     
     // CPU-side copy for save operations (GPU buffer is DYNAMIC with WRITE-only access)
     std::vector<StarData> catalogDataCPU;
+    
+    // Flag set when device is acquired but catalog is empty - signals C# to reload
+    bool catalogNeedsReload = false;
     
     std::mutex stateMutex;
 } g_StarfieldState;
@@ -820,7 +823,7 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     
     if (!g_StarfieldState.device) {
-        LogToFile("[Starfield] Cannot generate catalog - device not initialized");
+        // Silent fail - device not ready yet, will retry via CatalogNeedsReload flag
         return;
     }
     
@@ -1275,6 +1278,12 @@ void CR_StarfieldSetCameraMatrices(ID3D11Texture2D* deviceSourceTexture, int wid
             g_StarfieldState.device = device;
             g_StarfieldState.device->AddRef();
             EnsureStarfieldResources(device, width, height);
+            
+            // If we just acquired device and catalog is empty, signal that we need a reload
+            if (g_StarfieldState.catalogSize == 0) {
+                g_StarfieldState.catalogNeedsReload = true;
+                LogToFile("[Starfield] Device acquired with empty catalog, flagging for reload");
+            }
         }
     }
 }
@@ -1296,9 +1305,6 @@ void CR_StarfieldSetSettings(const StarfieldSettingsNative* settings)
     g_StarfieldState.clustering = settings->Clustering;
     g_StarfieldState.populationBias = settings->PopulationBias;
     g_StarfieldState.mainSequenceStrength = settings->MainSequenceStrength;
-    
-    LogToFile("[Starfield] Settings updated: PopulationBias=%.2f, MainSequence=%.2f, ColorSat=%.2f",
-        settings->PopulationBias, settings->MainSequenceStrength, settings->ColorSaturation);
     g_StarfieldState.redGiantFrequency = settings->RedGiantFrequency;
     g_StarfieldState.galacticFlatness = settings->GalacticFlatness;
     g_StarfieldState.galacticDiscFalloff = settings->GalacticDiscFalloff;
@@ -1350,6 +1356,40 @@ void CR_StarfieldShutdown()
     g_StarfieldState.initialized = false;
 }
 
+extern "C" __declspec(dllexport)
+unsigned char CR_StarfieldIsDeviceReady()
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    return (g_StarfieldState.device != nullptr && g_StarfieldState.initialized) ? 1 : 0;
+}
+
+extern "C" __declspec(dllexport)
+unsigned char CR_StarfieldCatalogNeedsReload()
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    if (g_StarfieldState.catalogNeedsReload) {
+        g_StarfieldState.catalogNeedsReload = false;  // Reset after reading
+        return 1;
+    }
+    return 0;
+}
+
+extern "C" __declspec(dllexport)
+void CR_StarfieldInvalidateResources()
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
+    // Release HDR texture resources (they'll be recreated on next render)
+    if (g_StarfieldState.hdrSRV) { g_StarfieldState.hdrSRV->Release(); g_StarfieldState.hdrSRV = nullptr; }
+    if (g_StarfieldState.hdrUAV) { g_StarfieldState.hdrUAV->Release(); g_StarfieldState.hdrUAV = nullptr; }
+    if (g_StarfieldState.hdrTexture) { g_StarfieldState.hdrTexture->Release(); g_StarfieldState.hdrTexture = nullptr; }
+    
+    // Reset initialized flag so resources get recreated
+    g_StarfieldState.initialized = false;
+    
+    LogToFile("[Starfield] Resources invalidated for recreation");
+}
+
 // ============================================================================
 // CATALOG SAVE/LOAD EXPORTS
 // ============================================================================
@@ -1376,7 +1416,7 @@ void CR_StarfieldLoadCatalog(const StarData* buffer, int count, int heroCount)
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     
     if (!g_StarfieldState.device || count <= 0 || !buffer) {
-        LogToFile("[Starfield] Cannot load catalog - invalid params or no device");
+        // Silent fail - device not ready yet, will retry via CatalogNeedsReload flag
         return;
     }
     
