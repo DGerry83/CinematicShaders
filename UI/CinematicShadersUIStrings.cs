@@ -1,21 +1,31 @@
-﻿namespace CinematicShaders.UI
+namespace CinematicShaders.UI
 {
     public static class CinematicShadersUIStrings
     {
+        // ============================================================================
+        // COMMON - Shared symbols and UI elements
+        // ============================================================================
         public static class Common
         {
             public const string WindowTitle = "Cinematic Shaders";
             public const string Initializing = "Initializing...";
+            
+            // Symbols
+            public const string CollapsedPrefix = "▶ ";
+            public const string DropdownArrow = " ▼";
         }
 
+        // ============================================================================
+        // GTAO
+        // ============================================================================
         public static class GTAO
         {
+            public const string TabName = "GTAO";
             public const string SamplingSection = "SAMPLING";
             public const string ShadowStrengthSection = "SHADOW STRENGTH";
             public const string FilteringSection = "FILTERING";
             public const string DistanceFadeSection = "DISTANCE FADE";
             public const string AdvancedSection = "ADVANCED";
-            public const string TabName = "GTAO";
             public const string QualityLabel = "Quality";
             public const string RadiusLabel = "Radius";
             public const string RadiusTooltip = "How far to search for occluders (larger = more distant shadows)";
@@ -48,39 +58,82 @@
             public const string NativeLoadError = "Native plugin failed to load. Check KSP.log for details.";
         }
 
+        // ============================================================================
+        // STARFIELDTAB - Organized by UI layout (top to bottom)
+        // ============================================================================
         public static class Starfield
         {
+            // ------------------------------------------------------------------------
+            // GENERAL
+            // ------------------------------------------------------------------------
             public const string TabName = "Starfield";
             public const string EnableToggle = " Enable Procedural Starfield";
+            public const string NativeLoadError = "Native plugin failed to load. Check KSP.log for details.";
+            public const string Initializing = "Initializing starfield...";
 
+            // ------------------------------------------------------------------------
+            // SECTION HEADERS (in order of appearance)
+            // ------------------------------------------------------------------------
             public const string RenderingSection = "RENDERING";
-            public const string ExposureLabel = "Exposure";
-            public const string ExposureTooltip = "Logarithmic exposure in EV stops (pow(2.0, exposure))";
-            public const string BlurPixelsLabel = "Star Softness";
-            public const string BlurPixelsTooltip = "Angular size of star blur in arcminutes (1-2 for sharp stars, higher values look out of focus)";
-
             public const string MainGenerationSection = "MAIN GENERATION";
             public const string AdvancedGenerationSection = "ADVANCED GENERATION";
+            public const string GalacticStructureSection = "GALACTIC STRUCTURE";
+            public const string StarCatalogSection = "Star Catalog";
+
+            // ------------------------------------------------------------------------
+            // CATALOG MANAGEMENT UI (in order of appearance)
+            // ------------------------------------------------------------------------
+            public const string ActiveCatalogLabel = "Active Catalog";
+            public const string ActiveCatalogNone = "(None)";
+            public const string SaveCatalogAsTitle = "Save Catalog As:";
+            public const string FilenameLabel = "Filename:";
+            public const string DisplayNameLabel = "Display Name:";
+            public const string DefaultCatalogFileName = "MyStarfield";
+            public const string DefaultCatalogDisplayName = "My Starfield";
             
+            // Buttons
+            public const string CancelButton = "Cancel";
+            public const string UnlockButton = "I Understand - Unlock";
+            public const string SaveButton = "Save";
+            public const string NewButton = "New";
+            public const string SaveAsButton = "Save As...";
+            public const string OpenFolderButton = "Open Folder";
+            public const string DeleteCatalogButton = "Delete Catalog";
+
+            // ------------------------------------------------------------------------
+            // READ-ONLY PROTECTION UI
+            // ------------------------------------------------------------------------
+            public const string ReadOnlyLockMessage = "Generation parameters locked (Read-Only mode)";
+            public const string ReadOnlyToggleOn = "Read-Only Protection <color=#33FF33>ON</color>";
+            public const string ReadOnlyToggleOff = "Read-Only Protection <color=#FF3333>OFF</color>";
+            public const string ReadOnlyWarningTitle = "WARNING: Disabling Read-Only Protection";
+            public const string ReadOnlyWarningMessage = "You are about to unlock this catalog for editing. Any changes to generation parameters will PERMANENTLY modify this catalog. This cannot be undone.";
+
+            // ------------------------------------------------------------------------
+            // SLIDER LABELS (in order of appearance in UI)
+            // ------------------------------------------------------------------------
+            // Rendering Section
+            public const string ExposureLabel = "Exposure";
+            public const string BlurPixelsLabel = "Star Softness";
+            public const string BloomThresholdLabel = "Bloom Threshold";
+            public const string BloomIntensityLabel = "Bloom Intensity";
+            
+            // Main Generation Section
             public const string CatalogSeedLabel = "Catalog Seed";
-            public const string CatalogSeedTooltip = "Random seed for star placement";
             public const string CatalogSizeLabel = "Catalog Size";
-            public const string CatalogSizeTooltip = "Number of stars to generate";
-            public const string HeroCountLabel = "Hero Count";
-            public const string HeroCountTooltip = "Number of bright hero stars (named/important stars)";
-            public const string ReadOnlyLockMessage = "🔒 Generation parameters locked (Read-Only mode)";
-            
             public const string MinMagnitudeLabel = "Min Magnitude";
             public const string MaxMagnitudeLabel = "Max Magnitude";
-            public const string BrightnessDistributionLabel = "Brightness Distribution";
-            public const string ClusteringLabel = "Star Clustering";
-            public const string StellarPopulationLabel = "Stellar Population";
-            public const string StellarPopulationTooltip = "Star age bias: shift toward old/red (-1) or young/blue (+1) stars";
+            public const string HeroCountLabel = "Hero Count";
             public const string MainSequenceLabel = "Main Sequence Strength";
-            public const string MainSequenceTooltip = "Realism enforcement: 0.0=Wild West (any star type), 1.0=Strict (bright stars must be hot)";
             public const string RedGiantFrequencyLabel = "Red Giant Frequency";
-
-            public const string GalacticStructureSection = "GALACTIC STRUCTURE";
+            public const string ColorSaturationLabel = "Color Saturation";
+            
+            // Advanced Generation Section
+            public const string BrightnessDistributionLabel = "Brightness Distribution";
+            public const string StellarPopulationLabel = "Stellar Population";
+            public const string ClusteringLabel = "Star Clustering";
+            
+            // Galactic Structure Section
             public const string DiscFlatnessLabel = "Disc Flatness";
             public const string DiscFalloffLabel = "Disc Falloff";
             public const string BandCenterBoostLabel = "Band Boost";
@@ -92,16 +145,24 @@
             public const string BulgeNoiseScaleLabel = "Bulge Noise Scale";
             public const string BulgeNoiseStrengthLabel = "Bulge Noise Strength";
 
-            public const string Initializing = "Initializing starfield...";
-            public const string NativeLoadError = "Native plugin failed to load. Check KSP.log for details.";
-
-            public const string BloomThresholdLabel = "Bloom Threshold";
-            public const string BloomThresholdTooltip = "HDR values above this trigger bloom - display 0-10 maps to actual 0-0.1 for fine control";
-            public const string BloomIntensityLabel = "Bloom Intensity";
-            public const string BloomIntensityTooltip = "Bloom strength - logarithmic scale gives more precision at low values (0-2 range)";
-            public const string ColorSaturationLabel = "Color Saturation";
-            public const string ColorSaturationTooltip = "Star color vividness. 0.5=Realistic (real sky), 1.0=Natural, 2.0=Vivid, 4.0=Hyper-saturated/Deep colors";
-            public const string BeautySection = "BEAUTY";
+            // ------------------------------------------------------------------------
+            // TOOLTIPS (grouped at bottom, in order of corresponding UI elements)
+            // ------------------------------------------------------------------------
+            // Rendering Section Tooltips
+            public const string ExposureTooltip = "EV Stops";
+            public const string BlurPixelsTooltip = "Angular size of star blur";
+            public const string BloomThresholdTooltip = "HDR values above this trigger bloom";
+            public const string BloomIntensityTooltip = "Bloom strength";
+            
+            // Main Generation Section Tooltips
+            public const string CatalogSeedTooltip = "Random seed for star placement";
+            public const string CatalogSizeTooltip = "Number of stars to generate";
+            public const string HeroCountTooltip = "Number of bright hero stars (named/important stars)";
+            public const string MainSequenceTooltip = "0.0=Wild West (any star type), 1.0=Strict (bright stars must be hot)";
+            public const string ColorSaturationTooltip = "0.5=Realistic, 1.0=Slight Boost, 2.0=Vivid, 4.0=Hyper-saturated";
+            
+            // Advanced Generation Section Tooltips
+            public const string StellarPopulationTooltip = "Star age bias: shift toward old/red or young/blue stars";
         }
     }
 }

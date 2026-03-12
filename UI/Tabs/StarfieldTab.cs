@@ -89,6 +89,7 @@ namespace CinematicShaders.UI.Tabs
 
         public void Draw()
         {
+            
             if (!StarfieldNative.IsLoaded)
             {
                 GUILayout.Space(20);
@@ -106,8 +107,6 @@ namespace CinematicShaders.UI.Tabs
 
             try
             {
-                GUIStyle helpStyle = CinematicShadersUIResources.Styles.Help();
-
                 // Catalog Management Section (always visible)
                 DrawCatalogSection();
                 
@@ -122,26 +121,26 @@ namespace CinematicShaders.UI.Tabs
                     if (!StarfieldSettings.EnableStarfield)
                         GUI.enabled = false;
 
-                    DrawSlider(CinematicShadersUIStrings.Starfield.ExposureLabel, ref _exposure, -2.0f, 8.0f, "F1");
-                    GUILayout.Label(CinematicShadersUIStrings.Starfield.ExposureTooltip, helpStyle);
+                    DrawSlider(CinematicShadersUIStrings.Starfield.ExposureLabel, ref _exposure, -2.0f, 8.0f, "F1", 
+                        CinematicShadersUIStrings.Starfield.ExposureTooltip);
                     
                     // BlurPixels is angular sigma in radians; display as arcminutes (1' = 1/60° ≈ 0.00029 rad)
                     float blurArcminutes = _blurPixels * 3437.75f;  // rad to arcmin (180*60/π)
-                    DrawSlider(CinematicShadersUIStrings.Starfield.BlurPixelsLabel, ref blurArcminutes, 1.0f, 2.0f, "F1");
+                    DrawSlider(CinematicShadersUIStrings.Starfield.BlurPixelsLabel, ref blurArcminutes, 1.0f, 2.0f, "F1", 
+                        CinematicShadersUIStrings.Starfield.BlurPixelsTooltip);
                     _blurPixels = blurArcminutes / 3437.75f;
-                    GUILayout.Label(CinematicShadersUIStrings.Starfield.BlurPixelsTooltip, helpStyle);
 
                     // Bloom threshold slider 0-10 maps to actual 0-0.1 for finer control
                     float bloomThresholdDisplay = _bloomThreshold * 100.0f;
-                    DrawSlider(CinematicShadersUIStrings.Starfield.BloomThresholdLabel, ref bloomThresholdDisplay, 0.0f, 10.0f, "F1");
+                    DrawSlider(CinematicShadersUIStrings.Starfield.BloomThresholdLabel, ref bloomThresholdDisplay, 0.0f, 10.0f, "F1", 
+                        CinematicShadersUIStrings.Starfield.BloomThresholdTooltip);
                     _bloomThreshold = bloomThresholdDisplay / 100.0f;
-                    GUILayout.Label(CinematicShadersUIStrings.Starfield.BloomThresholdTooltip, helpStyle);
                     
                     // Bloom intensity 0-2 with logarithmic mapping
                     float bloomIntensityDisplay = Mathf.Sqrt(_bloomIntensity * 2.0f);
-                    DrawSlider(CinematicShadersUIStrings.Starfield.BloomIntensityLabel, ref bloomIntensityDisplay, 0.0f, 2.0f, "F2");
+                    DrawSlider(CinematicShadersUIStrings.Starfield.BloomIntensityLabel, ref bloomIntensityDisplay, 0.0f, 2.0f, "F2",
+                        CinematicShadersUIStrings.Starfield.BloomIntensityTooltip);
                     _bloomIntensity = (bloomIntensityDisplay * bloomIntensityDisplay) * 0.5f;
-                    GUILayout.Label(CinematicShadersUIStrings.Starfield.BloomIntensityTooltip, helpStyle);
                 }
 
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
@@ -158,26 +157,26 @@ namespace CinematicShaders.UI.Tabs
                         GUILayout.Label(CinematicShadersUIStrings.Starfield.ReadOnlyLockMessage, CinematicShadersUIResources.Styles.Help());
                     }
 
-                    DrawIntSlider(CinematicShadersUIStrings.Starfield.CatalogSeedLabel, ref _catalogSeed, 0, 99999);
-                    GUILayout.Label(CinematicShadersUIStrings.Starfield.CatalogSeedTooltip, helpStyle);
+                    DrawIntSlider(CinematicShadersUIStrings.Starfield.CatalogSeedLabel, ref _catalogSeed, 0, 99999,
+                        CinematicShadersUIStrings.Starfield.CatalogSeedTooltip);
 
-                    DrawIntSlider(CinematicShadersUIStrings.Starfield.CatalogSizeLabel, ref _catalogSize, 1000, 100000);
-                    GUILayout.Label(CinematicShadersUIStrings.Starfield.CatalogSizeTooltip, helpStyle);
+                    DrawIntSlider(CinematicShadersUIStrings.Starfield.CatalogSizeLabel, ref _catalogSize, 1000, 100000,
+                        CinematicShadersUIStrings.Starfield.CatalogSizeTooltip);
 
                     DrawSlider(CinematicShadersUIStrings.Starfield.MinMagnitudeLabel, ref _minMagnitude, -2.0f, 3.0f, "F1");
                     DrawSlider(CinematicShadersUIStrings.Starfield.MaxMagnitudeLabel, ref _maxMagnitude, 5.0f, 12.0f, "F1");
                     
-                    DrawIntSlider(CinematicShadersUIStrings.Starfield.HeroCountLabel, ref _heroCount, 16, 1024);
-                    GUILayout.Label(CinematicShadersUIStrings.Starfield.HeroCountTooltip, helpStyle);
+                    DrawIntSlider(CinematicShadersUIStrings.Starfield.HeroCountLabel, ref _heroCount, 16, 1024,
+                        CinematicShadersUIStrings.Starfield.HeroCountTooltip);
                     
-                    DrawSlider(CinematicShadersUIStrings.Starfield.MainSequenceLabel, ref _mainSequenceStrength, 0.0f, 1.0f, "F2");
-                    GUILayout.Label(CinematicShadersUIStrings.Starfield.MainSequenceTooltip, helpStyle);
+                    DrawSlider(CinematicShadersUIStrings.Starfield.MainSequenceLabel, ref _mainSequenceStrength, 0.0f, 1.0f, "F2",
+                        CinematicShadersUIStrings.Starfield.MainSequenceTooltip);
                     
                     DrawSlider(CinematicShadersUIStrings.Starfield.RedGiantFrequencyLabel, ref _redGiantFrequency, 0.0f, 1.0f, "F2");
                     
                     // Color saturation affects generation (star colors), not post-processing
-                    DrawSlider(CinematicShadersUIStrings.Starfield.ColorSaturationLabel, ref _colorSaturation, 0.5f, 4.0f, "F2");
-                    GUILayout.Label(CinematicShadersUIStrings.Starfield.ColorSaturationTooltip, helpStyle);
+                    DrawSlider(CinematicShadersUIStrings.Starfield.ColorSaturationLabel, ref _colorSaturation, 0.5f, 4.0f, "F2",
+                        CinematicShadersUIStrings.Starfield.ColorSaturationTooltip);
                     
                     GUI.enabled = wasEnabled;
                 }
@@ -185,7 +184,8 @@ namespace CinematicShaders.UI.Tabs
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
 
                 // === ADVANCED GENERATION SECTION (collapsed by default) ===
-                _showAdvancedGenerationSection = GUILayout.Toggle(_showAdvancedGenerationSection, "▶ " + CinematicShadersUIStrings.Starfield.AdvancedGenerationSection, HighLogic.Skin.label);
+                _showAdvancedGenerationSection = GUILayout.Toggle(_showAdvancedGenerationSection, 
+                    CinematicShadersUIStrings.Common.CollapsedPrefix + CinematicShadersUIStrings.Starfield.AdvancedGenerationSection, HighLogic.Skin.label);
                 if (_showAdvancedGenerationSection)
                 {
                     // Disable generation sliders if read-only
@@ -196,8 +196,8 @@ namespace CinematicShaders.UI.Tabs
                     }
 
                     DrawSlider(CinematicShadersUIStrings.Starfield.BrightnessDistributionLabel, ref _magnitudeBias, 0.02f, 0.5f, "F2");
-                    DrawSlider(CinematicShadersUIStrings.Starfield.StellarPopulationLabel, ref _populationBias, -1.0f, 1.0f, "F2");
-                    GUILayout.Label(CinematicShadersUIStrings.Starfield.StellarPopulationTooltip, helpStyle);
+                    DrawSlider(CinematicShadersUIStrings.Starfield.StellarPopulationLabel, ref _populationBias, -1.0f, 1.0f, "F2",
+                        CinematicShadersUIStrings.Starfield.StellarPopulationTooltip);
                     DrawSlider(CinematicShadersUIStrings.Starfield.ClusteringLabel, ref _clustering, 0.0f, 1.0f, "F2");
 
                     GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.TIGHT);
@@ -221,6 +221,33 @@ namespace CinematicShaders.UI.Tabs
             {
                 GUI.enabled = oldEnabled;
             }
+            
+            // Draw tooltip at the very end (Unity's built-in GUI.tooltip system)
+            DrawTooltip();
+        }
+
+        // Simple tooltip using Unity's built-in GUI.tooltip system
+        private void DrawTooltip()
+        {
+            if (string.IsNullOrEmpty(GUI.tooltip))
+                return;
+                
+            Vector2 mousePos = Event.current.mousePosition;
+            
+            GUIStyle tooltipStyle = HighLogic.Skin.box;
+            float tooltipWidth = Mathf.Min(250f, tooltipStyle.CalcSize(new GUIContent(GUI.tooltip)).x + 20f);
+            float tooltipHeight = tooltipStyle.CalcHeight(new GUIContent(GUI.tooltip), tooltipWidth) + 10f;
+            
+            float x = mousePos.x + 15f;
+            float y = mousePos.y + 15f;
+            
+            // Clamp to window bounds
+            Rect windowRect = CinematicShadersWindow.Instance.WindowRect;
+            x = Mathf.Min(x, windowRect.width - tooltipWidth - 5f);
+            y = Mathf.Min(y, windowRect.height - tooltipHeight - 5f);
+            
+            Rect tooltipRect = new Rect(x, y, tooltipWidth, tooltipHeight);
+            GUI.Box(tooltipRect, GUI.tooltip, tooltipStyle);
         }
 
         private void DrawEnableToggle(bool parentEnabledState)
@@ -251,18 +278,18 @@ namespace CinematicShaders.UI.Tabs
             }
         }
 
-        private void DrawSlider(string label, ref float value, float min, float max, string format, string suffix = "")
+        private void DrawSlider(string label, ref float value, float min, float max, string format, string tooltip = null, string suffix = "")
         {
             GUILayout.BeginHorizontal();
-            GUILayout.Label(label, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.DEFAULT_WIDTH));
-
-            // Use MinWidth/MaxWidth instead of fixed Width to prevent handle disappearing at extremes
-            float newValue = GUILayout.HorizontalSlider(value, min, max, 
-                GUILayout.MinWidth(80f), 
-                GUILayout.MaxWidth(140f),
-                GUILayout.ExpandWidth(true));
             
-            string displayText = value.ToString(format) + suffix;
+            // CRITICAL: Use GUIContent to attach tooltip to label (Unity's built-in system)
+            GUIContent labelContent = new GUIContent(label, tooltip);
+            GUILayout.Label(labelContent, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.DEFAULT_WIDTH));
+
+            float newValue = GUILayout.HorizontalSlider(value, min, max, 
+                GUILayout.Width(CinematicShadersUIResources.Layout.Labels.SLIDER_WIDTH));
+            
+            string displayText = newValue.ToString(format) + suffix;
             GUILayout.Label(displayText, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.VALUE_WIDTH));
 
             GUILayout.EndHorizontal();
@@ -275,10 +302,13 @@ namespace CinematicShaders.UI.Tabs
             }
         }
 
-        private void DrawIntSlider(string label, ref int value, int min, int max)
+        private void DrawIntSlider(string label, ref int value, int min, int max, string tooltip = null)
         {
             GUILayout.BeginHorizontal();
-            GUILayout.Label(label, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.DEFAULT_WIDTH));
+            
+            // CRITICAL: Use GUIContent to attach tooltip to label (Unity's built-in system)
+            GUIContent labelContent = new GUIContent(label, tooltip);
+            GUILayout.Label(labelContent, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.DEFAULT_WIDTH));
 
             float floatValue = value;
             float newValue = GUILayout.HorizontalSlider(floatValue, min, max, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.SLIDER_WIDTH));
@@ -290,7 +320,6 @@ namespace CinematicShaders.UI.Tabs
             if (!Mathf.Approximately(newValue, floatValue))
             {
                 value = Mathf.RoundToInt(newValue);
-                // Trigger regeneration when catalog params change
                 StarfieldSettings.CatalogSeed = _catalogSeed;
                 StarfieldSettings.CatalogSize = _catalogSize;
                 StarfieldSettings.InvalidateCatalog();
@@ -300,17 +329,17 @@ namespace CinematicShaders.UI.Tabs
 
         private void DrawCatalogSection()
         {
-            GUILayout.Label("Star Catalog", HighLogic.Skin.label);
+            GUILayout.Label(CinematicShadersUIStrings.Starfield.StarCatalogSection, HighLogic.Skin.label);
             
             // Active catalog dropdown
             GUILayout.BeginHorizontal();
-            GUILayout.Label("Active Catalog", GUILayout.Width(CinematicShadersUIResources.Layout.Labels.DEFAULT_WIDTH));
+            GUILayout.Label(CinematicShadersUIStrings.Starfield.ActiveCatalogLabel, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.DEFAULT_WIDTH));
             
-            string activeName = "(None)";
+            string activeName = CinematicShadersUIStrings.Starfield.ActiveCatalogNone;
             if (StarCatalogManager.ActiveCatalog != null)
                 activeName = StarCatalogManager.ActiveCatalog.GetDropdownLabel();
             
-            if (GUILayout.Button(activeName + " ▼", GUILayout.Width(200)))
+            if (GUILayout.Button(activeName + CinematicShadersUIStrings.Common.DropdownArrow, GUILayout.Width(200)))
             {
                 _catalogDropdownOpen = !_catalogDropdownOpen;
                 if (_catalogDropdownOpen)
@@ -341,14 +370,19 @@ namespace CinematicShaders.UI.Tabs
             
             GUILayout.Space(5);
             
-            // Read-Only toggle with glowing style
+            // Read-Only toggle with colored ON/OFF text
             GUILayout.BeginHorizontal();
-            GUIStyle toggleStyle = StarfieldSettings.IsReadOnly ? 
-                CinematicShadersUIResources.Styles.ToggleActive() : HighLogic.Skin.toggle;
             
-            bool newReadOnly = GUILayout.Toggle(StarfieldSettings.IsReadOnly, 
-                StarfieldSettings.IsReadOnly ? "🔒 Read-Only Protection ON" : "Generation Active", 
-                toggleStyle, GUILayout.Width(220));
+            // Create toggle style with rich text support
+            GUIStyle toggleStyle = new GUIStyle(HighLogic.Skin.toggle);
+            toggleStyle.richText = true;
+            
+            // Use rich text strings with colored ON/OFF
+            string toggleLabel = StarfieldSettings.IsReadOnly ? 
+                CinematicShadersUIStrings.Starfield.ReadOnlyToggleOn : 
+                CinematicShadersUIStrings.Starfield.ReadOnlyToggleOff;
+            
+            bool newReadOnly = GUILayout.Toggle(StarfieldSettings.IsReadOnly, toggleLabel, toggleStyle, GUILayout.Width(220));
             
             if (newReadOnly != StarfieldSettings.IsReadOnly)
             {
@@ -370,15 +404,15 @@ namespace CinematicShaders.UI.Tabs
             {
                 GUILayout.Space(10);
                 GUILayout.BeginVertical(GUI.skin.box);
-                GUILayout.Label("⚠️ WARNING: Disabling Read-Only Protection", HighLogic.Skin.label);
-                GUILayout.Label("You are about to unlock this catalog for editing. Any changes to generation parameters will PERMANENTLY modify this catalog. This cannot be undone.", CinematicShadersUIResources.Styles.Help());
+                GUILayout.Label(CinematicShadersUIStrings.Starfield.ReadOnlyWarningTitle, HighLogic.Skin.label);
+                GUILayout.Label(CinematicShadersUIStrings.Starfield.ReadOnlyWarningMessage, CinematicShadersUIResources.Styles.Help());
                 
                 GUILayout.BeginHorizontal();
-                if (GUILayout.Button("Cancel", GUILayout.Width(100)))
+                if (GUILayout.Button(CinematicShadersUIStrings.Starfield.CancelButton, GUILayout.Width(100)))
                 {
                     _showReadOnlyWarning = false;
                 }
-                if (GUILayout.Button("I Understand - Unlock", GUILayout.Width(150)))
+                if (GUILayout.Button(CinematicShadersUIStrings.Starfield.UnlockButton, GUILayout.Width(150)))
                 {
                     StarfieldSettings.IsReadOnly = false;
                     _showReadOnlyWarning = false;
@@ -399,7 +433,7 @@ namespace CinematicShaders.UI.Tabs
             
             // Save button (disabled if read-only)
             GUI.enabled = !StarfieldSettings.IsReadOnly && StarCatalogManager.ActiveCatalog != null;
-            if (GUILayout.Button("Save", GUILayout.Width(70)))
+            if (GUILayout.Button(CinematicShadersUIStrings.Starfield.SaveButton, GUILayout.Width(70)))
             {
                 if (StarCatalogManager.ActiveCatalog != null)
                 {
@@ -410,7 +444,7 @@ namespace CinematicShaders.UI.Tabs
             GUI.enabled = true;
             
             // New button (generate fresh catalog)
-            if (GUILayout.Button("New", GUILayout.Width(60)))
+            if (GUILayout.Button(CinematicShadersUIStrings.Starfield.NewButton, GUILayout.Width(60)))
             {
                 // Reset all UI fields to StarfieldSettings defaults
                 ResetToDefaults();
@@ -426,20 +460,20 @@ namespace CinematicShaders.UI.Tabs
                 
                 // Open Save As dialog for naming
                 _showSaveAsDialog = true;
-                _newFileName = "MyStarfield";
-                _newCatalogName = "My Starfield";
+                _newFileName = CinematicShadersUIStrings.Starfield.DefaultCatalogFileName;
+                _newCatalogName = CinematicShadersUIStrings.Starfield.DefaultCatalogDisplayName;
             }
             
             // Save As button
-            if (GUILayout.Button("Save As...", GUILayout.Width(80)))
+            if (GUILayout.Button(CinematicShadersUIStrings.Starfield.SaveAsButton, GUILayout.Width(80)))
             {
                 _showSaveAsDialog = true;
-                _newFileName = StarCatalogManager.ActiveCatalog?.GetDisplayName() ?? "MyStarfield";
-                _newCatalogName = StarCatalogManager.ActiveCatalog?.GetDisplayName() ?? "My Starfield";
+                _newFileName = StarCatalogManager.ActiveCatalog?.GetDisplayName() ?? CinematicShadersUIStrings.Starfield.DefaultCatalogFileName;
+                _newCatalogName = StarCatalogManager.ActiveCatalog?.GetDisplayName() ?? CinematicShadersUIStrings.Starfield.DefaultCatalogDisplayName;
             }
             
             // Open Folder button
-            if (GUILayout.Button("Open Folder", GUILayout.Width(90)))
+            if (GUILayout.Button(CinematicShadersUIStrings.Starfield.OpenFolderButton, GUILayout.Width(90)))
             {
                 StarCatalogManager.OpenCatalogFolder();
             }
@@ -451,12 +485,12 @@ namespace CinematicShaders.UI.Tabs
             {
                 GUILayout.Space(10);
                 GUILayout.BeginVertical(GUI.skin.box);
-                GUILayout.Label("Save Catalog As:", HighLogic.Skin.label);
+                GUILayout.Label(CinematicShadersUIStrings.Starfield.SaveCatalogAsTitle, HighLogic.Skin.label);
                 
-                GUILayout.Label("Filename:");
+                GUILayout.Label(CinematicShadersUIStrings.Starfield.FilenameLabel);
                 _newFileName = GUILayout.TextField(_newFileName, GUILayout.Width(250));
                 
-                GUILayout.Label("Display Name:");
+                GUILayout.Label(CinematicShadersUIStrings.Starfield.DisplayNameLabel);
                 _newCatalogName = GUILayout.TextField(_newCatalogName, GUILayout.Width(250));
                 
                 GUILayout.BeginHorizontal();
@@ -464,7 +498,7 @@ namespace CinematicShaders.UI.Tabs
                 {
                     _showSaveAsDialog = false;
                 }
-                if (GUILayout.Button("Save", GUILayout.Width(70)))
+                if (GUILayout.Button(CinematicShadersUIStrings.Starfield.SaveButton, GUILayout.Width(70)))
                 {
                     string path = StarCatalogManager.SaveCatalogAs(_newFileName, _newCatalogName, false);
                     if (path != null)
@@ -486,7 +520,7 @@ namespace CinematicShaders.UI.Tabs
             GUILayout.BeginHorizontal();
             GUILayout.FlexibleSpace();
             GUI.color = Color.red;
-            if (GUILayout.Button("Delete Catalog", GUILayout.Width(120)) && StarCatalogManager.ActiveCatalog != null)
+            if (GUILayout.Button(CinematicShadersUIStrings.Starfield.DeleteCatalogButton, GUILayout.Width(120)) && StarCatalogManager.ActiveCatalog != null)
             {
                 if (StarCatalogManager.ActiveCatalog != null)
                 {

@@ -8,6 +8,8 @@ namespace CinematicShaders.UI
         public static class Colors
         {
             public static readonly Color TOGGLE_ACTIVE_GREEN = new Color(0.2f, 0.9f, 0.2f);
+            public static readonly Color READONLY_ON_GREEN = new Color(0.2f, 0.9f, 0.2f);
+            public static readonly Color READONLY_OFF_RED = new Color(0.9f, 0.2f, 0.2f);
             public static readonly Color INFO_ORANGE = new Color(1f, 0.5490196f, 0f);
             public static readonly Color TEXT_DIM = Color.gray;
         }
@@ -41,6 +43,16 @@ namespace CinematicShaders.UI
                 public const float TIGHT = 4f;
                 public const float NORMAL = 10f;
                 public const float LARGE = 15f;
+            }
+
+            public static class Tooltip
+            {
+                public const float OFFSET_X = 15f;
+                public const float OFFSET_Y = 15f;
+                public const float MAX_WIDTH = 250f;
+                public const float PADDING = 20f;
+                public const float WINDOW_CLAMP_X = 300f;
+                public const float WINDOW_CLAMP_Y = 480f;
             }
         }
         #endregion
@@ -101,6 +113,11 @@ namespace CinematicShaders.UI
             }
 
             public static GUIStyle DropdownBox()
+            {
+                return new GUIStyle(HighLogic.Skin.box);
+            }
+
+            public static GUIStyle Tooltip()
             {
                 return new GUIStyle(HighLogic.Skin.box);
             }

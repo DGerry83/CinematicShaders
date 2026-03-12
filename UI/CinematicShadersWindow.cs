@@ -8,6 +8,9 @@ namespace CinematicShaders.UI
     public class CinematicShadersWindow : MonoBehaviour
     {
         private Rect windowRect = new Rect(300, 60, 320, 500);
+        public Rect WindowRect { get { return windowRect; } }
+        public static CinematicShadersWindow Instance { get; private set; }
+        
         private bool isVisible = false;
         private bool stylesInitialized = false;
         private GUIStyle windowStyle;
@@ -25,6 +28,8 @@ namespace CinematicShaders.UI
 
         void Start()
         {
+            Instance = this;
+            
             GameEvents.onHideUI.Add(OnHideUI);
             GameEvents.onShowUI.Add(OnShowUI);
 
