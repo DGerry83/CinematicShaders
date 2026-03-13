@@ -150,18 +150,12 @@ def parse_star(row):
         # Normalize direction
         dx, dy, dz = normalize_direction(x, y, z)
         
-        # Rotate to align with procedural coordinate system (galactic plane orientation fix)
-        # Step 1: Rotate +90° around Z axis: (x, y, z) -> (-y, x, z)
-        # This transforms the real sky galactic plane to match the shader's expected orientation
-        dx, dy, dz = -dy, dx, dz
+        # Flip Y axis to correct mirroring
+        # The HYG data has the sky mirrored; flipping Y fixes the left/right orientation
+        dy = -dy
         
-        # Step 2: Apply Earth's axial tilt (23.5°) relative to solar system
-        # Kerbin has 0° tilt, so we rotate equatorial coordinates to align
-        # Rotate -23.5° around X axis: Earth's pole -> Solar system pole
-        tilt = -0.4102  # -23.5 degrees in radians
-        cos_tilt = 0.9171  # cos(-23.5°)
-        sin_tilt = -0.3987  # sin(-23.5°)
-        dy, dz = dy * cos_tilt - dz * sin_tilt, dy * sin_tilt + dz * cos_tilt
+        # NOTE: All coordinate system rotation is now done at runtime via shader settings
+        # This allows real-time adjustment of the sky orientation to match player preference
         
         # Get Hipparcos ID (column 'hip' - the actual Hipparcos catalog number)
         # NOTE: Do NOT use 'id' column - that's just the CSV row index

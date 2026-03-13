@@ -80,6 +80,12 @@ struct StarfieldSettingsNative {
     float BloomThreshold;
     float BloomIntensity;
     float ColorSaturation;  // 0.0-2.0: 0.5=realistic, 1.0=natural, 2.0=vivid
+    
+    // HYG Catalog Coordinate Rotation (degrees, applied to star directions before rendering)
+    // Allows aligning the real sky catalog with the game's coordinate system
+    float RotationX;  // Rotation around X axis (tilt forward/back)
+    float RotationY;  // Rotation around Y axis (yaw left/right)
+    float RotationZ;  // Rotation around Z axis (roll clockwise/counter-clockwise)
 };
 
 __declspec(dllexport) void CR_StarfieldSetCameraMatrices(
@@ -90,7 +96,11 @@ __declspec(dllexport) void CR_StarfieldSetCameraMatrices(
     float aspectRatio,
     float3 cameraRight,
     float3 cameraUp,
-    float3 cameraForward
+    float3 cameraForward,
+    // Atmospheric extinction parameters (per-frame)
+    float extinctionZenith,     // Visibility at zenith (0-1)
+    float extinctionHorizon,    // Visibility at horizon (0-1)
+    float3 atmosphereUp         // World-space up vector
 );
 
 __declspec(dllexport) void CR_StarfieldSetSettings(const StarfieldSettingsNative* settings);

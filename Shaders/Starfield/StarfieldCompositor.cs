@@ -142,6 +142,10 @@ namespace CinematicShaders.Shaders.Starfield
             Vector3 up = (Vector3)(inverseRotation * (Vector3d)surfaceUp);
             Vector3 forward = (Vector3)(inverseRotation * (Vector3d)surfaceForward);
 
+            // Capture atmospheric extinction for this frame
+            var atmoRaw = AtmosphericScatteringData.CaptureRawData();
+            var atmoCalc = AtmosphericScatteringData.Calculate(atmoRaw);
+            
             // Pass whiteTexture to bootstrap D3D11 device acquisition in native code
             // (Texture2D.whiteTexture is a built-in 4x4 texture, no allocation/disposal needed)
             StarfieldNative.CR_StarfieldSetCameraMatrices(
@@ -152,7 +156,10 @@ namespace CinematicShaders.Shaders.Starfield
                 _scaledSpaceCamera.aspect,
                 right,
                 up,
-                forward
+                forward,
+                atmoCalc.ExtinctionZenith,
+                atmoCalc.ExtinctionHorizon,
+                atmoRaw.UpVector
             );
 
             _frameIndex = (_frameIndex + 1) & 7; // Temporal index 0-7

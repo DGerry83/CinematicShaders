@@ -71,6 +71,17 @@ static struct {
     float colorSaturation = 1.0f;  // 0.5=realistic, 1.0=natural, 2.0=vivid
     float blurPixels = 1.0f;
     int frameIndex = 0;
+    
+    // HYG Catalog Coordinate Rotation (degrees)
+    float rotationX = 0.0f;
+    float rotationY = 0.0f;
+    float rotationZ = 0.0f;
+    
+    // Atmospheric extinction parameters
+    float extinctionZenith = 1.0f;
+    float extinctionHorizon = 1.0f;
+    float3 atmosphereUp = float3(0.0f, 1.0f, 0.0f);
+    
     // Catalog buffer management
     ID3D11Buffer* starCatalogBuffer = nullptr;
     int catalogSize = 0;
@@ -146,6 +157,12 @@ struct StarfieldPass1Params {
     int FrameIndex;
     int CatalogSize;
     int Pad1[2];  // Pad to 16 bytes
+    
+    // HYG Catalog Coordinate Rotation (degrees converted to radians in shader)
+    float RotationX;
+    float RotationY;
+    float RotationZ;
+    float _padRotation;
 };
 
 struct StarfieldPass2Params {
@@ -158,7 +175,16 @@ struct StarfieldPass2Params {
     float DepthThreshold;
     float ExposureEV;
     int EnableTonemapping;
-    int Pad[7];  // Pad to 32 bytes (keep constant buffer alignment)
+    float Pad1[3];  // Pad to 16 bytes (match HLSL float3)
+    
+    // Atmospheric extinction parameters (16-byte aligned)
+    float ExtinctionZenith;   // Visibility at zenith (0-1)
+    float ExtinctionHorizon;  // Visibility at horizon (0-1)
+    float Pad2[2];            // Pad to 16 bytes
+    float AtmosphereUpX;      // World-space up vector
+    float AtmosphereUpY;
+    float AtmosphereUpZ;
+    float Pad3;               // Pad float3 to 16 bytes
 };
 
 // ============================================================================
@@ -705,6 +731,11 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         params->CatalogSize = g_StarfieldState.catalogSize;
         params->Pad1[0] = params->Pad1[1] = 0;
         
+        params->RotationX = g_StarfieldState.rotationX;
+        params->RotationY = g_StarfieldState.rotationY;
+        params->RotationZ = g_StarfieldState.rotationZ;
+        params->_padRotation = 0.0f;
+        
         context->Unmap(g_StarfieldState.pass1CB, 0);
     }
     
@@ -759,7 +790,16 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         params->DepthThreshold = 0.5f;
         params->ExposureEV = g_StarfieldState.exposure;
         params->EnableTonemapping = 1;
-        params->Pad[0] = params->Pad[1] = params->Pad[2] = params->Pad[3] = params->Pad[4] = params->Pad[5] = params->Pad[6] = 0;
+        params->Pad1[0] = params->Pad1[1] = params->Pad1[2] = 0.0f;
+        
+        params->ExtinctionZenith = g_StarfieldState.extinctionZenith;
+        params->ExtinctionHorizon = g_StarfieldState.extinctionHorizon;
+        params->Pad2[0] = params->Pad2[1] = 0.0f;
+        params->AtmosphereUpX = g_StarfieldState.atmosphereUp.x;
+        params->AtmosphereUpY = g_StarfieldState.atmosphereUp.y;
+        params->AtmosphereUpZ = g_StarfieldState.atmosphereUp.z;
+        params->Pad3 = 0.0f;
+        
         context->Unmap(g_StarfieldState.pass2CB, 0);
     }
     
@@ -1258,7 +1298,8 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
 // Starfield Exports
 extern "C" __declspec(dllexport)
 void CR_StarfieldSetCameraMatrices(ID3D11Texture2D* deviceSourceTexture, int width, int height,
-                                   float verticalFOV, float aspectRatio, float3 cameraRight, float3 cameraUp, float3 cameraForward)
+                                   float verticalFOV, float aspectRatio, float3 cameraRight, float3 cameraUp, float3 cameraForward,
+                                   float extinctionZenith, float extinctionHorizon, float3 atmosphereUp)
 {    
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     
@@ -1269,6 +1310,11 @@ void CR_StarfieldSetCameraMatrices(ID3D11Texture2D* deviceSourceTexture, int wid
     g_StarfieldState.cameraRight = cameraRight;
     g_StarfieldState.cameraUp = cameraUp;
     g_StarfieldState.cameraForward = cameraForward;
+    
+    // Store atmospheric extinction parameters (per-frame update)
+    g_StarfieldState.extinctionZenith = extinctionZenith;
+    g_StarfieldState.extinctionHorizon = extinctionHorizon;
+    g_StarfieldState.atmosphereUp = atmosphereUp;
     
     // Acquire device from any valid texture (we use whiteTexture from C#)
     if (deviceSourceTexture && !g_StarfieldState.device) {
@@ -1319,6 +1365,9 @@ void CR_StarfieldSetSettings(const StarfieldSettingsNative* settings)
     g_StarfieldState.bloomThreshold = settings->BloomThreshold;
     g_StarfieldState.bloomIntensity = settings->BloomIntensity;
     g_StarfieldState.colorSaturation = settings->ColorSaturation;
+    g_StarfieldState.rotationX = settings->RotationX;
+    g_StarfieldState.rotationY = settings->RotationY;
+    g_StarfieldState.rotationZ = settings->RotationZ;
 }
 
 extern "C" __declspec(dllexport)

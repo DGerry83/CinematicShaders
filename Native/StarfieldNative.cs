@@ -101,6 +101,11 @@ namespace CinematicShaders.Native
             public float BloomIntensity;
             public float ColorSaturation;  // 0.0-2.0: 0.5=realistic, 1.0=natural, 2.0=vivid
             
+            // HYG Catalog Coordinate Rotation (degrees)
+            public float RotationX;
+            public float RotationY;
+            public float RotationZ;
+            
             // Galactic plane orientation
             public float GalacticPlaneNormalX;
             public float GalacticPlaneNormalY;
@@ -158,7 +163,11 @@ namespace CinematicShaders.Native
             float aspectRatio,
             Vector3 cameraRight,
             Vector3 cameraUp,
-            Vector3 cameraForward
+            Vector3 cameraForward,
+            // Atmospheric extinction parameters (per-frame)
+            float extinctionZenith,     // Visibility at zenith (0-1)
+            float extinctionHorizon,    // Visibility at horizon (0-1)
+            Vector3 atmosphereUp        // World-space up vector
         );
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]

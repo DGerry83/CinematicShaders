@@ -42,27 +42,29 @@ The following scripts were created during development/debugging and can be remov
 
 ## Typical Workflow
 
-```bash
-# 1. Convert HYG CSV to binary catalogs
-python convert_hyg.py
+**IMPORTANT:** Run these commands from the `HipparcosData` folder, not from the `Tools` subfolder.
 
-# 2. Generate JSON metadata files
-python generate_catalog_jsons.py
+```bash
+# 1. Convert HYG CSV to binary catalogs (output to current directory)
+python Tools\convert_hyg.py -o .
+
+# 2. Generate JSON metadata files (input from current directory, output to current directory)
+python Tools\generate_catalog_jsons.py -i . -o .
 
 # 3. Validate the results
-python validate_catalog.py ../hyg_v42.bin
-python check_json_files.py
+python Tools\validate_catalog.py hyg_v42.bin
+python Tools\check_json_files.py
 ```
 
 ## Validation Workflow (for generated catalogs)
 
 ```bash
 # Check distances are realistic
-python compare_distances.py
+python Tools\compare_distances.py
 
 # Validate specific file
-python validate_catalog.py ../MyStarfield.bin
+python Tools\validate_catalog.py MyStarfield.bin
 
 # Check Version 4 fields
-python check_generated_fields.py ../MyStarfield.bin
+python Tools\check_generated_fields.py MyStarfield.bin
 ```

@@ -43,6 +43,12 @@ namespace CinematicShaders.Core
         // Color
         public static float ColorSaturation { get; set; } = 1.0f;  // 0.5=realistic, 1.0=natural, 2.0=vivid
 
+        // HYG Catalog Coordinate Rotation (degrees)
+        // Allows aligning the real sky catalog with the game's coordinate system
+        public static float RotationX { get; set; } = 0.0f;  // Tilt forward/back
+        public static float RotationY { get; set; } = 0.0f;  // Yaw left/right
+        public static float RotationZ { get; set; } = 0.0f;  // Roll clockwise/counter-clockwise
+
         // Catalog Generation
         public static int CatalogSeed { get; set; } = 12345;
         public static int CatalogSize { get; set; } = 50000;  // 50k stars - good balance
@@ -120,6 +126,9 @@ namespace CinematicShaders.Core
                 BloomThreshold = float.Parse(settingsNode.GetValue("BloomThreshold") ?? "0.08");
                 BloomIntensity = float.Parse(settingsNode.GetValue("BloomIntensity") ?? "0.5");
                 ColorSaturation = float.Parse(settingsNode.GetValue("ColorSaturation") ?? "1.0");
+                RotationX = float.Parse(settingsNode.GetValue("RotationX") ?? "0.0");
+                RotationY = float.Parse(settingsNode.GetValue("RotationY") ?? "0.0");
+                RotationZ = float.Parse(settingsNode.GetValue("RotationZ") ?? "0.0");
                 ActiveCatalogPath = settingsNode.GetValue("ActiveCatalogPath") ?? "";
                 IsReadOnly = bool.Parse(settingsNode.GetValue("IsReadOnly") ?? "false");
 
@@ -164,7 +173,8 @@ namespace CinematicShaders.Core
                 !Mathf.Approximately(BulgeNoiseScale, _lastBulgeNoiseScale) ||
                 !Mathf.Approximately(BulgeNoiseStrength, _lastBulgeNoiseStrength);
 
-            // Update native settings (exposure, etc.) - always done
+            // Update native settings (exposure, generation params, etc.) - always done
+            // Note: Atmospheric extinction is passed per-frame via SetCameraMatrices
             var nativeSettings = new StarfieldNative.StarfieldSettingsNative
             {
                 Exposure = Exposure,
@@ -189,7 +199,10 @@ namespace CinematicShaders.Core
                 BulgeNoiseStrength = BulgeNoiseStrength,
                 BloomThreshold = BloomThreshold,
                 BloomIntensity = BloomIntensity,
-                ColorSaturation = ColorSaturation
+                ColorSaturation = ColorSaturation,
+                RotationX = RotationX,
+                RotationY = RotationY,
+                RotationZ = RotationZ
             };
 
             StarfieldNative.CR_StarfieldSetSettings(ref nativeSettings);
@@ -339,6 +352,9 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("BloomThreshold", BloomThreshold);
                 settingsNode.AddValue("BloomIntensity", BloomIntensity);
                 settingsNode.AddValue("ColorSaturation", ColorSaturation);
+                settingsNode.AddValue("RotationX", RotationX);
+                settingsNode.AddValue("RotationY", RotationY);
+                settingsNode.AddValue("RotationZ", RotationZ);
                 settingsNode.AddValue("ActiveCatalogPath", ActiveCatalogPath);
                 settingsNode.AddValue("IsReadOnly", IsReadOnly);
                 settingsNode.AddValue("CatalogSeed", CatalogSeed);

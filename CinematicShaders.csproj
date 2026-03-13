@@ -43,6 +43,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Core\AtmosphericScatteringData.cs" />
     <Compile Include="Core\CinematicShadersAddon.cs" />
     <Compile Include="Core\GTAOSettings.cs" />
     <Compile Include="Core\StarCatalogInfo.cs" />

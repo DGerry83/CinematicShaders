@@ -41,6 +41,11 @@ namespace CinematicShaders.UI.Tabs
         private int _catalogSeed;
         private int _catalogSize;
 
+        // Coordinate Rotation
+        private float _rotationX;
+        private float _rotationY;
+        private float _rotationZ;
+
         // Catalog Management
         private bool _initialized = false;
         private bool _showReadOnlyWarning = false;
@@ -85,6 +90,9 @@ namespace CinematicShaders.UI.Tabs
             _colorSaturation = StarfieldSettings.ColorSaturation;
             _catalogSeed = StarfieldSettings.CatalogSeed;
             _catalogSize = StarfieldSettings.CatalogSize;
+            _rotationX = StarfieldSettings.RotationX;
+            _rotationY = StarfieldSettings.RotationY;
+            _rotationZ = StarfieldSettings.RotationZ;
         }
 
         public void Draw()
@@ -141,7 +149,27 @@ namespace CinematicShaders.UI.Tabs
                     DrawSlider(CinematicShadersUIStrings.Starfield.BloomIntensityLabel, ref bloomIntensityDisplay, 0.0f, 2.0f, "F2",
                         CinematicShadersUIStrings.Starfield.BloomIntensityTooltip);
                     _bloomIntensity = (bloomIntensityDisplay * bloomIntensityDisplay) * 0.5f;
+
+                    GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.TIGHT);
+
+                    // Debug button for atmospheric data
+                    if (GUILayout.Button(new GUIContent(CinematicShadersUIStrings.Starfield.DebugAtmosphereButton, 
+                        CinematicShadersUIStrings.Starfield.DebugAtmosphereTooltip)))
+                    {
+                        AtmosphericScatteringData.LogDebugDump();
+                    }
                 }
+
+                GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
+
+                // === COORDINATE ROTATION SECTION ===
+                GUILayout.Label(CinematicShadersUIStrings.Starfield.CoordinateRotationSection, HighLogic.Skin.label);
+                DrawSlider(CinematicShadersUIStrings.Starfield.RotationXLabel, ref _rotationX, 0.0f, 360.0f, "F1", 
+                    CinematicShadersUIStrings.Starfield.RotationTooltip, "°");
+                DrawSlider(CinematicShadersUIStrings.Starfield.RotationYLabel, ref _rotationY, 0.0f, 360.0f, "F1", 
+                    CinematicShadersUIStrings.Starfield.RotationTooltip, "°");
+                DrawSlider(CinematicShadersUIStrings.Starfield.RotationZLabel, ref _rotationZ, 0.0f, 360.0f, "F1", 
+                    CinematicShadersUIStrings.Starfield.RotationTooltip, "°");
 
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
 
@@ -587,6 +615,9 @@ namespace CinematicShaders.UI.Tabs
             StarfieldSettings.BloomThreshold = _bloomThreshold;
             StarfieldSettings.BloomIntensity = _bloomIntensity;
             StarfieldSettings.ColorSaturation = _colorSaturation;
+            StarfieldSettings.RotationX = _rotationX;
+            StarfieldSettings.RotationY = _rotationY;
+            StarfieldSettings.RotationZ = _rotationZ;
 
             StarfieldSettings.PushSettingsToNative();
         }

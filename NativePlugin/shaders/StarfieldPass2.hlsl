@@ -1,5 +1,5 @@
-// Starfield Pass 2: Bloom Composite with Depth Masking
-// Samples HDR star texture, applies Gaussian bloom to bright values, masks by depth
+// Starfield Pass 2: Bloom Composite with Depth Masking and Atmospheric Extinction
+// Samples HDR star texture, applies atmospheric extinction, Gaussian bloom, and tonemapping
 
 Texture2D<float3> StarHDRTexture : register(t0);
 SamplerState linearSampler : register(s0);
@@ -13,7 +13,14 @@ cbuffer CompositeParams : register(b0)
     float DepthThreshold;    // Alpha < this = sky (0.0), Alpha >= this = geometry (1.0)
     float ExposureEV;        // Final exposure adjustment (if needed)
     int EnableTonemapping;   // 0 = linear, 1 = ACES
-    int Pad[7];  // Pad to 32 bytes (keep cb alignment)
+    float3 Pad1;             // Pad to 16 bytes (HLSL arrays align to 16, use float3 instead)
+    
+    // Atmospheric extinction parameters
+    float ExtinctionZenith;  // Visibility at zenith (0-1)
+    float ExtinctionHorizon; // Visibility at horizon (0-1)
+    float2 Pad2;             // Pad to 16 bytes
+    float3 AtmosphereUp;     // World-space up vector
+    float Pad3;              // Pad float3 to 16 bytes
 };
 
 // ============================================
@@ -71,15 +78,26 @@ float4 PSMain(PSInput input) : SV_Target
 {
     float2 uv = input.uv;
     
+    // Calculate atmospheric extinction based on view angle
+    // Distance from center of screen approximates angle from zenith
+    float2 centerOffset = uv - 0.5;
+    float distFromCenter = length(centerOffset) * 2.0; // 0 at center, ~1.4 at corners
+    float t = saturate(distFromCenter); // 0 = zenith, 1 = horizon
+    
+    // Non-linear interpolation (squared) for more realistic airmass curve
+    t = t * t;
+    float extinction = lerp(ExtinctionZenith, ExtinctionHorizon, t);
+    
     // Hardcoded sky mask - always render stars (Galaxy Camera renders first, painter's algorithm handles occlusion)
     float skyMask = 1.0;
     
-    // Sample base star color
-    float3 starColor = StarHDRTexture.Sample(linearSampler, uv);
+    // Sample base star color and apply atmospheric extinction
+    float3 starColor = StarHDRTexture.Sample(linearSampler, uv) * extinction;
         
     // Apply separable Gaussian blur on THRESHOLDED values only (bright stars)
-    float3 bloomH = SampleBloom(StarHDRTexture, linearSampler, uv, float2(1.0, 0.0), BloomThreshold);
-    float3 bloomV = SampleBloom(StarHDRTexture, linearSampler, uv, float2(0.0, 1.0), BloomThreshold);
+    // Note: We apply extinction BEFORE bloom so dimmed stars don't create bloom artifacts
+    float3 bloomH = SampleBloom(StarHDRTexture, linearSampler, uv, float2(1.0, 0.0), BloomThreshold) * extinction;
+    float3 bloomV = SampleBloom(StarHDRTexture, linearSampler, uv, float2(0.0, 1.0), BloomThreshold) * extinction;
     float3 bloom = (bloomH + bloomV) * 0.5;
     
     // Add bloom to base (no conditional needed - bloom already contains only bright contributions)

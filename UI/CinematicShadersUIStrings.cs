@@ -163,6 +163,17 @@ namespace CinematicShaders.UI
             
             // Advanced Generation Section Tooltips
             public const string StellarPopulationTooltip = "Star age bias: shift toward old/red or young/blue stars";
+
+            // Debug
+            public const string DebugAtmosphereButton = "Dump Atmosphere Data";
+            public const string DebugAtmosphereTooltip = "Log atmospheric scattering data to KSP.log for debugging";
+            
+            // Coordinate Rotation
+            public const string CoordinateRotationSection = "HYG CATALOG ROTATION";
+            public const string RotationXLabel = "Rotation X (Tilt)";
+            public const string RotationYLabel = "Rotation Y (Yaw)";
+            public const string RotationZLabel = "Rotation Z (Roll)";
+            public const string RotationTooltip = "Adjust to align real sky catalog with game coordinates";
         }
     }
 }

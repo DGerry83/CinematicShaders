@@ -77,6 +77,13 @@ cbuffer StarfieldParams : register(b0)
     float2 InvScreenSize;
     int FrameIndex;
     int CatalogSize;
+    int2 _padEnd;
+    
+    // HYG Catalog Coordinate Rotation (degrees)
+    float RotationX;
+    float RotationY;
+    float RotationZ;
+    float _padRotation;
 };
 
 // ============================================
@@ -132,6 +139,44 @@ float fbm_noise(float3 p, float scale)
         frequency *= 2.0;
     }
     return value;
+}
+
+// ============================================
+// MODULE 2b: COORDINATE ROTATION FOR HYG CATALOG
+// ============================================
+float3 rotate3D(float3 v, float3 rotationDegrees)
+{
+    // Convert degrees to radians
+    float3 r = radians(rotationDegrees);
+    
+    // Rotation around X axis
+    float cosX = cos(r.x);
+    float sinX = sin(r.x);
+    float3 v1 = float3(
+        v.x,
+        v.y * cosX - v.z * sinX,
+        v.y * sinX + v.z * cosX
+    );
+    
+    // Rotation around Y axis
+    float cosY = cos(r.y);
+    float sinY = sin(r.y);
+    float3 v2 = float3(
+        v1.x * cosY + v1.z * sinY,
+        v1.y,
+        -v1.x * sinY + v1.z * cosY
+    );
+    
+    // Rotation around Z axis
+    float cosZ = cos(r.z);
+    float sinZ = sin(r.z);
+    float3 v3 = float3(
+        v2.x * cosZ - v2.y * sinZ,
+        v2.x * sinZ + v2.y * cosZ,
+        v2.z
+    );
+    
+    return v3;
 }
 
 // ============================================
@@ -313,10 +358,13 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     
     StarData star = StarCatalog[id.x];
     
+    // Apply HYG catalog coordinate rotation (if any)
+    float3 rotatedDir = rotate3D(star.Direction, float3(RotationX, RotationY, RotationZ));
+    
     // Transform star direction to view space (dot product with camera basis)
-    float viewX = dot(star.Direction, CameraRight);
-    float viewY = dot(star.Direction, CameraUp);
-    float viewZ = dot(star.Direction, CameraForward);
+    float viewX = dot(rotatedDir, CameraRight);
+    float viewY = dot(rotatedDir, CameraUp);
+    float viewZ = dot(rotatedDir, CameraForward);
     
     // Cull if behind camera (viewZ <= 0)
     if (viewZ <= 0.001) return;
