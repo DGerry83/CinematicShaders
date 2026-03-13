@@ -41,8 +41,27 @@ There's currently an issue with the AO processing that I'll detail in a separate
 
 ## License
 
-MIT License – See included `LICENSE.txt` file.
+All code is licensed via MIT License – See included `LICENSE.txt` file.
+
+HYG Database (hyg_v42.csv) and derived real-sky catalogs (.bin files 
+generated from this data) are licensed under CC BY-SA 4.0:
+
+Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)
+Copyright (c) Astronexus (HYG Database)
+
+You are free to:
+- Share: copy and redistribute the material
+- Adapt: remix, transform, and build upon the material
+Under the terms: Attribution + ShareAlike
+
+**Important:** Real-sky catalogs derived from the HYG CSV (the included .bin files 
+in `GameData/CinematicShaders/PluginData/StarCatalogs/`) are derivative works 
+and inherit CC BY-SA 4.0 obligations. Procedurally generated catalogs 
+(random seed, no HYG data) are original works and can be shared freely under 
+any terms you choose.
 
 ## Credits
 
 - GTAO implementation based on [XeGTAO](https://github.com/GameTechDev/XeGTAO)
+- ESA and the Hipparcos satellite for star data
+- Tiffany352 and the [Godot Starlight](https://github.com/tiffany352/godot-starlight) project for inspiration, PSF implementation.
