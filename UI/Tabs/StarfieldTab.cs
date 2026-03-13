@@ -129,26 +129,36 @@ namespace CinematicShaders.UI.Tabs
                     if (!StarfieldSettings.EnableStarfield)
                         GUI.enabled = false;
 
-                    DrawSlider(CinematicShadersUIStrings.Starfield.ExposureLabel, ref _exposure, -2.0f, 8.0f, "F1", 
+                    DrawRenderingSlider(CinematicShadersUIStrings.Starfield.ExposureLabel, ref _exposure, -2.0f, 8.0f, "F1", 
                         CinematicShadersUIStrings.Starfield.ExposureTooltip);
                     
                     // BlurPixels is angular sigma in radians; display as arcminutes (1' = 1/60° ≈ 0.00029 rad)
                     float blurArcminutes = _blurPixels * 3437.75f;  // rad to arcmin (180*60/π)
-                    DrawSlider(CinematicShadersUIStrings.Starfield.BlurPixelsLabel, ref blurArcminutes, 1.0f, 2.0f, "F1", 
+                    float prevBlurArcminutes = blurArcminutes;
+                    DrawRenderingSlider(CinematicShadersUIStrings.Starfield.BlurPixelsLabel, ref blurArcminutes, 1.0f, 2.0f, "F1", 
                         CinematicShadersUIStrings.Starfield.BlurPixelsTooltip);
                     _blurPixels = blurArcminutes / 3437.75f;
+                    // Push immediately if changed (since DrawRenderingSlider doesn't know about the conversion)
+                    if (!Mathf.Approximately(blurArcminutes, prevBlurArcminutes))
+                        PushSettingsToNative();
 
                     // Bloom threshold slider 0-10 maps to actual 0-0.1 for finer control
                     float bloomThresholdDisplay = _bloomThreshold * 100.0f;
-                    DrawSlider(CinematicShadersUIStrings.Starfield.BloomThresholdLabel, ref bloomThresholdDisplay, 0.0f, 10.0f, "F1", 
+                    float prevBloomThresholdDisplay = bloomThresholdDisplay;
+                    DrawRenderingSlider(CinematicShadersUIStrings.Starfield.BloomThresholdLabel, ref bloomThresholdDisplay, 0.0f, 10.0f, "F1", 
                         CinematicShadersUIStrings.Starfield.BloomThresholdTooltip);
                     _bloomThreshold = bloomThresholdDisplay / 100.0f;
+                    if (!Mathf.Approximately(bloomThresholdDisplay, prevBloomThresholdDisplay))
+                        PushSettingsToNative();
                     
                     // Bloom intensity 0-2 with logarithmic mapping
                     float bloomIntensityDisplay = Mathf.Sqrt(_bloomIntensity * 2.0f);
-                    DrawSlider(CinematicShadersUIStrings.Starfield.BloomIntensityLabel, ref bloomIntensityDisplay, 0.0f, 2.0f, "F2",
+                    float prevBloomIntensityDisplay = bloomIntensityDisplay;
+                    DrawRenderingSlider(CinematicShadersUIStrings.Starfield.BloomIntensityLabel, ref bloomIntensityDisplay, 0.0f, 2.0f, "F2",
                         CinematicShadersUIStrings.Starfield.BloomIntensityTooltip);
                     _bloomIntensity = (bloomIntensityDisplay * bloomIntensityDisplay) * 0.5f;
+                    if (!Mathf.Approximately(bloomIntensityDisplay, prevBloomIntensityDisplay))
+                        PushSettingsToNative();
 
                     GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.TIGHT);
 
@@ -162,27 +172,28 @@ namespace CinematicShaders.UI.Tabs
 
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
 
-                // === COORDINATE ROTATION SECTION ===
-                GUILayout.Label(CinematicShadersUIStrings.Starfield.CoordinateRotationSection, HighLogic.Skin.label);
-                DrawSlider(CinematicShadersUIStrings.Starfield.RotationXLabel, ref _rotationX, 0.0f, 360.0f, "F1", 
-                    CinematicShadersUIStrings.Starfield.RotationTooltip, "°");
-                DrawSlider(CinematicShadersUIStrings.Starfield.RotationYLabel, ref _rotationY, 0.0f, 360.0f, "F1", 
-                    CinematicShadersUIStrings.Starfield.RotationTooltip, "°");
-                DrawSlider(CinematicShadersUIStrings.Starfield.RotationZLabel, ref _rotationZ, 0.0f, 360.0f, "F1", 
-                    CinematicShadersUIStrings.Starfield.RotationTooltip, "°");
-
-                GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
-
                 // === MAIN GENERATION SECTION ===
                 _showMainGenerationSection = GUILayout.Toggle(_showMainGenerationSection, CinematicShadersUIStrings.Starfield.MainGenerationSection, HighLogic.Skin.label);
                 if (_showMainGenerationSection)
                 {
-                    // Disable generation sliders if read-only
+                    // Disable generation sliders if read-only OR if catalog is intentional (real sky)
                     bool wasEnabled = GUI.enabled;
-                    if (StarfieldSettings.IsReadOnly)
+                    bool isIntentional = StarCatalogManager.ActiveCatalog != null && !StarCatalogManager.ActiveCatalog.IsProcedural;
+                    
+                    if (StarfieldSettings.IsReadOnly || isIntentional)
                     {
                         GUI.enabled = false;
-                        GUILayout.Label(CinematicShadersUIStrings.Starfield.ReadOnlyLockMessage, CinematicShadersUIResources.Styles.Help());
+                        if (isIntentional)
+                        {
+                            // Show red warning label for intentional catalogs
+                            GUIStyle redLabelStyle = new GUIStyle(HighLogic.Skin.label);
+                            redLabelStyle.normal.textColor = Color.red;
+                            GUILayout.Label("Non-generated catalogs can only be rotated.", redLabelStyle);
+                        }
+                        else
+                        {
+                            GUILayout.Label(CinematicShadersUIStrings.Starfield.ReadOnlyLockMessage, CinematicShadersUIResources.Styles.Help());
+                        }
                     }
 
                     DrawIntSlider(CinematicShadersUIStrings.Starfield.CatalogSeedLabel, ref _catalogSeed, 0, 99999,
@@ -216,12 +227,25 @@ namespace CinematicShaders.UI.Tabs
                     CinematicShadersUIStrings.Common.CollapsedPrefix + CinematicShadersUIStrings.Starfield.AdvancedGenerationSection, HighLogic.Skin.label);
                 if (_showAdvancedGenerationSection)
                 {
-                    // Disable generation sliders if read-only
-                    bool wasEnabled = GUI.enabled;
+                    bool isIntentional = StarCatalogManager.ActiveCatalog != null && !StarCatalogManager.ActiveCatalog.IsProcedural;
+                    
+                    // Coordinate Rotation - available when NOT read-only
+                    // (For intentional catalogs, rotation is the only editable parameter)
+                    GUILayout.Label(CinematicShadersUIStrings.Starfield.CoordinateRotationSection, HighLogic.Skin.label);
                     if (StarfieldSettings.IsReadOnly)
-                    {
                         GUI.enabled = false;
-                    }
+                    DrawRenderingSlider(CinematicShadersUIStrings.Starfield.RotationXLabel, ref _rotationX, 0.0f, 360.0f, "F1", 
+                        CinematicShadersUIStrings.Starfield.RotationTooltip, "°");
+                    DrawRenderingSlider(CinematicShadersUIStrings.Starfield.RotationYLabel, ref _rotationY, 0.0f, 360.0f, "F1", 
+                        CinematicShadersUIStrings.Starfield.RotationTooltip, "°");
+                    DrawRenderingSlider(CinematicShadersUIStrings.Starfield.RotationZLabel, ref _rotationZ, 0.0f, 360.0f, "F1", 
+                        CinematicShadersUIStrings.Starfield.RotationTooltip, "°");
+                    
+                    // Generation params - disabled if read-only OR intentional (real sky)
+                    if (StarfieldSettings.IsReadOnly || isIntentional)
+                        GUI.enabled = false;
+                    
+                    GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.TIGHT);
 
                     DrawSlider(CinematicShadersUIStrings.Starfield.BrightnessDistributionLabel, ref _magnitudeBias, 0.02f, 0.5f, "F2");
                     DrawSlider(CinematicShadersUIStrings.Starfield.StellarPopulationLabel, ref _populationBias, -1.0f, 1.0f, "F2",
@@ -241,8 +265,6 @@ namespace CinematicShaders.UI.Tabs
                     DrawSlider(CinematicShadersUIStrings.Starfield.BulgeSoftnessLabel, ref _bulgeSoftness, 0.0f, 1.0f, "F2");
                     DrawSlider(CinematicShadersUIStrings.Starfield.BulgeNoiseScaleLabel, ref _bulgeNoiseScale, 0.0f, 100.0f, "F1");
                     DrawSlider(CinematicShadersUIStrings.Starfield.BulgeNoiseStrengthLabel, ref _bulgeNoiseStrength, 0.0f, 1.0f, "F2");
-                    
-                    GUI.enabled = wasEnabled;
                 }
             }
             finally
@@ -326,6 +348,33 @@ namespace CinematicShaders.UI.Tabs
             {
                 value = newValue;
                 StarfieldSettings.InvalidateCatalog();
+                PushSettingsToNative();
+            }
+        }
+        
+        /// <summary>
+        /// Draws a slider for rendering parameters that don't affect catalog generation.
+        /// Only pushes settings to native without invalidating the catalog.
+        /// </summary>
+        private void DrawRenderingSlider(string label, ref float value, float min, float max, string format, string tooltip = null, string suffix = "")
+        {
+            GUILayout.BeginHorizontal();
+            
+            GUIContent labelContent = new GUIContent(label, tooltip);
+            GUILayout.Label(labelContent, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.DEFAULT_WIDTH));
+
+            float newValue = GUILayout.HorizontalSlider(value, min, max, 
+                GUILayout.Width(CinematicShadersUIResources.Layout.Labels.SLIDER_WIDTH));
+            
+            string displayText = newValue.ToString(format) + suffix;
+            GUILayout.Label(displayText, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.VALUE_WIDTH));
+
+            GUILayout.EndHorizontal();
+
+            if (!Mathf.Approximately(newValue, value))
+            {
+                value = newValue;
+                // NOTE: Does NOT invalidate catalog - only pushes to native for runtime rendering
                 PushSettingsToNative();
             }
         }
@@ -458,9 +507,9 @@ namespace CinematicShaders.UI.Tabs
             
             // Action buttons
             GUILayout.BeginHorizontal();
-            
-            // Save button (disabled if read-only)
-            GUI.enabled = !StarfieldSettings.IsReadOnly && StarCatalogManager.ActiveCatalog != null;
+
+            // Save button - allow saving to persist read-only state changes
+            GUI.enabled = StarCatalogManager.ActiveCatalog != null;
             if (GUILayout.Button(CinematicShadersUIStrings.Starfield.SaveButton, GUILayout.Width(70)))
             {
                 if (StarCatalogManager.ActiveCatalog != null)
@@ -577,15 +626,50 @@ namespace CinematicShaders.UI.Tabs
                     StarfieldSettings.IsReadOnly = StarCatalogManager.ActiveCatalog.IsReadOnly;
                 }
                 
-                // Sync UI values from loaded catalog's generation params
+                // Sync UI values from loaded catalog
                 if (StarCatalogManager.ActiveCatalog != null)
                 {
-                    _catalogSeed = StarCatalogManager.ActiveCatalog.GenerationSeed;
-                    StarfieldSettings.CatalogSeed = _catalogSeed;
-                    // Reload other params if stored in catalog
+                    // Always sync rotation (available for both procedural and intentional)
+                    _rotationX = StarCatalogManager.ActiveCatalog.RotationX;
+                    _rotationY = StarCatalogManager.ActiveCatalog.RotationY;
+                    _rotationZ = StarCatalogManager.ActiveCatalog.RotationZ;
+                    StarfieldSettings.RotationX = _rotationX;
+                    StarfieldSettings.RotationY = _rotationY;
+                    StarfieldSettings.RotationZ = _rotationZ;
+                    
+                    // Only sync generation params for procedural catalogs
+                    // Intentional catalogs (real sky) have meaningless generation params
+                    if (StarCatalogManager.ActiveCatalog.IsProcedural)
+                    {
+                        _catalogSeed = StarCatalogManager.ActiveCatalog.GenerationSeed;
+                        StarfieldSettings.CatalogSeed = _catalogSeed;
+                        
+                        _minMagnitude = StarCatalogManager.ActiveCatalog.MinMagnitude;
+                        _maxMagnitude = StarCatalogManager.ActiveCatalog.MaxMagnitude;
+                        _magnitudeBias = StarCatalogManager.ActiveCatalog.MagnitudeBias;
+                        _clustering = StarCatalogManager.ActiveCatalog.Clustering;
+                        _populationBias = StarCatalogManager.ActiveCatalog.PopulationBias;
+                        _mainSequenceStrength = StarCatalogManager.ActiveCatalog.MainSequenceStrength;
+                        _redGiantFrequency = StarCatalogManager.ActiveCatalog.RedGiantFrequency;
+                        _galacticFlatness = StarCatalogManager.ActiveCatalog.GalacticFlatness;
+                        StarfieldSettings.MinMagnitude = _minMagnitude;
+                        StarfieldSettings.MaxMagnitude = _maxMagnitude;
+                        StarfieldSettings.MagnitudeBias = _magnitudeBias;
+                        StarfieldSettings.Clustering = _clustering;
+                        StarfieldSettings.PopulationBias = _populationBias;
+                        StarfieldSettings.MainSequenceStrength = _mainSequenceStrength;
+                        StarfieldSettings.RedGiantFrequency = _redGiantFrequency;
+                        StarfieldSettings.GalacticFlatness = _galacticFlatness;
+                    }
+                    
+                    // Sync tracking vars for ALL catalogs (procedural and intentional)
+                    // This clears the regeneration flag so scene changes don't regenerate
+                    StarfieldSettings.SyncTrackingVars();
                 }
                 
-                StarfieldSettings.InvalidateCatalog();
+                // Mark for reload so native plugin processes the catalog
+                // This is needed to ensure the catalog is properly registered
+                StarfieldSettings.InvalidateCatalogForReload();
                 PushSettingsToNative();
             }
         }
@@ -652,6 +736,11 @@ namespace CinematicShaders.UI.Tabs
             _bloomIntensity = 0.5f;  // Displays as 1.0
             _colorSaturation = 1.0f;
             _catalogSize = 50000;  // Default: 50k stars
+            
+            // Reset rotation to 0 (no rotation for new catalogs)
+            _rotationX = 0.0f;
+            _rotationY = 0.0f;
+            _rotationZ = 0.0f;
         }
     }
 }

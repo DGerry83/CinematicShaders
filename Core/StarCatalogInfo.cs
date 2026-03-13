@@ -15,7 +15,11 @@ namespace CinematicShaders.Core
         public int HeroCount { get; set; }
         public int GenerationSeed { get; set; }
         
+        // Catalog type (Version 6+)
+        public bool IsProcedural { get; set; }
+        
         // Generation parameters stored for "Clone & Modify" functionality
+        // Only meaningful for procedural catalogs
         public float MinMagnitude { get; set; }
         public float MaxMagnitude { get; set; }
         public float MagnitudeBias { get; set; }
@@ -24,6 +28,12 @@ namespace CinematicShaders.Core
         public float MainSequenceStrength { get; set; }
         public float RedGiantFrequency { get; set; }
         public float GalacticFlatness { get; set; }
+        
+        // Catalog rotation (Version 5+) - orientation of starfield in sky
+        // Available for both procedural and intentional catalogs
+        public float RotationX { get; set; }
+        public float RotationY { get; set; }
+        public float RotationZ { get; set; }
         
         /// <summary>
         /// Returns the display name, or filename if no custom name set

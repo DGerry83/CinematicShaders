@@ -84,6 +84,8 @@ namespace CinematicShaders.UI
                     GUILayout.Label(errorMessage, CinematicShadersUIResources.Styles.Error());
                     GUILayout.EndVertical();
                     GUI.DragWindow();
+                    windowRect.x = Mathf.Clamp(windowRect.x, 0, Screen.width - windowRect.width);
+                    windowRect.y = Mathf.Clamp(windowRect.y, 0, Screen.height - windowRect.height);
                     return;
                 }
 

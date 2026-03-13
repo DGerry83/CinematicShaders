@@ -34,8 +34,8 @@ namespace CinematicShaders.Core
         [KSPField(isPersistant = true)]
         public string ActiveCatalogPath = "";
 
-        [KSPField(isPersistant = true)]
-        public bool IsReadOnly = false;
+        //[KSPField(isPersistant = true)]
+        //public bool IsReadOnly = false;
 
         public override void OnAwake()
         {
@@ -56,7 +56,7 @@ namespace CinematicShaders.Core
             StarfieldSettings.BloomIntensity = BloomIntensity;
             StarfieldSettings.ColorSaturation = ColorSaturation;
             StarfieldSettings.ActiveCatalogPath = ActiveCatalogPath;
-            StarfieldSettings.IsReadOnly = IsReadOnly;
+            // StarfieldSettings.IsReadOnly = IsReadOnly;
             
             // Mark catalog for reload since we're changing saves
             StarfieldSettings.InvalidateCatalogForReload();
@@ -77,7 +77,7 @@ namespace CinematicShaders.Core
             BloomIntensity = StarfieldSettings.BloomIntensity;
             ColorSaturation = StarfieldSettings.ColorSaturation;
             ActiveCatalogPath = StarfieldSettings.ActiveCatalogPath;
-            IsReadOnly = StarfieldSettings.IsReadOnly;
+            // IsReadOnly = StarfieldSettings.IsReadOnly;
         }
 
         public override void OnSave(ConfigNode node)

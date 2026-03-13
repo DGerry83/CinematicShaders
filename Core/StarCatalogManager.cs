@@ -16,7 +16,7 @@ namespace CinematicShaders.Core
     {
         // Binary format constants
         private const uint MAGIC = 0x53545243; // 'STRC'
-        private const ushort VERSION = 4;       // Version 4: includes Flags (IsHero)
+        private const ushort VERSION = 6;       // Version 6: includes IsProcedural flag
         private const int HEADER_SIZE = 256;
         private const int STAR_SIZE = 48; // sizeof(StarDataNative)
         
@@ -25,7 +25,8 @@ namespace CinematicShaders.Core
         {
             None = 0,
             ReadOnly = 1,
-            HasCustomName = 2
+            HasCustomName = 2,
+            IsProcedural = 4  // Bit 2: true for procedural, false for intentional (real sky/curated)
         }
         
         /// <summary>
@@ -140,8 +141,20 @@ namespace CinematicShaders.Core
                     float redGiantFrequency = reader.ReadSingle();
                     float galacticFlatness = reader.ReadSingle();
                     
-                    // Skip to display name (offset 52: after magic(4)+version(2)+flags(2)+count(4)+heroes(4)+seed(4)+params(32))
-                    fs.Seek(52, SeekOrigin.Begin);
+                    // Read rotation values (Version 5+) from offset 52
+                    float rotationX = 0.0f;
+                    float rotationY = 0.0f;
+                    float rotationZ = 0.0f;
+                    if (version >= 5)
+                    {
+                        rotationX = reader.ReadSingle();
+                        rotationY = reader.ReadSingle();
+                        rotationZ = reader.ReadSingle();
+                    }
+                    
+                    // Skip to display name (offset 52 for v4, offset 64 for v5: after magic(4)+version(2)+flags(2)+count(4)+heroes(4)+seed(4)+params(32)+rotation(12))
+                    int headerDataOffset = (version >= 5) ? 64 : 52;
+                    fs.Seek(headerDataOffset, SeekOrigin.Begin);
                     byte[] nameBytes = reader.ReadBytes(64);
                     string displayName = Encoding.UTF8.GetString(nameBytes).TrimEnd('\0');
                     
@@ -157,6 +170,7 @@ namespace CinematicShaders.Core
                         FilePath = filePath,
                         DisplayName = displayName,
                         IsReadOnly = (flags & (ushort)CatalogFlags.ReadOnly) != 0,
+                        IsProcedural = (flags & (ushort)CatalogFlags.IsProcedural) != 0,
                         StarCount = starCount,
                         HeroCount = heroCount,
                         GenerationSeed = generationSeed,
@@ -168,6 +182,9 @@ namespace CinematicShaders.Core
                         MainSequenceStrength = mainSeqStr,
                         RedGiantFrequency = redGiantFrequency,
                         GalacticFlatness = galacticFlatness,
+                        RotationX = rotationX,
+                        RotationY = rotationY,
+                        RotationZ = rotationZ,
                         CreatedDate = createdDate
                     };
                 }
@@ -225,7 +242,28 @@ namespace CinematicShaders.Core
                 // Upload to native plugin
                 StarfieldNative.LoadCatalog(stars, info.HeroCount);
                 
+                // Apply catalog rotation to settings (catalog orientation is part of the catalog)
+                // Rotation is available for both procedural and intentional catalogs
+                StarfieldSettings.RotationX = info.RotationX;
+                StarfieldSettings.RotationY = info.RotationY;
+                StarfieldSettings.RotationZ = info.RotationZ;
+                
+                // For procedural catalogs, also sync generation params
+                // For intentional catalogs (real sky), generation params are meaningless
+                if (info.IsProcedural)
+                {
+                    StarfieldSettings.MinMagnitude = info.MinMagnitude;
+                    StarfieldSettings.MaxMagnitude = info.MaxMagnitude;
+                    StarfieldSettings.MagnitudeBias = info.MagnitudeBias;
+                    StarfieldSettings.Clustering = info.Clustering;
+                    StarfieldSettings.PopulationBias = info.PopulationBias;
+                    StarfieldSettings.MainSequenceStrength = info.MainSequenceStrength;
+                    StarfieldSettings.RedGiantFrequency = info.RedGiantFrequency;
+                    StarfieldSettings.GalacticFlatness = info.GalacticFlatness;
+                }
+                
                 ActiveCatalog = info;
+                StarfieldSettings.IsReadOnly = info.IsReadOnly; // Per-catalog flag, not per-save
                 IsDirty = false;
                 OnCatalogChanged?.Invoke();
                 
@@ -272,6 +310,11 @@ namespace CinematicShaders.Core
                 ushort flags = (ushort)(readOnly ? CatalogFlags.ReadOnly : CatalogFlags.None);
                 if (!string.IsNullOrEmpty(displayName))
                     flags |= (ushort)CatalogFlags.HasCustomName;
+                // Preserve IsProcedural flag from active catalog, or default to true for new saves
+                if (ActiveCatalog != null && ActiveCatalog.IsProcedural)
+                    flags |= (ushort)CatalogFlags.IsProcedural;
+                else if (ActiveCatalog == null)
+                    flags |= (ushort)CatalogFlags.IsProcedural; // New catalogs default to procedural
                 
                 using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write))
                 using (var writer = new BinaryWriter(fs))
@@ -297,8 +340,10 @@ namespace CinematicShaders.Core
                     writer.Write(StarfieldSettings.RedGiantFrequency);
                     writer.Write(StarfieldSettings.GalacticFlatness);
                     
-                    // Offset 52: Pad to 64 (12 bytes), total 64
-                    writer.Write(new byte[12]);
+                    // Offset 52: Rotation X/Y/Z (3 floats = 12 bytes), total 64
+                    writer.Write(StarfieldSettings.RotationX);
+                    writer.Write(StarfieldSettings.RotationY);
+                    writer.Write(StarfieldSettings.RotationZ);
                     
                     // Display name (64 bytes)
                     byte[] nameBytes = new byte[64];

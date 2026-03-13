@@ -22,7 +22,7 @@ from datetime import datetime
 HEADER_SIZE = 256
 STAR_SIZE = 48  # 12 values × 4 bytes = 48 bytes (ID, Dist, Spectral, Flags, DirXYZ, Mag, RGB, Temp)
 MAGIC = 0x53545243  # 'STRC'
-VERSION = 4  # Version 4: Added Flags field (IsHero for named/generated stars)
+VERSION = 6  # Version 6: Added IsProcedural flag
 
 # Flags bitfield
 FLAG_IS_HERO = 1  # Bit 0: Star can be named/is important enough for billboard PSF
@@ -196,15 +196,16 @@ def write_catalog(filename, stars, display_name, hero_count=0, read_only=True):
     
     Header format (256 bytes total):
     - Offset 0:   Magic (4 bytes) - 'STRC'
-    - Offset 4:   Version (2 bytes) - 1
-    - Offset 6:   Flags (2 bytes) - Bit 0=ReadOnly
+    - Offset 4:   Version (2 bytes) - 6
+    - Offset 6:   Flags (2 bytes) - Bit 0=ReadOnly, Bit 2=IsProcedural
     - Offset 8:   StarCount (4 bytes)
     - Offset 12:  HeroCount (4 bytes) - count of stars with IsHero flag
     - Offset 16:  GenerationSeed (4 bytes) - 42 for real sky
     - Offset 20:  GenParams (32 bytes) - 8 floats, all 0 for real sky
-    - Offset 52:  DisplayName (64 bytes) - UTF-8, null-padded
-    - Offset 116: Date (32 bytes) - ISO-8601 timestamp
-    - Offset 148: Reserved (108 bytes) - zeros
+    - Offset 52:  Rotation X/Y/Z (12 bytes) - 3 floats for catalog orientation
+    - Offset 64:  DisplayName (64 bytes) - UTF-8, null-padded
+    - Offset 128: Date (32 bytes) - ISO-8601 timestamp
+    - Offset 160: Reserved (96 bytes) - zeros
     
     Star records (48 bytes each):
     - HipparcosID (1 int32)
@@ -224,8 +225,12 @@ def write_catalog(filename, stars, display_name, hero_count=0, read_only=True):
         # Version (2 bytes)
         f.write(struct.pack('<H', VERSION))
         
-        # Flags (2 bytes) - Read-only
-        flags = 1 if read_only else 0
+        # Flags (2 bytes) - Bit 0=ReadOnly, Bit 2=IsProcedural
+        # HYG catalogs are intentional (real sky), not procedural
+        flags = 0
+        if read_only:
+            flags |= 1  # Bit 0: ReadOnly
+        # Intentional catalog (not procedural) - IsProcedural bit (4) is 0
         f.write(struct.pack('<H', flags))
         
         # Star count (4 bytes)
@@ -241,6 +246,9 @@ def write_catalog(filename, stars, display_name, hero_count=0, read_only=True):
         for _ in range(8):
             f.write(struct.pack('<f', 0.0))
         
+        # Rotation X/Y/Z (12 bytes = 3 floats) - 0,0,0 for HYG catalogs (no rotation)
+        f.write(struct.pack('<fff', 0.0, 0.0, 0.0))
+        
         # Display name (64 bytes) - UTF-8, null-padded
         name_bytes = display_name.encode('utf-8')[:63]
         f.write(name_bytes + b'\x00' * (64 - len(name_bytes)))
@@ -250,8 +258,8 @@ def write_catalog(filename, stars, display_name, hero_count=0, read_only=True):
         date_bytes = date_str.encode('utf-8')[:31]
         f.write(date_bytes + b'\x00' * (32 - len(date_bytes)))
         
-        # Reserved (108 bytes) - zeros to reach 256 byte header
-        f.write(b'\x00' * 108)
+        # Reserved (96 bytes) - zeros to reach 256 byte header
+        f.write(b'\x00' * 96)
         
         # Write star data (48 bytes each)
         for star in stars:

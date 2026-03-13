@@ -23,8 +23,15 @@ def read_header(f):
     data['hero_count'] = struct.unpack('<i', f.read(4))[0]
     data['seed'] = struct.unpack('<i', f.read(4))[0]
     
-    # Gen params (8 floats)
+    # Gen params (8 floats = 32 bytes, offset 20-52)
     data['gen_params'] = struct.unpack('<8f', f.read(32))
+    
+    # Rotation X/Y/Z (3 floats = 12 bytes, offset 52-64) - Version 6+
+    # Version 6 moved rotation from gen_params to dedicated field
+    if data['version'] >= 6:
+        data['rotation'] = struct.unpack('<3f', f.read(12))
+    else:
+        data['rotation'] = (0.0, 0.0, 0.0)
     
     # Display name (64 bytes)
     name_bytes = f.read(64)
@@ -76,10 +83,19 @@ def validate_file(filepath):
         expected_magic = f"{MAGIC:08X}"
         print(f"Magic:           0x{magic_str} ({'OK' if header['magic'] == MAGIC else 'BAD'})")
         print(f"Version:         {header['version']}")
-        print(f"Flags:           0x{header['flags']:04X} (ReadOnly: {bool(header['flags'] & 1)})")
+        # Version 6+: check IsProcedural flag
+        if header['version'] >= 6:
+            is_procedural = bool(header['flags'] & 4)
+            proc_str = f", Procedural: {is_procedural}"
+        else:
+            proc_str = ""
+        print(f"Flags:           0x{header['flags']:04X} (ReadOnly: {bool(header['flags'] & 1)}{proc_str})")
         print(f"Star Count:      {header['star_count']}")
         print(f"Hero Count:      {header['hero_count']}")
         print(f"Seed:            {header['seed']}")
+        if header['version'] >= 5:
+            rx, ry, rz = header['rotation']
+            print(f"Rotation:        X={rx:.2f}°, Y={ry:.2f}°, Z={rz:.2f}°")
         print(f"Display Name:    '{header['display_name']}'")
         print(f"Date:            '{header['date']}'")
         # Note: header_end is where we stopped reading, reserved section is zeros

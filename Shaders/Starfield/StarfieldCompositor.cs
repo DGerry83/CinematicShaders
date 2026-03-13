@@ -143,9 +143,26 @@ namespace CinematicShaders.Shaders.Starfield
             Vector3 forward = (Vector3)(inverseRotation * (Vector3d)surfaceForward);
 
             // Capture atmospheric extinction for this frame
-            var atmoRaw = AtmosphericScatteringData.CaptureRawData();
-            var atmoCalc = AtmosphericScatteringData.Calculate(atmoRaw);
-            
+            // Guard against null refs during scene transitions when atmosphere data isn't ready yet
+            // I hate using try-catch to hide exceptions but I think it's appropriate here
+            AtmosphericScatteringData.RawData atmoRaw;
+            AtmosphericScatteringData.CalculatedData atmoCalc;
+            try
+            {
+                atmoRaw = AtmosphericScatteringData.CaptureRawData();
+                atmoCalc = AtmosphericScatteringData.Calculate(atmoRaw);
+            }
+            catch (Exception ex)
+            {
+                // Scene transition - atmosphere not ready, use defaults (no extinction)
+                atmoRaw = new AtmosphericScatteringData.RawData { UpVector = Vector3.up };
+                atmoCalc = new AtmosphericScatteringData.CalculatedData
+                {
+                    ExtinctionZenith = 1.0f,
+                    ExtinctionHorizon = 1.0f
+                };
+            }
+
             // Pass whiteTexture to bootstrap D3D11 device acquisition in native code
             // (Texture2D.whiteTexture is a built-in 4x4 texture, no allocation/disposal needed)
             StarfieldNative.CR_StarfieldSetCameraMatrices(

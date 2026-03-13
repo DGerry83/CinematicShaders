@@ -130,7 +130,7 @@ namespace CinematicShaders.Core
                 RotationY = float.Parse(settingsNode.GetValue("RotationY") ?? "0.0");
                 RotationZ = float.Parse(settingsNode.GetValue("RotationZ") ?? "0.0");
                 ActiveCatalogPath = settingsNode.GetValue("ActiveCatalogPath") ?? "";
-                IsReadOnly = bool.Parse(settingsNode.GetValue("IsReadOnly") ?? "false");
+                // IsReadOnly = bool.Parse(settingsNode.GetValue("IsReadOnly") ?? "false");
 
                 // Force regeneration on next push since we loaded new values
                 _catalogNeedsRegeneration = true;
@@ -224,9 +224,18 @@ namespace CinematicShaders.Core
                 try
                 {
                     UnityEngine.Debug.Log($"[StarfieldSettings] Loading catalog: {ActiveCatalogPath}");
-                    StarCatalogManager.LoadCatalog(ActiveCatalogPath);
-                    _catalogNeedsReload = false;
-                    
+                    if (StarCatalogManager.LoadCatalog(ActiveCatalogPath))
+                    {
+                        _catalogNeedsReload = false;
+                        // Catalog loaded successfully - DO NOT generate in this same frame
+                        // SyncTrackingVars() was called by LoadCatalog, so next frame won't detect changes
+                        shouldGenerateCatalog = false;
+                    }
+                    else
+                    {
+                        throw new System.Exception("LoadCatalog returned false");
+                    }
+
                     // Update tracking vars to match loaded catalog
                     _lastCatalogSeed = CatalogSeed;
                     _lastCatalogSize = CatalogSize;
@@ -311,6 +320,35 @@ namespace CinematicShaders.Core
             // Call this when device reinitializes or scene changes - triggers reload, not regeneration
             _catalogNeedsReload = true;
         }
+        
+        /// <summary>
+        /// Syncs tracking variables to current settings values.
+        /// Call this after loading a catalog to prevent false "params changed" detection.
+        /// </summary>
+        public static void SyncTrackingVars()
+        {
+            _lastCatalogSeed = CatalogSeed;
+            _lastCatalogSize = CatalogSize;
+            _lastMinMagnitude = MinMagnitude;
+            _lastMaxMagnitude = MaxMagnitude;
+            _lastMagnitudeBias = MagnitudeBias;
+            _lastHeroCount = HeroCount;
+            _lastClustering = Clustering;
+            _lastPopulationBias = PopulationBias;
+            _lastMainSequenceStrength = MainSequenceStrength;
+            _lastRedGiantFrequency = RedGiantFrequency;
+            _lastGalacticFlatness = GalacticFlatness;
+            _lastGalacticDiscFalloff = GalacticDiscFalloff;
+            _lastBandCenterBoost = BandCenterBoost;
+            _lastBandCoreSharpness = BandCoreSharpness;
+            _lastBulgeIntensity = BulgeIntensity;
+            _lastBulgeWidth = BulgeWidth;
+            _lastBulgeHeight = BulgeHeight;
+            _lastBulgeSoftness = BulgeSoftness;
+            _lastBulgeNoiseScale = BulgeNoiseScale;
+            _lastBulgeNoiseStrength = BulgeNoiseStrength;
+            _catalogNeedsRegeneration = false;
+        }
 
         public static void Save()
         {
@@ -356,7 +394,7 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("RotationY", RotationY);
                 settingsNode.AddValue("RotationZ", RotationZ);
                 settingsNode.AddValue("ActiveCatalogPath", ActiveCatalogPath);
-                settingsNode.AddValue("IsReadOnly", IsReadOnly);
+                // settingsNode.AddValue("IsReadOnly", IsReadOnly);
                 settingsNode.AddValue("CatalogSeed", CatalogSeed);
                 settingsNode.AddValue("CatalogSize", CatalogSize);
 

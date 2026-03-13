@@ -32,6 +32,17 @@ namespace CinematicShaders.Core
         {
             GTAOSettings.Load();
             StarfieldSettings.Load();
+            // If we're already in a game session, re-apply per-save settings to override
+            // the global settings we just loaded. This happens on scene changes within
+            // the same save (e.g., Flight -> Tracking Station -> Flight).
+            // OnGameStateLoad only fires when first loading a save, not on scene changes.
+            if (HighLogic.LoadedScene != GameScenes.MAINMENU &&
+                HighLogic.LoadedScene != GameScenes.LOADING &&
+                StarfieldPerSaveSettings.Instance != null)
+            {
+                Debug.Log("[CinematicShaders] Re-applying per-save settings after scene change");
+                StarfieldPerSaveSettings.Instance.ApplyToSettings();
+            }
             StarCatalogManager.Initialize();  // Ensure catalog folder exists
 
             // Only auto-enable if in a playable scene (not LOADING, MAINMENU, or EDITOR)
@@ -116,10 +127,12 @@ namespace CinematicShaders.Core
                     Invoke(nameof(RetryInit), 1.5f);
                     Invoke(nameof(RetryInit), 3.0f);
                 }
-                if (StarfieldSettings.EnableStarfield && IsPlayableScene())
-                {
-                    StarfieldManager.Initialize();
-                }
+            }
+
+            // Initialize Starfield completely independently of GTAO
+            if (StarfieldSettings.EnableStarfield && IsPlayableScene())
+            {
+                StarfieldManager.Initialize();
             }
         }
 
