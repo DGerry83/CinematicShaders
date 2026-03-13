@@ -106,16 +106,15 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     {
         if (DebugMode == 1) // World Normals
         {
-            // Pack RGB into RG: R->R, G->G, B->(R+G)/2 or similar, or just store R and G
-            float3 packed = worldNormal * 0.5 + 0.5; // 0-1 range
-            g_AOTexture[coord] = float2(packed.r, packed.g); // Store RG, ignore B for now
+            float3 packed = worldNormal * 0.5 + 0.5;
+            g_AOTexture[coord] = float2(packed.r, packed.g);
             return;
         }
         else if (DebugMode == 2) // View Normals
         {
             if (length(worldNormal) < 0.001)
             {
-                g_AOTexture[coord] = float2(0, 0); // Black for invalid
+                g_AOTexture[coord] = float2(0, 0);
                 return;
             }
             float3x3 worldToView = float3x3(
@@ -124,7 +123,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
                 WorldToViewRow2.xyz
             );
             float3 viewNormal = mul(worldToView, worldNormal);
-            float3 packed = viewNormal * 0.5 + 0.5; // 0-1 range
+            float3 packed = viewNormal * 0.5 + 0.5;
             g_AOTexture[coord] = float2(packed.r, packed.g);
             return;
         }
@@ -136,10 +135,9 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     }
     
     // Skip sky pixels using Deferred's normal alpha channel
-    // Deferred mod: alpha = 0 for sky, alpha = 1 for geometry
     if (normalData.a < 0.5)
     {
-        g_AOTexture[coord] = float2(1.0, 0.0);  // Sky: AO=1, depth=0
+        g_AOTexture[coord] = float2(1.0, 0.0);
         return;
     }
     
@@ -150,7 +148,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float3 pos = ComputeViewspacePosition(uv, viewZ, NDCToViewMul, NDCToViewAdd);
     float3 viewVec = normalize(-pos);
     
-    // Transform normal to VIEW SPACE using proper matrix
+    // Transform normal to VIEW SPACE
     float3x3 worldToView = float3x3(
         WorldToViewRow0.xyz,
         WorldToViewRow1.xyz,
@@ -158,50 +156,39 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     );
     float3 viewNormal = mul(worldToView, worldNormal);
     
-    // Push toward camera (less negative Z) to avoid self-occlusion
-    // Use 0.99999 for FP32 (0.01% offset = ~75 units at 750km far plane)
+    // Push toward camera to avoid self-occlusion
     viewZ *= 0.99999;
     pos = ComputeViewspacePosition(uv, viewZ, NDCToViewMul, NDCToViewAdd);
     
-    // Calculate screen-space radius (use abs to handle sign conventions)
+    // Calculate screen-space radius
     float2 pixelSizeAtViewZ = viewZ * NDCToViewMul * InvScreenSize;
     float screenSpaceRadius = EffectRadius / max(abs(pixelSizeAtViewZ.x), 0.0001);
-    screenSpaceRadius = clamp(screenSpaceRadius, 2.0, MaxPixelRadius); // User-controlled limit
+    screenSpaceRadius = clamp(screenSpaceRadius, 2.0, MaxPixelRadius);
 
-    if (MaxPixelRadius < 1.0) {
-    g_AOTexture[coord] = float2(1.0, viewZ); // Bright red if MaxPixelRadius is broken
-    return;
-    }
-    
-    // Minimum sample distance (avoid self-sampling center pixel)
+    // Minimum sample distance
     const float pixelTooCloseThreshold = 1.3;
     float minS = pixelTooCloseThreshold / screenSpaceRadius;
     
     // Blue noise for temporal stability
     float2 localNoise = GetGTAONoise(coord, (uint)FrameIndex);
-    float noiseSlice = localNoise.x;    // For slice rotation
-    float noiseStep = localNoise.y;     // For step distribution
+    float noiseSlice = localNoise.x;
+    float noiseStep = localNoise.y;
     
     float visibility = 0;
     
     for (int s = 0; s < SliceCount; s++)
     {
-        // Hemisphere only (PI radians, not 2*PI)
         float sliceK = ((float)s + noiseSlice) / (float)SliceCount;
-        float phi = sliceK * 3.14159265359; // 180 degrees
-        // XeGTAO: negate sin for Unity's coordinate system
+        float phi = sliceK * 3.14159265359;
         float2 omega = float2(cos(phi), -sin(phi));
         
-        // Slice plane orientation - directionVec matches omega for consistency
         float3 directionVec = float3(omega.x, omega.y, 0.0);
         float3 orthoDirectionVec = directionVec - dot(directionVec, viewVec) * viewVec;
         float3 slicePlaneNormal = normalize(cross(orthoDirectionVec, viewVec));
         
-        // Project normal to slice plane
         float3 projectedNormal = viewNormal - slicePlaneNormal * dot(viewNormal, slicePlaneNormal);
         float projectedNormalLength = length(projectedNormal);
         
-        // XeGTAO normal angle calculation (reuse orthoDirectionVec from slice plane calc)
         float3 projectedNormalDir = projectedNormal / projectedNormalLength;
         float signNorm = sign(dot(orthoDirectionVec, projectedNormal));
         float cosNorm = saturate(dot(projectedNormalDir, viewVec));
@@ -209,14 +196,11 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         float cosN = cos(n);
         float sinN = sin(n);
         
-        // Initialize horizons based on normal angle
-        float lowHorizonCos0 = cos(n + 1.570796); // n + PI/2
-        float lowHorizonCos1 = cos(n - 1.570796); // n - PI/2
-        // XeGTAO: horizonCos[0] = +omega direction, horizonCos[1] = -omega direction
+        float lowHorizonCos0 = cos(n + 1.570796);
+        float lowHorizonCos1 = cos(n - 1.570796);
         float2 horizonCos = float2(lowHorizonCos0, lowHorizonCos1);
         float2 lowHorizonCos = float2(lowHorizonCos0, lowHorizonCos1);
         
-        // Sample both directions
         for (int dir = 0; dir < 2; dir++)
         {
             float2 direction = (dir == 0) ? omega : -omega;
@@ -224,40 +208,34 @@ void CSMain(uint3 id : SV_DispatchThreadID)
             
             for (int step = 0; step < StepsPerSlice; step++)
             {
-                // Distribution with minS offset to avoid self-sampling
-                // Golden ratio progression with blue noise base
                 float stepBaseNoise = frac(noiseStep + (float)step * 0.6180339887498948482);
                 float stepBase = (float(step) + stepBaseNoise) / (float)StepsPerSlice;
                 float t = pow(stepBase, SampleDistributionPower);
-                t += minS; // Add offset to ensure first sample is at least 1.3 pixels away
+                t += minS;
                 
                 float2 sampleUV = uv + direction * t * screenSpaceRadius * InvScreenSize;
-                sampleUV = saturate(sampleUV);
                 
-                // Hi-Z sampling: calculate mip level based on sample distance (in pixels)
-                float sampleOffsetLength = t * screenSpaceRadius; // Distance in pixels
+                if (any(sampleUV < -0.5) || any(sampleUV > 1.5))
+                    break;
+                
+                float sampleOffsetLength = t * screenSpaceRadius;
                 float mipLevel = clamp(log2(sampleOffsetLength) - DepthMIPSamplingOffset, 0.0, 11.0);
                 
-                // Sample from Hi-Z pyramid
-                float sampleRawDepth = g_DepthTexture.SampleLevel(pointSampler, sampleUV, mipLevel);
+                float2 clampedUV = saturate(sampleUV);
+                float sampleRawDepth = g_DepthTexture.SampleLevel(pointSampler, clampedUV, mipLevel);
                 float sampleViewZ = LinearizeDepth(sampleRawDepth, DepthUnpackConsts);
                 
                 float3 samplePos = ComputeViewspacePosition(sampleUV, sampleViewZ, NDCToViewMul, NDCToViewAdd);
                 
-                // XeGTAO thin occluder compensation (fixes faceting on smooth curved surfaces)
                 float3 delta = samplePos - pos;
                 
-                // Geometric direction for accurate horizon (uses true surface shape)
                 float3 deltaDir = normalize(delta);
                 float elevationCos = dot(deltaDir, viewVec);
                 
-                // Thickened distance for falloff (smooths over depth buffer faceting)
-                // Artificially inflates Z difference so facet steps don't create hard occlusion edges
-                const float thinOccluderCompensation = 0.5; // 0.3 = subtle, 1.0 = aggressive smoothing
+                const float thinOccluderCompensation = 0.5;
                 float distSqThick = (delta.x * delta.x) + (delta.y * delta.y) + 
                                     (delta.z * delta.z * (1.0 + thinOccluderCompensation) * (1.0 + thinOccluderCompensation));
                 
-                // Inverse square falloff using thickened distance
                 float falloff = 1.0 / (1.0 + distSqThick / (EffectRadius * EffectRadius));
                 elevationCos = lerp(lowHorizonCosDir, elevationCos, falloff);
                 
@@ -265,17 +243,14 @@ void CSMain(uint3 id : SV_DispatchThreadID)
             }
         }
         
-        // XeGTAO horizon integration - CRITICAL: h0 negative, h1 positive
-        // horizonCos[0] is from +omega direction, horizonCos[1] from -omega
-        // h0 represents angle below horizontal (negative), h1 above (positive)
-        float h0 = -acos(clamp(horizonCos[1], -1.0, 1.0)); // Negative! From -omega dir
-        float h1 =  acos(clamp(horizonCos[0], -1.0, 1.0)); // Positive! From +omega dir
+        float h0 = -acos(clamp(horizonCos[1], -1.0, 1.0));
+        float h1 = acos(clamp(horizonCos[0], -1.0, 1.0));
         
         float iarc0 = (cosN + 2.0 * h0 * sinN - cos(2.0 * h0 - n)) / 4.0;
         float iarc1 = (cosN + 2.0 * h1 * sinN - cos(2.0 * h1 - n)) / 4.0;
         
         float localVisibility = projectedNormalLength * (iarc0 + iarc1);
-        visibility += localVisibility;  // XeGTAO: no saturate per slice
+        visibility += localVisibility;
     }
     
     visibility /= (float)SliceCount;
@@ -284,19 +259,16 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     if (Intensity > 1.0)
         ao = lerp(ao, ao * ao, saturate(Intensity - 1.0));
     
-    // Distance-based soft fade (replaces hard visual cutoff)
     float absViewZ = abs(viewZ);
     float fadeRange = FadeEndDistance - FadeStartDistance;
     float fadeFactor = 0.0;
     
     if (absViewZ > FadeStartDistance && fadeRange > 0.001) {
         fadeFactor = saturate((absViewZ - FadeStartDistance) / fadeRange);
-        // Apply curve: <1.0 = soft start, 1.0 = linear, >1.0 = sharp edge
         fadeFactor = pow(fadeFactor, FadeCurve);
     }
     
-    // Fade AO to white (1.0) as distance increases
     ao = lerp(ao, 1.0, fadeFactor);
     
-    g_AOTexture[coord] = float2(saturate(ao), viewZ);  // Pack AO + linear depth
+    g_AOTexture[coord] = float2(saturate(ao), viewZ);
 }

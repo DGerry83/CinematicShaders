@@ -1,8 +1,10 @@
 ﻿using CinematicShaders.Native;
 using CinematicShaders.Shaders.GTAO;
+using CinematicShaders.Shaders.Starfield;
 using CinematicShaders.UI;
 using KSP.UI.Screens;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace CinematicShaders.Core
 {
@@ -29,14 +31,32 @@ namespace CinematicShaders.Core
         void Start()
         {
             GTAOSettings.Load();
+            StarfieldSettings.Load();
+            // If we're already in a game session, re-apply per-save settings to override
+            // the global settings we just loaded. This happens on scene changes within
+            // the same save (e.g., Flight -> Tracking Station -> Flight).
+            // OnGameStateLoad only fires when first loading a save, not on scene changes.
+            if (HighLogic.LoadedScene != GameScenes.MAINMENU &&
+                HighLogic.LoadedScene != GameScenes.LOADING &&
+                StarfieldPerSaveSettings.Instance != null)
+            {
+                Debug.Log("[CinematicShaders] Re-applying per-save settings after scene change");
+                StarfieldPerSaveSettings.Instance.ApplyToSettings();
+            }
+            StarCatalogManager.Initialize();  // Ensure catalog folder exists
 
-            if (HighLogic.LoadedScene != GameScenes.MAINMENU && GTAOSettings.EnableGTAO)
+            // Only auto-enable if in a playable scene (not LOADING, MAINMENU, or EDITOR)
+            if (IsPlayableScene() && (GTAOSettings.EnableGTAO || StarfieldSettings.EnableStarfield))
             {
                 Invoke(nameof(DelayedInit), 0.5f);
             }
 
             GameEvents.onGUIApplicationLauncherReady.Add(OnGUIApplicationLauncherReady);
             GameEvents.onLevelWasLoadedGUIReady.Add(OnLevelWasLoadedGUIReady);
+            
+            // Listen for game load/save events for per-save settings
+            GameEvents.onGameStateLoad.Add(OnGameStateLoad);
+            GameEvents.onGameStateSave.Add(OnGameStateSave);
 
             if (_toolbarIcon == null)
             {
@@ -56,11 +76,35 @@ namespace CinematicShaders.Core
         {
             if (GTAOSettings.EnableGTAO)
                 GTAOManager.Initialize();
+            if (StarfieldSettings.EnableStarfield)
+                StarfieldManager.Initialize();
+        }
+
+        /// <summary>
+        /// Check if current scene is a playable scene (not LOADING, MAINMENU, or EDITOR)
+        /// Starfield needs a sky camera which only exists in these scenes
+        /// </summary>
+        private bool IsPlayableScene()
+        {
+            return HighLogic.LoadedScene == GameScenes.SPACECENTER ||
+                   HighLogic.LoadedScene == GameScenes.FLIGHT ||
+                   HighLogic.LoadedScene == GameScenes.TRACKSTATION;
         }
 
         private void OnLevelWasLoadedGUIReady(GameScenes scene)
         {
             if (scene == GameScenes.MAINMENU) return;
+
+            // If coming from MAINMENU to a playable scene, reset the starfield compositor
+            // It may be in a bad state from failed initialization during game startup
+            if (StarfieldManager.IsActive)
+            {
+                Debug.Log("[CinematicShaders] Scene change from menu - resetting starfield compositor...");
+                StarfieldManager.DisableStarfield();
+            }
+
+            // Mark catalog for reload on scene change (device may have reset)
+            StarfieldSettings.InvalidateCatalogForReload();
 
             if (GTAOSettings.EnableGTAO)
             {
@@ -84,6 +128,12 @@ namespace CinematicShaders.Core
                     Invoke(nameof(RetryInit), 3.0f);
                 }
             }
+
+            // Initialize Starfield completely independently of GTAO
+            if (StarfieldSettings.EnableStarfield && IsPlayableScene())
+            {
+                StarfieldManager.Initialize();
+            }
         }
 
         private void RetryInit()
@@ -102,6 +152,8 @@ namespace CinematicShaders.Core
 
             GameEvents.onGUIApplicationLauncherReady.Remove(OnGUIApplicationLauncherReady);
             GameEvents.onLevelWasLoadedGUIReady.Remove(OnLevelWasLoadedGUIReady);
+            GameEvents.onGameStateLoad.Remove(OnGameStateLoad);
+            GameEvents.onGameStateSave.Remove(OnGameStateSave);
 
             if (_toolbarButton != null && ApplicationLauncher.Instance != null)
             {
@@ -112,6 +164,7 @@ namespace CinematicShaders.Core
             if (_mainWindow != null && _mainWindow.gameObject != null)
                 Destroy(_mainWindow.gameObject);
 
+            // Shutdown GTAO
             try
             {
                 if (GTAONative.IsLoaded)
@@ -122,8 +175,52 @@ namespace CinematicShaders.Core
                 /* DLL already unloaded, ignore */
             }
 
+            // Shutdown Starfield
+            try
+            {
+                if (StarfieldNative.IsLoaded)
+                    StarfieldNative.CR_StarfieldShutdown();
+            }
+            catch (System.Exception)
+            {
+                /* DLL already unloaded, ignore */
+            }
+
             Instance = null;
         }
+
+        private void OnGameStateLoad(ConfigNode node)
+        {
+            Debug.Log("[CinematicShaders] Game state loaded - applying per-save settings");
+            
+            // Apply per-save settings from ScenarioModule if available
+            if (StarfieldPerSaveSettings.Instance != null)
+            {
+                Debug.Log("[CinematicShaders] Found StarfieldPerSaveSettings, applying...");
+                StarfieldPerSaveSettings.Instance.ApplyToSettings();
+            }
+            else
+            {
+                Debug.LogWarning("[CinematicShaders] StarfieldPerSaveSettings.Instance is null!");
+            }
+            
+            Debug.Log($"[CinematicShaders] After per-save settings: EnableStarfield={StarfieldSettings.EnableStarfield}, Catalog={StarfieldSettings.ActiveCatalogPath}");
+            
+            // Initialize starfield if enabled and we're in a playable scene
+            if (StarfieldSettings.EnableStarfield && IsPlayableScene())
+            {
+                Debug.Log("[CinematicShaders] Initializing Starfield...");
+                StarfieldManager.Initialize();
+            }
+        }
+
+        private void OnGameStateSave(ConfigNode node)
+        {
+            Debug.Log("[CinematicShaders] Game state saving - capturing per-save settings");
+            // Per-save settings are automatically saved by KSP from StarfieldPerSaveSettings.Instance
+        }
+
+
 
         private void OnGUIApplicationLauncherReady()
         {

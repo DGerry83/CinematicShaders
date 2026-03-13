@@ -7,7 +7,10 @@ namespace CinematicShaders.UI
 {
     public class CinematicShadersWindow : MonoBehaviour
     {
-        private Rect windowRect = new Rect(300, 60, 320, 450);
+        private Rect windowRect = new Rect(300, 60, 320, 500);
+        public Rect WindowRect { get { return windowRect; } }
+        public static CinematicShadersWindow Instance { get; private set; }
+        
         private bool isVisible = false;
         private bool stylesInitialized = false;
         private GUIStyle windowStyle;
@@ -15,15 +18,18 @@ namespace CinematicShaders.UI
         private GUIStyle tabButtonActiveStyle;
         private string errorMessage = null;
 
-        public enum ShaderTab { GTAO }
+        public enum ShaderTab { GTAO, Starfield }
         private ShaderTab currentTab = ShaderTab.GTAO;
         private GTAOTab _gtaoTab;
+        private StarfieldTab _starfieldTab;
 
         public event Action OnClose;
         private bool wasVisibleBeforeF2 = false;
 
         void Start()
         {
+            Instance = this;
+            
             GameEvents.onHideUI.Add(OnHideUI);
             GameEvents.onShowUI.Add(OnShowUI);
 
@@ -32,6 +38,7 @@ namespace CinematicShaders.UI
             try
             {
                 _gtaoTab = new GTAOTab();
+                _starfieldTab = new StarfieldTab();
             }
             catch (Exception ex)
             {
@@ -60,7 +67,9 @@ namespace CinematicShaders.UI
                 windowRect,
                 DrawWindow,
                 CinematicShadersUIStrings.Common.WindowTitle,
-                windowStyle
+                windowStyle,
+                GUILayout.Width(320),
+                GUILayout.Height(500)
             );
         }
 
@@ -75,6 +84,8 @@ namespace CinematicShaders.UI
                     GUILayout.Label(errorMessage, CinematicShadersUIResources.Styles.Error());
                     GUILayout.EndVertical();
                     GUI.DragWindow();
+                    windowRect.x = Mathf.Clamp(windowRect.x, 0, Screen.width - windowRect.width);
+                    windowRect.y = Mathf.Clamp(windowRect.y, 0, Screen.height - windowRect.height);
                     return;
                 }
 
@@ -88,7 +99,8 @@ namespace CinematicShaders.UI
                     return;
                 }
 
-                GUILayout.BeginVertical();
+                // Begin vertical layout with fixed width to prevent content from stretching window
+                GUILayout.BeginVertical(GUILayout.Width(300));
 
                 DrawTabs();
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
@@ -97,6 +109,10 @@ namespace CinematicShaders.UI
                 {
                     case ShaderTab.GTAO:
                         _gtaoTab.Draw();
+                        break;
+                    case ShaderTab.Starfield:
+                        if (_starfieldTab != null)
+                            _starfieldTab.Draw();
                         break;
                 }
 
@@ -124,6 +140,13 @@ namespace CinematicShaders.UI
                 currentTab = ShaderTab.GTAO;
             }
 
+            GUIStyle starfieldStyle = (currentTab == ShaderTab.Starfield) ? tabButtonActiveStyle : tabButtonStyle;
+            if (GUILayout.Button(CinematicShadersUIStrings.Starfield.TabName, starfieldStyle,
+                GUILayout.Height(tabHeight), GUILayout.Width(tabWidth)))
+            {
+                currentTab = ShaderTab.Starfield;
+            }
+
             GUILayout.EndHorizontal();
         }
 
@@ -134,6 +157,7 @@ namespace CinematicShaders.UI
             isVisible = false;
             wasVisibleBeforeF2 = false;
             GTAOSettings.Save();
+            StarfieldSettings.Save();
             OnClose?.Invoke();
         }
 
@@ -161,7 +185,10 @@ namespace CinematicShaders.UI
             GameEvents.onShowUI.Remove(OnShowUI);
 
             if (isVisible || wasVisibleBeforeF2)
+            {
                 GTAOSettings.Save();
+                StarfieldSettings.Save();
+            }
         }
     }
 }
