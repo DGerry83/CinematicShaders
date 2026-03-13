@@ -131,11 +131,13 @@ namespace CinematicShaders.UI.Tabs
 
                     DrawRenderingSlider(CinematicShadersUIStrings.Starfield.ExposureLabel, ref _exposure, -2.0f, 8.0f, "F1", 
                         CinematicShadersUIStrings.Starfield.ExposureTooltip);
-                    
+
                     // BlurPixels is angular sigma in radians; display as arcminutes (1' = 1/60° ≈ 0.00029 rad)
                     float blurArcminutes = _blurPixels * 3437.75f;  // rad to arcmin (180*60/π)
+                    // Clamp to prevent handle disappearing when FP error pushes value outside slider bounds
+                    blurArcminutes = Mathf.Clamp(blurArcminutes, 1.0f, 2.0f);
                     float prevBlurArcminutes = blurArcminutes;
-                    DrawRenderingSlider(CinematicShadersUIStrings.Starfield.BlurPixelsLabel, ref blurArcminutes, 1.0f, 2.0f, "F1", 
+                    DrawRenderingSlider(CinematicShadersUIStrings.Starfield.BlurPixelsLabel, ref blurArcminutes, 1.0f, 2.0f, "F1",
                         CinematicShadersUIStrings.Starfield.BlurPixelsTooltip);
                     _blurPixels = blurArcminutes / 3437.75f;
                     // Push immediately if changed (since DrawRenderingSlider doesn't know about the conversion)
@@ -162,12 +164,12 @@ namespace CinematicShaders.UI.Tabs
 
                     GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.TIGHT);
 
-                    // Debug button for atmospheric data
-                    if (GUILayout.Button(new GUIContent(CinematicShadersUIStrings.Starfield.DebugAtmosphereButton, 
-                        CinematicShadersUIStrings.Starfield.DebugAtmosphereTooltip)))
-                    {
-                        AtmosphericScatteringData.LogDebugDump();
-                    }
+                    //// Debug button for atmospheric data
+                    //if (GUILayout.Button(new GUIContent(CinematicShadersUIStrings.Starfield.DebugAtmosphereButton, 
+                    //    CinematicShadersUIStrings.Starfield.DebugAtmosphereTooltip)))
+                    //{
+                    //    AtmosphericScatteringData.LogDebugDump();
+                    //}
                 }
 
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
@@ -515,7 +517,7 @@ namespace CinematicShaders.UI.Tabs
                 if (StarCatalogManager.ActiveCatalog != null)
                 {
                     StarCatalogManager.SaveCatalog(StarCatalogManager.ActiveCatalog.FilePath,
-                        StarCatalogManager.ActiveCatalog.GetDisplayName(), false);
+                        StarCatalogManager.ActiveCatalog.GetDisplayName(), StarfieldSettings.IsReadOnly);
                 }
             }
             GUI.enabled = true;
