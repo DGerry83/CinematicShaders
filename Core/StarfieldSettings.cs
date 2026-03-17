@@ -186,7 +186,7 @@ namespace CinematicShaders.Core
                 Clustering = Clustering,
                 PopulationBias = PopulationBias,
                 MainSequenceStrength = MainSequenceStrength,
-                RedGiantFrequency = RedGiantFrequency,
+                RedGiantFrequency = 1.0f - RedGiantFrequency,
                 GalacticFlatness = GalacticFlatness,
                 GalacticDiscFalloff = GalacticDiscFalloff,
                 BandCenterBoost = BandCenterBoost,

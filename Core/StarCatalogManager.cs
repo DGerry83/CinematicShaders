@@ -528,13 +528,13 @@ namespace CinematicShaders.Core
                 string folder = CatalogFolderPath;
                 if (!Directory.Exists(folder))
                     Directory.CreateDirectory(folder);
-                
+
                 // Use ProcessStartInfo for proper argument handling
                 var startInfo = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = "explorer.exe",
                     Arguments = $"\"{folder}\"",
-                    UseShellExecute = false
+                    UseShellExecute = true
                 };
                 System.Diagnostics.Process.Start(startInfo);
             }
