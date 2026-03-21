@@ -84,6 +84,68 @@ namespace CinematicShaders.Core
         private static float _lastCatalogGenerationTime = -1f;
         private const float CATALOG_GENERATION_DEBOUNCE = 0.3f; // 300ms
 
+        /// <summary>
+        /// Converts any catalog path (absolute, relative, malformed with ../, mixed slashes) 
+        /// to a clean relative path from KSP root using forward slashes.
+        /// Returns empty string if path is invalid or outside game folder.
+        /// </summary>
+        private static string NormalizeCatalogPath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return "";
+
+            try
+            {
+                // Get full path to resolve any ../ segments and normalize separators
+                string fullPath = System.IO.Path.GetFullPath(path);
+                string rootPath = System.IO.Path.GetFullPath(KSPUtil.ApplicationRootPath);
+
+                // Ensure the path is within the game folder
+                if (!fullPath.StartsWith(rootPath, System.StringComparison.OrdinalIgnoreCase))
+                    return "";
+
+                // Make relative to root
+                string relativePath = fullPath.Substring(rootPath.Length)
+                    .TrimStart(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
+
+                // Convert to forward slashes for consistency
+                relativePath = relativePath.Replace('\\', '/');
+
+                return relativePath;
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// Gets the absolute path for the active catalog, resolving relative paths against KSP root.
+        /// Returns empty string if no catalog is active or path is invalid.
+        /// </summary>
+        private static string GetAbsoluteCatalogPath()
+        {
+            if (string.IsNullOrWhiteSpace(ActiveCatalogPath))
+                return "";
+
+            try
+            {
+                // If it's already absolute (legacy case), just normalize it
+                if (System.IO.Path.IsPathRooted(ActiveCatalogPath))
+                {
+                    return System.IO.Path.GetFullPath(ActiveCatalogPath);
+                }
+
+                // Combine with root and normalize
+                return System.IO.Path.GetFullPath(
+                    System.IO.Path.Combine(KSPUtil.ApplicationRootPath, ActiveCatalogPath));
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
         private static readonly string SettingsPath = System.IO.Path.Combine(
             KSPUtil.ApplicationRootPath, "GameData", "CinematicShaders", "PluginData", "Settings.cfg");
 
@@ -129,7 +191,7 @@ namespace CinematicShaders.Core
                 RotationX = float.Parse(settingsNode.GetValue("RotationX") ?? "0.0");
                 RotationY = float.Parse(settingsNode.GetValue("RotationY") ?? "0.0");
                 RotationZ = float.Parse(settingsNode.GetValue("RotationZ") ?? "0.0");
-                ActiveCatalogPath = settingsNode.GetValue("ActiveCatalogPath") ?? "";
+                ActiveCatalogPath = NormalizeCatalogPath(settingsNode.GetValue("ActiveCatalogPath") ?? "");
                 // IsReadOnly = bool.Parse(settingsNode.GetValue("IsReadOnly") ?? "false");
 
                 // Force regeneration on next push since we loaded new values
@@ -207,11 +269,14 @@ namespace CinematicShaders.Core
 
             StarfieldNative.CR_StarfieldSetSettings(ref nativeSettings);
 
+            // Resolve to absolute path for file operations
+            string absoluteCatalogPath = GetAbsoluteCatalogPath();
+
             // Check if we need to load an existing catalog
-            bool catalogPathExists = !string.IsNullOrEmpty(ActiveCatalogPath) && System.IO.File.Exists(ActiveCatalogPath);
+            bool catalogPathExists = !string.IsNullOrEmpty(absoluteCatalogPath) && System.IO.File.Exists(absoluteCatalogPath);
             bool shouldLoadCatalog = _catalogNeedsReload && EnableStarfield && catalogPathExists;
-            
-            UnityEngine.Debug.Log($"[StarfieldSettings] Catalog check: needsReload={_catalogNeedsReload}, enabled={EnableStarfield}, pathExists={catalogPathExists}, path={ActiveCatalogPath}");
+
+            UnityEngine.Debug.Log($"[StarfieldSettings] Catalog check: needsReload={_catalogNeedsReload}, enabled={EnableStarfield}, pathExists={catalogPathExists}, path={ActiveCatalogPath} (resolved: {absoluteCatalogPath})");
 
             // Check if we need to generate a new catalog
             float currentTime = Time.time;
@@ -223,8 +288,8 @@ namespace CinematicShaders.Core
                 // Load existing catalog instead of generating
                 try
                 {
-                    UnityEngine.Debug.Log($"[StarfieldSettings] Loading catalog: {ActiveCatalogPath}");
-                    if (StarCatalogManager.LoadCatalog(ActiveCatalogPath))
+                    UnityEngine.Debug.Log($"[StarfieldSettings] Loading catalog: {absoluteCatalogPath}");
+                    if (StarCatalogManager.LoadCatalog(absoluteCatalogPath))
                     {
                         _catalogNeedsReload = false;
                         // Catalog loaded successfully - DO NOT generate in this same frame
@@ -393,7 +458,7 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("RotationX", RotationX);
                 settingsNode.AddValue("RotationY", RotationY);
                 settingsNode.AddValue("RotationZ", RotationZ);
-                settingsNode.AddValue("ActiveCatalogPath", ActiveCatalogPath);
+                settingsNode.AddValue("ActiveCatalogPath", NormalizeCatalogPath(ActiveCatalogPath));
                 // settingsNode.AddValue("IsReadOnly", IsReadOnly);
                 settingsNode.AddValue("CatalogSeed", CatalogSeed);
                 settingsNode.AddValue("CatalogSize", CatalogSize);

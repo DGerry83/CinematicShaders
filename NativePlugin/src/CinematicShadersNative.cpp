@@ -58,14 +58,14 @@ static void InitLogFile()
             {
                 *(secondLastSlash + 1) = '\0';
                 strcat_s(dllPath, MAX_PATH, "CinematicShaders_Native.log");
-                g_logFile.open(dllPath, std::ios::app);
+                g_logFile.open(dllPath, std::ios::out | std::ios::trunc);
             }
         }
     }
     
     if (!g_logFile.is_open())
     {
-        g_logFile.open("CinematicShaders_Native.log", std::ios::app);
+        g_logFile.open("CinematicShaders_Native.log", std::ios::out | std::ios::trunc);
     }
     
     g_logInitialized = true;
