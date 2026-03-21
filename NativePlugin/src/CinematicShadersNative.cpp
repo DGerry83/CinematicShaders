@@ -173,6 +173,8 @@ static struct {
     
     int cachedWidth = 0;
     int cachedHeight = 0;
+
+    DXGI_FORMAT cachedIntermediateFormat = DXGI_FORMAT_UNKNOWN;
     
     // Explicit FOV parameters for view-space reconstruction
     float tanHalfFOVX = 0.0f;
@@ -527,10 +529,11 @@ static void InitializeOutputStates(ID3D11Device* device)
 
 static void EnsureIntermediateTexture(ID3D11Device* device, DXGI_FORMAT format, int width, int height)
 {
-    if (g_GTAOState.intermediateTexture && 
-        g_GTAOState.cachedWidth == width && 
-        g_GTAOState.cachedHeight == height)
-        return;
+if (g_GTAOState.intermediateTexture && 
+    g_GTAOState.cachedWidth == width && 
+    g_GTAOState.cachedHeight == height &&
+    g_GTAOState.cachedIntermediateFormat == format)
+    return;
     
     if (g_GTAOState.intermediateTexture) {
         g_GTAOState.intermediateTexture->Release(); g_GTAOState.intermediateTexture = nullptr;
@@ -589,6 +592,7 @@ static void EnsureIntermediateTexture(ID3D11Device* device, DXGI_FORMAT format, 
         g_GTAOState.intermediateTexture->Release();
         g_GTAOState.intermediateTexture = nullptr;
     }
+    g_GTAOState.cachedIntermediateFormat = format;
 }
 
 extern "C" __declspec(dllexport)
@@ -1224,4 +1228,5 @@ void CR_GTAOShutdown()
     
     g_GTAOState.cachedWidth = 0;
     g_GTAOState.cachedHeight = 0;
+    g_GTAOState.cachedIntermediateFormat = DXGI_FORMAT_UNKNOWN;
 }
