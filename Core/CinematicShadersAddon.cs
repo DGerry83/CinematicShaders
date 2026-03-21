@@ -2,6 +2,7 @@
 using CinematicShaders.Shaders.GTAO;
 using CinematicShaders.Shaders.Starfield;
 using CinematicShaders.UI;
+using CinematicShaders.UI.Tabs;
 using KSP.UI.Screens;
 using UnityEngine;
 using UnityEngine.SceneManagement;

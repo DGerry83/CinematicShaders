@@ -50,6 +50,7 @@
     <Compile Include="Core\StarCatalogManager.cs" />
     <Compile Include="Core\StarfieldPerSaveSettings.cs" />
     <Compile Include="Core\StarfieldSettings.cs" />
+    <Compile Include="Native\DllLoader.cs" />
     <Compile Include="Native\GTAONative.cs" />
     <Compile Include="Native\StarfieldNative.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

@@ -35,6 +35,7 @@ static struct {
     int width = 0;
     int height = 0;
     bool initialized = false;
+    DXGI_FORMAT cachedHDRFormat = DXGI_FORMAT_UNKNOWN;
     
     // Current frame params
     float verticalFOV = 1.0f;  // Radians
@@ -501,7 +502,11 @@ static float3 ApplySaturation(float3 baseColor, float sliderValue)
 // Starfield Internal Functions
 static void EnsureStarfieldResources(ID3D11Device* device, int width, int height)
 {
-    if (g_StarfieldState.initialized && g_StarfieldState.width == width && g_StarfieldState.height == height)
+    // Check dimensions AND format (TUFX HDR toggle changes format)
+    if (g_StarfieldState.initialized && 
+        g_StarfieldState.width == width && 
+        g_StarfieldState.height == height &&
+        g_StarfieldState.cachedHDRFormat == DXGI_FORMAT_R11G11B10_FLOAT)
         return;
     
     // Cleanup old resources
@@ -631,6 +636,7 @@ if (!g_StarfieldState.blendState) {
     g_StarfieldState.width = width;
     g_StarfieldState.height = height;
     g_StarfieldState.initialized = true;
+    g_StarfieldState.cachedHDRFormat = DXGI_FORMAT_R11G11B10_FLOAT;
     
     LogToFile("[Starfield] Resources initialized: %dx%d", width, height);
 }
@@ -1402,6 +1408,7 @@ void CR_StarfieldShutdown()
     if (g_StarfieldState.pass2CB) { g_StarfieldState.pass2CB->Release(); g_StarfieldState.pass2CB = nullptr; }
     if (g_StarfieldState.device) { g_StarfieldState.device->Release(); g_StarfieldState.device = nullptr; }
     
+    g_StarfieldState.cachedHDRFormat = DXGI_FORMAT_UNKNOWN;
     g_StarfieldState.initialized = false;
 }
 

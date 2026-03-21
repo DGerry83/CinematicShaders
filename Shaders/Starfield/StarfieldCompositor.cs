@@ -152,7 +152,7 @@ namespace CinematicShaders.Shaders.Starfield
                 atmoRaw = AtmosphericScatteringData.CaptureRawData();
                 atmoCalc = AtmosphericScatteringData.Calculate(atmoRaw);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Scene transition - atmosphere not ready, use defaults (no extinction)
                 atmoRaw = new AtmosphericScatteringData.RawData { UpVector = Vector3.up };
