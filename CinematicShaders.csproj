@@ -63,6 +63,7 @@
     <Compile Include="UI\CinematicShadersWindow.cs" />
     <Compile Include="UI\Tabs\GTAOTab.cs" />
     <Compile Include="UI\Tabs\StarfieldTab.cs" />
+    <Compile Include="UI\Tabs\StarfieldTuningWindow.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="KSPBuildTools">

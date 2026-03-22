@@ -86,6 +86,35 @@ cbuffer StarfieldParams : register(b0)
     float PsfEnhancement;  // 0.0 = Classic Gaussian, 1.0 = Moffat+Jitter
 };
 
+// Tuning parameters for live PSF adjustment - matches C# struct exactly
+// 16 floats = 64 bytes = 4 float4 registers at b1
+cbuffer TuningParams : register(b1)
+{
+    // Core platform (neon tube body) - float4[0]
+    float CorePlatformWidth;      // default: 1.8
+    float CorePlatformAmp;        // default: 0.25
+    float CoreNormalization;      // default: 1.0
+    float MoffatBeta;             // default: 2.0
+    
+    // Halo/spike sizing - float4[1]
+    float HaloSigmaMin;           // default: 3.0
+    float HaloSigmaMax;           // default: 8.0
+    float HaloWeightMax;          // default: 0.5
+    float BrightnessDivisor;      // default: 6.0
+    
+    // Jitter controls - float4[2]
+    float JitterAmplitudeMin;     // default: 0.1
+    float JitterAmplitudeMax;     // default: 1.8
+    float JitterStrength;         // default: 0.6
+    float JitterEdgeStart;        // default: 1.0
+    
+    // Shape controls - float4[3]
+    float SharpSinPower;          // default: 0.2
+    float BrightnessCurvePower;   // default: 0.6
+    float EdgeFadeStart;          // default: 0.85
+    float EdgeFadeEnd;            // default: 1.0
+};
+
 // ============================================
 // MODULE 2b: COORDINATE ROTATION FOR HYG CATALOG
 // ============================================
@@ -147,27 +176,35 @@ float calculate_moffat(float dist_pixels, float sigma_pixels, float beta)
     return norm * pow(term, -beta);
 }
 
-// Returns radius multiplier based on angle and star ID (stable per star)
-float calculate_angular_jitter(float dist_pixels, float angle_rad, float jitter_strength, uint star_id)
+
+// Returns length scale for spikes (1.0 = normal, 2.0 = twice as long, 0.5 = half as long)
+// Per-spike variation using star_id to ensure different stars have different patterns
+float calculate_spike_length_scale(float angle_rad, float jitter_strength, uint star_id)
 {
-    // Stable pseudo-random per star based on ID
-    float star_rand = frac(sin(float(star_id) * 12.9898) * 43758.5453);
+    // Stable per-star random phase offset (each star gets different spike lengths)
+    float star_offset = frac(sin(float(star_id) * 12.9898) * 43758.5453) * 6.28318;
     
-    // Low frequency amplitude modulation (2 cycles around circle)
-    // Expanded range 0.15-1.0 for more dramatic spike length variation
-    float amp_noise = frac(sin(angle_rad * 2.0 + star_rand * 3.14159) * 43758.5453);
-    amp_noise = amp_noise * amp_noise * (3.0 - 2.0 * amp_noise); // Smoothstep for softer transitions
-    amp_noise = lerp(0.15, 1.0, amp_noise);  // Some spikes only 15% length, others 100%
+    // 8-fold symmetry angle
+    float angle_8 = angle_rad * 8.0;
     
-    // Sine wave based on angle (8 cycles around the circle)
-    // Multiply by amp_noise to break perfect 8-fold symmetry
-    float sine_wave = sin(angle_rad * 8.0 + star_rand * 6.28318) * amp_noise;
+    // Spike mask: 1.0 at spike center, 0.0 between spikes
+    float spike_mask = pow(abs(sin(angle_8)), max(SharpSinPower, 0.01));
     
-    // Only apply jitter at edges (beyond 1 sigma), falloff toward center
-    float edge_factor = saturate((dist_pixels - 1.0) * 0.5);
+    // Length varies per spike using star_offset to shift phase
+    // Each of the 8 spikes falls at a different point on this wave due to star_offset
+    float length_wave = sin(angle_8 + star_offset);
+    length_wave = length_wave * 0.5 + 0.5; // 0 to 1
+    float length_var = lerp(JitterAmplitudeMin, JitterAmplitudeMax, length_wave);
     
-    // Increased amplitude: up to +/- 25% radius variation (was 15%)
-    return 1.0 + sine_wave * jitter_strength * 0.25 * edge_factor;
+    // Edge start: only apply length variation outside the core
+    // For radial evaluation, we pass dist from the caller, but here we compute the scale factor
+    // The caller will handle edge_factor, we return the full scale here
+    
+    // Blend: no variation (strength=0) -> full variation (strength=1)
+    // Scale ranges from 1.0 (normal) to length_var (varied)
+    float scale = lerp(1.0, length_var, jitter_strength * JitterStrength);
+    
+    return max(scale, 0.2);
 }
 
 // ============================================
@@ -268,41 +305,54 @@ void CSMain(uint3 id : SV_DispatchThreadID)
             float psf;
             if (PsfEnhancement > 0.001)
             {
-                // Enhanced mode: Dual-lobe PSF (classic-sized core + broad halo for bright stars)
-                // CORE: Matches classic exactly (same sigma, Gaussian) so dim stars appear unchanged
-                // HALO: Broad Moffat with jitter adds size/softness for bright stars only
+                // Tunable enhanced mode: all parameters controlled via TuningParams cbuffer
                 
-                // Brightness determines halo presence: dim stars = core only (classic look)
-                // Bright stars (flux 8+) get up to 40% halo addition
-                float brightness_factor = saturate(flux / 8.0);
-                float halo_weight = brightness_factor * PsfEnhancement * 0.40;
+                // Tunable brightness curve (BrightnessDivisor, BrightnessCurvePower)
+                float brightness_factor = pow(saturate(flux / BrightnessDivisor), BrightnessCurvePower);
+                float halo_weight = brightness_factor * PsfEnhancement * HaloWeightMax;
                 
-                // CORE: Classic Gaussian at exact same sigma (no size change for dim stars)
-                float core_psf = calculate_psf(dist, sigma_pixels);
+                // CORE: Tunable platform width and amplitude (CorePlatformWidth, CorePlatformAmp, CoreNormalization)
+                float core_psf = calculate_psf(dist, sigma_pixels) + 
+                                 calculate_psf(dist, sigma_pixels * CorePlatformWidth) * CorePlatformAmp;
+                core_psf *= CoreNormalization;  // Tunable renormalization
+
+                // HALO: Tunable beta (MoffatBeta), sigma range (HaloSigmaMin, HaloSigmaMax)
+                float halo_range = HaloSigmaMax - HaloSigmaMin;
+                float halo_sigma = sigma_pixels * (HaloSigmaMin + brightness_factor * halo_range);
                 
-                // HALO: Broad Moffat (beta 2.0) with angular jitter
-                // Sigma scales 3x to 7x based on brightness (subtle for average, huge for bright)
-                float halo_sigma = sigma_pixels * (3.0 + brightness_factor * 4.0);
-                float jitter_factor = calculate_angular_jitter(dist, angle, PsfEnhancement, star.HipparcosID);
-                float jittered_dist = dist * jitter_factor;
-                float halo_psf = calculate_moffat(jittered_dist, halo_sigma, 2.0);
+                // Vary spike LENGTH by distorting radial coordinate
+                // scale > 1.0 = evaluate further out = shorter spike
+                // scale < 1.0 = evaluate closer to center = longer spike (but brighter!)
+                float length_scale = calculate_spike_length_scale(angle, PsfEnhancement, star.HipparcosID);
                 
-                // Combine: Core (preserved) + additive Halo (bright stars get bigger/softter)
-                psf = core_psf + halo_psf * halo_weight;
+                // Edge start: gradual fade from 1.0 at center to length_scale at JitterEdgeStart
+                float edge_factor = saturate((dist - JitterEdgeStart * sigma_pixels) / (sigma_pixels * 2.0));
+                float effective_scale = lerp(1.0, length_scale, edge_factor);
+                
+                // Coordinate distortion: divide dist by scale to sample Moffat
+                // When scale < 1.0, we sample closer to center (brighter), making longer spike
+                float jittered_dist = dist / effective_scale;
+                
+                float halo_psf = calculate_moffat(jittered_dist, halo_sigma, MoffatBeta);
+                
+                // Fix bulbous tips: compensate brightness when sampling closer to center
+                // Moffat(r/s) ~ s^(2*beta) * Moffat(r) for large r, so divide by s^(2*beta)
+                if (effective_scale < 1.0) {
+                    halo_psf /= pow(effective_scale, 2.0 * MoffatBeta);
+                }
+                
+                // Tunable edge fade (EdgeFadeStart, EdgeFadeEnd)
+                // Normalize to expected maximum radius
+                float max_expected_radius = sigma_pixels * HaloSigmaMax * max(length_scale, 2.0);
+                float edge_dist = dist / max_expected_radius;
+                float edge_fade = 1.0 - smoothstep(EdgeFadeStart, EdgeFadeEnd, edge_dist);
+                
+                psf = (core_psf + halo_psf * halo_weight) * edge_fade;
             }
             else
             {
                 // Classic mode: Simple Gaussian
                 psf = calculate_psf(dist, sigma_pixels);
-            }
-            
-            // Radial edge fade: prevents hard truncation ring on the broad halo
-            // Only affects enhanced mode's large radius splats
-            if (PsfEnhancement > 0.001)
-            {
-                float edge_dist = dist / float(radius);
-                float edge_fade = 1.0 - smoothstep(0.85, 1.0, edge_dist);
-                psf *= edge_fade;
             }
             
             if (psf < 0.0005) continue;

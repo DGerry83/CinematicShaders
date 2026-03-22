@@ -59,6 +59,36 @@ namespace CinematicShaders.Native
             public float GalacticPlaneNormalZ;
         }
 
+        // PSF Tuning Parameters - Live adjustable for debugging/fine-tuning star shape
+        // 16 floats = 64 bytes = 4 HLSL float4 registers
+        [StructLayout(LayoutKind.Sequential, Pack = 4)]
+        public struct StarfieldTuningParams
+        {
+            // Core platform (neon tube body) - floats 0-3
+            public float CorePlatformWidth;      // default: 1.8
+            public float CorePlatformAmp;        // default: 0.25
+            public float CoreNormalization;      // default: 1.0
+            public float MoffatBeta;             // default: 2.0
+
+            // Halo/spike sizing - floats 4-7
+            public float HaloSigmaMin;           // default: 3.0
+            public float HaloSigmaMax;           // default: 8.0
+            public float HaloWeightMax;          // default: 0.5
+            public float BrightnessDivisor;      // default: 6.0
+
+            // Jitter controls - floats 8-11
+            public float JitterAmplitudeMin;     // default: 0.1
+            public float JitterAmplitudeMax;     // default: 1.8
+            public float JitterStrength;         // default: 0.6
+            public float JitterEdgeStart;        // default: 1.0
+
+            // Shape controls - floats 12-15
+            public float SharpSinPower;          // default: 0.2 (lower=sharper spikes)
+            public float BrightnessCurvePower;   // default: 0.6
+            public float EdgeFadeStart;          // default: 0.85
+            public float EdgeFadeEnd;              // default: 1.0
+        }
+
         [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 48)]
         public struct StarDataNative
         {
@@ -119,6 +149,9 @@ namespace CinematicShaders.Native
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_StarfieldSetSettings(ref StarfieldSettingsNative settings);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_StarfieldSetTuningParams(ref StarfieldTuningParams tuningParams);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr CR_GetStarfieldRenderEventFunc();
