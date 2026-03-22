@@ -15,34 +15,6 @@
 // External declarations from main module
 extern void LogToFile(const char* fmt, ...);
 
-// Tuning parameters for live PSF adjustment (matches C# StarfieldTuningParams exactly)
-// 16 floats = 64 bytes - must be defined before g_StarfieldState
-struct StarfieldTuningParams {
-    // Core platform (neon tube body)
-    float CorePlatformWidth;      // default: 1.8
-    float CorePlatformAmp;        // default: 0.25
-    float CoreNormalization;      // default: 1.0
-    float MoffatBeta;             // default: 2.0
-    
-    // Halo/spike sizing
-    float HaloSigmaMin;           // default: 3.0
-    float HaloSigmaMax;           // default: 8.0
-    float HaloWeightMax;          // default: 0.5
-    float BrightnessDivisor;      // default: 6.0
-    
-    // Jitter controls
-    float JitterAmplitudeMin;     // default: 0.1
-    float JitterAmplitudeMax;       // default: 1.8
-    float JitterStrength;         // default: 0.6
-    float JitterEdgeStart;        // default: 1.0
-    
-    // Shape controls
-    float SharpSinPower;          // default: 0.2
-    float BrightnessCurvePower;   // default: 0.6
-    float EdgeFadeStart;          // default: 0.85
-    float EdgeFadeEnd;            // default: 1.0
-};
-
 static struct {
     ID3D11Device* device = nullptr;
     ID3D11Texture2D* hdrTexture = nullptr;
@@ -68,15 +40,6 @@ static struct {
     ID3D11Buffer* prefilterCB = nullptr;
     ID3D11Buffer* blurCB = nullptr;
     ID3D11Buffer* compositeCB = nullptr;
-    
-    // PSF tuning constant buffer (b1) - live adjustable
-    ID3D11Buffer* tuningCB = nullptr;
-    StarfieldTuningParams tuningParams = {
-        1.8f, 0.25f, 1.0f, 2.0f,  // CorePlatformWidth, Amp, Norm, Beta
-        3.0f, 8.0f, 0.5f, 6.0f,   // HaloSigmaMin, Max, WeightMax, BrightDiv
-        0.1f, 1.8f, 0.6f, 1.0f,   // JitterAmpMin, Max, Strength, EdgeStart
-        0.2f, 0.6f, 0.85f, 1.0f   // SharpSinPower, BrightCurvePow, EdgeFadeStart, End
-    };
     
     // Cached dimensions
     int width = 0;
@@ -904,16 +867,6 @@ if (!g_StarfieldState.blendState) {
         device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.compositeCB);
     }
     
-    // PSF tuning buffer (b1) - 64 bytes
-    if (!g_StarfieldState.tuningCB) {
-        D3D11_BUFFER_DESC cbDesc = {};
-        cbDesc.ByteWidth = sizeof(StarfieldTuningParams);
-        cbDesc.Usage = D3D11_USAGE_DYNAMIC;
-        cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-        cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.tuningCB);
-    }
-    
     if (!g_StarfieldState.device) {
         g_StarfieldState.device = device;
         g_StarfieldState.device->AddRef();
@@ -960,13 +913,6 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
     
     // Update constant buffer with current state
     D3D11_MAPPED_SUBRESOURCE mapped;
-    
-    // Update tuning parameters buffer (b1)
-    if (SUCCEEDED(context->Map(g_StarfieldState.tuningCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
-        memcpy(mapped.pData, &g_StarfieldState.tuningParams, sizeof(StarfieldTuningParams));
-        context->Unmap(g_StarfieldState.tuningCB, 0);
-    }
-    
     if (SUCCEEDED(context->Map(g_StarfieldState.pass1CB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
         StarfieldPass1Params* params = (StarfieldPass1Params*)mapped.pData;
         
@@ -1061,8 +1007,7 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
     
     // Setup compute shader
     context->CSSetShader(g_StarfieldState.pass1CS, nullptr, 0);
-    ID3D11Buffer* cbs[2] = {g_StarfieldState.pass1CB, g_StarfieldState.tuningCB};
-    context->CSSetConstantBuffers(0, 2, cbs);
+    context->CSSetConstantBuffers(0, 1, &g_StarfieldState.pass1CB);
     context->CSSetShaderResources(0, 1, &catalogSRV);
     ID3D11UnorderedAccessView* uavs[1] = {g_StarfieldState.hdrUAV};
     context->CSSetUnorderedAccessViews(0, 1, uavs, nullptr);
@@ -1928,25 +1873,7 @@ void CR_StarfieldSetSettings(const StarfieldSettingsNative* settings)
     g_StarfieldState.rotationZ = settings->RotationZ;
 }
 
-extern "C" __declspec(dllexport)
-void CR_StarfieldSetTuningParams(const StarfieldTuningParams* params)
-{
-    if (!params) return;
-    
-    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
-    
-    // Debug: Log when key values change significantly
-    if (abs(g_StarfieldState.tuningParams.SharpSinPower - params->SharpSinPower) > 0.01f) {
-        LogToFile("[Tuning] SharpSinPower changed: %.2f -> %.2f", 
-            g_StarfieldState.tuningParams.SharpSinPower, params->SharpSinPower);
-    }
-    if (abs(g_StarfieldState.tuningParams.JitterAmplitudeMax - params->JitterAmplitudeMax) > 0.1f) {
-        LogToFile("[Tuning] JitterAmpMax changed: %.2f -> %.2f",
-            g_StarfieldState.tuningParams.JitterAmplitudeMax, params->JitterAmplitudeMax);
-    }
-    
-    g_StarfieldState.tuningParams = *params;
-}
+// NOTE: CR_StarfieldSetTuningParams removed - values now hardcoded in shader
 
 extern "C" __declspec(dllexport)
 UnityRenderingEvent CR_GetStarfieldRenderEventFunc()
@@ -1982,7 +1909,6 @@ void CR_StarfieldShutdown()
     if (g_StarfieldState.prefilterCB) { g_StarfieldState.prefilterCB->Release(); g_StarfieldState.prefilterCB = nullptr; }
     if (g_StarfieldState.blurCB) { g_StarfieldState.blurCB->Release(); g_StarfieldState.blurCB = nullptr; }
     if (g_StarfieldState.compositeCB) { g_StarfieldState.compositeCB->Release(); g_StarfieldState.compositeCB = nullptr; }
-    if (g_StarfieldState.tuningCB) { g_StarfieldState.tuningCB->Release(); g_StarfieldState.tuningCB = nullptr; }
 
         // Soft HDR bloom resources
     if (g_StarfieldState.bloomSRV) { g_StarfieldState.bloomSRV->Release(); g_StarfieldState.bloomSRV = nullptr; }

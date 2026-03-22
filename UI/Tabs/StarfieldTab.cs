@@ -14,11 +14,6 @@ namespace CinematicShaders.UI.Tabs
         private float _lastGenerationPushTime = -999f;
         private bool _generationPushPending = false;
 
-        // Debug tuning window
-        private StarfieldTuningWindow _tuningWindow;
-        private Rect _tuningWindowRect = new Rect(600, 100, 400, 600);
-        private bool _showTuningWindow = false;
-
         // Rendering
         private float _exposure;
         private float _blurPixels;
@@ -175,15 +170,6 @@ namespace CinematicShaders.UI.Tabs
                         PushSettingsToNative();
 
                     DrawRenderingSlider(CinematicShadersUIStrings.Starfield.PsfEnhancementLabel, ref _psfEnhancement, 0.0f, 1.0f, "F2", CinematicShadersUIStrings.Starfield.PsfEnhancementTooltip);
-
-                    // Star Shape Debug Button - opens separate tuning window
-                    GUILayout.BeginHorizontal();
-                    GUILayout.FlexibleSpace();
-                    if (GUILayout.Button("Star Shape Debug", GUILayout.Width(140)))
-                    {
-                        ToggleTuningWindow();
-                    }
-                    GUILayout.EndHorizontal();
 
                     GUILayout.BeginHorizontal();
                     GUIContent labelContent = new GUIContent(CinematicShadersUIStrings.Starfield.BloomIsotropyLabel, CinematicShadersUIStrings.Starfield.BloomIsotropyTooltip);
@@ -728,32 +714,6 @@ namespace CinematicShaders.UI.Tabs
             _rotationX = 0.0f;
             _rotationY = 0.0f;
             _rotationZ = 0.0f;
-        }
-
-        private void ToggleTuningWindow()
-        {
-            if (_tuningWindow != null && _tuningWindow.gameObject != null)
-            {
-                // Close existing window
-                UnityEngine.Object.Destroy(_tuningWindow.gameObject);
-                _tuningWindow = null;
-                _showTuningWindow = false;
-            }
-            else
-            {
-                // Create new window GameObject
-                GameObject go = new GameObject("StarfieldTuningWindow");
-                UnityEngine.Object.DontDestroyOnLoad(go);
-                _tuningWindow = go.AddComponent<StarfieldTuningWindow>();
-                _tuningWindow.Initialize(_tuningWindowRect, this);
-                _showTuningWindow = true;
-            }
-        }
-
-        public void OnTuningWindowClosed()
-        {
-            _tuningWindow = null;
-            _showTuningWindow = false;
         }
     }
 }
