@@ -6,6 +6,7 @@
 #include "../include/StarfieldBlurX.h"
 #include "../include/StarfieldBlur.h"
 #include "../include/StarfieldPass2Soft.h"
+#include "../include/StarfieldUpscale.h"
 #include <vector>
 #include <mutex>
 #include <algorithm>
@@ -116,10 +117,14 @@ static struct {
     ID3D11Texture2D* bloomTempTexture = nullptr;  // Ping-pong target for vertical blur
     ID3D11RenderTargetView* bloomTempRTV = nullptr;
     ID3D11ShaderResourceView* bloomTempSRV = nullptr;
+    ID3D11Texture2D* bloomHalfTexture = nullptr;  // Half-res upscaled bloom
+    ID3D11RenderTargetView* bloomHalfRTV = nullptr;
+    ID3D11ShaderResourceView* bloomHalfSRV = nullptr;
     ID3D11PixelShader* prefilterPS = nullptr;
     ID3D11PixelShader* blurXPS = nullptr;      // Horizontal blur
     ID3D11PixelShader* blurPS = nullptr;       // Vertical blur (keep existing name)
     ID3D11PixelShader* softCompositePS = nullptr;
+    ID3D11PixelShader* upscalePS = nullptr;
 } g_StarfieldState;
 
 // Constant buffer layouts (must match HLSL exactly, 16-byte aligned)
@@ -664,6 +669,16 @@ static void EnsureStarfieldResources(ID3D11Device* device, int width, int height
         g_StarfieldState.bloomSRV = nullptr;
     }
     
+    // Recreate half-res texture if dimensions changed
+    if (g_StarfieldState.bloomHalfTexture && (g_StarfieldState.width != width || g_StarfieldState.height != height)) {
+        g_StarfieldState.bloomHalfTexture->Release();
+        g_StarfieldState.bloomHalfRTV->Release();
+        g_StarfieldState.bloomHalfSRV->Release();
+        g_StarfieldState.bloomHalfTexture = nullptr;
+        g_StarfieldState.bloomHalfRTV = nullptr;
+        g_StarfieldState.bloomHalfSRV = nullptr;
+    }
+    
     if (!g_StarfieldState.bloomTexture) {
         D3D11_TEXTURE2D_DESC bloomDesc = {};
         bloomDesc.Width = bloomWidth;
@@ -711,6 +726,35 @@ static void EnsureStarfieldResources(ID3D11Device* device, int width, int height
         }
     }
     
+    // Create half-res texture for upscaled bloom result (1/2 screen resolution)
+    int halfWidth = width / 2;
+    int halfHeight = height / 2;
+    if (halfWidth < 1) halfWidth = 1;
+    if (halfHeight < 1) halfHeight = 1;
+    
+    if (!g_StarfieldState.bloomHalfTexture) {
+        D3D11_TEXTURE2D_DESC halfDesc = {};
+        halfDesc.Width = halfWidth;
+        halfDesc.Height = halfHeight;
+        halfDesc.MipLevels = 1;
+        halfDesc.ArraySize = 1;
+        halfDesc.Format = DXGI_FORMAT_R11G11B10_FLOAT;
+        halfDesc.SampleDesc.Count = 1;
+        halfDesc.Usage = D3D11_USAGE_DEFAULT;
+        halfDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+        
+        hr = device->CreateTexture2D(&halfDesc, nullptr, &g_StarfieldState.bloomHalfTexture);
+        if (FAILED(hr)) {
+            LogToFile("[Starfield] Failed to create bloom half-res texture (0x%08X)", hr);
+        } else {
+            hr = device->CreateRenderTargetView(g_StarfieldState.bloomHalfTexture, nullptr, &g_StarfieldState.bloomHalfRTV);
+            if (FAILED(hr)) LogToFile("[Starfield] Failed to create bloom half-res RTV (0x%08X)", hr);
+            
+            hr = device->CreateShaderResourceView(g_StarfieldState.bloomHalfTexture, nullptr, &g_StarfieldState.bloomHalfSRV);
+            if (FAILED(hr)) LogToFile("[Starfield] Failed to create bloom half-res SRV (0x%08X)", hr);
+        }
+    }
+    
     // Load soft bloom shaders (if not already loaded)
     if (!g_StarfieldState.prefilterPS) {
         hr = device->CreatePixelShader(g_StarfieldPrefilterPS, sizeof(g_StarfieldPrefilterPS), nullptr, &g_StarfieldState.prefilterPS);
@@ -727,6 +771,10 @@ static void EnsureStarfieldResources(ID3D11Device* device, int width, int height
     if (!g_StarfieldState.softCompositePS) {
         hr = device->CreatePixelShader(g_StarfieldPass2SoftPS, sizeof(g_StarfieldPass2SoftPS), nullptr, &g_StarfieldState.softCompositePS);
         if (FAILED(hr)) LogToFile("[Starfield] Failed to create SoftComposite PS (0x%08X)", hr);
+    }
+    if (!g_StarfieldState.upscalePS) {
+        hr = device->CreatePixelShader(g_StarfieldUpscalePS, sizeof(g_StarfieldUpscalePS), nullptr, &g_StarfieldState.upscalePS);
+        if (FAILED(hr)) LogToFile("[Starfield] Failed to create Upscale PS (0x%08X)", hr);
     }
     
     // Samplers
@@ -1060,8 +1108,9 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
     
     // Validate resources
     if (!g_StarfieldState.bloomTexture || !g_StarfieldState.bloomTempTexture || 
-        !g_StarfieldState.prefilterPS || !g_StarfieldState.blurXPS || !g_StarfieldState.blurPS || 
-        !g_StarfieldState.softCompositePS) {
+        !g_StarfieldState.bloomHalfTexture || !g_StarfieldState.prefilterPS || 
+        !g_StarfieldState.blurXPS || !g_StarfieldState.blurPS || 
+        !g_StarfieldState.softCompositePS || !g_StarfieldState.upscalePS) {
         device->Release();
         return;
     }
@@ -1165,7 +1214,33 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
     context->PSSetShaderResources(0, 1, nullSRV);
     
     // ========================================================================
-    // PASS 4: Composite (Full-res stars + bloomTemp -> finalRTV)
+    // PASS 3.5: Upscale to Half-Resolution (1/4 -> 1/2)
+    // ========================================================================
+    int halfWidth = g_StarfieldState.width / 2;
+    int halfHeight = g_StarfieldState.height / 2;
+    if (halfWidth < 1) halfWidth = 1;
+    if (halfHeight < 1) halfHeight = 1;
+    
+    D3D11_VIEWPORT halfVP = {};
+    halfVP.Width = (float)halfWidth;
+    halfVP.Height = (float)halfHeight;
+    halfVP.MinDepth = 0.0f;
+    halfVP.MaxDepth = 1.0f;
+    context->RSSetViewports(1, &halfVP);
+    
+    context->OMSetRenderTargets(1, &g_StarfieldState.bloomHalfRTV, nullptr);
+    context->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
+    context->ClearRenderTargetView(g_StarfieldState.bloomHalfRTV, clearColor);
+    
+    context->PSSetShader(g_StarfieldState.upscalePS, nullptr, 0);
+    ID3D11ShaderResourceView* upscaleSRV[1] = {g_StarfieldState.bloomTempSRV};
+    context->PSSetShaderResources(0, 1, upscaleSRV);
+    
+    context->Draw(3, 0);
+    context->PSSetShaderResources(0, 1, nullSRV);
+    
+    // ========================================================================
+    // PASS 4: Composite (Full-res stars + bloomHalf -> finalRTV)
     // ========================================================================
     D3D11_VIEWPORT fullVP = {};
     fullVP.Width = (float)g_StarfieldState.width;
@@ -1203,8 +1278,8 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
     context->PSSetConstantBuffers(0, 1, &g_StarfieldState.compositeCB);
     context->PSSetSamplers(0, 1, &g_StarfieldState.linearSampler);
     
-    // Composite reads full-res HDR (t0) and final bloom from bloomTempSRV (t1)
-    ID3D11ShaderResourceView* compositeSRVs[2] = {g_StarfieldState.hdrSRV, g_StarfieldState.bloomTempSRV};
+    // Composite reads full-res HDR (t0) and final bloom from bloomHalfSRV (t1, half-res)
+    ID3D11ShaderResourceView* compositeSRVs[2] = {g_StarfieldState.hdrSRV, g_StarfieldState.bloomHalfSRV};
     context->PSSetShaderResources(0, 2, compositeSRVs);
     
     context->Draw(3, 0);
@@ -1844,6 +1919,10 @@ void CR_StarfieldShutdown()
     if (g_StarfieldState.bloomTempSRV) { g_StarfieldState.bloomTempSRV->Release(); g_StarfieldState.bloomTempSRV = nullptr; }
     if (g_StarfieldState.bloomTempRTV) { g_StarfieldState.bloomTempRTV->Release(); g_StarfieldState.bloomTempRTV = nullptr; }
     if (g_StarfieldState.bloomTempTexture) { g_StarfieldState.bloomTempTexture->Release(); g_StarfieldState.bloomTempTexture = nullptr; }
+    if (g_StarfieldState.bloomHalfSRV) { g_StarfieldState.bloomHalfSRV->Release(); g_StarfieldState.bloomHalfSRV = nullptr; }
+    if (g_StarfieldState.bloomHalfRTV) { g_StarfieldState.bloomHalfRTV->Release(); g_StarfieldState.bloomHalfRTV = nullptr; }
+    if (g_StarfieldState.bloomHalfTexture) { g_StarfieldState.bloomHalfTexture->Release(); g_StarfieldState.bloomHalfTexture = nullptr; }
+    if (g_StarfieldState.upscalePS) { g_StarfieldState.upscalePS->Release(); g_StarfieldState.upscalePS = nullptr; }
     
     if (g_StarfieldState.device) { g_StarfieldState.device->Release(); g_StarfieldState.device = nullptr; }
     

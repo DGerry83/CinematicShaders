@@ -121,6 +121,16 @@ if %errorlevel% neq 0 (
 echo   Success --^> ..\include\StarfieldPass2Soft.h
 echo.
 
+echo Compiling StarfieldUpscale.hlsl (Soft HDR - Upscale 1/4 to 1/2)...
+"%FXC%" /T ps_5_0 /E PSMain /Fh "..\include\StarfieldUpscale.h" /Vn "g_StarfieldUpscalePS" "..\Shaders\StarfieldUpscale.hlsl"
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: StarfieldUpscale compilation failed!
+    exit /b %errorlevel%
+)
+echo   Success --^> ..\include\StarfieldUpscale.h
+echo.
+
 echo ============================================
 echo SUCCESS: All shaders compiled
 echo ============================================
