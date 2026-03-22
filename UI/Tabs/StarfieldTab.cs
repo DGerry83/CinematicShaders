@@ -44,6 +44,8 @@ namespace CinematicShaders.UI.Tabs
         private float _bloomThreshold;
         private float _bloomIntensity;
         private float _colorSaturation;
+        private float _psfEnhancement;
+        private bool _useSoftBloom;
         private int _catalogSeed;
         private int _catalogSize;
 
@@ -93,6 +95,8 @@ namespace CinematicShaders.UI.Tabs
             _bloomThreshold = StarfieldSettings.BloomThreshold;
             _bloomIntensity = StarfieldSettings.BloomIntensity;
             _colorSaturation = StarfieldSettings.ColorSaturation;
+            _psfEnhancement = StarfieldSettings.PsfEnhancement;
+            _useSoftBloom = StarfieldSettings.UseSoftBloom;
             _catalogSeed = StarfieldSettings.CatalogSeed;
             _catalogSize = StarfieldSettings.CatalogSize;
             _rotationX = StarfieldSettings.RotationX;
@@ -164,6 +168,34 @@ namespace CinematicShaders.UI.Tabs
                     _bloomIntensity = (bloomIntensityDisplay * bloomIntensityDisplay) * 0.5f;
                     if (!Mathf.Approximately(bloomIntensityDisplay, prevBloomIntensityDisplay))
                         PushSettingsToNative();
+
+                    DrawRenderingSlider(CinematicShadersUIStrings.Starfield.PsfEnhancementLabel, ref _psfEnhancement, 0.0f, 1.0f, "F2", CinematicShadersUIStrings.Starfield.PsfEnhancementTooltip);
+
+                    GUILayout.BeginHorizontal();
+                    GUIContent labelContent = new GUIContent(CinematicShadersUIStrings.Starfield.BloomIsotropyLabel, CinematicShadersUIStrings.Starfield.BloomIsotropyTooltip);
+                    GUILayout.Label(labelContent, GUILayout.Width(CinematicShadersUIResources.Layout.Labels.DEFAULT_WIDTH));
+
+                    bool useClassic = !_useSoftBloom;
+                    bool useSoft = _useSoftBloom;
+
+                    // Detect which button was actually clicked by comparing return value with passed value
+                    bool newClassic = GUILayout.Toggle(useClassic, CinematicShadersUIStrings.Starfield.BloomModeClassic, "button");
+                    bool newSoft = GUILayout.Toggle(useSoft, CinematicShadersUIStrings.Starfield.BloomModeSoft, "button");
+
+                    // If Classic was clicked (changed from inactive to active)
+                    if (newClassic && !useClassic)
+                    {
+                        _useSoftBloom = false;
+                        PushSettingsToNative();
+                    }
+                    // If Soft was clicked (changed from inactive to active)
+                    else if (newSoft && !useSoft)
+                    {
+                        _useSoftBloom = true;
+                        PushSettingsToNative();
+                    }
+                    GUILayout.EndHorizontal();
+
 
                     GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.TIGHT);
                 }
@@ -643,6 +675,8 @@ namespace CinematicShaders.UI.Tabs
             StarfieldSettings.BloomThreshold = _bloomThreshold;
             StarfieldSettings.BloomIntensity = _bloomIntensity;
             StarfieldSettings.ColorSaturation = _colorSaturation;
+            StarfieldSettings.PsfEnhancement = _psfEnhancement;
+            StarfieldSettings.UseSoftBloom = _useSoftBloom;
             StarfieldSettings.RotationX = _rotationX;
             StarfieldSettings.RotationY = _rotationY;
             StarfieldSettings.RotationZ = _rotationZ;
@@ -674,6 +708,8 @@ namespace CinematicShaders.UI.Tabs
             _bloomThreshold = 0.08f;
             _bloomIntensity = 0.5f;
             _colorSaturation = 1.0f;
+            _psfEnhancement = 0.0f;
+            _useSoftBloom = false;
             _catalogSize = 50000;
             _rotationX = 0.0f;
             _rotationY = 0.0f;

@@ -81,6 +81,10 @@ struct StarfieldSettingsNative {
     float BloomIntensity;
     float ColorSaturation;  // 0.0-2.0: 0.5=realistic, 1.0=natural, 2.0=vivid
     
+    // Rendering style transitions (0.0 = Classic, 1.0 = Enhanced)
+    float PsfEnhancement;
+    int UseSoftBloom;  // 0 = Classic, 1 = Soft HDR
+    
     // HYG Catalog Coordinate Rotation (degrees, applied to star directions before rendering)
     // Allows aligning the real sky catalog with the game's coordinate system
     float RotationX;  // Rotation around X axis (tilt forward/back)

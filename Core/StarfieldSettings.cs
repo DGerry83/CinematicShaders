@@ -43,6 +43,12 @@ namespace CinematicShaders.Core
         // Color
         public static float ColorSaturation { get; set; } = 1.0f;  // 0.5=realistic, 1.0=natural, 2.0=vivid
 
+        // Dual-Lobe PSF Enhancement (0.0 = Classic Gaussian, 1.0 = Full Dual-Lobe)
+        public static float PsfEnhancement { get; set; } = 0.0f;
+
+        // Bloom mode toggle: false = Classic (original 4-spike), true = Soft HDR (2-pass)
+        public static bool UseSoftBloom { get; set; } = false;
+
         // HYG Catalog Coordinate Rotation (degrees)
         // Allows aligning the real sky catalog with the game's coordinate system
         public static float RotationX { get; set; } = 0.0f;  // Tilt forward/back
@@ -188,6 +194,8 @@ namespace CinematicShaders.Core
                 BloomThreshold = float.Parse(settingsNode.GetValue("BloomThreshold") ?? "0.08");
                 BloomIntensity = float.Parse(settingsNode.GetValue("BloomIntensity") ?? "0.5");
                 ColorSaturation = float.Parse(settingsNode.GetValue("ColorSaturation") ?? "1.0");
+                PsfEnhancement = float.Parse(settingsNode.GetValue("PsfEnhancement") ?? "0.0");
+                UseSoftBloom = bool.Parse(settingsNode.GetValue("UseSoftBloom") ?? "false");
                 RotationX = float.Parse(settingsNode.GetValue("RotationX") ?? "0.0");
                 RotationY = float.Parse(settingsNode.GetValue("RotationY") ?? "0.0");
                 RotationZ = float.Parse(settingsNode.GetValue("RotationZ") ?? "0.0");
@@ -262,6 +270,8 @@ namespace CinematicShaders.Core
                 BloomThreshold = BloomThreshold,
                 BloomIntensity = BloomIntensity,
                 ColorSaturation = ColorSaturation,
+                PsfEnhancement = PsfEnhancement,
+                UseSoftBloom = UseSoftBloom ? 1 : 0,
                 RotationX = RotationX,
                 RotationY = RotationY,
                 RotationZ = RotationZ
@@ -455,6 +465,8 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("BloomThreshold", BloomThreshold);
                 settingsNode.AddValue("BloomIntensity", BloomIntensity);
                 settingsNode.AddValue("ColorSaturation", ColorSaturation);
+                settingsNode.AddValue("PsfEnhancement", PsfEnhancement);
+                settingsNode.AddValue("UseSoftBloom", UseSoftBloom);
                 settingsNode.AddValue("RotationX", RotationX);
                 settingsNode.AddValue("RotationY", RotationY);
                 settingsNode.AddValue("RotationZ", RotationZ);

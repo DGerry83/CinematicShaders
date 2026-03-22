@@ -2,6 +2,10 @@
 #include "../include/StarfieldPass1.h"
 #include "../include/StarfieldPass2.h"
 #include "../include/StarfieldVS.h"
+#include "../include/StarfieldPrefilter.h"
+#include "../include/StarfieldBlurX.h"
+#include "../include/StarfieldBlur.h"
+#include "../include/StarfieldPass2Soft.h"
 #include <vector>
 #include <mutex>
 #include <algorithm>
@@ -30,6 +34,11 @@ static struct {
     // Constant buffers
     ID3D11Buffer* pass1CB = nullptr;
     ID3D11Buffer* pass2CB = nullptr;
+
+    // Soft bloom constant buffers (persistent, updated per-frame)
+    ID3D11Buffer* prefilterCB = nullptr;
+    ID3D11Buffer* blurCB = nullptr;
+    ID3D11Buffer* compositeCB = nullptr;
     
     // Cached dimensions
     int width = 0;
@@ -70,6 +79,8 @@ static struct {
     float bloomThreshold = 0.8f;
     float bloomIntensity = 2.0f;
     float colorSaturation = 1.0f;  // 0.5=realistic, 1.0=natural, 2.0=vivid
+    float psfEnhancement = 0.0f;  // 0.0 = Classic Gaussian, 1.0 = Moffat+Jitter
+    bool useSoftBloom = false;    // false = Classic (original), true = Soft HDR (2-pass)
     float blurPixels = 1.0f;
     int frameIndex = 0;
     
@@ -97,6 +108,18 @@ static struct {
     bool catalogNeedsReload = false;
     
     std::mutex stateMutex;
+
+    // Soft HDR bloom pathway resources
+    ID3D11Texture2D* bloomTexture = nullptr;
+    ID3D11RenderTargetView* bloomRTV = nullptr;
+    ID3D11ShaderResourceView* bloomSRV = nullptr;
+    ID3D11Texture2D* bloomTempTexture = nullptr;  // Ping-pong target for vertical blur
+    ID3D11RenderTargetView* bloomTempRTV = nullptr;
+    ID3D11ShaderResourceView* bloomTempSRV = nullptr;
+    ID3D11PixelShader* prefilterPS = nullptr;
+    ID3D11PixelShader* blurXPS = nullptr;      // Horizontal blur
+    ID3D11PixelShader* blurPS = nullptr;       // Vertical blur (keep existing name)
+    ID3D11PixelShader* softCompositePS = nullptr;
 } g_StarfieldState;
 
 // Constant buffer layouts (must match HLSL exactly, 16-byte aligned)
@@ -163,7 +186,7 @@ struct StarfieldPass1Params {
     float RotationX;
     float RotationY;
     float RotationZ;
-    float _padRotation;
+    float PsfEnhancement;  // 0.0 = Classic Gaussian, 1.0 = Moffat+Jitter
 };
 
 struct StarfieldPass2Params {
@@ -176,16 +199,47 @@ struct StarfieldPass2Params {
     float DepthThreshold;
     float ExposureEV;
     int EnableTonemapping;
-    float Pad1[3];  // Pad to 16 bytes (match HLSL float3)
+    float Pad1[3];  // Pad to 16 bytes
     
-    // Atmospheric extinction parameters (16-byte aligned)
-    float ExtinctionZenith;   // Visibility at zenith (0-1)
-    float ExtinctionHorizon;  // Visibility at horizon (0-1)
-    float Pad2[2];            // Pad to 16 bytes
-    float AtmosphereUpX;      // World-space up vector
+    float ExtinctionZenith;
+    float ExtinctionHorizon;
+    float Pad2[2];  // Pad to 16 bytes
+    
+    float AtmosphereUpX;
     float AtmosphereUpY;
     float AtmosphereUpZ;
-    float Pad3;               // Pad float3 to 16 bytes
+    float Pad3;     // Alignment padding ONLY - matches original shader
+};
+
+// Soft bloom constant buffer layouts (must match HLSL exactly)
+struct PrefilterParams {
+    float SourceSizeX, SourceSizeY;        // float4[0].xy
+    float InvSourceSizeX, InvSourceSizeY;  // float4[0].zw
+    float BloomThreshold;                  // float4[1].x
+    float BloomKnee;                       // float4[1].y (NEW: was BloomSpread)
+    float OutputSizeX, OutputSizeY;        // float4[1].zw
+    float InvOutputSizeX, InvOutputSizeY;  // float4[2].xy (NEW: quarter-res inverse size)
+    float Pad[2];                          // float4[2].zw (padding to 48 bytes)
+};
+
+struct BlurParams {
+    float TexelSizeX, TexelSizeY;
+    float BloomSpread;      // Match prefilter spread for consistency
+    float Pad;
+};
+
+struct SoftCompositeParams {
+    float ScreenSizeX, ScreenSizeY;
+    float InvScreenSizeX, InvScreenSizeY;
+    float BloomIntensity;     // Final intensity multiplier
+    float ExposureEV;
+    int EnableTonemapping;
+    float Pad1;
+    float ExtinctionZenith;
+    float ExtinctionHorizon;
+    float Pad2[2];
+    float AtmosphereUpX, AtmosphereUpY, AtmosphereUpZ;
+    float Pad3;
 };
 
 // ============================================================================
@@ -363,6 +417,24 @@ static float ValueNoise(const float3& p) {
     return Hash13(i);
 }
 
+// FBM (Fractal Brownian Motion) for organic hierarchical detail
+// octaves: number of noise layers (4 recommended for bulge, 3 for clustering)
+// lacunarity: frequency multiplier per octave (typically 2.0)
+// gain: amplitude multiplier per octave (typically 0.5)
+static float FBM(const float3& p, int octaves, float lacunarity, float gain) {
+    float value = 0.0f;
+    float amplitude = 0.5f;
+    float frequency = 1.0f;
+    
+    for(int i = 0; i < octaves; i++) {
+        value += amplitude * ValueNoise(float3(p.x * frequency, p.y * frequency, p.z * frequency));
+        amplitude *= gain;
+        frequency *= lacunarity;
+    }
+    
+    return value;
+}
+
 // Galactic density calculation (matches HLSL get_galactic_density)
 static float GetGalacticDensityCPU(const float3& rayDir, 
     float flatness, float falloff, float bandBoost, float bandSharpness,
@@ -416,10 +488,19 @@ static float GetGalacticDensityCPU(const float3& rayDir,
             float edgeExponent = 20.0f * (1.0f - softnessCurve) + 0.1f * softnessCurve;
             float baseFalloff = powf(max(0.0f, 1.0f - t), edgeExponent);
             
-            float noise = ValueNoise(float3(rayDir.x * bulgeNoiseScale * 0.1f, 
-                                           rayDir.y * bulgeNoiseScale * 0.1f, 
-                                           rayDir.z * bulgeNoiseScale * 0.1f));
-            float densityMod = 1.0f - (noise * bulgeNoiseStr);
+            // FBM for organic bulge edge breakup with hierarchical detail
+            // 4 octaves gives big structural variation with fine detail
+            float3 noisePos = float3(rayDir.x * bulgeNoiseScale * 0.1f, 
+                                     rayDir.y * bulgeNoiseScale * 0.1f, 
+                                     rayDir.z * bulgeNoiseScale * 0.1f);
+            float noise = FBM(noisePos, 4, 2.0f, 0.5f);
+            
+            // Secondary detail layer for "tighter" breakup at smaller scales
+            float3 detailPos = float3(noisePos.x * 2.0f, noisePos.y * 2.0f, noisePos.z * 2.0f);
+            float detailNoise = FBM(detailPos, 3, 2.0f, 0.5f) * 0.5f;
+            float combinedNoise = (noise + detailNoise) * 0.6667f;
+            
+            float densityMod = 1.0f - (combinedNoise * bulgeNoiseStr);
             float falloffBulge = baseFalloff * densityMod;
             
             bulgeDensity = bulgeIntensity * falloffBulge;
@@ -567,6 +648,87 @@ static void EnsureStarfieldResources(ID3D11Device* device, int width, int height
         if (FAILED(hr)) LogToFile("[Starfield] Failed to create Pass 2 VS (0x%08X)", hr);
     }
     
+    // Soft HDR bloom resources (quarter resolution)
+    int bloomWidth = width / 4;
+    int bloomHeight = height / 4;
+    if (bloomWidth < 1) bloomWidth = 1;
+    if (bloomHeight < 1) bloomHeight = 1;
+    
+    // Recreate bloom texture if dimensions changed
+    if (g_StarfieldState.bloomTexture && (g_StarfieldState.width != width || g_StarfieldState.height != height)) {
+        g_StarfieldState.bloomTexture->Release();
+        g_StarfieldState.bloomRTV->Release();
+        g_StarfieldState.bloomSRV->Release();
+        g_StarfieldState.bloomTexture = nullptr;
+        g_StarfieldState.bloomRTV = nullptr;
+        g_StarfieldState.bloomSRV = nullptr;
+    }
+    
+    if (!g_StarfieldState.bloomTexture) {
+        D3D11_TEXTURE2D_DESC bloomDesc = {};
+        bloomDesc.Width = bloomWidth;
+        bloomDesc.Height = bloomHeight;
+        bloomDesc.MipLevels = 1;
+        bloomDesc.ArraySize = 1;
+        bloomDesc.Format = DXGI_FORMAT_R11G11B10_FLOAT;
+        bloomDesc.SampleDesc.Count = 1;
+        bloomDesc.Usage = D3D11_USAGE_DEFAULT;
+        bloomDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+        
+        hr = device->CreateTexture2D(&bloomDesc, nullptr, &g_StarfieldState.bloomTexture);
+        if (FAILED(hr)) {
+            LogToFile("[Starfield] Failed to create bloom texture (0x%08X)", hr);
+        } else {
+            hr = device->CreateRenderTargetView(g_StarfieldState.bloomTexture, nullptr, &g_StarfieldState.bloomRTV);
+            if (FAILED(hr)) LogToFile("[Starfield] Failed to create bloom RTV (0x%08X)", hr);
+            
+            hr = device->CreateShaderResourceView(g_StarfieldState.bloomTexture, nullptr, &g_StarfieldState.bloomSRV);
+            if (FAILED(hr)) LogToFile("[Starfield] Failed to create bloom SRV (0x%08X)", hr);
+        }
+    }
+    
+    // Create ping-pong texture for vertical blur (same dimensions as bloomTexture)
+    if (!g_StarfieldState.bloomTempTexture) {
+        D3D11_TEXTURE2D_DESC tempDesc = {};
+        tempDesc.Width = bloomWidth;
+        tempDesc.Height = bloomHeight;
+        tempDesc.MipLevels = 1;
+        tempDesc.ArraySize = 1;
+        tempDesc.Format = DXGI_FORMAT_R11G11B10_FLOAT;
+        tempDesc.SampleDesc.Count = 1;
+        tempDesc.Usage = D3D11_USAGE_DEFAULT;
+        tempDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+        
+        hr = device->CreateTexture2D(&tempDesc, nullptr, &g_StarfieldState.bloomTempTexture);
+        if (FAILED(hr)) {
+            LogToFile("[Starfield] Failed to create bloom temp texture (0x%08X)", hr);
+        } else {
+            hr = device->CreateRenderTargetView(g_StarfieldState.bloomTempTexture, nullptr, &g_StarfieldState.bloomTempRTV);
+            if (FAILED(hr)) LogToFile("[Starfield] Failed to create bloom temp RTV (0x%08X)", hr);
+            
+            hr = device->CreateShaderResourceView(g_StarfieldState.bloomTempTexture, nullptr, &g_StarfieldState.bloomTempSRV);
+            if (FAILED(hr)) LogToFile("[Starfield] Failed to create bloom temp SRV (0x%08X)", hr);
+        }
+    }
+    
+    // Load soft bloom shaders (if not already loaded)
+    if (!g_StarfieldState.prefilterPS) {
+        hr = device->CreatePixelShader(g_StarfieldPrefilterPS, sizeof(g_StarfieldPrefilterPS), nullptr, &g_StarfieldState.prefilterPS);
+        if (FAILED(hr)) LogToFile("[Starfield] Failed to create Prefilter PS (0x%08X)", hr);
+    }
+    if (!g_StarfieldState.blurXPS) {
+        hr = device->CreatePixelShader(g_StarfieldBlurXPS, sizeof(g_StarfieldBlurXPS), nullptr, &g_StarfieldState.blurXPS);
+        if (FAILED(hr)) LogToFile("[Starfield] Failed to create BlurX PS (horizontal) (0x%08X)", hr);
+    }
+    if (!g_StarfieldState.blurPS) {
+        hr = device->CreatePixelShader(g_StarfieldBlurPS, sizeof(g_StarfieldBlurPS), nullptr, &g_StarfieldState.blurPS);
+        if (FAILED(hr)) LogToFile("[Starfield] Failed to create Blur PS (vertical) (0x%08X)", hr);
+    }
+    if (!g_StarfieldState.softCompositePS) {
+        hr = device->CreatePixelShader(g_StarfieldPass2SoftPS, sizeof(g_StarfieldPass2SoftPS), nullptr, &g_StarfieldState.softCompositePS);
+        if (FAILED(hr)) LogToFile("[Starfield] Failed to create SoftComposite PS (0x%08X)", hr);
+    }
+    
     // Samplers
     if (!g_StarfieldState.linearSampler) {
         D3D11_SAMPLER_DESC sampDesc = {};
@@ -627,6 +789,35 @@ if (!g_StarfieldState.blendState) {
         cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
         device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.pass2CB);
     }
+
+        
+    // Soft bloom constant buffers (created once, updated each frame)
+    if (!g_StarfieldState.prefilterCB) {
+        D3D11_BUFFER_DESC cbDesc = {};
+        cbDesc.ByteWidth = sizeof(PrefilterParams);
+        cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+        cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.prefilterCB);
+    }
+    
+    if (!g_StarfieldState.blurCB) {
+        D3D11_BUFFER_DESC cbDesc = {};
+        cbDesc.ByteWidth = sizeof(BlurParams);
+        cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+        cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.blurCB);
+    }
+    
+    if (!g_StarfieldState.compositeCB) {
+        D3D11_BUFFER_DESC cbDesc = {};
+        cbDesc.ByteWidth = sizeof(SoftCompositeParams);
+        cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+        cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.compositeCB);
+    }
     
     if (!g_StarfieldState.device) {
         g_StarfieldState.device = device;
@@ -640,6 +831,8 @@ if (!g_StarfieldState.blendState) {
     
     LogToFile("[Starfield] Resources initialized: %dx%d", width, height);
 }
+
+static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTargetView* finalRTV);
 
 static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
 {
@@ -740,7 +933,7 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         params->RotationX = g_StarfieldState.rotationX;
         params->RotationY = g_StarfieldState.rotationY;
         params->RotationZ = g_StarfieldState.rotationZ;
-        params->_padRotation = 0.0f;
+        params->PsfEnhancement = g_StarfieldState.psfEnhancement;
         
         context->Unmap(g_StarfieldState.pass1CB, 0);
     }
@@ -804,9 +997,21 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         params->AtmosphereUpX = g_StarfieldState.atmosphereUp.x;
         params->AtmosphereUpY = g_StarfieldState.atmosphereUp.y;
         params->AtmosphereUpZ = g_StarfieldState.atmosphereUp.z;
-        params->Pad3 = 0.0f;
+        params->Pad3 = 0.0f; // Alignment padding, must be present but unused by original shader
         
         context->Unmap(g_StarfieldState.pass2CB, 0);
+    }
+    
+    // Select rendering path based on bloom mode
+    if (g_StarfieldState.useSoftBloom) {
+        // Soft HDR 2-pass path
+        ExecuteSoftBloomRender(context, currentRTV);
+        
+        // Cleanup and return early for soft bloom path
+        currentRTV->Release();
+        if (currentDSV) currentDSV->Release();
+        device->Release();
+        return;
     }
     
     // Setup output merger
@@ -845,6 +1050,173 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
     device->Release();
 }
 
+static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTargetView* finalRTV)
+{
+    if (!context || !finalRTV) return;
+    
+    ID3D11Device* device = nullptr;
+    context->GetDevice(&device);
+    if (!device) return;
+    
+    // Validate resources
+    if (!g_StarfieldState.bloomTexture || !g_StarfieldState.bloomTempTexture || 
+        !g_StarfieldState.prefilterPS || !g_StarfieldState.blurXPS || !g_StarfieldState.blurPS || 
+        !g_StarfieldState.softCompositePS) {
+        device->Release();
+        return;
+    }
+    
+    // Disable depth testing for all bloom passes
+    context->OMSetDepthStencilState(g_StarfieldState.depthState, 0);
+    
+    // Quarter-res dimensions
+    int bloomWidth = g_StarfieldState.width / 4;
+    int bloomHeight = g_StarfieldState.height / 4;
+    if (bloomWidth < 1) bloomWidth = 1;
+    if (bloomHeight < 1) bloomHeight = 1;
+    
+    float clearColor[4] = {0, 0, 0, 0};
+    
+    // ========================================================================
+    // PASS 1: Prefilter + Downsample (Full-res HDR -> bloomTempTexture)
+    // ========================================================================
+    D3D11_VIEWPORT quarterVP = {};
+    quarterVP.Width = (float)bloomWidth;
+    quarterVP.Height = (float)bloomHeight;
+    quarterVP.MinDepth = 0.0f;
+    quarterVP.MaxDepth = 1.0f;
+    context->RSSetViewports(1, &quarterVP);
+    
+    context->OMSetRenderTargets(1, &g_StarfieldState.bloomTempRTV, nullptr);
+    context->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF); // Disable blend
+    context->ClearRenderTargetView(g_StarfieldState.bloomTempRTV, clearColor);
+    
+    // Update Prefilter CB
+    D3D11_MAPPED_SUBRESOURCE mapped;
+    if (SUCCEEDED(context->Map(g_StarfieldState.prefilterCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+        float* data = (float*)mapped.pData;
+        data[0] = (float)g_StarfieldState.width;      // SourceSizeX
+        data[1] = (float)g_StarfieldState.height;     // SourceSizeY
+        data[2] = 1.0f / g_StarfieldState.width;      // InvSourceSizeX
+        data[3] = 1.0f / g_StarfieldState.height;     // InvSourceSizeY
+        data[4] = g_StarfieldState.bloomThreshold;    // BloomThreshold
+        data[5] = 0.0f; // BloomKnee disabled - using hard threshold to match Classic
+        data[6] = (float)bloomWidth;                  // OutputSizeX
+        data[7] = (float)bloomHeight;                 // OutputSizeY
+        data[8] = 1.0f / bloomWidth;                  // InvOutputSizeX
+        data[9] = 1.0f / bloomHeight;                 // InvOutputSizeY
+        // Padding to fill 48 bytes (12 floats) - struct is 3 float4s
+        context->Unmap(g_StarfieldState.prefilterCB, 0);
+    }
+    
+    context->VSSetShader(g_StarfieldState.pass2VS, nullptr, 0);
+    context->PSSetShader(g_StarfieldState.prefilterPS, nullptr, 0);
+    context->PSSetConstantBuffers(0, 1, &g_StarfieldState.prefilterCB);
+    context->PSSetSamplers(0, 1, &g_StarfieldState.linearSampler);
+    ID3D11ShaderResourceView* prefilterSRV[1] = {g_StarfieldState.hdrSRV};
+    context->PSSetShaderResources(0, 1, prefilterSRV);
+    
+    context->Draw(3, 0);
+    
+    // Unbind SRV
+    ID3D11ShaderResourceView* nullSRV[2] = {nullptr, nullptr};
+    context->PSSetShaderResources(0, 1, nullSRV);
+    
+    // ========================================================================
+    // PASS 2: Horizontal Blur (bloomTemp -> bloomTexture)
+    // ========================================================================
+    context->OMSetRenderTargets(1, &g_StarfieldState.bloomRTV, nullptr);
+    context->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
+    context->ClearRenderTargetView(g_StarfieldState.bloomRTV, clearColor);
+    
+    // Update Blur CB (same struct for X and Y)
+    if (SUCCEEDED(context->Map(g_StarfieldState.blurCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+        float* data = (float*)mapped.pData;
+        data[0] = 1.0f / bloomWidth;   // TexelSizeX
+        data[1] = 1.0f / bloomHeight;  // TexelSizeY
+        float t = g_StarfieldState.bloomIntensity / 2.0f; // 0-1 range
+        data[2] = t * 0.20f; // 0.0 at slider 0, 0.10 at slider 2.0 (tight max)
+        data[3] = 0.0f; // Pad
+        context->Unmap(g_StarfieldState.blurCB, 0);
+    }
+    
+    context->PSSetShader(g_StarfieldState.blurXPS, nullptr, 0); // Horizontal blur
+    context->PSSetConstantBuffers(0, 1, &g_StarfieldState.blurCB);
+    ID3D11ShaderResourceView* horizSRV[1] = {g_StarfieldState.bloomTempSRV};
+    context->PSSetShaderResources(0, 1, horizSRV);
+    
+    context->Draw(3, 0);
+    context->PSSetShaderResources(0, 1, nullSRV);
+    
+    // ========================================================================
+    // PASS 3: Vertical Blur (bloomTexture -> bloomTempTexture)
+    // Final bloom result ends up in bloomTempTexture
+    // ========================================================================
+    context->OMSetRenderTargets(1, &g_StarfieldState.bloomTempRTV, nullptr);
+    context->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
+    
+    // Same CB values (TexelSize and Spread identical for symmetric blur)
+    context->PSSetShader(g_StarfieldState.blurPS, nullptr, 0); // Vertical blur
+    context->PSSetConstantBuffers(0, 1, &g_StarfieldState.blurCB);
+    ID3D11ShaderResourceView* vertSRV[1] = {g_StarfieldState.bloomSRV};
+    context->PSSetShaderResources(0, 1, vertSRV);
+    
+    context->Draw(3, 0);
+    context->PSSetShaderResources(0, 1, nullSRV);
+    
+    // ========================================================================
+    // PASS 4: Composite (Full-res stars + bloomTemp -> finalRTV)
+    // ========================================================================
+    D3D11_VIEWPORT fullVP = {};
+    fullVP.Width = (float)g_StarfieldState.width;
+    fullVP.Height = (float)g_StarfieldState.height;
+    fullVP.MinDepth = 0.0f;
+    fullVP.MaxDepth = 1.0f;
+    context->RSSetViewports(1, &fullVP);
+    
+    context->OMSetRenderTargets(1, &finalRTV, nullptr);
+    context->OMSetBlendState(g_StarfieldState.blendState, nullptr, 0xFFFFFFFF); // Restore blend for stars
+    
+    // Update Composite CB
+    if (SUCCEEDED(context->Map(g_StarfieldState.compositeCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+        SoftCompositeParams* params = (SoftCompositeParams*)mapped.pData;
+        params->ScreenSizeX = (float)g_StarfieldState.width;
+        params->ScreenSizeY = (float)g_StarfieldState.height;
+        params->InvScreenSizeX = 1.0f / g_StarfieldState.width;
+        params->InvScreenSizeY = 1.0f / g_StarfieldState.height;
+        params->BloomIntensity = g_StarfieldState.bloomIntensity;
+        params->ExposureEV = g_StarfieldState.exposure;
+        params->EnableTonemapping = 1;
+        params->Pad1 = 0.0f;
+        params->ExtinctionZenith = g_StarfieldState.extinctionZenith;
+        params->ExtinctionHorizon = g_StarfieldState.extinctionHorizon;
+        params->Pad2[0] = params->Pad2[1] = 0.0f;
+        params->AtmosphereUpX = g_StarfieldState.atmosphereUp.x;
+        params->AtmosphereUpY = g_StarfieldState.atmosphereUp.y;
+        params->AtmosphereUpZ = g_StarfieldState.atmosphereUp.z;
+        params->Pad3 = 0.0f;
+        context->Unmap(g_StarfieldState.compositeCB, 0);
+    }
+    
+    context->VSSetShader(g_StarfieldState.pass2VS, nullptr, 0);
+    context->PSSetShader(g_StarfieldState.softCompositePS, nullptr, 0);
+    context->PSSetConstantBuffers(0, 1, &g_StarfieldState.compositeCB);
+    context->PSSetSamplers(0, 1, &g_StarfieldState.linearSampler);
+    
+    // Composite reads full-res HDR (t0) and final bloom from bloomTempSRV (t1)
+    ID3D11ShaderResourceView* compositeSRVs[2] = {g_StarfieldState.hdrSRV, g_StarfieldState.bloomTempSRV};
+    context->PSSetShaderResources(0, 2, compositeSRVs);
+    
+    context->Draw(3, 0);
+    
+    // Cleanup
+    context->PSSetShaderResources(0, 2, nullSRV);
+    ID3D11RenderTargetView* nullRTV = nullptr;
+    context->OMSetRenderTargets(1, &nullRTV, nullptr);
+    
+    device->Release();
+}
+
 static void UNITY_INTERFACE_API OnStarfieldRenderEvent(int eventId)
 {
     if (!g_StarfieldState.device) return;
@@ -866,11 +1238,44 @@ static void UNITY_INTERFACE_API OnStarfieldRenderEvent(int eventId)
 extern "C" __declspec(dllexport)
 void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
 {
-    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    // Copy generation parameters to locals (brief lock)
+    int heroCount;
+    float clustering, minMagnitude, maxMagnitude, magnitudeBias, populationBias;
+    float mainSequenceStrength, redGiantFrequency, colorSaturation;
+    float galacticFlatness, galacticDiscFalloff, bandCenterBoost, bandCoreSharpness;
+    float bulgeIntensity, bulgeWidth, bulgeHeight, bulgeSoftness, bulgeNoiseScale, bulgeNoiseStrength;
+    float3 planeNormal, bulgeCenter;
+    ID3D11Device* device;
     
-    if (!g_StarfieldState.device) {
-        // Silent fail - device not ready yet, will retry via CatalogNeedsReload flag
-        return;
+    {
+        std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+        if (!g_StarfieldState.device) {
+            return;
+        }
+        device = g_StarfieldState.device;
+        device->AddRef();
+        
+        heroCount = g_StarfieldState.heroCount;
+        clustering = g_StarfieldState.clustering;
+        minMagnitude = g_StarfieldState.minMagnitude;
+        maxMagnitude = g_StarfieldState.maxMagnitude;
+        magnitudeBias = g_StarfieldState.magnitudeBias;
+        populationBias = g_StarfieldState.populationBias;
+        mainSequenceStrength = g_StarfieldState.mainSequenceStrength;
+        redGiantFrequency = g_StarfieldState.redGiantFrequency;
+        colorSaturation = g_StarfieldState.colorSaturation;
+        planeNormal = g_StarfieldState.galacticPlaneNormal;
+        bulgeCenter = g_StarfieldState.bulgeCenterDirection;
+        galacticFlatness = g_StarfieldState.galacticFlatness;
+        galacticDiscFalloff = g_StarfieldState.galacticDiscFalloff;
+        bandCenterBoost = g_StarfieldState.bandCenterBoost;
+        bandCoreSharpness = g_StarfieldState.bandCoreSharpness;
+        bulgeIntensity = g_StarfieldState.bulgeIntensity;
+        bulgeWidth = g_StarfieldState.bulgeWidth;
+        bulgeHeight = g_StarfieldState.bulgeHeight;
+        bulgeSoftness = g_StarfieldState.bulgeSoftness;
+        bulgeNoiseScale = g_StarfieldState.bulgeNoiseScale;
+        bulgeNoiseStrength = g_StarfieldState.bulgeNoiseStrength;
     }
     
     // Use seed to offset hash calculations - apply to all axes with significant offset
@@ -881,21 +1286,11 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
     std::vector<StarData> tempCatalog;
     tempCatalog.reserve(requestedCount * 2); // Rough estimate
     
-    int heroCount = g_StarfieldState.heroCount;
-    float clustering = g_StarfieldState.clustering;
-    float minMagnitude = g_StarfieldState.minMagnitude;
-    float maxMagnitude = g_StarfieldState.maxMagnitude;
-    float magnitudeBias = g_StarfieldState.magnitudeBias;
-    float populationBias = g_StarfieldState.populationBias;
-    float mainSequenceStrength = g_StarfieldState.mainSequenceStrength;
-    float redGiantFrequency = g_StarfieldState.redGiantFrequency;
-    
     LogToFile("[Starfield] Generating catalog: popBias=%.2f, mainSeq=%.2f, colorSat=%.2f, seed=%d, count=%d",
-        populationBias, mainSequenceStrength, g_StarfieldState.colorSaturation, seed, requestedCount);
+        populationBias, mainSequenceStrength, colorSaturation, seed, requestedCount);
     
     // Galactic structure params
-    float3 planeNormal = g_StarfieldState.galacticPlaneNormal;
-    float3 bulgeCenter = g_StarfieldState.bulgeCenterDirection;
+    // (planeNormal and bulgeCenter captured above)
     
     // Clamp hero count to valid range
     if (heroCount < 16) heroCount = 16;
@@ -953,18 +1348,18 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
         
         // Heroes respect galactic density (user request)
         float galacticDensity = GetGalacticDensityCPU(dir,
-            g_StarfieldState.galacticFlatness,
-            g_StarfieldState.galacticDiscFalloff,
-            g_StarfieldState.bandCenterBoost,
-            g_StarfieldState.bandCoreSharpness,
+            galacticFlatness,
+            galacticDiscFalloff,
+            bandCenterBoost,
+            bandCoreSharpness,
             planeNormal,
-            g_StarfieldState.bulgeIntensity,
+            bulgeIntensity,
             bulgeCenter,
-            g_StarfieldState.bulgeWidth,
-            g_StarfieldState.bulgeHeight,
-            g_StarfieldState.bulgeSoftness,
-            g_StarfieldState.bulgeNoiseScale,
-            g_StarfieldState.bulgeNoiseStrength);
+            bulgeWidth,
+            bulgeHeight,
+            bulgeSoftness,
+            bulgeNoiseScale,
+            bulgeNoiseStrength);
         
         if (randFloat() > galacticDensity) continue;
         
@@ -984,7 +1379,7 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
         
         float3 heroColor;
         float heroTemp;
-        float colorSaturation = g_StarfieldState.colorSaturation;
+        // colorSaturation is already captured from state at function start
         LuminosityClass forcedLumClass = LUM_COUNT;  // Default (no override)
         
         if (isRedGiant) {
@@ -1102,26 +1497,36 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
         
         // Calculate galactic density
         float galacticDensity = GetGalacticDensityCPU(dir,
-            g_StarfieldState.galacticFlatness,
-            g_StarfieldState.galacticDiscFalloff,
-            g_StarfieldState.bandCenterBoost,
-            g_StarfieldState.bandCoreSharpness,
+            galacticFlatness,
+            galacticDiscFalloff,
+            bandCenterBoost,
+            bandCoreSharpness,
             planeNormal,
-            g_StarfieldState.bulgeIntensity,
+            bulgeIntensity,
             bulgeCenter,
-            g_StarfieldState.bulgeWidth,
-            g_StarfieldState.bulgeHeight,
-            g_StarfieldState.bulgeSoftness,
-            g_StarfieldState.bulgeNoiseScale,
-            g_StarfieldState.bulgeNoiseStrength);
+            bulgeWidth,
+            bulgeHeight,
+            bulgeSoftness,
+            bulgeNoiseScale,
+            bulgeNoiseStrength);
         
         if (randFloat() > galacticDensity) continue;
         
-        // Generate clustering noise
+        // Generate clustering noise with FBM for hierarchical filaments
+        // Creates big groups containing smaller sub-groups for natural galactic structure
         float3 clusterPos(dir.x * 100.0f, dir.y * 100.0f, dir.z * 100.0f);
         float3 megaCell(floorf(clusterPos.x * 0.1f), floorf(clusterPos.y * 0.1f), floorf(clusterPos.z * 0.1f));
+        
+        // Base mega-cell hash for coarse clustering
         float clusterNoise = Hash13(megaCell);
-        float clusterProb = 0.2f + clusterNoise * clustering * 0.6f;
+        
+        // FBM detail for hierarchical clustering (filaments within clouds)
+        // Uses existing Clustering slider to control fractal influence
+        float3 fbmPos = float3(megaCell.x * 0.5f, megaCell.y * 0.5f, megaCell.z * 0.5f);
+        float fbmDetail = FBM(fbmPos, 3, 2.0f, 0.5f) * clustering;
+        
+        // Combine: base clustering determines location, FBM adds fractal substructure
+        float clusterProb = 0.2f + (clusterNoise + fbmDetail * 0.3f) * clustering * 0.6f;
         
         if (randFloat() > clusterProb) continue;
         
@@ -1152,7 +1557,7 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
         
         float3 color;
         float temp;
-        float colorSaturation = g_StarfieldState.colorSaturation;
+        // colorSaturation is already captured from state at function start
         LuminosityClass forcedLumClass = LUM_COUNT;  // Default (no override)
         
         // Red giants override (rare bright red stars)
@@ -1249,56 +1654,71 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
     int finalCount = min((int)tempCatalog.size(), requestedCount);
     if (finalCount == 0) {
         LogToFile("[Starfield] Warning: Generated 0 stars. Check galactic density parameters.");
+        device->Release();
         return;
     }
     
-    // Ensure buffer capacity
-    if (finalCount > g_StarfieldState.catalogCapacity || g_StarfieldState.starCatalogBuffer == nullptr) {
-        if (g_StarfieldState.starCatalogBuffer) {
-            g_StarfieldState.starCatalogBuffer->Release();
-            g_StarfieldState.starCatalogBuffer = nullptr;
-        }
+    // Phase 3: GPU upload under lock
+    {
+        std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
         
-        D3D11_BUFFER_DESC desc = {};
-        desc.ByteWidth = sizeof(StarData) * finalCount;
-        desc.Usage = D3D11_USAGE_DYNAMIC;
-        desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-        desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
-        desc.StructureByteStride = sizeof(StarData);
-        
-        HRESULT hr = g_StarfieldState.device->CreateBuffer(&desc, nullptr, &g_StarfieldState.starCatalogBuffer);
-        if (FAILED(hr)) {
-            LogToFile("[Starfield] Failed to create catalog buffer (0x%08X)", hr);
+        // Check if device is still valid (might have been shut down during generation)
+        if (!g_StarfieldState.device) {
+            device->Release();
             return;
         }
         
-        g_StarfieldState.catalogCapacity = finalCount;
+        // Ensure buffer capacity
+        if (finalCount > g_StarfieldState.catalogCapacity || g_StarfieldState.starCatalogBuffer == nullptr) {
+            if (g_StarfieldState.starCatalogBuffer) {
+                g_StarfieldState.starCatalogBuffer->Release();
+                g_StarfieldState.starCatalogBuffer = nullptr;
+            }
+            
+            D3D11_BUFFER_DESC desc = {};
+            desc.ByteWidth = sizeof(StarData) * finalCount;
+            desc.Usage = D3D11_USAGE_DYNAMIC;
+            desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+            desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+            desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+            desc.StructureByteStride = sizeof(StarData);
+            
+            HRESULT hr = device->CreateBuffer(&desc, nullptr, &g_StarfieldState.starCatalogBuffer);
+            if (FAILED(hr)) {
+                LogToFile("[Starfield] Failed to create catalog buffer (0x%08X)", hr);
+                device->Release();
+                return;
+            }
+            
+            g_StarfieldState.catalogCapacity = finalCount;
+        }
+        
+        // Upload data
+        D3D11_MAPPED_SUBRESOURCE mapped;
+        ID3D11DeviceContext* context = nullptr;
+        device->GetImmediateContext(&context);
+        
+        if (context && SUCCEEDED(context->Map(g_StarfieldState.starCatalogBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+            memcpy(mapped.pData, tempCatalog.data(), sizeof(StarData) * finalCount);
+            context->Unmap(g_StarfieldState.starCatalogBuffer, 0);
+            context->Release();
+            
+            g_StarfieldState.catalogSize = finalCount;
+            g_StarfieldState.catalogHeroCount = heroesGenerated;  // Store actual hero count
+            g_StarfieldState.catalogSeed = seed;
+            
+            // Store CPU-side copy for save operations
+            g_StarfieldState.catalogDataCPU.resize(finalCount);
+            memcpy(g_StarfieldState.catalogDataCPU.data(), tempCatalog.data(), sizeof(StarData) * finalCount);
+            
+            LogToFile("[Starfield] Catalog generated: %d stars (%d heroes, %d regular, %d attempts)", finalCount, heroesGenerated, regularGenerated, totalAttempts);
+        } else {
+            LogToFile("[Starfield] Failed to map catalog buffer");
+            if (context) context->Release();
+        }
     }
     
-    // Upload data
-    D3D11_MAPPED_SUBRESOURCE mapped;
-    ID3D11DeviceContext* context = nullptr;
-    g_StarfieldState.device->GetImmediateContext(&context);
-    
-    if (context && SUCCEEDED(context->Map(g_StarfieldState.starCatalogBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
-        memcpy(mapped.pData, tempCatalog.data(), sizeof(StarData) * finalCount);
-        context->Unmap(g_StarfieldState.starCatalogBuffer, 0);
-        context->Release();
-        
-        g_StarfieldState.catalogSize = finalCount;
-        g_StarfieldState.catalogHeroCount = heroesGenerated;  // Store actual hero count
-        g_StarfieldState.catalogSeed = seed;
-        
-        // Store CPU-side copy for save operations
-        g_StarfieldState.catalogDataCPU.resize(finalCount);
-        memcpy(g_StarfieldState.catalogDataCPU.data(), tempCatalog.data(), sizeof(StarData) * finalCount);
-        
-        LogToFile("[Starfield] Catalog generated: %d stars (%d heroes, %d regular, %d attempts)", finalCount, heroesGenerated, regularGenerated, totalAttempts);
-    } else {
-        LogToFile("[Starfield] Failed to map catalog buffer");
-        if (context) context->Release();
-    }
+    device->Release();
 }
 
 // Starfield Exports
@@ -1372,6 +1792,8 @@ void CR_StarfieldSetSettings(const StarfieldSettingsNative* settings)
     g_StarfieldState.bloomIntensity = settings->BloomIntensity;
     g_StarfieldState.colorSaturation = settings->ColorSaturation;
     g_StarfieldState.rotationX = settings->RotationX;
+    g_StarfieldState.psfEnhancement = settings->PsfEnhancement;
+    g_StarfieldState.useSoftBloom = (settings->UseSoftBloom != 0);
     g_StarfieldState.rotationY = settings->RotationY;
     g_StarfieldState.rotationZ = settings->RotationZ;
 }
@@ -1406,6 +1828,23 @@ void CR_StarfieldShutdown()
         }
         g_StarfieldState.catalogDataCPU.clear();
     if (g_StarfieldState.pass2CB) { g_StarfieldState.pass2CB->Release(); g_StarfieldState.pass2CB = nullptr; }
+
+    if (g_StarfieldState.prefilterCB) { g_StarfieldState.prefilterCB->Release(); g_StarfieldState.prefilterCB = nullptr; }
+    if (g_StarfieldState.blurCB) { g_StarfieldState.blurCB->Release(); g_StarfieldState.blurCB = nullptr; }
+    if (g_StarfieldState.compositeCB) { g_StarfieldState.compositeCB->Release(); g_StarfieldState.compositeCB = nullptr; }
+
+        // Soft HDR bloom resources
+    if (g_StarfieldState.bloomSRV) { g_StarfieldState.bloomSRV->Release(); g_StarfieldState.bloomSRV = nullptr; }
+    if (g_StarfieldState.bloomRTV) { g_StarfieldState.bloomRTV->Release(); g_StarfieldState.bloomRTV = nullptr; }
+    if (g_StarfieldState.bloomTexture) { g_StarfieldState.bloomTexture->Release(); g_StarfieldState.bloomTexture = nullptr; }
+    if (g_StarfieldState.prefilterPS) { g_StarfieldState.prefilterPS->Release(); g_StarfieldState.prefilterPS = nullptr; }
+    if (g_StarfieldState.blurXPS) { g_StarfieldState.blurXPS->Release(); g_StarfieldState.blurXPS = nullptr; }
+    if (g_StarfieldState.blurPS) { g_StarfieldState.blurPS->Release(); g_StarfieldState.blurPS = nullptr; }
+    if (g_StarfieldState.softCompositePS) { g_StarfieldState.softCompositePS->Release(); g_StarfieldState.softCompositePS = nullptr; }
+    if (g_StarfieldState.bloomTempSRV) { g_StarfieldState.bloomTempSRV->Release(); g_StarfieldState.bloomTempSRV = nullptr; }
+    if (g_StarfieldState.bloomTempRTV) { g_StarfieldState.bloomTempRTV->Release(); g_StarfieldState.bloomTempRTV = nullptr; }
+    if (g_StarfieldState.bloomTempTexture) { g_StarfieldState.bloomTempTexture->Release(); g_StarfieldState.bloomTempTexture = nullptr; }
+    
     if (g_StarfieldState.device) { g_StarfieldState.device->Release(); g_StarfieldState.device = nullptr; }
     
     g_StarfieldState.cachedHDRFormat = DXGI_FORMAT_UNKNOWN;
