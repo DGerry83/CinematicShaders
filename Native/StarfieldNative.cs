@@ -44,8 +44,7 @@ namespace CinematicShaders.Native
             public float BloomIntensity;
             public float ColorSaturation;  // 0.0-2.0: 0.5=realistic, 1.0=natural, 2.0=vivid
 
-            // Rendering style transitions (0.0 = Classic, 1.0 = Enhanced)
-            public float PsfEnhancement;
+            // Rendering style transitions 
             public int UseSoftBloom;  // 0 = Classic, 1 = Soft HDR
 
             // HYG Catalog Coordinate Rotation (degrees)

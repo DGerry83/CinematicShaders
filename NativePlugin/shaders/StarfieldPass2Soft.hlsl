@@ -49,11 +49,11 @@ float4 PSMain(PSInput input) : SV_Target
     float extinction = lerp(ExtinctionZenith, ExtinctionHorizon, t);
     
     // Sample full-res stars with extinction
-    float3 starColor = StarHDRTexture.Sample(linearSampler, uv) * extinction;
+    float3 starColor = StarHDRTexture.SampleLevel(linearSampler, uv, 0) * extinction;
     
     // Sample bloom (quarter-res, hardware bilinear will upsample)
     // Fixed: Removed erroneous *2.0 that caused blowout at all intensity levels
-    float3 bloom = BloomTexture.Sample(linearSampler, uv) * extinction * BloomIntensity;
+    float3 bloom = BloomTexture.SampleLevel(linearSampler, uv, 0) * extinction * BloomIntensity;
     
     // Composite: stars + bloom
     // CRITICAL FIX: Exposure already applied in Compute Shader (Pass 1)

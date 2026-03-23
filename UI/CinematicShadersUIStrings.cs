@@ -117,7 +117,6 @@ namespace CinematicShaders.UI
             public const string BlurPixelsLabel = "Star Softness";
             public const string BloomThresholdLabel = "Bloom Threshold";
             public const string BloomIntensityLabel = "Bloom Intensity";
-            public const string PsfEnhancementLabel = "Star Enhancement";
             public const string BloomIsotropyLabel = "Bloom Mode";
             public const string BloomModeClassic = "Classic (Spiky)";
             public const string BloomModeSoft = "Soft HDR";
@@ -157,7 +156,6 @@ namespace CinematicShaders.UI
             public const string BlurPixelsTooltip = "Angular size of star blur";
             public const string BloomThresholdTooltip = "HDR values above this trigger bloom";
             public const string BloomIntensityTooltip = "Bloom strength";
-            public const string PsfEnhancementTooltip = "0.0 = Classic Gaussian PSF, 1.0 = Dual-Lobe Optical PSF";
             public const string BloomIsotropyTooltip = "Classic uses original 4-spike, Soft uses 2-pass blur";
 
             // Main Generation Section Tooltips

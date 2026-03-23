@@ -80,7 +80,6 @@ static struct {
     float bloomThreshold = 0.8f;
     float bloomIntensity = 2.0f;
     float colorSaturation = 1.0f;  // 0.5=realistic, 1.0=natural, 2.0=vivid
-    float psfEnhancement = 0.0f;  // 0.0 = Classic Gaussian, 1.0 = Moffat+Jitter
     bool useSoftBloom = false;    // false = Classic (original), true = Soft HDR (2-pass)
     float blurPixels = 1.0f;
     int frameIndex = 0;
@@ -191,7 +190,7 @@ struct StarfieldPass1Params {
     float RotationX;
     float RotationY;
     float RotationZ;
-    float PsfEnhancement;  // 0.0 = Classic Gaussian, 1.0 = Moffat+Jitter
+    float _padRotation;    // Restore padding to match shader
 };
 
 struct StarfieldPass2Params {
@@ -981,7 +980,6 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         params->RotationX = g_StarfieldState.rotationX;
         params->RotationY = g_StarfieldState.rotationY;
         params->RotationZ = g_StarfieldState.rotationZ;
-        params->PsfEnhancement = g_StarfieldState.psfEnhancement;
         
         context->Unmap(g_StarfieldState.pass1CB, 0);
     }
@@ -1165,6 +1163,12 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
     ID3D11ShaderResourceView* prefilterSRV[1] = {g_StarfieldState.hdrSRV};
     context->PSSetShaderResources(0, 1, prefilterSRV);
     
+    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    context->IASetInputLayout(nullptr);
+    context->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
+    context->IASetIndexBuffer(nullptr, DXGI_FORMAT_UNKNOWN, 0);
+    context->RSSetState(g_StarfieldState.rasterState);
+    
     context->Draw(3, 0);
     
     // Unbind SRV
@@ -1194,6 +1198,12 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
     ID3D11ShaderResourceView* horizSRV[1] = {g_StarfieldState.bloomTempSRV};
     context->PSSetShaderResources(0, 1, horizSRV);
     
+    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    context->IASetInputLayout(nullptr);
+    context->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
+    context->IASetIndexBuffer(nullptr, DXGI_FORMAT_UNKNOWN, 0);
+    context->RSSetState(g_StarfieldState.rasterState);
+    
     context->Draw(3, 0);
     context->PSSetShaderResources(0, 1, nullSRV);
     
@@ -1209,6 +1219,12 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
     context->PSSetConstantBuffers(0, 1, &g_StarfieldState.blurCB);
     ID3D11ShaderResourceView* vertSRV[1] = {g_StarfieldState.bloomSRV};
     context->PSSetShaderResources(0, 1, vertSRV);
+    
+    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    context->IASetInputLayout(nullptr);
+    context->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
+    context->IASetIndexBuffer(nullptr, DXGI_FORMAT_UNKNOWN, 0);
+    context->RSSetState(g_StarfieldState.rasterState);
     
     context->Draw(3, 0);
     context->PSSetShaderResources(0, 1, nullSRV);
@@ -1235,6 +1251,12 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
     context->PSSetShader(g_StarfieldState.upscalePS, nullptr, 0);
     ID3D11ShaderResourceView* upscaleSRV[1] = {g_StarfieldState.bloomTempSRV};
     context->PSSetShaderResources(0, 1, upscaleSRV);
+    
+    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    context->IASetInputLayout(nullptr);
+    context->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
+    context->IASetIndexBuffer(nullptr, DXGI_FORMAT_UNKNOWN, 0);
+    context->RSSetState(g_StarfieldState.rasterState);
     
     context->Draw(3, 0);
     context->PSSetShaderResources(0, 1, nullSRV);
@@ -1281,6 +1303,13 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
     // Composite reads full-res HDR (t0) and final bloom from bloomHalfSRV (t1, half-res)
     ID3D11ShaderResourceView* compositeSRVs[2] = {g_StarfieldState.hdrSRV, g_StarfieldState.bloomHalfSRV};
     context->PSSetShaderResources(0, 2, compositeSRVs);
+    
+    // Restore IA state for fullscreen triangle (matches Classic path)
+    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    context->IASetInputLayout(nullptr);
+    context->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
+    context->IASetIndexBuffer(nullptr, DXGI_FORMAT_UNKNOWN, 0);
+    context->RSSetState(g_StarfieldState.rasterState);
     
     context->Draw(3, 0);
     
@@ -1867,13 +1896,10 @@ void CR_StarfieldSetSettings(const StarfieldSettingsNative* settings)
     g_StarfieldState.bloomIntensity = settings->BloomIntensity;
     g_StarfieldState.colorSaturation = settings->ColorSaturation;
     g_StarfieldState.rotationX = settings->RotationX;
-    g_StarfieldState.psfEnhancement = settings->PsfEnhancement;
     g_StarfieldState.useSoftBloom = (settings->UseSoftBloom != 0);
     g_StarfieldState.rotationY = settings->RotationY;
     g_StarfieldState.rotationZ = settings->RotationZ;
 }
-
-// NOTE: CR_StarfieldSetTuningParams removed - values now hardcoded in shader
 
 extern "C" __declspec(dllexport)
 UnityRenderingEvent CR_GetStarfieldRenderEventFunc()

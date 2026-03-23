@@ -10,5 +10,5 @@ struct PSInput
 float4 PSMain(PSInput input) : SV_Target
 {
     // Simple bilinear upscale using hardware filtering
-    return float4(SourceTexture.Sample(linearSampler, input.uv), 1.0);
+    return float4(SourceTexture.SampleLevel(linearSampler, input.uv, 0), 1.0);
 }

@@ -83,35 +83,63 @@ cbuffer StarfieldParams : register(b0)
     float RotationX;
     float RotationY;
     float RotationZ;
-    float PsfEnhancement;  // 0.0 = Classic Gaussian, 1.0 = Moffat+Jitter
+    float _padRotation;
 };
 
-// Hardcoded tuning parameters (adjust these to your finalized values)
-// Replace these #defines with your preferred values from testing
+// ============================================
+// MODULE 2: MATH UTILITIES (Converted from Godot)
+// ============================================
+float3 hash33(float3 p)
+{
+    float3 q = float3(
+        dot(p, float3(127.1, 311.7, 74.7)),
+        dot(p, float3(269.5, 183.3, 246.1)),
+        dot(p, float3(113.5, 271.9, 124.6))
+    );
+    return frac(sin(q) * 43758.5453);
+}
 
-// Core platform
-#define CorePlatformWidth 1.6
-#define CorePlatformAmp 0.15
-#define CoreNormalization 0.65
-#define MoffatBeta 1.9
+float hash13(float3 p)
+{
+    return frac(sin(dot(p, float3(12.9898, 78.233, 45.164))) * 43758.5453);
+}
 
-// Halo/spike sizing
-#define HaloSigmaMin 1.3
-#define HaloSigmaMax 15.0
-#define HaloWeightMax 0.5
-#define BrightnessDivisor 6.0
+float value_noise(float3 p)
+{
+    float3 i = floor(p);
+    float3 f = frac(p);
+    f = f * f * (3.0 - 2.0 * f);
+    
+    return lerp(
+        lerp(
+            lerp(hash13(i + float3(0,0,0)), hash13(i + float3(1,0,0)), f.x),
+            lerp(hash13(i + float3(0,1,0)), hash13(i + float3(1,1,0)), f.x),
+            f.y
+        ),
+        lerp(
+            lerp(hash13(i + float3(0,0,1)), hash13(i + float3(1,0,1)), f.x),
+            lerp(hash13(i + float3(0,1,1)), hash13(i + float3(1,1,1)), f.x),
+            f.y
+        ),
+        f.z
+    );
+}
 
-// Jitter controls
-#define JitterAmplitudeMin 0.4
-#define JitterAmplitudeMax 0.8
-#define JitterStrength 0.6
-#define JitterEdgeStart 0.0
-
-// Shape controls
-#define SharpSinPower 0.8
-#define BrightnessCurvePower 0.7
-#define EdgeFadeStart 0.5
-#define EdgeFadeEnd 1.5
+float fbm_noise(float3 p, float scale)
+{
+    float value = 0.0;
+    float amplitude = 0.5;
+    float frequency = 1.0;
+    
+    [unroll]
+    for(int i = 0; i < 3; i++)
+    {
+        value += amplitude * value_noise(p * frequency * scale);
+        amplitude *= 0.5;
+        frequency *= 2.0;
+    }
+    return value;
+}
 
 // ============================================
 // MODULE 2b: COORDINATE ROTATION FOR HYG CATALOG
@@ -152,6 +180,96 @@ float3 rotate3D(float3 v, float3 rotationDegrees)
 }
 
 // ============================================
+// MODULE 3: SIMPLEX NOISE
+// ============================================
+float3 mod289(float3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+float4 mod289v4(float4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+float4 permute(float4 x) { return mod289v4(((x*34.0)+1.0)*x); }
+float4 taylorInvSqrt(float4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+
+float snoise(float3 v)
+{
+    const float2 C = float2(1.0/6.0, 1.0/3.0);
+    const float4 D = float4(0.0, 0.5, 1.0, 2.0);
+    
+    float3 i  = floor(v + dot(v, C.yyy));
+    float3 x0 = v - i + dot(i, C.xxx);
+    
+    float3 g = step(x0.yzx, x0.xyz);
+    float3 l = 1.0 - g;
+    float3 i1 = min(g.xyz, l.zxy);
+    float3 i2 = max(g.xyz, l.zxy);
+    
+    float3 x1 = x0 - i1 + C.xxx;
+    float3 x2 = x0 - i2 + C.yyy;
+    float3 x3 = x0 - D.yyy;
+    
+    i = mod289(i);
+    float4 p = permute(permute(permute(
+        i.z + float4(0.0, i1.z, i2.z, 1.0))
+        + i.y + float4(0.0, i1.y, i2.y, 1.0))
+        + i.x + float4(0.0, i1.x, i2.x, 1.0));
+        
+    float n_ = 0.142857142857;
+    float3 ns = n_ * D.wyz - D.xzx;
+    
+    float4 j = p - 49.0 * floor(p * ns.z * ns.z);
+    
+    float4 x_ = floor(j * ns.z);
+    float4 y_ = floor(j - 7.0 * x_);
+    
+    float4 x = x_ *ns.x + ns.yyyy;
+    float4 y = y_ *ns.x + ns.yyyy;
+    float4 h = 1.0 - abs(x) - abs(y);
+    
+    float4 b0 = float4(x.xy, y.xy);
+    float4 b1 = float4(x.zw, y.zw);
+    
+    float4 s0 = floor(b0)*2.0 + 1.0;
+    float4 s1 = floor(b1)*2.0 + 1.0;
+    float4 sh = -step(h, float4(0.0, 0.0, 0.0, 0.0));
+    
+    float4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+    float4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+    
+    float3 p0 = float3(a0.xy, h.x);
+    float3 p1 = float3(a0.zw, h.y);
+    float3 p2 = float3(a1.xy, h.z);
+    float3 p3 = float3(a1.zw, h.w);
+    
+    float4 norm = taylorInvSqrt(float4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+    p0 *= norm.x;
+    p1 *= norm.y;
+    p2 *= norm.z;
+    p3 *= norm.w;
+    
+    float4 m = max(0.6 - float4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+    m = m * m;
+    return 42.0 * dot(m*m, float4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+}
+
+// ============================================
+// MODULE 4: CAMERA/RAY GENERATION (RADIANS VERSION)
+// ============================================
+float3 generate_view_ray(float2 uv, float fov_rad, float aspect)
+{
+    float tan_fov_y = tan(fov_rad * 0.5);
+    float tan_fov_x = tan_fov_y * aspect;
+    
+    // View space ray (camera looks down -Z)
+    float3 rd;
+    rd.x = uv.x * tan_fov_x;
+    rd.y = uv.y * tan_fov_y;
+    rd.z = 1.0;
+    rd = normalize(rd);
+    
+    // Transform to world space using camera basis vectors
+    // WorldRay = rd.x * Right + rd.y * Up + rd.z * Forward
+    float3 worldRay = rd.x * CameraRight + rd.y * CameraUp + rd.z * CameraForward;
+    return normalize(worldRay);
+}
+
+// ============================================
 // MODULE 5: POINT SPREAD FUNCTION
 // ============================================
 // Normalized Gaussian PSF with flux conservation
@@ -162,44 +280,68 @@ float calculate_psf(float dist_pixels, float sigma_pixels)
     return norm * exp(-0.5 * pow(dist_pixels / sigma_pixels, 2.0));
 }
 
-// Moffat PSF function for enhanced optical character
-// Parameters: dist = distance from center, sigma = width parameter, beta = shape parameter (2.5 typical)
-// Normalized so integral over infinite domain = 1.0
-float calculate_moffat(float dist_pixels, float sigma_pixels, float beta)
+// ============================================
+// MODULE 6: GALAXY DENSITY
+// ============================================
+float get_galactic_density(float3 ray_direction, float flatness, float falloff, 
+    float band_boost, float band_sharpness, float3 normal, float bulge_intensity,
+    float3 bulge_center, float bulge_width, float bulge_height, float bulge_softness,
+    float bulge_noise_scale, float bulge_noise_str)
 {
-    float alpha_sq = sigma_pixels * sigma_pixels;  // alpha^2 in Moffat notation
-    float term = 1.0 + (dist_pixels * dist_pixels) / alpha_sq;
-    // Normalization factor: (beta - 1) / (pi * alpha^2)
-    float norm = (beta - 1.0) / (3.14159265 * alpha_sq);
-    return norm * pow(term, -beta);
+    if(flatness <= 0.001) return 1.0;
+    
+    float3 n = normalize(normal);
+    float sin_latitude = dot(ray_direction, n);
+    float abs_sin_lat = abs(sin_latitude);
+    float cos_latitude = sqrt(max(0.0, 1.0 - sin_latitude * sin_latitude));
+    
+    float exponent = falloff * flatness;
+    float base_density = pow(max(cos_latitude, 0.0), exponent);
+    float core_density = band_boost * pow(max(cos_latitude, 0.0), band_sharpness);
+    
+    float bulge_density = 0.0;
+    if(bulge_intensity > 0.0)
+    {
+        float3 projected_ray = ray_direction - sin_latitude * n;
+        float3 center_dir = normalize(bulge_center);
+        float3 projected_center = center_dir - dot(center_dir, n) * n;
+        
+        float center_len = length(projected_center);
+        if(center_len > 0.001)
+        {
+            projected_center /= center_len;
+            float cos_long = dot(normalize(projected_ray), projected_center);
+            // Fast approximation: 1-cos(θ) ≈ θ²/2, sufficient for soft bulge mask
+            // Range [0,2] instead of [0,π], but bulge_width is tunable anyway
+            float long_dist = 1.0 - cos_long;
+            float lat_dist = abs_sin_lat;
+            
+            float dx = long_dist / bulge_width;
+            float dy = lat_dist / bulge_height;
+            float t = sqrt(dx*dx + dy*dy);
+            
+            float softness_curve = pow(max(bulge_softness, 0.0), 0.1);
+            float edge_exponent = lerp(20.0, 0.1, softness_curve);
+            float base_falloff = pow(max(0.0, 1.0 - t), edge_exponent);
+            
+            float n = fbm_noise(ray_direction, bulge_noise_scale * 0.1);
+            float density_mod = 1.0 - (n * bulge_noise_str);
+            float falloff_bulge = base_falloff * density_mod;
+            
+            bulge_density = bulge_intensity * falloff_bulge;
+        }
+    }
+    
+    return base_density + core_density + bulge_density;
 }
 
-
-// Returns length scale for spikes (1.0 = normal, 2.0 = twice as long, 0.5 = half as long)
-// Organic per-spike variation: each spike gets pseudorandom length based on angle + star_id
-float calculate_spike_length_scale(float angle_rad, float dist_pixels, float jitter_strength, uint star_id)
+// ============================================
+// MODULE 7: SPATIAL CLUSTERING
+// ============================================
+float calculate_clustering(float3 ray_dir, float density, float strength)
 {
-    // Stable per-star random offset
-    float star_offset = frac(sin(float(star_id) * 12.9898) * 43758.5453) * 6.28318;
-    
-    // 8-fold symmetry: quantize angle to 8 discrete spikes (0 to 7)
-    float angle_norm = frac((angle_rad + star_offset) / 6.2831853); // 0-1 around circle
-    uint spike_index = uint(angle_norm * 8.0 + 0.5) % 8u; // Which of 8 spikes (0-7)
-    
-    // Pseudorandom length for each spike index (deterministic but looks random)
-    // Use different frequencies to get irregular pattern (not simple alternating)
-    float r1 = frac(sin(float(spike_index) * 12.9898 + star_offset) * 43758.5453);
-    float r2 = frac(sin(float(spike_index) * 43.1234 + star_offset * 2.0) * 23421.423);
-    float length_wave = (r1 + r2) * 0.5; // Combine two hashes for smoother distribution
-    
-    float length_var = lerp(JitterAmplitudeMin, JitterAmplitudeMax, length_wave);
-    
-    // Edge start: fade in length variation starting at JitterEdgeStart * sigma
-    float edge_start_dist = max(JitterEdgeStart * 2.0, 0.001);
-    float edge_factor = saturate((dist_pixels - edge_start_dist) / (edge_start_dist * 2.0));
-    float scale = lerp(1.0, length_var, edge_factor * jitter_strength * JitterStrength);
-    
-    return max(scale, 0.2);
+    float cluster_noise = hash13(floor(ray_dir * density * 0.1));
+    return 0.2 + cluster_noise * strength * 0.6;
 }
 
 // ============================================
@@ -254,38 +396,15 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     
     // FIX 1 & 3: Convert angular blur to pixel sigma, enforce minimum 0.5px to prevent flicker
     // BlurPixels is now interpreted as angular sigma in radians
-    float base_sigma = BlurPixels * pixels_per_rad;
-    base_sigma = max(base_sigma, 0.5);  // Anti-flicker: never smaller than 0.5 pixel sigma
-    
-    // Calculate brightness factor early (needed for sigma growth and PSF)
-    float brightness_factor = pow(saturate(flux / BrightnessDivisor), BrightnessCurvePower);
-    
-    // Bright stars GROW larger instead of saturating to white
-    // At max brightness, star is 2x larger (sigma doubled) - spreads energy over more pixels
-    float brightness_growth = 1.0 + brightness_factor * 1.0;  // Tune the 1.0 for more/less growth
-    float sigma_pixels = base_sigma * brightness_growth;
+    float sigma_pixels = BlurPixels * pixels_per_rad;
+    sigma_pixels = max(sigma_pixels, 0.5);  // Anti-flicker: never smaller than 0.5 pixel sigma
     
     // Additional safety: ensure sigma is finite and not extreme
     if (!isfinite(sigma_pixels) || sigma_pixels > 100.0) sigma_pixels = 0.5;
     
-    // Calculate splat radius based on maximum possible extent (core + halo + max spike length)
-    float max_sigma = sigma_pixels;
-    if (PsfEnhancement > 0.001)
-    {
-        // Base halo sigma scales from HaloSigmaMin to HaloSigmaMax
-        // Then multiplied by max length scale (JitterAmplitudeMax)
-        float base_halo_sigma = sigma_pixels * HaloSigmaMax;
-        max_sigma = base_halo_sigma * max(JitterAmplitudeMax, 1.0);
-    }
-    
-    // Calculate splat radius: brightness-scaled to prevent dim stars from hogging GPU
-    // Bright stars (flux 8+) get full radius for long spikes, dim stars get tight radius
-    float radius_mult = lerp(3.5, 6.0, brightness_factor * PsfEnhancement); // 3.5 to 6.0 based on brightness
-    int radius = ceil(max_sigma * radius_mult);
-    
-    // Hard caps: dim stars capped at 25px radius, bright stars capped at 60px
-    int max_radius = 20 + int(40 * brightness_factor); // 20 to 60
-    if (radius > max_radius) radius = max_radius;
+    // Calculate splat radius (3.5 sigma covers 99.95% of Gaussian)
+    // At minimum sigma=0.5, radius = ceil(1.75) = 2, giving ~3-4 pixel footprint
+    int radius = ceil(sigma_pixels * 3.5);
     if (radius < 1) radius = 1;
     
     int2 center = int2(floor(pixel_x + 0.5), floor(pixel_y + 0.5));
@@ -301,61 +420,12 @@ void CSMain(uint3 id : SV_DispatchThreadID)
             if (pix.x < 0 || pix.x >= (int)ScreenSize.x || pix.y < 0 || pix.y >= (int)ScreenSize.y) continue;
             
             // Distance from star center in pixels
-            float2 delta = float2(pix.x - pixel_x, pix.y - pixel_y);
-            float dist = length(delta);
+            float dist = length(float2(pix.x - pixel_x, pix.y - pixel_y));
             
-            // Calculate angle for jitter (atan2 gives -pi to pi)
-            float angle = atan2(delta.y, delta.x);
-            
-            // PSF selection based on PsfEnhancement slider
-            float psf;
-            if (PsfEnhancement > 0.001)
-            {
-                // brightness_factor already calculated above for sigma growth
-                float halo_weight = brightness_factor * PsfEnhancement * HaloWeightMax;
-                
-                // CORE only first (cheap)
-                float core_psf = calculate_psf(dist, sigma_pixels) + 
-                                 calculate_psf(dist, sigma_pixels * CorePlatformWidth) * CorePlatformAmp;
-                core_psf *= CoreNormalization;
-                
-                // HALO: Tunable beta (MoffatBeta), sigma range (HaloSigmaMin, HaloSigmaMax)
-                float halo_range = HaloSigmaMax - HaloSigmaMin;
-                float halo_sigma = sigma_pixels * (HaloSigmaMin + brightness_factor * halo_range);
-                
-                // HALO: Skip expensive Moffat if not near a spike direction
-                float angle_8 = angle * 8.0;
-                float spike_mask = pow(abs(sin(angle_8)), max(SharpSinPower, 0.02));
-                
-                float halo_psf = 0.0;
-                // Only calculate Moffat if spike_mask is significant (>1% contribution)
-                if (spike_mask > 0.01 && dist > sigma_pixels * 0.5) {
-                    float length_scale = calculate_spike_length_scale(angle, dist, PsfEnhancement, star.HipparcosID);
-                    float jittered_dist = dist / length_scale;
-                    
-                    halo_psf = calculate_moffat(jittered_dist, halo_sigma, MoffatBeta);
-                    
-                    if (length_scale < 1.0) {
-                        halo_psf /= pow(length_scale, 2.0 * MoffatBeta - 1.0);
-                    }
-                    halo_psf *= spike_mask;
-                }
-                
-                // Tunable edge fade (EdgeFadeStart, EdgeFadeEnd)
-                float max_expected_radius = sigma_pixels * HaloSigmaMax * max(JitterAmplitudeMax, 2.0);
-                float edge_dist = dist / max_expected_radius;
-                float edge_fade = 1.0 - smoothstep(EdgeFadeStart, EdgeFadeEnd, edge_dist);
-                
-                // Combine
-                psf = (core_psf + halo_psf * halo_weight) * edge_fade;
-            }
-            else
-            {
-                // Classic mode: Simple Gaussian
-                psf = calculate_psf(dist, sigma_pixels);
-            }
-            
-            if (psf < 0.0005) continue;
+            // FIX 2: Normalized Gaussian PSF with flux conservation
+            // Total deposited flux is independent of sigma, preventing brightness changes when zooming
+            float psf = calculate_psf(dist, sigma_pixels);
+            if (psf < 0.001) continue;
             
             // Calculate final contribution (flux * psf * exposure * color)
             // Exposure applied here: pow(2.0, Exposure) matches original shader
