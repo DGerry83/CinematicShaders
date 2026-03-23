@@ -17,12 +17,21 @@ struct PSInput
     float2 uv : TEXCOORD0;
 };
 
-// Hard threshold to match Classic bloom behavior exactly
-// Fixed: Soft knee was leaking sub-threshold brightness (23% at knee=threshold)
+// Smooth knee threshold for bloom
+// knee = 0.0: Hard threshold (matches Classic exactly)
+// knee = 0.5+: Smooth roll-off (values below threshold contribute gradually)
 float3 ApplyBloomThreshold(float3 color, float threshold, float knee)
 {
-    // Use hard threshold subtraction like Classic: max(color - threshold, 0)
-    return max(color - threshold, 0.0);
+    if (knee <= 0.0) 
+        return pow(max(color - threshold, 0.0), 0.65);
+    
+    // Calculate the smooth knee value
+    float3 t = saturate((color - (threshold - knee)) / (2.0 * knee));
+    float3 raw = (color - threshold) * t * t;
+    
+    // Compress: apply pow only to the magnitude, preserving the curve shape
+    // max ensures no NaN, and we compress the output
+    return pow(max(raw, 0.0), 0.65);
 }
 
 float4 PSMain(PSInput input) : SV_Target
@@ -55,7 +64,7 @@ float4 PSMain(PSInput input) : SV_Target
     c /= totalWeight; // Divide by 16
     
     // Hard threshold to match Classic exactly
-    float3 thresholded = max(c - BloomThreshold, 0.0);
+    float3 thresholded = ApplyBloomThreshold(c, BloomThreshold, BloomKnee);
     
     return float4(thresholded, 1.0);
 }

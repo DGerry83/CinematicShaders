@@ -553,22 +553,43 @@ static float3 BlackbodyRGB(float temperature)
     return float3(r / 255.0f, g / 255.0f, b / 255.0f);
 }
 
-// Apply saturation to color: 0.5=realistic, 1.0=natural, 4.0=hyper-vivid
-static float3 ApplySaturation(float3 baseColor, float sliderValue)
+// Apply saturation to color: 0.5=realistic, 1.0=natural, 4.0=hyper-vivid (max for this star)
+// catalogID provides per-star variation in saturation rate
+static float3 ApplySaturation(float3 baseColor, float sliderValue, int32_t catalogID)
 {
-    // Map slider to effective saturation with curve
-    // Keep exact: 0.5 -> 0.5 (realistic), 1.0 -> 1.0 (natural)
-    // Curve above 1.0: 2.0 -> 1.6, 3.0 -> 2.2, 4.0 -> 2.8
-    // This prevents abrupt clamping while keeping low-end linear
+    // Per-star variation hash (0-1)
+    float variationHash = Hash13(float3((float)catalogID * 12.9898f, (float)catalogID * 78.233f, (float)catalogID * 45.164f));
     
+    // Calculate max saturation this specific star can reach before clipping to black in any channel
+    // From: 1 + (c - 1) * t = 0  →  t = 1 / (1 - c) for any channel where c < 1
+    float maxT = 100.0f;
+    if (baseColor.x < 0.999f) maxT = fminf(maxT, 1.0f / (1.0f - baseColor.x));
+    if (baseColor.y < 0.999f) maxT = fminf(maxT, 1.0f / (1.0f - baseColor.y));
+    if (baseColor.z < 0.999f) maxT = fminf(maxT, 1.0f / (1.0f - baseColor.z));
+    
+    // Clamp maxT to reasonable bounds (prevents division issues, caps extreme extrapolation)
+    maxT = fminf(maxT, 10.0f);
+    
+    // Add per-star variation to the max (0.85x to 1.15x so some stars max out earlier/later)
+    maxT *= (0.85f + variationHash * 0.3f);
+    
+    // Overshoot: Push 50% past first-channel clip so red stars crush green channel
+    // to reach hard red (1,0,0) at slider 4.0 without affecting blue star behavior
+    maxT *= 1.5f;
+    
+    // Map slider [0.5, 4.0] to saturation factor t
+    // 0.5 -> 0.5 (white), 1.0 -> 1.0 (original), 4.0 -> maxT (fully saturated for this star)
     float t;
     if (sliderValue <= 1.0f) {
-        // Linear from 0 to 1 (0.5 stays exactly 0.5 for realistic)
+        // Linear from white (t=0) to natural (t=1) 
+        // Actually we want 0.5 to give 0.5, 1.0 to give 1.0
         t = sliderValue;
     } else {
-        // Curve above 1.0: t = 1 + (slider-1)^0.8
-        // This compresses the high end so each slider step gives similar visual change
-        t = 1.0f + powf(sliderValue - 1.0f, 0.8f);
+        // Map [1.0, 4.0] to [1.0, maxT] with smooth curve
+        float normalized = (sliderValue - 1.0f) / 3.0f; // 0 to 1 as slider goes 1->4
+        // Smooth step for natural feel
+        normalized = normalized * normalized * (3.0f - 2.0f * normalized);
+        t = 1.0f + normalized * (maxT - 1.0f);
     }
     
     // Calculate color: move away from white by factor t
@@ -576,7 +597,7 @@ static float3 ApplySaturation(float3 baseColor, float sliderValue)
     float g = 1.0f + (baseColor.y - 1.0f) * t;
     float b = 1.0f + (baseColor.z - 1.0f) * t;
     
-    // Clamp to valid range
+    // Clamp to valid range (safety)
     r = fmaxf(0.0f, fminf(1.0f, r));
     g = fmaxf(0.0f, fminf(1.0f, g));
     b = fmaxf(0.0f, fminf(1.0f, b));
@@ -652,9 +673,9 @@ static void EnsureStarfieldResources(ID3D11Device* device, int width, int height
         if (FAILED(hr)) LogToFile("[Starfield] Failed to create Pass 2 VS (0x%08X)", hr);
     }
     
-    // Soft HDR bloom resources (quarter resolution)
-    int bloomWidth = width / 4;
-    int bloomHeight = height / 4;
+    // Soft HDR bloom resources (half resolution - increased from quarter)
+    int bloomWidth = width / 2;
+    int bloomHeight = height / 2;
     if (bloomWidth < 1) bloomWidth = 1;
     if (bloomHeight < 1) bloomHeight = 1;
     
@@ -668,7 +689,7 @@ static void EnsureStarfieldResources(ID3D11Device* device, int width, int height
         g_StarfieldState.bloomSRV = nullptr;
     }
     
-    // Recreate half-res texture if dimensions changed
+    // Recreate upscale target texture if dimensions changed (now FULL res instead of half)
     if (g_StarfieldState.bloomHalfTexture && (g_StarfieldState.width != width || g_StarfieldState.height != height)) {
         g_StarfieldState.bloomHalfTexture->Release();
         g_StarfieldState.bloomHalfRTV->Release();
@@ -701,7 +722,7 @@ static void EnsureStarfieldResources(ID3D11Device* device, int width, int height
         }
     }
     
-    // Create ping-pong texture for vertical blur (same dimensions as bloomTexture)
+    // Create ping-pong texture for vertical blur (half-res dimensions)
     if (!g_StarfieldState.bloomTempTexture) {
         D3D11_TEXTURE2D_DESC tempDesc = {};
         tempDesc.Width = bloomWidth;
@@ -725,16 +746,16 @@ static void EnsureStarfieldResources(ID3D11Device* device, int width, int height
         }
     }
     
-    // Create half-res texture for upscaled bloom result (1/2 screen resolution)
-    int halfWidth = width / 2;
-    int halfHeight = height / 2;
-    if (halfWidth < 1) halfWidth = 1;
-    if (halfHeight < 1) halfHeight = 1;
+    // Create upscale target texture - now FULL resolution (was half-res)
+    int targetWidth = width;    // Full res upscale target
+    int targetHeight = height;  // Full res upscale target
+    if (targetWidth < 1) targetWidth = 1;
+    if (targetHeight < 1) targetHeight = 1;
     
     if (!g_StarfieldState.bloomHalfTexture) {
         D3D11_TEXTURE2D_DESC halfDesc = {};
-        halfDesc.Width = halfWidth;
-        halfDesc.Height = halfHeight;
+        halfDesc.Width = targetWidth;
+        halfDesc.Height = targetHeight;
         halfDesc.MipLevels = 1;
         halfDesc.ArraySize = 1;
         halfDesc.Format = DXGI_FORMAT_R11G11B10_FLOAT;
@@ -1116,9 +1137,9 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
     // Disable depth testing for all bloom passes
     context->OMSetDepthStencilState(g_StarfieldState.depthState, 0);
     
-    // Quarter-res dimensions
-    int bloomWidth = g_StarfieldState.width / 4;
-    int bloomHeight = g_StarfieldState.height / 4;
+    // Half-res dimensions (matching texture creation)
+    int bloomWidth = g_StarfieldState.width / 2;
+    int bloomHeight = g_StarfieldState.height / 2;
     if (bloomWidth < 1) bloomWidth = 1;
     if (bloomHeight < 1) bloomHeight = 1;
     
@@ -1126,13 +1147,14 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
     
     // ========================================================================
     // PASS 1: Prefilter + Downsample (Full-res HDR -> bloomTempTexture)
+    // Rendering to half-res
     // ========================================================================
-    D3D11_VIEWPORT quarterVP = {};
-    quarterVP.Width = (float)bloomWidth;
-    quarterVP.Height = (float)bloomHeight;
-    quarterVP.MinDepth = 0.0f;
-    quarterVP.MaxDepth = 1.0f;
-    context->RSSetViewports(1, &quarterVP);
+    D3D11_VIEWPORT halfResVP = {};
+    halfResVP.Width = (float)bloomWidth;      // width/2
+    halfResVP.Height = (float)bloomHeight;    // height/2
+    halfResVP.MinDepth = 0.0f;
+    halfResVP.MaxDepth = 1.0f;
+    context->RSSetViewports(1, &halfResVP);
     
     context->OMSetRenderTargets(1, &g_StarfieldState.bloomTempRTV, nullptr);
     context->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF); // Disable blend
@@ -1142,17 +1164,17 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
     D3D11_MAPPED_SUBRESOURCE mapped;
     if (SUCCEEDED(context->Map(g_StarfieldState.prefilterCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
         float* data = (float*)mapped.pData;
-        data[0] = (float)g_StarfieldState.width;      // SourceSizeX
-        data[1] = (float)g_StarfieldState.height;     // SourceSizeY
-        data[2] = 1.0f / g_StarfieldState.width;      // InvSourceSizeX
-        data[3] = 1.0f / g_StarfieldState.height;     // InvSourceSizeY
-        data[4] = g_StarfieldState.bloomThreshold;    // BloomThreshold
-        data[5] = 0.0f; // BloomKnee disabled - using hard threshold to match Classic
-        data[6] = (float)bloomWidth;                  // OutputSizeX
-        data[7] = (float)bloomHeight;                 // OutputSizeY
-        data[8] = 1.0f / bloomWidth;                  // InvOutputSizeX
-        data[9] = 1.0f / bloomHeight;                 // InvOutputSizeY
-        // Padding to fill 48 bytes (12 floats) - struct is 3 float4s
+        data[0] = (float)g_StarfieldState.width;       // SourceSizeX (full)
+        data[1] = (float)g_StarfieldState.height;      // SourceSizeY (full)
+        data[2] = 1.0f / g_StarfieldState.width;       // InvSourceSizeX
+        data[3] = 1.0f / g_StarfieldState.height;      // InvSourceSizeY
+        data[4] = g_StarfieldState.bloomThreshold;     // BloomThreshold
+        data[5] = 0.65f;                                // BloomKnee
+        data[6] = (float)bloomWidth;                   // OutputSizeX - NOW width/2 (half-res)
+        data[7] = (float)bloomHeight;                  // OutputSizeY - NOW height/2 (half-res)
+        data[8] = 1.0f / bloomWidth;                   // InvOutputSizeX - NOW 2/width
+        data[9] = 1.0f / bloomHeight;                  // InvOutputSizeY - NOW 2/height
+        // Padding to fill 48 bytes
         context->Unmap(g_StarfieldState.prefilterCB, 0);
     }
     
@@ -1183,12 +1205,13 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
     context->ClearRenderTargetView(g_StarfieldState.bloomRTV, clearColor);
     
     // Update Blur CB (same struct for X and Y)
+    // CRITICAL: TexelSize is now for half-res textures (1/2 of full res pixel size)
     if (SUCCEEDED(context->Map(g_StarfieldState.blurCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
         float* data = (float*)mapped.pData;
-        data[0] = 1.0f / bloomWidth;   // TexelSizeX
-        data[1] = 1.0f / bloomHeight;  // TexelSizeY
+        data[0] = 1.0f / bloomWidth;   // TexelSizeX - NOW 2/width (half-res texel size)
+        data[1] = 1.0f / bloomHeight;  // TexelSizeY - NOW 2/height (half-res texel size)
         float t = g_StarfieldState.bloomIntensity / 2.0f; // 0-1 range
-        data[2] = t * 0.20f; // 0.0 at slider 0, 0.10 at slider 2.0 (tight max)
+        data[2] = t * 0.65f; // BloomSpread
         data[3] = 0.0f; // Pad
         context->Unmap(g_StarfieldState.blurCB, 0);
     }
@@ -1230,19 +1253,15 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
     context->PSSetShaderResources(0, 1, nullSRV);
     
     // ========================================================================
-    // PASS 3.5: Upscale to Half-Resolution (1/4 -> 1/2)
+    // PASS 3.5: Upscale to Full-Resolution (1/2 -> Full)
+    // Changed from 1/4 -> 1/2 to 1/2 -> Full
     // ========================================================================
-    int halfWidth = g_StarfieldState.width / 2;
-    int halfHeight = g_StarfieldState.height / 2;
-    if (halfWidth < 1) halfWidth = 1;
-    if (halfHeight < 1) halfHeight = 1;
-    
-    D3D11_VIEWPORT halfVP = {};
-    halfVP.Width = (float)halfWidth;
-    halfVP.Height = (float)halfHeight;
-    halfVP.MinDepth = 0.0f;
-    halfVP.MaxDepth = 1.0f;
-    context->RSSetViewports(1, &halfVP);
+    D3D11_VIEWPORT fullResVP = {};
+    fullResVP.Width = (float)g_StarfieldState.width;   // Full width
+    fullResVP.Height = (float)g_StarfieldState.height; // Full height
+    fullResVP.MinDepth = 0.0f;
+    fullResVP.MaxDepth = 1.0f;
+    context->RSSetViewports(1, &fullResVP);
     
     context->OMSetRenderTargets(1, &g_StarfieldState.bloomHalfRTV, nullptr);
     context->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
@@ -1490,7 +1509,7 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
             // Red giant color - orange-red
             float3 baseColor = float3(1.0f, 0.5f, 0.3f);
             heroTemp = 3500.0f;
-            heroColor = ApplySaturation(baseColor, colorSaturation);
+            heroColor = ApplySaturation(baseColor, colorSaturation, nextProceduralID);
         } else {
             // Regular star - use population bias and main sequence strength
             // For heroes, we want brighter stars to tend toward blue (higher temp)
@@ -1556,7 +1575,7 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
             heroTemp = fmaxf(1000.0f, fminf(40000.0f, heroTemp));
             
             float3 blackbody = BlackbodyRGB(heroTemp);
-            heroColor = ApplySaturation(blackbody, colorSaturation);
+            heroColor = ApplySaturation(blackbody, colorSaturation, nextProceduralID);
         }
         
         // Calculate brightness normalized for hero stars
@@ -1669,7 +1688,7 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
         if (h.x < (1.0f - redGiantFrequency) && normalizedBrightness < 0.3f) {
             float3 baseColor = float3(1.0f, 0.5f, 0.3f);
             temp = 3500.0f;
-            color = ApplySaturation(baseColor, colorSaturation);
+            color = ApplySaturation(baseColor, colorSaturation, nextProceduralID);
         } else {
             // ENFORCE REALISTIC SPECTRAL TYPE FOR MAGNITUDE (Main Sequence Strength)
             // Brighter stars must be hotter (O, B, A) - dimmer stars can be cooler (G, K, M)
@@ -1704,7 +1723,7 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
             temp = temp * (0.9f + h.x * 0.2f);
             temp = fmaxf(1000.0f, fminf(40000.0f, temp));
             float3 blackbody = BlackbodyRGB(temp);
-            color = ApplySaturation(blackbody, colorSaturation);
+            color = ApplySaturation(blackbody, colorSaturation, nextProceduralID);
         }
         
         // Regular stars acceptance based on magnitude bias (brighter = more likely)
