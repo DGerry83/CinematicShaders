@@ -56,6 +56,11 @@ namespace CinematicShaders.Native
             public float GalacticPlaneNormalX;
             public float GalacticPlaneNormalY;
             public float GalacticPlaneNormalZ;
+
+            // Global scene dimming factors
+            public float SunGlareDimming;      // 1.0 = full brightness, 0.0 = fully dimmed
+            public float PlanetaryDimming;     // 1.0 = full brightness, 0.0 = fully dimmed  
+            public float GlobalDimming;        // min(Sun, Planetary)
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 48)]
@@ -140,6 +145,11 @@ namespace CinematicShaders.Native
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern int CR_StarfieldGetHeroCount();
+
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_StarfieldSetDimming(float sunGlareDimming, float planetaryDimming);
+
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern byte CR_StarfieldIsDeviceReady();

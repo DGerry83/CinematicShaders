@@ -18,6 +18,12 @@ cbuffer SoftCompositeParams : register(b0)
     
     float3 AtmosphereUp;
     float Pad3;
+    
+    // Global scene dimming factors (new - 16 bytes)
+    float SunGlareDimming;      // 1.0 = full, 0.0 = dimmed
+    float PlanetaryDimming;     // 1.0 = full, 0.0 = dimmed
+    float GlobalDimming;        // min(Sun, Planetary), calculated CPU-side
+    float _padFinal;            // Align to 16 bytes
 };
 
 // ACES Filmic Tonemapping
@@ -59,6 +65,9 @@ float4 PSMain(PSInput input) : SV_Target
     // CRITICAL FIX: Exposure already applied in Compute Shader (Pass 1)
     // Classic mode does NOT re-apply exposure in pixel shader, so Soft shouldn't either
     float3 finalColor = starColor + bloom;
+    
+    // GLOBAL DIMMING: Apply min(Sun, Planetary) dimming after bloom, before tonemapping
+    finalColor *= GlobalDimming;
     
     // Tonemapping
     if (EnableTonemapping > 0)

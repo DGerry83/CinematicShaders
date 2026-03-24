@@ -94,6 +94,11 @@ static struct {
     float extinctionHorizon = 1.0f;
     float3 atmosphereUp = float3(0.0f, 1.0f, 0.0f);
     
+    // Global scene dimming factors (per-frame calculated)
+    float sunGlareDimming = 1.0f;
+    float planetaryDimming = 1.0f;
+    float globalDimming = 1.0f;
+    
     // Catalog buffer management
     ID3D11Buffer* starCatalogBuffer = nullptr;
     int catalogSize = 0;
@@ -213,6 +218,12 @@ struct StarfieldPass2Params {
     float AtmosphereUpY;
     float AtmosphereUpZ;
     float Pad3;     // Alignment padding ONLY - matches original shader
+    
+    // Global dimming factors (new - 16 bytes added)
+    float SunGlareDimming;
+    float PlanetaryDimming;
+    float GlobalDimming;
+    float _padFinal;  // Ensure 16-byte alignment (96 bytes total)
 };
 
 // Soft bloom constant buffer layouts (must match HLSL exactly)
@@ -244,6 +255,12 @@ struct SoftCompositeParams {
     float Pad2[2];
     float AtmosphereUpX, AtmosphereUpY, AtmosphereUpZ;
     float Pad3;
+    
+    // Global dimming factors (new - 16 bytes added)
+    float SunGlareDimming;
+    float PlanetaryDimming;
+    float GlobalDimming;
+    float _padFinal;  // Ensure 16-byte alignment (80 bytes total)
 };
 
 // ============================================================================
@@ -1066,6 +1083,12 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         params->AtmosphereUpZ = g_StarfieldState.atmosphereUp.z;
         params->Pad3 = 0.0f; // Alignment padding, must be present but unused by original shader
         
+        // Global scene dimming (new)
+        params->SunGlareDimming = g_StarfieldState.sunGlareDimming;
+        params->PlanetaryDimming = g_StarfieldState.planetaryDimming;
+        params->GlobalDimming = g_StarfieldState.globalDimming;
+        params->_padFinal = 0.0f;
+        
         context->Unmap(g_StarfieldState.pass2CB, 0);
     }
     
@@ -1311,6 +1334,13 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
         params->AtmosphereUpY = g_StarfieldState.atmosphereUp.y;
         params->AtmosphereUpZ = g_StarfieldState.atmosphereUp.z;
         params->Pad3 = 0.0f;
+        
+        // Global scene dimming (new)
+        params->SunGlareDimming = g_StarfieldState.sunGlareDimming;
+        params->PlanetaryDimming = g_StarfieldState.planetaryDimming;
+        params->GlobalDimming = g_StarfieldState.globalDimming;
+        params->_padFinal = 0.0f;
+        
         context->Unmap(g_StarfieldState.compositeCB, 0);
     }
     
@@ -1356,6 +1386,21 @@ static void UNITY_INTERFACE_API OnStarfieldRenderEvent(int eventId)
     
     // Increment temporal frame index
     g_StarfieldState.frameIndex = (g_StarfieldState.frameIndex + 1) & 7;
+}
+
+extern "C" __declspec(dllexport)
+void CR_StarfieldSetDimming(float sunGlareDimming, float planetaryDimming)
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
+    g_StarfieldState.sunGlareDimming = sunGlareDimming;
+    g_StarfieldState.planetaryDimming = planetaryDimming;
+    // Use whichever dims more (the darker/minimum value)
+    g_StarfieldState.globalDimming = (sunGlareDimming < planetaryDimming) ? sunGlareDimming : planetaryDimming;
+    
+    // Safety clamp - never allow complete blackness from dimming alone
+    if (g_StarfieldState.globalDimming < 0.05f)
+        g_StarfieldState.globalDimming = 0.05f;
 }
 
 extern "C" __declspec(dllexport)

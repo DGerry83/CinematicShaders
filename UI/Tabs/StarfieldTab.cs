@@ -281,7 +281,6 @@ namespace CinematicShaders.UI.Tabs
             {
                 GUI.enabled = oldEnabled;
             }
-
             DrawTooltip();
         }
 

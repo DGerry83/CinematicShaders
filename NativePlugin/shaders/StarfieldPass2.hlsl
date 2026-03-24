@@ -21,6 +21,12 @@ cbuffer CompositeParams : register(b0)
     float2 Pad2;             // Pad to 16 bytes
     float3 AtmosphereUp;     // World-space up vector
     float Pad3;              // Pad float3 to 16 bytes
+    
+    // Global scene dimming factors (new - 16 bytes)
+    float SunGlareDimming;      // 1.0 = full, 0.0 = dimmed
+    float PlanetaryDimming;     // 1.0 = full, 0.0 = dimmed
+    float GlobalDimming;        // min(Sun, Planetary), calculated CPU-side
+    float _padFinal;            // Align to 16 bytes
 };
 
 // ============================================
@@ -102,6 +108,9 @@ float4 PSMain(PSInput input) : SV_Target
     
     // Add bloom to base (no conditional needed - bloom already contains only bright contributions)
     float3 finalStarColor = starColor + bloom * BloomIntensity;
+    
+    // GLOBAL DIMMING: Apply min(Sun, Planetary) dimming after bloom, before tonemapping
+    finalStarColor *= GlobalDimming;
     
     // Apply ACES tonemapping if enabled
     if (EnableTonemapping > 0)

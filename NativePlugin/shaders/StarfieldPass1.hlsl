@@ -387,17 +387,9 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // Calculate flux from magnitude (same formula as original)
     float flux = pow(10.0, -0.4 * star.Magnitude);
     
-    // FIX 1: Calculate pixels per radian at screen center for angular-to-pixel conversion
-    // This maintains constant angular star size regardless of FOV zoom
-    // SAFETY: Clamp FOV to avoid division by zero or extreme values
-    float safe_fov = clamp(VerticalFOV, 0.001, 3.0);  // 0.001 to ~172 degrees
-    float tan_half_fov = tan(safe_fov * 0.5);
-    float pixels_per_rad = (ScreenSize.y * 0.5) / max(tan_half_fov, 0.0001);
-    
-    // FIX 1 & 3: Convert angular blur to pixel sigma, enforce minimum 0.5px to prevent flicker
-    // BlurPixels is now interpreted as angular sigma in radians
-    float sigma_pixels = BlurPixels * pixels_per_rad;
-    sigma_pixels = max(sigma_pixels, 0.5);  // Anti-flicker: never smaller than 0.5 pixel sigma
+    // FIX: BlurPixels is constant screen-space sigma (pixels), NOT angular
+    // This keeps stars at constant pixel size regardless of zoom/FOV
+    float sigma_pixels = max(BlurPixels, 0.5);  // Anti-flicker: never smaller than 0.5 pixel sigma
     
     // Additional safety: ensure sigma is finite and not extreme
     if (!isfinite(sigma_pixels) || sigma_pixels > 100.0) sigma_pixels = 0.5;
@@ -422,10 +414,12 @@ void CSMain(uint3 id : SV_DispatchThreadID)
             // Distance from star center in pixels
             float dist = length(float2(pix.x - pixel_x, pix.y - pixel_y));
             
-            // FIX 2: Normalized Gaussian PSF with flux conservation
+            // Normalized Gaussian PSF with flux conservation
             // Total deposited flux is independent of sigma, preventing brightness changes when zooming
             float psf = calculate_psf(dist, sigma_pixels);
-            if (psf < 0.001) continue;
+            
+            // Brightness fix: Remove absolute threshold that killed dim/fuzzy stars
+            // The radius loop bounds already limit the splat to 3.5 sigma (99.95% energy)
             
             // Calculate final contribution (flux * psf * exposure * color)
             // Exposure applied here: pow(2.0, Exposure) matches original shader

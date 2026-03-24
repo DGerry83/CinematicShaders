@@ -118,6 +118,129 @@ namespace CinematicShaders.Shaders.Starfield
             }
         }
 
+        // Cached reflection info for GalaxyCubeControl.glareFade (private field)
+        private static System.Reflection.FieldInfo _glareFadeField = null;
+        private static bool _glareFadeReflectionAttempted = false;
+
+        /// <summary>
+        /// Calculate dimming factor from sun glare (GalaxyCubeControl.glareFade).
+        /// Returns 1.0 (full brightness) when sun not in view, down to 0.2f minimum when sun centered.
+        /// Note: glareFade is a private field, accessed via cached reflection.
+        /// </summary>
+        private float GetSunGlareDimming()
+        {
+            if (GalaxyCubeControl.Instance == null)
+                return 1.0f;
+
+            if (!_glareFadeReflectionAttempted)
+            {
+                try
+                {
+                    _glareFadeField = typeof(GalaxyCubeControl).GetField("glareFade",
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                }
+                catch { _glareFadeField = null; }
+                _glareFadeReflectionAttempted = true;
+            }
+
+            if (_glareFadeField == null) return 1.0f;
+
+            try
+            {
+                float glare = (float)_glareFadeField.GetValue(GalaxyCubeControl.Instance);
+                if (float.IsNaN(glare) || float.IsInfinity(glare)) return 1.0f;
+
+                // Aggressive drop-off, then floor at 0.1
+                // glareFade 0.0 → 1.0 (full stars)
+                // glareFade 0.6 → ~0.15 (aggressive dimming)  
+                // glareFade 1.0 → 0.1 (floor)
+                float curvedDimming = 1.0f - Mathf.Pow(glare, 0.3f);
+
+                const float MIN_BRIGHTNESS = 0.1f;
+                return Mathf.Max(curvedDimming, MIN_BRIGHTNESS);
+            }
+            catch { return 1.0f; }
+        }
+
+        /// <summary>
+        /// Calculate planetary dimming - FLIGHT ONLY with distance early-out.
+        /// Skips bodies > 1 billion meters (1 million km) away.
+        /// </summary>
+        private float CalculatePlanetaryDimming(Camera cam)
+        {
+            // Only calculate in Flight view - coordinates are consistent here
+            if (HighLogic.LoadedScene != GameScenes.FLIGHT)
+                return 1.0f;
+
+            if (cam == null || FlightGlobals.Bodies == null || FlightGlobals.Bodies.Count == 0)
+                return 1.0f;
+
+            Vector3d camPos = cam.transform.position;
+            Vector3d camForward = cam.transform.forward;
+            double camFov = cam.fieldOfView;
+
+            double minDimming = 1.0;
+            const double MIN_BRIGHTNESS = 0.25;  // Planets never dim below 25%
+            const double MIN_ANGULAR_SIZE = 0.5;  // degrees
+            const double REFERENCE_BODY_SIZE = 2.0;  // degrees
+            const double MIN_TARGET_REL_ANGLE = 90.0;  // degrees
+            const double MAX_DISTANCE_SQR = 1e18; // (1,000,000,000 meters)^2
+
+            CelestialBody sun = FlightGlobals.Bodies[0];
+
+            for (int i = 1; i < FlightGlobals.Bodies.Count; i++)
+            {
+                CelestialBody body = FlightGlobals.Bodies[i];
+                if (body == null || body == sun) continue;
+
+                // EARLY OUT: Skip bodies > 1 billion meters away (1 million km)
+                Vector3d offset = body.position - camPos;
+                if (offset.sqrMagnitude > MAX_DISTANCE_SQR)
+                    continue;
+
+                // Now do the math only for nearby bodies
+                double dist = body.GetAltitude(camPos) + body.Radius;
+                double radius = body.Radius;
+
+                double bodyAngularSize = Math.Atan2(radius, dist) * (180.0 / Math.PI);
+
+                if (bodyAngularSize < MIN_ANGULAR_SIZE)
+                    continue;
+
+                // Phase calculation: angle between body->sun and body->camera
+                Vector3d bodyPos = body.position;
+                Vector3d bodyToSun = sun.position - bodyPos;
+                Vector3d bodyToCam = camPos - bodyPos;
+
+                double phaseAngle = Vector3d.Angle(bodyToSun, bodyToCam);
+                phaseAngle = Math.Max(phaseAngle, bodyAngularSize);
+                phaseAngle = Math.Min(phaseAngle, MIN_TARGET_REL_ANGLE);
+                double phaseFactor = 1.0 - ((phaseAngle - bodyAngularSize) / (MIN_TARGET_REL_ANGLE - bodyAngularSize));
+
+                // View alignment: how centered in camera?
+                double viewAngle = Math.Max(0.0, Vector3.Angle((bodyPos - camPos).normalized, camForward) - bodyAngularSize);
+                double viewAlignment = 1.0 - Math.Min(1.0, Math.Max(0.0, (viewAngle - (camFov / 2.0)) - 5.0) / (camFov / 4.0));
+
+                // Size weight
+                double sizeWeight = Math.Sqrt(Math.Min(bodyAngularSize, REFERENCE_BODY_SIZE) / REFERENCE_BODY_SIZE);
+
+                // Calculate dimming for this body
+                double bodyDimming = 1.0 - (phaseFactor * sizeWeight * viewAlignment);
+
+                if (bodyDimming < minDimming)
+                {
+                    minDimming = bodyDimming;
+                    if (minDimming <= MIN_BRIGHTNESS)
+                    {
+                        minDimming = MIN_BRIGHTNESS;
+                        break;
+                    }
+                }
+            }
+
+            return (float)Math.Max(minDimming, MIN_BRIGHTNESS);
+        }
+
         void OnCameraPreRender(Camera cam)
         {
             // Only process for our target galaxy camera
@@ -178,6 +301,11 @@ namespace CinematicShaders.Shaders.Starfield
                 atmoCalc.ExtinctionHorizon,
                 atmoRaw.UpVector
             );
+
+            // Calculate and push global scene dimming (sun glare + planetary occlusion)
+            float sunGlareDimming = GetSunGlareDimming();
+            float planetaryDimming = CalculatePlanetaryDimming(_scaledSpaceCamera);
+            StarfieldNative.CR_StarfieldSetDimming(sunGlareDimming, planetaryDimming);
 
             _frameIndex = (_frameIndex + 1) & 7; // Temporal index 0-7
         }
