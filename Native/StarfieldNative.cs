@@ -43,16 +43,24 @@ namespace CinematicShaders.Native
             public float BloomThreshold;
             public float BloomIntensity;
             public float ColorSaturation;  // 0.0-2.0: 0.5=realistic, 1.0=natural, 2.0=vivid
-            
+
+            // Rendering style transitions 
+            public int UseSoftBloom;  // 0 = Classic, 1 = Soft HDR
+
             // HYG Catalog Coordinate Rotation (degrees)
             public float RotationX;
             public float RotationY;
             public float RotationZ;
-            
+
             // Galactic plane orientation
             public float GalacticPlaneNormalX;
             public float GalacticPlaneNormalY;
             public float GalacticPlaneNormalZ;
+
+            // Global scene dimming factors
+            public float SunGlareDimming;      // 1.0 = full brightness, 0.0 = fully dimmed
+            public float PlanetaryDimming;     // 1.0 = full brightness, 0.0 = fully dimmed  
+            public float GlobalDimming;        // min(Sun, Planetary)
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 48)]
@@ -137,6 +145,11 @@ namespace CinematicShaders.Native
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern int CR_StarfieldGetHeroCount();
+
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_StarfieldSetDimming(float sunGlareDimming, float planetaryDimming);
+
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern byte CR_StarfieldIsDeviceReady();

@@ -80,12 +80,24 @@ struct StarfieldSettingsNative {
     float BloomThreshold;
     float BloomIntensity;
     float ColorSaturation;  // 0.0-2.0: 0.5=realistic, 1.0=natural, 2.0=vivid
+
+    int UseSoftBloom;  // 0 = Classic, 1 = Soft HDR
     
     // HYG Catalog Coordinate Rotation (degrees, applied to star directions before rendering)
     // Allows aligning the real sky catalog with the game's coordinate system
     float RotationX;  // Rotation around X axis (tilt forward/back)
     float RotationY;  // Rotation around Y axis (yaw left/right)
     float RotationZ;  // Rotation around Z axis (roll clockwise/counter-clockwise)
+    
+    // Galactic plane orientation (matches C# struct layout)
+    float GalacticPlaneNormalX;
+    float GalacticPlaneNormalY;
+    float GalacticPlaneNormalZ;
+    
+    // Global scene dimming factors (per-frame calculated)
+    float SunGlareDimming;      // 1.0 = full brightness, 0.0 = fully dimmed
+    float PlanetaryDimming;     // 1.0 = full brightness, 0.0 = fully dimmed
+    float GlobalDimming;        // min(Sun, Planetary) - calculated CPU-side
 };
 
 __declspec(dllexport) void CR_StarfieldSetCameraMatrices(
@@ -130,6 +142,9 @@ __declspec(dllexport) unsigned char CR_StarfieldCatalogNeedsReload();
 
 // Invalidate GPU resources (call on scene change to force recreation, preserves catalog)
 __declspec(dllexport) void CR_StarfieldInvalidateResources();
+
+// Global scene dimming (per-frame update, separate from settings)
+__declspec(dllexport) void CR_StarfieldSetDimming(float sunGlareDimming, float planetaryDimming);
 
 #ifdef __cplusplus
 }

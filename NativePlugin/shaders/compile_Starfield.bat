@@ -79,6 +79,58 @@ echo Compiling StarfieldVS.hlsl...
 "%FXC%" /T vs_5_0 /E Main /Fh "..\include\StarfieldVS.h" /Vn "g_StarfieldVS" "..\Shaders\StarfieldVS.hlsl"
 if %errorlevel% neq 0 exit /b %errorlevel%
 
+REM Compile Soft HDR bloom pathway shaders
+echo.
+echo Compiling StarfieldPrefilter.hlsl (Soft HDR - Prefilter + Horizontal Blur)...
+"%FXC%" /T ps_5_0 /E PSMain /Fh "..\include\StarfieldPrefilter.h" /Vn "g_StarfieldPrefilterPS" "..\Shaders\StarfieldPrefilter.hlsl"
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: StarfieldPrefilter compilation failed!
+    exit /b %errorlevel%
+)
+echo   Success --^> ..\include\StarfieldPrefilter.h
+echo.
+
+echo Compiling StarfieldBlurX.hlsl (Soft HDR - Horizontal Blur)...
+"%FXC%" /T ps_5_0 /E PSMain /Fh "..\include\StarfieldBlurX.h" /Vn "g_StarfieldBlurXPS" "..\Shaders\StarfieldBlurX.hlsl"
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: StarfieldBlurX compilation failed!
+    exit /b %errorlevel%
+)
+echo   Success --^> ..\include\StarfieldBlurX.h
+echo.
+
+echo Compiling StarfieldBlur.hlsl (Soft HDR - Vertical Blur)...
+"%FXC%" /T ps_5_0 /E PSMain /Fh "..\include\StarfieldBlur.h" /Vn "g_StarfieldBlurPS" "..\Shaders\StarfieldBlur.hlsl"
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: StarfieldBlur compilation failed!
+    exit /b %errorlevel%
+)
+echo   Success --^> ..\include\StarfieldBlur.h
+echo.
+
+echo Compiling StarfieldPass2Soft.hlsl (Soft HDR - Final Composite)...
+"%FXC%" /T ps_5_0 /E PSMain /Fh "..\include\StarfieldPass2Soft.h" /Vn "g_StarfieldPass2SoftPS" "..\Shaders\StarfieldPass2Soft.hlsl"
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: StarfieldPass2Soft compilation failed!
+    exit /b %errorlevel%
+)
+echo   Success --^> ..\include\StarfieldPass2Soft.h
+echo.
+
+echo Compiling StarfieldUpscale.hlsl (Soft HDR - Upscale 1/4 to 1/2)...
+"%FXC%" /T ps_5_0 /E PSMain /Fh "..\include\StarfieldUpscale.h" /Vn "g_StarfieldUpscalePS" "..\Shaders\StarfieldUpscale.hlsl"
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: StarfieldUpscale compilation failed!
+    exit /b %errorlevel%
+)
+echo   Success --^> ..\include\StarfieldUpscale.h
+echo.
+
 echo ============================================
 echo SUCCESS: All shaders compiled
 echo ============================================
