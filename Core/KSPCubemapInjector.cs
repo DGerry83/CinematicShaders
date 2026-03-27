@@ -136,6 +136,78 @@ namespace CinematicShaders.Core
         }
         
         /// <summary>
+        /// Injects directly from RenderTextures using fast GPU copy (no CPU readback).
+        /// This is much faster than going through Cubemap/ReadPixels/SetPixels.
+        /// </summary>
+        public static bool InjectFromRenderTextures(RenderTexture[] renderTextures)
+        {
+            if (renderTextures == null || renderTextures.Length != 6)
+            {
+                Debug.LogError("[KSPCubemapInjector] Invalid render textures array");
+                return false;
+            }
+            
+            GalaxyCubeControl galaxyCube = GalaxyCubeControl.Instance;
+            if (galaxyCube == null)
+            {
+                Debug.LogWarning("[KSPCubemapInjector] GalaxyCubeControl.Instance is null");
+                return false;
+            }
+            
+            Debug.Log("[KSPCubemapInjector] Injecting from RenderTextures...");
+            
+            bool allFacesInjected = true;
+            for (int i = 0; i < 6; i++)
+            {
+                if (!InjectRenderTexture(galaxyCube, FaceNames[i], renderTextures[i]))
+                {
+                    allFacesInjected = false;
+                }
+            }
+            
+            if (allFacesInjected)
+            {
+                TriggerParallaxReextraction();
+                return true;
+            }
+            return false;
+        }
+        
+        /// <summary>
+        /// Injects a single RenderTexture using fast GPU→GPU copy.
+        /// </summary>
+        private static bool InjectRenderTexture(GalaxyCubeControl galaxyCube, string faceName, RenderTexture rt)
+        {
+            Transform faceTransform = galaxyCube.transform.Find(faceName);
+            if (faceTransform == null)
+            {
+                Debug.LogError($"[KSPCubemapInjector] Could not find {faceName}");
+                return false;
+            }
+            
+            Renderer faceRenderer = faceTransform.GetComponent<Renderer>();
+            if (faceRenderer == null)
+            {
+                Debug.LogError($"[KSPCubemapInjector] {faceName} has no Renderer");
+                return false;
+            }
+            
+            // Create destination Texture2D
+            Texture2D faceTexture = new Texture2D(rt.width, rt.height, TextureFormat.RGBA32, false);
+            
+            // Fast GPU→GPU copy using Graphics.CopyTexture
+            // This avoids the CPU readback stall of ReadPixels/GetPixels
+            Graphics.CopyTexture(rt, 0, 0, faceTexture, 0, 0);
+            
+            // Apply to material
+            faceRenderer.material.mainTexture = faceTexture;
+            faceRenderer.material.SetTextureScale("_MainTex", new Vector2(1, 1));
+            faceRenderer.material.SetTextureOffset("_MainTex", new Vector2(0, 0));
+            
+            return true;
+        }
+        
+        /// <summary>
         /// Triggers Parallax to re-extract the skybox on next scene change.
         /// Uses reflection to reset SkyboxControl.alreadyGenerated.
         /// </summary>

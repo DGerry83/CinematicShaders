@@ -67,10 +67,10 @@ namespace CinematicShaders.Core
             {
                 Debug.Log("[CubemapGenerationScheduler] Starting cubemap generation...");
                 
-                // Render the cubemap (this also injects it)
-                Cubemap cubemap = StarfieldCubemapRenderer.RenderStarfieldCubemap();
+                // Render and inject directly (no intermediate copies)
+                bool success = StarfieldCubemapRenderer.RenderAndInjectCubemap();
                 
-                if (cubemap != null)
+                if (success)
                 {
                     Debug.Log("[CubemapGenerationScheduler] Cubemap generation complete");
                 }

@@ -16,7 +16,7 @@ namespace CinematicShaders.Core
         // Configuration
         public const int CUBEMAP_SIZE = 1024;
 
-        // Debug output folder
+        // Debug output folder (kept for compatibility with old methods)
         private static readonly string DEBUG_FOLDER = Path.Combine(
             KSPUtil.ApplicationRootPath, 
             "GameData", 
@@ -24,20 +24,17 @@ namespace CinematicShaders.Core
             "CubemapDebug");
 
         /// <summary>
-        /// Renders the current starfield to a cubemap using native C++ rendering.
+        /// Renders the current starfield directly to KSP skybox using native C++ rendering.
+        /// Skips intermediate Cubemap/Texture2D copies for performance.
         /// </summary>
-        /// <returns>The rendered cubemap, or null if rendering failed.</returns>
-        public static Cubemap RenderStarfieldCubemap()
+        /// <returns>True if successful, false otherwise.</returns>
+        public static bool RenderAndInjectCubemap()
         {
             if (!StarfieldSettings.EnableStarfield)
             {
                 Debug.Log("[StarfieldCubemapRenderer] Starfield disabled, skipping cubemap render");
-                return null;
+                return false;
             }
-
-            // Create the cubemap
-            Cubemap cubemap = new Cubemap(CUBEMAP_SIZE, TextureFormat.RGBA32, true);
-            cubemap.name = "StarfieldCubemap_" + DateTime.Now.ToString("yyyyMMdd_HHmmss");
 
             Stopwatch renderTimer = new Stopwatch();
 
@@ -46,15 +43,12 @@ namespace CinematicShaders.Core
                 Debug.Log("[StarfieldCubemapRenderer] Starting native cubemap render...");
                 renderTimer.Start();
 
-                // Get native texture pointers for all 6 faces
-                // Unity Cubemap doesn't expose face pointers directly, so we need to work with the cubemap as a whole
-                // For now, we'll render to individual textures and copy to cubemap
-                IntPtr[] faceTextures = new IntPtr[6];
+                // Create 6 RenderTextures for native rendering
                 RenderTexture[] renderTextures = new RenderTexture[6];
+                IntPtr[] faceTextures = new IntPtr[6];
 
                 for (int i = 0; i < 6; i++)
                 {
-                    // Create render texture with explicit settings for D3D11 compatibility
                     RenderTextureDescriptor rtDesc = new RenderTextureDescriptor(CUBEMAP_SIZE, CUBEMAP_SIZE, RenderTextureFormat.ARGB32, 0);
                     rtDesc.dimension = TextureDimension.Tex2D;
                     rtDesc.msaaSamples = 1;
@@ -65,15 +59,13 @@ namespace CinematicShaders.Core
                     renderTextures[i] = new RenderTexture(rtDesc);
                     renderTextures[i].Create();
                     
-                    // Ensure the texture is created before getting native pointer
+                    // Clear to ensure texture is created
                     RenderTexture.active = renderTextures[i];
                     GL.Clear(true, true, Color.black);
                     RenderTexture.active = null;
                     
                     faceTextures[i] = renderTextures[i].GetNativeTexturePtr();
                 }
-                
-                Debug.Log("[StarfieldCubemapRenderer] Starting native cubemap render...");
 
                 // Call native function to render all faces
                 int result = Native.StarfieldNative.CR_RenderStarfieldCubemap(faceTextures, CUBEMAP_SIZE);
@@ -84,49 +76,50 @@ namespace CinematicShaders.Core
                 if (result == -2) // Device not initialized
                 {
                     Debug.LogWarning("[StarfieldCubemapRenderer] Device not ready, will retry on next trigger");
-                    // Cleanup render textures
-                    for (int i = 0; i < 6; i++)
-                    {
-                        UnityEngine.Object.Destroy(renderTextures[i]);
-                    }
-                    return null;
+                    CleanupRenderTextures(renderTextures);
+                    return false;
                 }
                 else if (result != 0)
                 {
                     Debug.LogError($"[StarfieldCubemapRenderer] Native render failed with code: {result}");
-                    return null;
+                    CleanupRenderTextures(renderTextures);
+                    return false;
                 }
 
                 Debug.Log($"[StarfieldCubemapRenderer] Native render complete: {elapsedMs}ms");
 
-                // Copy from render textures to cubemap faces
-                for (int i = 0; i < 6; i++)
-                {
-                    CopyRenderTextureToCubemapFace(renderTextures[i], cubemap, (CubemapFace)i);
-                    UnityEngine.Object.Destroy(renderTextures[i]);
-                }
-
-                // Export debug output (disabled for performance)
-                // ExportCubemapForDebug(cubemap, "starfield");
+                // Inject directly from RenderTextures (no intermediate copies)
+                bool injected = KSPCubemapInjector.InjectFromRenderTextures(renderTextures);
                 
-                // Apply to KSP skybox
-                bool injected = KSPCubemapInjector.InjectCubemap(cubemap);
+                // Cleanup
+                CleanupRenderTextures(renderTextures);
+                
                 if (injected)
                 {
                     Debug.Log("[StarfieldCubemapRenderer] Cubemap injected into KSP skybox");
+                    return true;
                 }
                 else
                 {
                     Debug.LogWarning("[StarfieldCubemapRenderer] Failed to inject cubemap, will retry on next trigger");
+                    return false;
                 }
-
-                return cubemap;
             }
             catch (Exception ex)
             {
                 Debug.LogError($"[StarfieldCubemapRenderer] Error rendering cubemap: {ex}");
-                UnityEngine.Object.Destroy(cubemap);
-                return null;
+                return false;
+            }
+        }
+        
+        private static void CleanupRenderTextures(RenderTexture[] renderTextures)
+        {
+            for (int i = 0; i < 6; i++)
+            {
+                if (renderTextures[i] != null)
+                {
+                    UnityEngine.Object.Destroy(renderTextures[i]);
+                }
             }
         }
 

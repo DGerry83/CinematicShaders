@@ -2853,8 +2853,7 @@ int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize)
         D3D11_TEXTURE2D_DESC texDesc;
         targetTextures[face]->GetDesc(&texDesc);
         
-        LogToFile("[StarfieldCubemap] Face %d: Format=%d, BindFlags=%u, Width=%u, Height=%u", 
-                  face, texDesc.Format, texDesc.BindFlags, texDesc.Width, texDesc.Height);
+        // Face format log removed
         
         // Check dimensions match
         if ((int)texDesc.Width != faceSize || (int)texDesc.Height != faceSize) {
@@ -2863,11 +2862,8 @@ int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize)
             continue;
         }
         
-        // Check if it has RTV bind flag - if not, we can still use it for output but need different approach
-        if (!(texDesc.BindFlags & D3D11_BIND_RENDER_TARGET)) {
-            LogToFile("[StarfieldCubemap] Face %d texture doesn't have RTV bind flag (BindFlags=%u), trying anyway...", face, texDesc.BindFlags);
-            // Don't skip - try to create RTV anyway, some formats work even without the flag
-        }
+        // Check if it has RTV bind flag - if not, we can still use it for output
+        bool hasRTVFlag = (texDesc.BindFlags & D3D11_BIND_RENDER_TARGET) != 0;
         
         // Create RTV for this face
         // If format is TYPELESS, we need to specify a concrete format for the RTV
@@ -2900,9 +2896,7 @@ int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize)
         rtv->Release();
         
         // Execute the starfield render using isolated function (does NOT modify g_StarfieldState)
-        LogToFile("[StarfieldCubemap] Face %d: Calling ExecuteCubemapFaceRender", face);
         ExecuteCubemapFaceRender(context, targetTextures[face], faceSize, right, up, forward);
-        LogToFile("[StarfieldCubemap] Face %d: ExecuteCubemapFaceRender complete", face);
     }
     
     // Restore original state
@@ -2916,26 +2910,31 @@ int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize)
         context->End(queryEnd);
         context->End(queryDisjoint);
         
-        // Wait for data and calculate
-        // We need to flush to ensure queries are processed
-        context->Flush();
-        
-        // Spin wait for disjoint query (simpler than events for this use case)
+        // Wait for data with longer timeout
         D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjointData;
         UINT64 startTime = 0, endTime = 0;
-        int spinCount = 0;
-        while (spinCount < 1000) {  // Max 1 second @ 1ms per iteration
-            if (SUCCEEDED(context->GetData(queryDisjoint, &disjointData, sizeof(disjointData), 0))) {
+        bool gotData = false;
+        
+        for (int i = 0; i < 500; i++) {  // 5 second max wait
+            HRESULT hr = context->GetData(queryDisjoint, &disjointData, sizeof(disjointData), 0);
+            if (hr == S_OK) {
                 if (!disjointData.Disjoint && 
-                    SUCCEEDED(context->GetData(queryStart, &startTime, sizeof(startTime), 0)) &&
-                    SUCCEEDED(context->GetData(queryEnd, &endTime, sizeof(endTime), 0))) {
+                    context->GetData(queryStart, &startTime, sizeof(startTime), 0) == S_OK &&
+                    context->GetData(queryEnd, &endTime, sizeof(endTime), 0) == S_OK) {
                     double gpuTimeMs = (double)(endTime - startTime) * 1000.0 / disjointData.Frequency;
                     LogToFile("[StarfieldCubemap] GPU render time: %.2f ms", gpuTimeMs);
+                    gotData = true;
                     break;
                 }
+            } else if (hr != S_FALSE) {
+                // Error
+                break;
             }
-            Sleep(1);
-            spinCount++;
+            Sleep(10);
+        }
+        
+        if (!gotData) {
+            LogToFile("[StarfieldCubemap] GPU timing data not available");
         }
         
         queryStart->Release();
@@ -2943,7 +2942,9 @@ int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize)
         queryDisjoint->Release();
     }
     
-    context->Release();
+    if (context) {
+        context->Release();
+    }
     
     LogToFile("[StarfieldCubemap] Render complete");
     return 0;
