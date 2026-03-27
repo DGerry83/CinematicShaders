@@ -282,6 +282,11 @@ namespace CinematicShaders.Core
             bool catalogPathExists = !string.IsNullOrEmpty(absoluteCatalogPath) && System.IO.File.Exists(absoluteCatalogPath);
             bool shouldLoadCatalog = _catalogNeedsReload && EnableStarfield && catalogPathExists;
 
+            // Check if we need to generate a new catalog
+            float currentTime = Time.time;
+            bool shouldGenerateCatalog = catalogParamsChanged && EnableStarfield && !IsReadOnly &&
+                (currentTime - _lastCatalogGenerationTime > CATALOG_GENERATION_DEBOUNCE || _lastCatalogGenerationTime < 0);
+
             // Only log if we're actually going to do something (load or generate)
             // This prevents spam during the Update() check in StarfieldCompositor
             bool willTakeAction = shouldLoadCatalog || shouldGenerateCatalog;
@@ -289,11 +294,6 @@ namespace CinematicShaders.Core
             {
                 UnityEngine.Debug.Log($"[StarfieldSettings] Catalog check: needsReload={_catalogNeedsReload}, enabled={EnableStarfield}, pathExists={catalogPathExists}, path={ActiveCatalogPath}");
             }
-
-            // Check if we need to generate a new catalog
-            float currentTime = Time.time;
-            bool shouldGenerateCatalog = catalogParamsChanged && EnableStarfield && !IsReadOnly &&
-                (currentTime - _lastCatalogGenerationTime > CATALOG_GENERATION_DEBOUNCE || _lastCatalogGenerationTime < 0);
 
             if (shouldLoadCatalog)
             {
