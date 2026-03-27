@@ -282,7 +282,13 @@ namespace CinematicShaders.Core
             bool catalogPathExists = !string.IsNullOrEmpty(absoluteCatalogPath) && System.IO.File.Exists(absoluteCatalogPath);
             bool shouldLoadCatalog = _catalogNeedsReload && EnableStarfield && catalogPathExists;
 
-            UnityEngine.Debug.Log($"[StarfieldSettings] Catalog check: needsReload={_catalogNeedsReload}, enabled={EnableStarfield}, pathExists={catalogPathExists}, path={ActiveCatalogPath} (resolved: {absoluteCatalogPath})");
+            // Only log if we're actually going to do something (load or generate)
+            // This prevents spam during the Update() check in StarfieldCompositor
+            bool willTakeAction = shouldLoadCatalog || shouldGenerateCatalog;
+            if (willTakeAction)
+            {
+                UnityEngine.Debug.Log($"[StarfieldSettings] Catalog check: needsReload={_catalogNeedsReload}, enabled={EnableStarfield}, pathExists={catalogPathExists}, path={ActiveCatalogPath}");
+            }
 
             // Check if we need to generate a new catalog
             float currentTime = Time.time;
@@ -367,6 +373,9 @@ namespace CinematicShaders.Core
                     _lastBulgeNoiseStrength = BulgeNoiseStrength;
                     _catalogNeedsRegeneration = false;
                     _catalogNeedsReload = false;
+                    
+                    // Trigger cubemap update for newly generated catalog
+                    CubemapGenerationScheduler.OnCatalogGenerated();
                     
                     // Auto-save to current catalog file if one is active
                     if (!string.IsNullOrEmpty(ActiveCatalogPath) && !IsReadOnly)

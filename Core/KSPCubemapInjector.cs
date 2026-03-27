@@ -26,6 +26,10 @@ namespace CinematicShaders.Core
             CubemapFace.NegativeZ
         };
         
+        // Backup of original skybox textures for restoration
+        private static Texture[] _originalSkyboxTextures = new Texture[6];
+        private static bool _hasBackup = false;
+        
         /// <summary>
         /// Injects a cubemap into GalaxyCubeControl's 6 face renderers.
         /// </summary>
@@ -156,6 +160,12 @@ namespace CinematicShaders.Core
             
             Debug.Log("[KSPCubemapInjector] Injecting from RenderTextures...");
             
+            // Backup original textures before first injection
+            if (!_hasBackup)
+            {
+                BackupOriginalSkybox(galaxyCube);
+            }
+            
             bool allFacesInjected = true;
             for (int i = 0; i < 6; i++)
             {
@@ -205,6 +215,66 @@ namespace CinematicShaders.Core
             faceRenderer.material.SetTextureOffset("_MainTex", new Vector2(0, 0));
             
             return true;
+        }
+        
+        /// <summary>
+        /// Backs up the original skybox textures before injection.
+        /// </summary>
+        private static void BackupOriginalSkybox(GalaxyCubeControl galaxyCube)
+        {
+            for (int i = 0; i < 6; i++)
+            {
+                Transform faceTransform = galaxyCube.transform.Find(FaceNames[i]);
+                if (faceTransform != null)
+                {
+                    Renderer faceRenderer = faceTransform.GetComponent<Renderer>();
+                    if (faceRenderer != null && faceRenderer.material != null)
+                    {
+                        _originalSkyboxTextures[i] = faceRenderer.material.mainTexture;
+                    }
+                }
+            }
+            _hasBackup = true;
+            Debug.Log("[KSPCubemapInjector] Original skybox textures backed up");
+        }
+        
+        /// <summary>
+        /// Restores the original skybox textures.
+        /// Call this when disabling the starfield.
+        /// </summary>
+        public static void RestoreOriginalSkybox()
+        {
+            if (!_hasBackup)
+            {
+                Debug.Log("[KSPCubemapInjector] No backup to restore");
+                return;
+            }
+            
+            GalaxyCubeControl galaxyCube = GalaxyCubeControl.Instance;
+            if (galaxyCube == null)
+            {
+                Debug.LogWarning("[KSPCubemapInjector] Cannot restore - GalaxyCubeControl not found");
+                return;
+            }
+            
+            for (int i = 0; i < 6; i++)
+            {
+                Transform faceTransform = galaxyCube.transform.Find(FaceNames[i]);
+                if (faceTransform != null)
+                {
+                    Renderer faceRenderer = faceTransform.GetComponent<Renderer>();
+                    if (faceRenderer != null && faceRenderer.material != null)
+                    {
+                        faceRenderer.material.mainTexture = _originalSkyboxTextures[i];
+                    }
+                }
+            }
+            
+            // Trigger Parallax to re-extract the restored skybox
+            TriggerParallaxReextraction();
+            
+            _hasBackup = false;
+            Debug.Log("[KSPCubemapInjector] Original skybox textures restored");
         }
         
         /// <summary>

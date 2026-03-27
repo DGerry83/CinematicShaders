@@ -253,6 +253,9 @@ namespace CinematicShaders.Core
                 {
                     if (_toolbarButton != null)
                         _toolbarButton.SetFalse(false);
+                    
+                    // Trigger cubemap update when UI closes (visual settings may have changed)
+                    CubemapGenerationScheduler.OnUIClose();
                 };
             }
             _mainWindow.Show();
