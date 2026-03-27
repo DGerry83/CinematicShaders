@@ -99,6 +99,9 @@ static struct {
     float planetaryDimming = 1.0f;
     float globalDimming = 1.0f;
     
+    // Explicit render target for cubemap rendering (nullptr = use current RT from context)
+    ID3D11Texture2D* explicitRenderTarget = nullptr;
+    
     // Catalog buffer management
     ID3D11Buffer* starCatalogBuffer = nullptr;
     int catalogSize = 0;
@@ -933,12 +936,49 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         return;
     }
     
-    // Get current render target dimensions to verify match
+    // Get or create render target view
     ID3D11RenderTargetView* currentRTV = nullptr;
     ID3D11DepthStencilView* currentDSV = nullptr;
-    context->OMGetRenderTargets(1, &currentRTV, &currentDSV);
+    bool usingExplicitRT = false;
+    
+    if (g_StarfieldState.explicitRenderTarget) {
+        // Use explicit render target for cubemap rendering
+        // Get texture description to handle TYPELESS formats
+        D3D11_TEXTURE2D_DESC texDesc;
+        g_StarfieldState.explicitRenderTarget->GetDesc(&texDesc);
+        
+        // If format is TYPELESS, we need to specify a concrete format for the RTV
+        DXGI_FORMAT rtvFormat = texDesc.Format;
+        if (texDesc.Format == DXGI_FORMAT_R8G8B8A8_TYPELESS) {
+            rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+        }
+        
+        D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+        rtvDesc.Format = rtvFormat;
+        rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+        rtvDesc.Texture2D.MipSlice = 0;
+        
+        HRESULT hr = device->CreateRenderTargetView(g_StarfieldState.explicitRenderTarget, &rtvDesc, &currentRTV);
+        if (SUCCEEDED(hr)) {
+            usingExplicitRT = true;
+        } else {
+            // Fallback: try with null desc (let D3D11 infer from texture)
+            hr = device->CreateRenderTargetView(g_StarfieldState.explicitRenderTarget, nullptr, &currentRTV);
+            if (SUCCEEDED(hr)) {
+                usingExplicitRT = true;
+            }
+        }
+        
+        if (!usingExplicitRT) {
+            context->OMGetRenderTargets(1, &currentRTV, &currentDSV);
+        }
+    } else {
+        // Use current render target from context (normal gameplay)
+        context->OMGetRenderTargets(1, &currentRTV, &currentDSV);
+    }
     
     if (!currentRTV) {
+        LogToFile("[ExecuteStarfieldRender] No render target, aborting");
         device->Release();
         return;
     }
@@ -1098,7 +1138,9 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         ExecuteSoftBloomRender(context, currentRTV);
         
         // Cleanup and return early for soft bloom path
-        currentRTV->Release();
+        if (usingExplicitRT && currentRTV) {
+            currentRTV->Release();
+        }
         if (currentDSV) currentDSV->Release();
         device->Release();
         return;
@@ -1135,9 +1177,18 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
     context->PSSetShaderResources(0, 1, psNullSRV);
     context->OMSetRenderTargets(1, &nullRTV, nullptr);
     
-    currentRTV->Release();
+    // Release our RTV if we created it from explicit render target
+    if (usingExplicitRT && currentRTV) {
+        currentRTV->Release();
+    }
     if (currentDSV) currentDSV->Release();
     device->Release();
+    
+    // Clear explicit render target after use (it's per-frame only)
+    if (g_StarfieldState.explicitRenderTarget) {
+        g_StarfieldState.explicitRenderTarget->Release();
+        g_StarfieldState.explicitRenderTarget = nullptr;
+    }
 }
 
 static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTargetView* finalRTV)
@@ -1366,8 +1417,6 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
     context->PSSetShaderResources(0, 2, nullSRV);
     ID3D11RenderTargetView* nullRTV = nullptr;
     context->OMSetRenderTargets(1, &nullRTV, nullptr);
-    
-    device->Release();
 }
 
 static void UNITY_INTERFACE_API OnStarfieldRenderEvent(int eventId)
@@ -1893,10 +1942,31 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
 extern "C" __declspec(dllexport)
 void CR_StarfieldSetCameraMatrices(ID3D11Texture2D* deviceSourceTexture, int width, int height,
                                    float verticalFOV, float aspectRatio, float3 cameraRight, float3 cameraUp, float3 cameraForward,
-                                   float extinctionZenith, float extinctionHorizon, float3 atmosphereUp)
+                                   float extinctionZenith, float extinctionHorizon, float3 atmosphereUp,
+                                   ID3D11Texture2D* explicitRenderTarget)
 {    
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     
+    // Store atmospheric extinction parameters (per-frame update)
+    g_StarfieldState.extinctionZenith = extinctionZenith;
+    g_StarfieldState.extinctionHorizon = extinctionHorizon;
+    g_StarfieldState.atmosphereUp = atmosphereUp;
+    
+    // Store explicit render target for cubemap rendering (if provided)
+    if (explicitRenderTarget != g_StarfieldState.explicitRenderTarget) {
+        if (g_StarfieldState.explicitRenderTarget) {
+            g_StarfieldState.explicitRenderTarget->Release();
+        }
+        g_StarfieldState.explicitRenderTarget = explicitRenderTarget;
+        if (g_StarfieldState.explicitRenderTarget) {
+            g_StarfieldState.explicitRenderTarget->AddRef();
+        }
+    }
+    
+    // Check if dimensions changed (needed for cubemap rendering where resolution varies per frame)
+    bool dimensionsChanged = (g_StarfieldState.width != width || g_StarfieldState.height != height);
+    
+    // Update state
     g_StarfieldState.width = width;
     g_StarfieldState.height = height;
     g_StarfieldState.verticalFOV = verticalFOV;
@@ -1904,11 +1974,6 @@ void CR_StarfieldSetCameraMatrices(ID3D11Texture2D* deviceSourceTexture, int wid
     g_StarfieldState.cameraRight = cameraRight;
     g_StarfieldState.cameraUp = cameraUp;
     g_StarfieldState.cameraForward = cameraForward;
-    
-    // Store atmospheric extinction parameters (per-frame update)
-    g_StarfieldState.extinctionZenith = extinctionZenith;
-    g_StarfieldState.extinctionHorizon = extinctionHorizon;
-    g_StarfieldState.atmosphereUp = atmosphereUp;
     
     // Acquire device from any valid texture (we use whiteTexture from C#)
     if (deviceSourceTexture && !g_StarfieldState.device) {
@@ -1925,6 +1990,10 @@ void CR_StarfieldSetCameraMatrices(ID3D11Texture2D* deviceSourceTexture, int wid
                 LogToFile("[Starfield] Device acquired with empty catalog, flagging for reload");
             }
         }
+    }
+    // If device is already acquired but dimensions changed, recreate resources
+    else if (g_StarfieldState.device && dimensionsChanged) {
+        EnsureStarfieldResources(g_StarfieldState.device, width, height);
     }
 }
 
@@ -2149,4 +2218,733 @@ int CR_StarfieldGetHeroCount()
 {
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     return g_StarfieldState.catalogHeroCount;
+}
+
+// ============================================================================
+// CUBEMAP RENDERING
+// ============================================================================
+
+// Helper to set up camera basis vectors for each cubemap face
+// faceIndex: 0=+X, 1=-X, 2=+Y, 3=-Y, 4=+Z, 5=-Z
+static void GetCubemapFaceOrientation(int faceIndex, float3& outRight, float3& outUp, float3& outForward)
+{
+    switch (faceIndex) {
+        case 0: // +X (Right)
+            outForward = float3(1.0f, 0.0f, 0.0f);
+            outUp = float3(0.0f, 1.0f, 0.0f);
+            outRight = float3(0.0f, 0.0f, -1.0f);
+            break;
+        case 1: // -X (Left)
+            outForward = float3(-1.0f, 0.0f, 0.0f);
+            outUp = float3(0.0f, 1.0f, 0.0f);
+            outRight = float3(0.0f, 0.0f, 1.0f);
+            break;
+        case 2: // +Y (Top)
+            outForward = float3(0.0f, 1.0f, 0.0f);
+            outUp = float3(0.0f, 0.0f, 1.0f);   // Flipped to fix 180° rotation
+            outRight = float3(-1.0f, 0.0f, 0.0f); // Flipped to match
+            break;
+        case 3: // -Y (Bottom)
+            outForward = float3(0.0f, -1.0f, 0.0f);
+            outUp = float3(0.0f, 0.0f, 1.0f);
+            outRight = float3(1.0f, 0.0f, 0.0f);
+            break;
+        case 4: // +Z (Front)
+            outForward = float3(0.0f, 0.0f, 1.0f);
+            outUp = float3(0.0f, 1.0f, 0.0f);
+            outRight = float3(1.0f, 0.0f, 0.0f);
+            break;
+        case 5: // -Z (Back)
+            outForward = float3(0.0f, 0.0f, -1.0f);
+            outUp = float3(0.0f, 1.0f, 0.0f);
+            outRight = float3(-1.0f, 0.0f, 0.0f);
+            break;
+        default:
+            outForward = float3(0.0f, 0.0f, 1.0f);
+            outUp = float3(0.0f, 1.0f, 0.0f);
+            outRight = float3(1.0f, 0.0f, 0.0f);
+            break;
+    }
+}
+
+// ============================================================================
+// SOFT BLOOM RENDER FOR CUBEMAP (uses temporary resources)
+// ============================================================================
+
+static void ExecuteSoftBloomRenderCubemap(
+    ID3D11DeviceContext* context,
+    ID3D11RenderTargetView* finalRTV,
+    ID3D11ShaderResourceView* hdrSRV,
+    ID3D11RenderTargetView* bloomRTV,
+    ID3D11ShaderResourceView* bloomSRV,
+    ID3D11RenderTargetView* bloomTempRTV,
+    ID3D11ShaderResourceView* bloomTempSRV,
+    ID3D11RenderTargetView* bloomHalfRTV,
+    ID3D11ShaderResourceView* bloomHalfSRV,
+    int width, int height)
+{
+    if (!context || !finalRTV) return;
+    
+    ID3D11Device* device = nullptr;
+    context->GetDevice(&device);
+    if (!device) return;
+    
+    int bloomWidth = width / 2;
+    int bloomHeight = height / 2;
+    if (bloomWidth < 1) bloomWidth = 1;
+    if (bloomHeight < 1) bloomHeight = 1;
+    
+    float clearColor[4] = {0, 0, 0, 0};
+    
+    // Pass 1: Prefilter + Downsample
+    D3D11_VIEWPORT halfResVP = {};
+    halfResVP.Width = (float)bloomWidth;
+    halfResVP.Height = (float)bloomHeight;
+    halfResVP.MinDepth = 0.0f;
+    halfResVP.MaxDepth = 1.0f;
+    context->RSSetViewports(1, &halfResVP);
+    
+    context->OMSetRenderTargets(1, &bloomTempRTV, nullptr);
+    context->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
+    context->ClearRenderTargetView(bloomTempRTV, clearColor);
+    
+    // Update Prefilter CB
+    D3D11_MAPPED_SUBRESOURCE mapped;
+    if (SUCCEEDED(context->Map(g_StarfieldState.prefilterCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+        float* data = (float*)mapped.pData;
+        data[0] = (float)width;
+        data[1] = (float)height;
+        data[2] = 1.0f / width;
+        data[3] = 1.0f / height;
+        data[4] = g_StarfieldState.bloomThreshold;
+        data[5] = 0.65f;
+        data[6] = (float)bloomWidth;
+        data[7] = (float)bloomHeight;
+        data[8] = 1.0f / bloomWidth;
+        data[9] = 1.0f / bloomHeight;
+        context->Unmap(g_StarfieldState.prefilterCB, 0);
+    }
+    
+    context->VSSetShader(g_StarfieldState.pass2VS, nullptr, 0);
+    context->PSSetShader(g_StarfieldState.prefilterPS, nullptr, 0);
+    context->PSSetConstantBuffers(0, 1, &g_StarfieldState.prefilterCB);
+    context->PSSetSamplers(0, 1, &g_StarfieldState.linearSampler);
+    ID3D11ShaderResourceView* prefilterSRV[1] = {hdrSRV};
+    context->PSSetShaderResources(0, 1, prefilterSRV);
+    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    context->RSSetState(g_StarfieldState.rasterState);
+    context->Draw(3, 0);
+    
+    // Pass 2: Horizontal Blur
+    context->OMSetRenderTargets(1, &bloomRTV, nullptr);
+    context->ClearRenderTargetView(bloomRTV, clearColor);
+    
+    if (SUCCEEDED(context->Map(g_StarfieldState.blurCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+        float* data = (float*)mapped.pData;
+        data[0] = 1.0f / bloomWidth;
+        data[1] = 1.0f / bloomHeight;
+        float t = g_StarfieldState.bloomIntensity / 2.0f;
+        data[2] = t * 0.65f;
+        data[3] = 0.0f;
+        context->Unmap(g_StarfieldState.blurCB, 0);
+    }
+    
+    context->PSSetShader(g_StarfieldState.blurXPS, nullptr, 0);
+    context->PSSetConstantBuffers(0, 1, &g_StarfieldState.blurCB);
+    ID3D11ShaderResourceView* horizSRV[1] = {bloomTempSRV};
+    context->PSSetShaderResources(0, 1, horizSRV);
+    context->Draw(3, 0);
+    
+    ID3D11ShaderResourceView* nullSRV[2] = {nullptr, nullptr};
+    context->PSSetShaderResources(0, 1, nullSRV);
+    
+    // Pass 3: Vertical Blur
+    context->OMSetRenderTargets(1, &bloomTempRTV, nullptr);
+    context->PSSetShader(g_StarfieldState.blurPS, nullptr, 0);
+    ID3D11ShaderResourceView* vertSRV[1] = {bloomSRV};
+    context->PSSetShaderResources(0, 1, vertSRV);
+    context->Draw(3, 0);
+    context->PSSetShaderResources(0, 1, nullSRV);
+    
+    // Pass 4: Upscale to full res
+    D3D11_VIEWPORT fullResVP = {};
+    fullResVP.Width = (float)width;
+    fullResVP.Height = (float)height;
+    fullResVP.MinDepth = 0.0f;
+    fullResVP.MaxDepth = 1.0f;
+    context->RSSetViewports(1, &fullResVP);
+    
+    context->OMSetRenderTargets(1, &bloomHalfRTV, nullptr);
+    context->ClearRenderTargetView(bloomHalfRTV, clearColor);
+    context->PSSetShader(g_StarfieldState.upscalePS, nullptr, 0);
+    ID3D11ShaderResourceView* upscaleSRV[1] = {bloomTempSRV};
+    context->PSSetShaderResources(0, 1, upscaleSRV);
+    context->Draw(3, 0);
+    context->PSSetShaderResources(0, 1, nullSRV);
+    
+    // Pass 5: Final composite
+    context->OMSetRenderTargets(1, &finalRTV, nullptr);
+    context->OMSetBlendState(g_StarfieldState.blendState, nullptr, 0xFFFFFFFF);
+    
+    if (SUCCEEDED(context->Map(g_StarfieldState.compositeCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+        SoftCompositeParams* params = (SoftCompositeParams*)mapped.pData;
+        params->ScreenSizeX = (float)width;
+        params->ScreenSizeY = (float)height;
+        params->InvScreenSizeX = 1.0f / width;
+        params->InvScreenSizeY = 1.0f / height;
+        params->BloomIntensity = g_StarfieldState.bloomIntensity;
+        params->ExposureEV = g_StarfieldState.exposure;
+        params->EnableTonemapping = 1;
+        params->Pad1 = 0.0f;
+        params->ExtinctionZenith = 1.0f;
+        params->ExtinctionHorizon = 1.0f;
+        params->Pad2[0] = params->Pad2[1] = 0.0f;
+        params->AtmosphereUpX = 0.0f;
+        params->AtmosphereUpY = 1.0f;
+        params->AtmosphereUpZ = 0.0f;
+        params->Pad3 = 0.0f;
+        params->SunGlareDimming = 1.0f;
+        params->PlanetaryDimming = 1.0f;
+        params->GlobalDimming = 1.0f;
+        params->_padFinal = 0.0f;
+        context->Unmap(g_StarfieldState.compositeCB, 0);
+    }
+    
+    context->VSSetShader(g_StarfieldState.pass2VS, nullptr, 0);
+    context->PSSetShader(g_StarfieldState.softCompositePS, nullptr, 0);
+    context->PSSetConstantBuffers(0, 1, &g_StarfieldState.compositeCB);
+    ID3D11ShaderResourceView* compositeSRVs[2] = {hdrSRV, bloomHalfSRV};
+    context->PSSetShaderResources(0, 2, compositeSRVs);
+    context->Draw(3, 0);
+    
+    context->PSSetShaderResources(0, 2, nullSRV);
+    device->Release();
+}
+
+// ============================================================================
+// ISOLATED CUBEMAP FACE RENDER
+// Completely separate from g_StarfieldState - creates its own resources
+// ============================================================================
+
+static void ExecuteCubemapFaceRender(
+    ID3D11DeviceContext* context,
+    ID3D11Texture2D* targetTexture,
+    int faceSize,
+    const float3& cameraRight,
+    const float3& cameraUp,
+    const float3& cameraForward)
+{
+    if (!context || !targetTexture || faceSize <= 0) return;
+    
+    ID3D11Device* device = nullptr;
+    context->GetDevice(&device);
+    if (!device) return;
+    
+    // Verify catalog is loaded
+    if (!g_StarfieldState.starCatalogBuffer || g_StarfieldState.catalogSize == 0) {
+        device->Release();
+        return;
+    }
+    
+    // =========================================================================
+    // STEP 1: Create temporary HDR texture for this face (not using g_StarfieldState)
+    // =========================================================================
+    D3D11_TEXTURE2D_DESC hdrDesc = {};
+    hdrDesc.Width = faceSize;
+    hdrDesc.Height = faceSize;
+    hdrDesc.MipLevels = 1;
+    hdrDesc.ArraySize = 1;
+    hdrDesc.Format = DXGI_FORMAT_R11G11B10_FLOAT;
+    hdrDesc.SampleDesc.Count = 1;
+    hdrDesc.Usage = D3D11_USAGE_DEFAULT;
+    hdrDesc.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
+    
+    ID3D11Texture2D* tempHDR = nullptr;
+    ID3D11UnorderedAccessView* tempHDR_UAV = nullptr;
+    ID3D11ShaderResourceView* tempHDR_SRV = nullptr;
+    
+    HRESULT hr = device->CreateTexture2D(&hdrDesc, nullptr, &tempHDR);
+    if (SUCCEEDED(hr)) {
+        hr = device->CreateUnorderedAccessView(tempHDR, nullptr, &tempHDR_UAV);
+        if (SUCCEEDED(hr)) {
+            hr = device->CreateShaderResourceView(tempHDR, nullptr, &tempHDR_SRV);
+        }
+    }
+    
+    if (FAILED(hr) || !tempHDR || !tempHDR_UAV || !tempHDR_SRV) {
+        if (tempHDR_SRV) tempHDR_SRV->Release();
+        if (tempHDR_UAV) tempHDR_UAV->Release();
+        if (tempHDR) tempHDR->Release();
+        device->Release();
+        return;
+    }
+    
+    // =========================================================================
+    // STEP 2: Clear HDR texture
+    // =========================================================================
+    UINT clearColor[4] = {0, 0, 0, 0};
+    context->ClearUnorderedAccessViewUint(tempHDR_UAV, clearColor);
+    
+    // =========================================================================
+    // STEP 3: Pass 1 - Scatter stars to HDR (compute shader)
+    // =========================================================================
+    {
+        D3D11_MAPPED_SUBRESOURCE mapped;
+        if (SUCCEEDED(context->Map(g_StarfieldState.pass1CB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+            StarfieldPass1Params* params = (StarfieldPass1Params*)mapped.pData;
+            
+            // Camera setup - 90° FOV, 1:1 aspect for cubemap
+            params->VerticalFOV = 1.570796f; // 90 degrees in radians
+            params->AspectRatio = 1.0f;
+            params->_padCamera0[0] = 0.0f;
+            params->_padCamera0[1] = 0.0f;
+            
+            // Camera basis vectors (explicit per-face)
+            params->CameraRight[0] = cameraRight.x;
+            params->CameraRight[1] = cameraRight.y;
+            params->CameraRight[2] = cameraRight.z;
+            params->_padCamera1 = 0.0f;
+            
+            params->CameraUp[0] = cameraUp.x;
+            params->CameraUp[1] = cameraUp.y;
+            params->CameraUp[2] = cameraUp.z;
+            params->_padCamera2 = 0.0f;
+            
+            params->CameraForward[0] = cameraForward.x;
+            params->CameraForward[1] = cameraForward.y;
+            params->CameraForward[2] = cameraForward.z;
+            params->_padCamera3 = 0.0f;
+            
+            // Use g_StarfieldState for non-dimension settings
+            params->MinMagnitude = g_StarfieldState.minMagnitude;
+            params->MaxMagnitude = g_StarfieldState.maxMagnitude;
+            params->MagnitudeBias = g_StarfieldState.magnitudeBias;
+            params->HeroCount = g_StarfieldState.heroCount;
+            
+            params->Clustering = g_StarfieldState.clustering;
+            params->PopulationBias = g_StarfieldState.populationBias;
+            params->MainSequenceStrength = g_StarfieldState.mainSequenceStrength;
+            params->RedGiantFrequency = g_StarfieldState.redGiantFrequency;
+            
+            params->Exposure = g_StarfieldState.exposure;
+            params->BlurPixels = g_StarfieldState.blurPixels;
+            params->_pad2[0] = 0.0f;
+            params->_pad2[1] = 0.0f;
+            
+            params->GalacticFlatness = g_StarfieldState.galacticFlatness;
+            params->GalacticDiscFalloff = g_StarfieldState.galacticDiscFalloff;
+            params->BandCenterBoost = g_StarfieldState.bandCenterBoost;
+            params->BandCoreSharpness = g_StarfieldState.bandCoreSharpness;
+            
+            params->GalacticPlaneNormalX = g_StarfieldState.galacticPlaneNormal.x;
+            params->GalacticPlaneNormalY = g_StarfieldState.galacticPlaneNormal.y;
+            params->GalacticPlaneNormalZ = g_StarfieldState.galacticPlaneNormal.z;
+            params->BulgeIntensity = g_StarfieldState.bulgeIntensity;
+            
+            params->BulgeCenterDirectionX = g_StarfieldState.bulgeCenterDirection.x;
+            params->BulgeCenterDirectionY = g_StarfieldState.bulgeCenterDirection.y;
+            params->BulgeCenterDirectionZ = g_StarfieldState.bulgeCenterDirection.z;
+            params->BulgeWidth = g_StarfieldState.bulgeWidth;
+            
+            params->BulgeHeight = g_StarfieldState.bulgeHeight;
+            params->BulgeSoftness = g_StarfieldState.bulgeSoftness;
+            params->BulgeNoiseScale = g_StarfieldState.bulgeNoiseScale;
+            params->BulgeNoiseStrength = g_StarfieldState.bulgeNoiseStrength;
+            
+            // EXPLICIT face dimensions (not from g_StarfieldState)
+            params->ScreenSizeX = (float)faceSize;
+            params->ScreenSizeY = (float)faceSize;
+            params->InvScreenSizeX = 1.0f / faceSize;
+            params->InvScreenSizeY = 1.0f / faceSize;
+            
+            params->FrameIndex = 0; // No temporal AA for cubemap
+            params->CatalogSize = g_StarfieldState.catalogSize;
+            params->Pad1[0] = params->Pad1[1] = 0;
+            
+            params->RotationX = g_StarfieldState.rotationX;
+            params->RotationY = g_StarfieldState.rotationY;
+            params->RotationZ = g_StarfieldState.rotationZ;
+            
+            context->Unmap(g_StarfieldState.pass1CB, 0);
+        }
+        
+        // Create temporary SRV for catalog buffer
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = DXGI_FORMAT_UNKNOWN; // Structured buffer
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+        srvDesc.Buffer.FirstElement = 0;
+        srvDesc.Buffer.NumElements = g_StarfieldState.catalogSize;
+        
+        ID3D11ShaderResourceView* catalogSRV = nullptr;
+        HRESULT hr = device->CreateShaderResourceView(g_StarfieldState.starCatalogBuffer, &srvDesc, &catalogSRV);
+        if (FAILED(hr) || !catalogSRV) {
+            if (catalogSRV) catalogSRV->Release();
+            tempHDR_SRV->Release();
+            tempHDR_UAV->Release();
+            tempHDR->Release();
+            device->Release();
+            return;
+        }
+        
+        // Dispatch compute shader
+        context->CSSetShader(g_StarfieldState.pass1CS, nullptr, 0);
+        context->CSSetConstantBuffers(0, 1, &g_StarfieldState.pass1CB);
+        context->CSSetUnorderedAccessViews(0, 1, &tempHDR_UAV, nullptr);
+        context->CSSetShaderResources(0, 1, &catalogSRV);
+        
+        int threadGroups = (g_StarfieldState.catalogSize + 255) / 256;
+        context->Dispatch(threadGroups, 1, 1);
+        
+        // Unbind UAV and cleanup catalog SRV
+        ID3D11UnorderedAccessView* nullUAV = nullptr;
+        context->CSSetUnorderedAccessViews(0, 1, &nullUAV, nullptr);
+        ID3D11ShaderResourceView* nullSRV = nullptr;
+        context->CSSetShaderResources(0, 1, &nullSRV);
+        context->CSSetShader(nullptr, nullptr, 0);
+        catalogSRV->Release();
+    }
+    
+    // =========================================================================
+    // STEP 4: Pass 2 - Composite to target texture (pixel shader)
+    // Use user's selected bloom mode (classic or soft HDR)
+    // =========================================================================
+    {
+        // Create RTV for target texture
+        D3D11_TEXTURE2D_DESC targetDesc;
+        targetTexture->GetDesc(&targetDesc);
+        
+        // Handle TYPELESS format
+        DXGI_FORMAT rtvFormat = targetDesc.Format;
+        if (targetDesc.Format == DXGI_FORMAT_R8G8B8A8_TYPELESS) {
+            rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+        }
+        
+        D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+        rtvDesc.Format = rtvFormat;
+        rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+        rtvDesc.Texture2D.MipSlice = 0;
+        
+        ID3D11RenderTargetView* targetRTV = nullptr;
+        hr = device->CreateRenderTargetView(targetTexture, &rtvDesc, &targetRTV);
+        if (FAILED(hr)) {
+            // Try with null desc
+            hr = device->CreateRenderTargetView(targetTexture, nullptr, &targetRTV);
+        }
+        
+        if (SUCCEEDED(hr) && targetRTV) {
+            // Check user's bloom preference
+            if (g_StarfieldState.useSoftBloom) {
+                // Soft HDR bloom path - create temporary bloom resources
+                int bloomWidth = faceSize / 2;
+                int bloomHeight = faceSize / 2;
+                if (bloomWidth < 1) bloomWidth = 1;
+                if (bloomHeight < 1) bloomHeight = 1;
+                
+                // Create temporary bloom textures
+                D3D11_TEXTURE2D_DESC bloomDesc = {};
+                bloomDesc.Width = bloomWidth;
+                bloomDesc.Height = bloomHeight;
+                bloomDesc.MipLevels = 1;
+                bloomDesc.ArraySize = 1;
+                bloomDesc.Format = DXGI_FORMAT_R11G11B10_FLOAT;
+                bloomDesc.SampleDesc.Count = 1;
+                bloomDesc.Usage = D3D11_USAGE_DEFAULT;
+                bloomDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+                
+                ID3D11Texture2D* tempBloomTex = nullptr;
+                ID3D11RenderTargetView* tempBloomRTV = nullptr;
+                ID3D11ShaderResourceView* tempBloomSRV = nullptr;
+                
+                ID3D11Texture2D* tempBloomTempTex = nullptr;
+                ID3D11RenderTargetView* tempBloomTempRTV = nullptr;
+                ID3D11ShaderResourceView* tempBloomTempSRV = nullptr;
+                
+                ID3D11Texture2D* tempBloomHalfTex = nullptr;
+                ID3D11RenderTargetView* tempBloomHalfRTV = nullptr;
+                ID3D11ShaderResourceView* tempBloomHalfSRV = nullptr;
+                
+                bool bloomResourcesCreated = false;
+                
+                if (SUCCEEDED(device->CreateTexture2D(&bloomDesc, nullptr, &tempBloomTex)) &&
+                    SUCCEEDED(device->CreateRenderTargetView(tempBloomTex, nullptr, &tempBloomRTV)) &&
+                    SUCCEEDED(device->CreateShaderResourceView(tempBloomTex, nullptr, &tempBloomSRV)) &&
+                    SUCCEEDED(device->CreateTexture2D(&bloomDesc, nullptr, &tempBloomTempTex)) &&
+                    SUCCEEDED(device->CreateRenderTargetView(tempBloomTempTex, nullptr, &tempBloomTempRTV)) &&
+                    SUCCEEDED(device->CreateShaderResourceView(tempBloomTempTex, nullptr, &tempBloomTempSRV))) {
+                    
+                    // Create half-res texture for final bloom
+                    D3D11_TEXTURE2D_DESC halfDesc = bloomDesc;
+                    halfDesc.Width = faceSize;
+                    halfDesc.Height = faceSize;
+                    
+                    if (SUCCEEDED(device->CreateTexture2D(&halfDesc, nullptr, &tempBloomHalfTex)) &&
+                        SUCCEEDED(device->CreateRenderTargetView(tempBloomHalfTex, nullptr, &tempBloomHalfRTV)) &&
+                        SUCCEEDED(device->CreateShaderResourceView(tempBloomHalfTex, nullptr, &tempBloomHalfSRV))) {
+                        bloomResourcesCreated = true;
+                    }
+                }
+                
+                if (bloomResourcesCreated) {
+                    // Execute soft bloom render with temporary resources
+                    ExecuteSoftBloomRenderCubemap(context, targetRTV, tempHDR_SRV, 
+                        tempBloomRTV, tempBloomSRV, tempBloomTempRTV, tempBloomTempSRV,
+                        tempBloomHalfRTV, tempBloomHalfSRV, faceSize, faceSize);
+                    
+                    // Cleanup temporary bloom resources
+                    tempBloomHalfSRV->Release();
+                    tempBloomHalfRTV->Release();
+                    tempBloomHalfTex->Release();
+                }
+                
+                if (tempBloomTempSRV) tempBloomTempSRV->Release();
+                if (tempBloomTempRTV) tempBloomTempRTV->Release();
+                if (tempBloomTempTex) tempBloomTempTex->Release();
+                if (tempBloomSRV) tempBloomSRV->Release();
+                if (tempBloomRTV) tempBloomRTV->Release();
+                if (tempBloomTex) tempBloomTex->Release();
+                
+                // Cleanup RTV binding
+                ID3D11RenderTargetView* nullRTV = nullptr;
+                context->OMSetRenderTargets(1, &nullRTV, nullptr);
+            } else {
+                // Classic bloom path (original simple composite)
+                // Update Pass 2 constant buffer
+                D3D11_MAPPED_SUBRESOURCE mapped;
+                if (SUCCEEDED(context->Map(g_StarfieldState.pass2CB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+                    StarfieldPass2Params* params = (StarfieldPass2Params*)mapped.pData;
+                    
+                    // EXPLICIT face dimensions
+                    params->ScreenSizeX = (float)faceSize;
+                    params->ScreenSizeY = (float)faceSize;
+                    params->InvScreenSizeX = 1.0f / faceSize;
+                    params->InvScreenSizeY = 1.0f / faceSize;
+                    
+                    params->BloomThreshold = g_StarfieldState.bloomThreshold;
+                    params->BloomIntensity = g_StarfieldState.bloomIntensity;
+                    params->DepthThreshold = 0.001f;
+                    params->ExposureEV = g_StarfieldState.exposure;
+                    params->EnableTonemapping = 1;
+                    params->Pad1[0] = params->Pad1[1] = params->Pad1[2] = 0.0f;
+                    
+                    params->ExtinctionZenith = 1.0f;
+                    params->ExtinctionHorizon = 1.0f;
+                    params->Pad2[0] = params->Pad2[1] = 0.0f;
+                    
+                    params->AtmosphereUpX = 0.0f;
+                    params->AtmosphereUpY = 1.0f;
+                    params->AtmosphereUpZ = 0.0f;
+                    params->Pad3 = 0.0f;
+                    
+                    params->SunGlareDimming = 1.0f;
+                    params->PlanetaryDimming = 1.0f;
+                    params->GlobalDimming = 1.0f;
+                    params->_padFinal = 0.0f;
+                    
+                    context->Unmap(g_StarfieldState.pass2CB, 0);
+                }
+                
+                // Set up output merger
+                context->OMSetRenderTargets(1, &targetRTV, nullptr);
+                context->OMSetDepthStencilState(g_StarfieldState.depthState, 0);
+                context->OMSetBlendState(g_StarfieldState.blendState, nullptr, 0xFFFFFFFF);
+                context->RSSetState(g_StarfieldState.rasterState);
+                
+                // Set viewport to face dimensions
+                D3D11_VIEWPORT vp = {0, 0, (float)faceSize, (float)faceSize, 0, 1};
+                context->RSSetViewports(1, &vp);
+                
+                // Bind shaders
+                context->VSSetShader(g_StarfieldState.pass2VS, nullptr, 0);
+                context->PSSetShader(g_StarfieldState.pass2PS, nullptr, 0);
+                context->PSSetConstantBuffers(0, 1, &g_StarfieldState.pass2CB);
+                context->PSSetSamplers(0, 1, &g_StarfieldState.linearSampler);
+                
+                ID3D11ShaderResourceView* srvs[1] = {tempHDR_SRV};
+                context->PSSetShaderResources(0, 1, srvs);
+                
+                // Draw fullscreen triangle
+                context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+                context->IASetInputLayout(nullptr);
+                context->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
+                context->IASetIndexBuffer(nullptr, DXGI_FORMAT_UNKNOWN, 0);
+                
+                context->Draw(3, 0);
+                
+                // Cleanup
+                ID3D11ShaderResourceView* nullSRV[2] = {nullptr, nullptr};
+                context->PSSetShaderResources(0, 2, nullSRV);
+                ID3D11RenderTargetView* nullRTV = nullptr;
+                context->OMSetRenderTargets(1, &nullRTV, nullptr);
+            }
+            
+            targetRTV->Release();
+        }
+    }
+    
+    // =========================================================================
+    // STEP 5: Cleanup temporary resources
+    // =========================================================================
+    tempHDR_SRV->Release();
+    tempHDR_UAV->Release();
+    tempHDR->Release();
+    device->Release();
+}
+
+// Simple test function - just clears textures to different colors
+// Does NOT modify global state
+extern "C" __declspec(dllexport)
+int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize)
+{
+    if (!targetTextures || faceSize <= 0) {
+        LogToFile("[StarfieldCubemap] Error: Invalid parameters");
+        return -1;
+    }
+    
+    // Don't take the main lock to avoid blocking, but check state
+    if (!g_StarfieldState.device) {
+        LogToFile("[StarfieldCubemap] Error: Device not initialized");
+        return -2;
+    }
+    
+    // Get immediate context
+    ID3D11DeviceContext* context = nullptr;
+    g_StarfieldState.device->GetImmediateContext(&context);
+    if (!context) {
+        LogToFile("[StarfieldCubemap] Error: Failed to get device context");
+        return -4;
+    }
+    
+    // Create GPU timestamp queries for accurate timing
+    D3D11_QUERY_DESC timestampDesc = { D3D11_QUERY_TIMESTAMP, 0 };
+    D3D11_QUERY_DESC disjointDesc = { D3D11_QUERY_TIMESTAMP_DISJOINT, 0 };
+    
+    ID3D11Query* queryStart = nullptr;
+    ID3D11Query* queryEnd = nullptr;
+    ID3D11Query* queryDisjoint = nullptr;
+    
+    bool timingAvailable = false;
+    if (SUCCEEDED(g_StarfieldState.device->CreateQuery(&timestampDesc, &queryStart)) &&
+        SUCCEEDED(g_StarfieldState.device->CreateQuery(&timestampDesc, &queryEnd)) &&
+        SUCCEEDED(g_StarfieldState.device->CreateQuery(&disjointDesc, &queryDisjoint))) {
+        timingAvailable = true;
+        // Start timing
+        context->Begin(queryDisjoint);
+        context->End(queryStart);
+    }
+    
+    LogToFile("[StarfieldCubemap] Rendering %dx%d cubemap...", faceSize, faceSize);
+    
+    // Store original state to restore later
+    ID3D11RenderTargetView* oldRTV = nullptr;
+    ID3D11DepthStencilView* oldDSV = nullptr;
+    D3D11_VIEWPORT oldViewport;
+    UINT numViewports = 1;
+    context->OMGetRenderTargets(1, &oldRTV, &oldDSV);
+    context->RSGetViewports(&numViewports, &oldViewport);
+    
+    // Clear each face to a different debug color
+    for (int face = 0; face < 6; face++) {
+        if (!targetTextures[face]) {
+            LogToFile("[StarfieldCubemap] Warning: Face %d texture is null, skipping", face);
+            continue;
+        }
+        
+        // Verify the texture is a valid render target
+        D3D11_TEXTURE2D_DESC texDesc;
+        targetTextures[face]->GetDesc(&texDesc);
+        
+        LogToFile("[StarfieldCubemap] Face %d: Format=%d, BindFlags=%u, Width=%u, Height=%u", 
+                  face, texDesc.Format, texDesc.BindFlags, texDesc.Width, texDesc.Height);
+        
+        // Check dimensions match
+        if ((int)texDesc.Width != faceSize || (int)texDesc.Height != faceSize) {
+            LogToFile("[StarfieldCubemap] Face %d dimension mismatch: expected %dx%d, got %dx%d", 
+                      face, faceSize, faceSize, texDesc.Width, texDesc.Height);
+            continue;
+        }
+        
+        // Check if it has RTV bind flag - if not, we can still use it for output but need different approach
+        if (!(texDesc.BindFlags & D3D11_BIND_RENDER_TARGET)) {
+            LogToFile("[StarfieldCubemap] Face %d texture doesn't have RTV bind flag (BindFlags=%u), trying anyway...", face, texDesc.BindFlags);
+            // Don't skip - try to create RTV anyway, some formats work even without the flag
+        }
+        
+        // Create RTV for this face
+        // If format is TYPELESS, we need to specify a concrete format for the RTV
+        DXGI_FORMAT rtvFormat = texDesc.Format;
+        if (texDesc.Format == DXGI_FORMAT_R8G8B8A8_TYPELESS) {
+            rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM; // Use UNORM view of TYPELESS texture
+        }
+        
+        D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+        rtvDesc.Format = rtvFormat;
+        rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+        rtvDesc.Texture2D.MipSlice = 0;
+        
+        ID3D11RenderTargetView* rtv = nullptr;
+        HRESULT hr = g_StarfieldState.device->CreateRenderTargetView(targetTextures[face], &rtvDesc, &rtv);
+        if (FAILED(hr)) {
+            // Try with null desc (let D3D11 infer from texture)
+            hr = g_StarfieldState.device->CreateRenderTargetView(targetTextures[face], nullptr, &rtv);
+            if (FAILED(hr)) {
+                LogToFile("[StarfieldCubemap] Failed to create RTV for face %d (hr=0x%08X, Format=%d, RTVFormat=%d)", face, hr, texDesc.Format, rtvFormat);
+                continue;
+            }
+        }
+        
+        // Get face orientation
+        float3 right, up, forward;
+        GetCubemapFaceOrientation(face, right, up, forward);
+        
+        // Release our RTV - the isolated render function creates its own
+        rtv->Release();
+        
+        // Execute the starfield render using isolated function (does NOT modify g_StarfieldState)
+        LogToFile("[StarfieldCubemap] Face %d: Calling ExecuteCubemapFaceRender", face);
+        ExecuteCubemapFaceRender(context, targetTextures[face], faceSize, right, up, forward);
+        LogToFile("[StarfieldCubemap] Face %d: ExecuteCubemapFaceRender complete", face);
+    }
+    
+    // Restore original state
+    context->OMSetRenderTargets(1, &oldRTV, oldDSV);
+    context->RSSetViewports(numViewports, &oldViewport);
+    if (oldRTV) oldRTV->Release();
+    if (oldDSV) oldDSV->Release();
+    
+    // End GPU timing
+    if (timingAvailable) {
+        context->End(queryEnd);
+        context->End(queryDisjoint);
+        
+        // Wait for data and calculate
+        // We need to flush to ensure queries are processed
+        context->Flush();
+        
+        // Spin wait for disjoint query (simpler than events for this use case)
+        D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjointData;
+        UINT64 startTime = 0, endTime = 0;
+        int spinCount = 0;
+        while (spinCount < 1000) {  // Max 1 second @ 1ms per iteration
+            if (SUCCEEDED(context->GetData(queryDisjoint, &disjointData, sizeof(disjointData), 0))) {
+                if (!disjointData.Disjoint && 
+                    SUCCEEDED(context->GetData(queryStart, &startTime, sizeof(startTime), 0)) &&
+                    SUCCEEDED(context->GetData(queryEnd, &endTime, sizeof(endTime), 0))) {
+                    double gpuTimeMs = (double)(endTime - startTime) * 1000.0 / disjointData.Frequency;
+                    LogToFile("[StarfieldCubemap] GPU render time: %.2f ms", gpuTimeMs);
+                    break;
+                }
+            }
+            Sleep(1);
+            spinCount++;
+        }
+        
+        queryStart->Release();
+        queryEnd->Release();
+        queryDisjoint->Release();
+    }
+    
+    context->Release();
+    
+    LogToFile("[StarfieldCubemap] Render complete");
+    return 0;
 }

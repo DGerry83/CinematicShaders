@@ -268,6 +268,10 @@ namespace CinematicShaders.Core
                 OnCatalogChanged?.Invoke();
                 
                 Debug.Log($"[CinematicShaders] Loaded catalog: {info.GetDisplayName()} ({info.StarCount} stars)");
+                
+                // Trigger cubemap update for new catalog
+                CubemapGenerationScheduler.OnCatalogLoaded();
+                
                 return true;
             }
             catch (Exception ex)
@@ -388,6 +392,10 @@ namespace CinematicShaders.Core
                 OnCatalogChanged?.Invoke();
                 
                 Debug.Log($"[CinematicShaders] Saved catalog: {filePath}");
+                
+                // Trigger cubemap update after save
+                CubemapGenerationScheduler.OnCatalogSaved();
+                
                 return true;
             }
             catch (Exception ex)

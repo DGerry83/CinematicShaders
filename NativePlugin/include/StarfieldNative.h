@@ -112,7 +112,9 @@ __declspec(dllexport) void CR_StarfieldSetCameraMatrices(
     // Atmospheric extinction parameters (per-frame)
     float extinctionZenith,     // Visibility at zenith (0-1)
     float extinctionHorizon,    // Visibility at horizon (0-1)
-    float3 atmosphereUp         // World-space up vector
+    float3 atmosphereUp,        // World-space up vector
+    // Optional: explicit render target for cubemap rendering (nullptr = use current)
+    ID3D11Texture2D* explicitRenderTarget = nullptr
 );
 
 __declspec(dllexport) void CR_StarfieldSetSettings(const StarfieldSettingsNative* settings);
@@ -145,6 +147,12 @@ __declspec(dllexport) void CR_StarfieldInvalidateResources();
 
 // Global scene dimming (per-frame update, separate from settings)
 __declspec(dllexport) void CR_StarfieldSetDimming(float sunGlareDimming, float planetaryDimming);
+
+// Cubemap rendering - renders starfield to all 6 cubemap faces
+// targetTextures: array of 6 D3D11 textures (one per face)
+// faceSize: resolution of each face (e.g., 1024)
+// Returns: 0 on success, non-zero on error
+__declspec(dllexport) int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize);
 
 #ifdef __cplusplus
 }

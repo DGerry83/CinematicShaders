@@ -118,7 +118,9 @@ namespace CinematicShaders.Native
             // Atmospheric extinction parameters (per-frame)
             float extinctionZenith,     // Visibility at zenith (0-1)
             float extinctionHorizon,    // Visibility at horizon (0-1)
-            Vector3 atmosphereUp        // World-space up vector
+            Vector3 atmosphereUp,       // World-space up vector
+            // Optional: explicit render target for cubemap rendering (IntPtr.Zero = use current)
+            IntPtr explicitRenderTarget = default(IntPtr)
         );
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
@@ -149,6 +151,9 @@ namespace CinematicShaders.Native
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_StarfieldSetDimming(float sunGlareDimming, float planetaryDimming);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CR_RenderStarfieldCubemap([In] IntPtr[] targetTextures, int faceSize);
 
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]

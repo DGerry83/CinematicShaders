@@ -50,6 +50,9 @@
     <Compile Include="Core\StarCatalogManager.cs" />
     <Compile Include="Core\StarfieldPerSaveSettings.cs" />
     <Compile Include="Core\StarfieldSettings.cs" />
+    <Compile Include="Core\StarfieldCubemapRenderer.cs" />
+    <Compile Include="Core\KSPCubemapInjector.cs" />
+    <Compile Include="Core\CubemapGenerationScheduler.cs" />
     <Compile Include="Native\DllLoader.cs" />
     <Compile Include="Native\GTAONative.cs" />
     <Compile Include="Native\StarfieldNative.cs" />

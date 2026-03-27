@@ -188,6 +188,9 @@ namespace CinematicShaders.UI
             {
                 GTAOSettings.Save();
                 StarfieldSettings.Save();
+                
+                // Trigger cubemap update on UI close
+                CubemapGenerationScheduler.OnUIClose();
             }
         }
     }

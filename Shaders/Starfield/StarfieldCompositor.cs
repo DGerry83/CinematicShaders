@@ -288,6 +288,7 @@ namespace CinematicShaders.Shaders.Starfield
 
             // Pass whiteTexture to bootstrap D3D11 device acquisition in native code
             // (Texture2D.whiteTexture is a built-in 4x4 texture, no allocation/disposal needed)
+            // IntPtr.Zero for explicitRenderTarget = use current render target from context
             StarfieldNative.CR_StarfieldSetCameraMatrices(
                 Texture2D.whiteTexture.GetNativeTexturePtr(),
                 _scaledSpaceCamera.pixelWidth,
@@ -299,7 +300,8 @@ namespace CinematicShaders.Shaders.Starfield
                 forward,
                 atmoCalc.ExtinctionZenith,
                 atmoCalc.ExtinctionHorizon,
-                atmoRaw.UpVector
+                atmoRaw.UpVector,
+                IntPtr.Zero  // explicitRenderTarget - use context's current RT
             );
 
             // Calculate and push global scene dimming (sun glare + planetary occlusion)

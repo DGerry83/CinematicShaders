@@ -135,6 +135,9 @@ namespace CinematicShaders.Core
             {
                 StarfieldManager.Initialize();
             }
+            
+            // Process any queued cubemap updates on scene load
+            CubemapGenerationScheduler.OnSceneLoad();
         }
 
         private void RetryInit()
