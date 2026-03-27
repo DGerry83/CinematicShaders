@@ -269,6 +269,7 @@ def main():
     # Generate JSON for each bin file
     catalogs = [
         ('hyg_v42.bin', 'hyg_v42'),
+        ('hyg_v42_guides.bin', 'hyg_v42_guides'),
         ('hyg_v42_80k.bin', 'hyg_v42_80k'),
         ('hyg_v42_50k.bin', 'hyg_v42_50k'),
         ('hyg_v42_20k.bin', 'hyg_v42_20k'),

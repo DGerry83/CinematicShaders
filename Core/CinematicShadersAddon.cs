@@ -135,6 +135,9 @@ namespace CinematicShaders.Core
             {
                 StarfieldManager.Initialize();
             }
+            
+            // Process any queued cubemap updates on scene load
+            CubemapGenerationScheduler.OnSceneLoad();
         }
 
         private void RetryInit()
@@ -250,6 +253,9 @@ namespace CinematicShaders.Core
                 {
                     if (_toolbarButton != null)
                         _toolbarButton.SetFalse(false);
+                    
+                    // Trigger cubemap update when UI closes (visual settings may have changed)
+                    CubemapGenerationScheduler.OnUIClose();
                 };
             }
             _mainWindow.Show();

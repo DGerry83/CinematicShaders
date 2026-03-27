@@ -188,6 +188,10 @@ namespace CinematicShaders.UI
             {
                 GTAOSettings.Save();
                 StarfieldSettings.Save();
+                
+                // OnClose event handles cubemap update for normal close
+                // This is fallback for scene changes where OnClose may not fire
+                CubemapGenerationScheduler.OnUIClose();
             }
         }
     }

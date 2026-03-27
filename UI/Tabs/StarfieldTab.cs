@@ -1,6 +1,8 @@
 ﻿using CinematicShaders.Core;
 using CinematicShaders.Native;
 using CinematicShaders.Shaders.Starfield;
+using System;
+using System.IO;
 using System.Linq;
 using UnityEngine;
 
@@ -130,6 +132,8 @@ namespace CinematicShaders.UI.Tabs
             try
             {
                 DrawCatalogSection();
+                GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
+
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
 
                 _showRenderingSection = GUILayout.Toggle(_showRenderingSection, CinematicShadersUIStrings.Starfield.RenderingSection, HighLogic.Skin.label);
