@@ -154,6 +154,21 @@ __declspec(dllexport) void CR_StarfieldSetDimming(float sunGlareDimming, float p
 // Kartographer holographic grid overlay enable/disable
 __declspec(dllexport) void CR_StarfieldSetKartographerEnabled(unsigned char enabled);
 
+// Kartographer visual parameters struct
+struct KartographerParamsNative {
+    float GridIntensity;        // Default: 0.002, Range: 0.001-0.003
+    float GridThickness;        // Default: 0.0003, Range: 0.00015-0.00045
+    float ChromaticAberrationStrength;  // Default: 0.004, Range: 0.002-0.006
+    float VignetteStrength;     // Default: 0.7, Range: 0.35-1.0
+    float VignetteStart;        // Default: 1.6, Range: 0.8-2.4
+    float VignetteEnd;          // Default: 2.2, Range: 1.1-3.3
+    float PreRotationYaw;       // For UI customization (radians)
+    float PreRotationPitch;     // For UI customization (radians)
+};
+
+// Set Kartographer visual parameters
+__declspec(dllexport) void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params);
+
 // Cubemap rendering - renders starfield to all 6 cubemap faces
 // targetTextures: array of 6 D3D11 textures (one per face)
 // faceSize: resolution of each face (e.g., 1024)

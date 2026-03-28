@@ -49,6 +49,16 @@ namespace CinematicShaders.Core
         
         // Kartographer holographic grid overlay
         public static bool EnableKartographer { get; set; } = false;
+        
+        // Kartographer visual parameters
+        public static float KartographerGridIntensity { get; set; } = 0.002f;      // Range: 0.001-0.003
+        public static float KartographerGridThickness { get; set; } = 0.0003f;      // Range: 0.00015-0.00045
+        public static float KartographerCAStrength { get; set; } = 0.004f;          // Range: 0.002-0.006
+        public static float KartographerVignetteStrength { get; set; } = 0.7f;      // Range: 0.35-1.0
+        public static float KartographerVignetteStart { get; set; } = 1.6f;         // Range: 0.8-2.4
+        public static float KartographerVignetteEnd { get; set; } = 2.2f;           // Range: 1.1-3.3
+        public static float KartographerRotationYaw { get; set; } = 0.0f;           // Range: -PI to PI
+        public static float KartographerRotationPitch { get; set; } = 0.0f;         // Range: -PI/2 to PI/2
 
         // HYG Catalog Coordinate Rotation (degrees)
         // Allows aligning the real sky catalog with the game's coordinate system
@@ -199,6 +209,17 @@ namespace CinematicShaders.Core
                 RotationX = float.Parse(settingsNode.GetValue("RotationX") ?? "0.0");
                 RotationY = float.Parse(settingsNode.GetValue("RotationY") ?? "0.0");
                 RotationZ = float.Parse(settingsNode.GetValue("RotationZ") ?? "0.0");
+                
+                // Kartographer settings
+                EnableKartographer = bool.Parse(settingsNode.GetValue("EnableKartographer") ?? "false");
+                KartographerGridIntensity = float.Parse(settingsNode.GetValue("KartographerGridIntensity") ?? "0.002");
+                KartographerGridThickness = float.Parse(settingsNode.GetValue("KartographerGridThickness") ?? "0.0003");
+                KartographerCAStrength = float.Parse(settingsNode.GetValue("KartographerCAStrength") ?? "0.004");
+                KartographerVignetteStrength = float.Parse(settingsNode.GetValue("KartographerVignetteStrength") ?? "0.7");
+                KartographerVignetteStart = float.Parse(settingsNode.GetValue("KartographerVignetteStart") ?? "1.6");
+                KartographerVignetteEnd = float.Parse(settingsNode.GetValue("KartographerVignetteEnd") ?? "2.2");
+                KartographerRotationYaw = float.Parse(settingsNode.GetValue("KartographerRotationYaw") ?? "0.0");
+                KartographerRotationPitch = float.Parse(settingsNode.GetValue("KartographerRotationPitch") ?? "0.0");
                 ActiveCatalogPath = NormalizeCatalogPath(settingsNode.GetValue("ActiveCatalogPath") ?? "");
                 // IsReadOnly = bool.Parse(settingsNode.GetValue("IsReadOnly") ?? "false");
 
@@ -277,6 +298,20 @@ namespace CinematicShaders.Core
             };
 
             StarfieldNative.CR_StarfieldSetSettings(ref nativeSettings);
+            
+            // Push Kartographer parameters
+            var kartParams = new StarfieldNative.KartographerParamsNative
+            {
+                GridIntensity = KartographerGridIntensity,
+                GridThickness = KartographerGridThickness,
+                ChromaticAberrationStrength = KartographerCAStrength,
+                VignetteStrength = KartographerVignetteStrength,
+                VignetteStart = KartographerVignetteStart,
+                VignetteEnd = KartographerVignetteEnd,
+                PreRotationYaw = KartographerRotationYaw,
+                PreRotationPitch = KartographerRotationPitch
+            };
+            StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
 
             // Resolve to absolute path for file operations
             string absoluteCatalogPath = GetAbsoluteCatalogPath();
@@ -477,6 +512,17 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("RotationX", RotationX);
                 settingsNode.AddValue("RotationY", RotationY);
                 settingsNode.AddValue("RotationZ", RotationZ);
+                
+                // Kartographer settings
+                settingsNode.AddValue("EnableKartographer", EnableKartographer);
+                settingsNode.AddValue("KartographerGridIntensity", KartographerGridIntensity);
+                settingsNode.AddValue("KartographerGridThickness", KartographerGridThickness);
+                settingsNode.AddValue("KartographerCAStrength", KartographerCAStrength);
+                settingsNode.AddValue("KartographerVignetteStrength", KartographerVignetteStrength);
+                settingsNode.AddValue("KartographerVignetteStart", KartographerVignetteStart);
+                settingsNode.AddValue("KartographerVignetteEnd", KartographerVignetteEnd);
+                settingsNode.AddValue("KartographerRotationYaw", KartographerRotationYaw);
+                settingsNode.AddValue("KartographerRotationPitch", KartographerRotationPitch);
                 settingsNode.AddValue("ActiveCatalogPath", NormalizeCatalogPath(ActiveCatalogPath));
                 // settingsNode.AddValue("IsReadOnly", IsReadOnly);
                 settingsNode.AddValue("CatalogSeed", CatalogSeed);

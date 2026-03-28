@@ -82,9 +82,9 @@ namespace CinematicShaders.Native
                     }
 
                     // Verify Kartographer exports exist
-                    if (GetProcAddress(_handle, "CR_KartographerSetCameraMatrices") == IntPtr.Zero)
+                    if (GetProcAddress(_handle, "CR_StarfieldSetKartographerEnabled") == IntPtr.Zero)
                     {
-                        Debug.LogError("[DllLoader] CR_KartographerSetCameraMatrices export not found!");
+                        Debug.LogError("[DllLoader] CR_StarfieldSetKartographerEnabled export not found!");
                         return;
                     }
 

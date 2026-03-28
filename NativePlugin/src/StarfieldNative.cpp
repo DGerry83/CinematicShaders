@@ -141,6 +141,17 @@ static struct {
     ID3D11VertexShader* kartographerVS = nullptr;
     ID3D11PixelShader* kartographerPS = nullptr;
     ID3D11BlendState* kartographerBlendState = nullptr;
+    ID3D11Buffer* kartographerCB = nullptr;
+    
+    // Kartographer visual parameters (cached)
+    float kartographerGridIntensity = 0.002f;
+    float kartographerGridThickness = 0.0003f;
+    float kartographerCAStrength = 0.004f;
+    float kartographerVignetteStrength = 0.7f;
+    float kartographerVignetteStart = 1.6f;
+    float kartographerVignetteEnd = 2.2f;
+    float kartographerPreRotationYaw = 0.0f;
+    float kartographerPreRotationPitch = 0.0f;
 } g_StarfieldState;
 
 // Constant buffer layouts (must match HLSL exactly, 16-byte aligned)
@@ -236,6 +247,30 @@ struct StarfieldPass2Params {
     float PlanetaryDimming;
     float GlobalDimming;
     float _padFinal;  // Ensure 16-byte alignment (96 bytes total)
+};
+
+// Kartographer constant buffer layout (must match HLSL exactly)
+struct KartographerParams {
+    float ResolutionX, ResolutionY;
+    float Time;
+    float GridIntensity;
+    
+    float GridThickness;
+    float ChromaticAberrationStrength;
+    float VignetteStrength;
+    float VignetteStart;
+    
+    float VignetteEnd;
+    float PreRotationYaw;
+    float PreRotationPitch;
+    float _pad1;
+    
+    float CameraRightX, CameraRightY, CameraRightZ;
+    float _pad2;
+    float CameraUpX, CameraUpY, CameraUpZ;
+    float _pad3;
+    float CameraForwardX, CameraForwardY, CameraForwardZ;
+    float _pad4;
 };
 
 // Soft bloom constant buffer layouts (must match HLSL exactly)
@@ -938,6 +973,16 @@ if (!g_StarfieldState.blendState) {
         device->CreateBlendState(&blendDesc, &g_StarfieldState.kartographerBlendState);
     }
     
+    // Kartographer constant buffer
+    if (!g_StarfieldState.kartographerCB) {
+        D3D11_BUFFER_DESC cbDesc = {};
+        cbDesc.ByteWidth = sizeof(KartographerParams);
+        cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+        cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.kartographerCB);
+    }
+    
     if (!g_StarfieldState.device) {
         g_StarfieldState.device = device;
         g_StarfieldState.device->AddRef();
@@ -1487,9 +1532,40 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
         // Set additive blend for grid overlay
         context->OMSetBlendState(g_StarfieldState.kartographerBlendState, nullptr, 0xFFFFFFFF);
         
-        // Set Kartographer shaders
+        // Update and set Kartographer constant buffer
+        D3D11_MAPPED_SUBRESOURCE mappedKart;
+        if (SUCCEEDED(context->Map(g_StarfieldState.kartographerCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedKart))) {
+            KartographerParams* params = (KartographerParams*)mappedKart.pData;
+            params->ResolutionX = (float)g_StarfieldState.width;
+            params->ResolutionY = (float)g_StarfieldState.height;
+            params->Time = (float)g_StarfieldState.frameIndex * 0.016f;  // Approximate time in seconds
+            params->GridIntensity = g_StarfieldState.kartographerGridIntensity;
+            params->GridThickness = g_StarfieldState.kartographerGridThickness;
+            params->ChromaticAberrationStrength = g_StarfieldState.kartographerCAStrength;
+            params->VignetteStrength = g_StarfieldState.kartographerVignetteStrength;
+            params->VignetteStart = g_StarfieldState.kartographerVignetteStart;
+            params->VignetteEnd = g_StarfieldState.kartographerVignetteEnd;
+            params->PreRotationYaw = g_StarfieldState.kartographerPreRotationYaw;
+            params->PreRotationPitch = g_StarfieldState.kartographerPreRotationPitch;
+            params->CameraRightX = g_StarfieldState.cameraRight.x;
+            params->CameraRightY = g_StarfieldState.cameraRight.y;
+            params->CameraRightZ = g_StarfieldState.cameraRight.z;
+            params->_pad2 = 0.0f;
+            params->CameraUpX = g_StarfieldState.cameraUp.x;
+            params->CameraUpY = g_StarfieldState.cameraUp.y;
+            params->CameraUpZ = g_StarfieldState.cameraUp.z;
+            params->_pad3 = 0.0f;
+            params->CameraForwardX = g_StarfieldState.cameraForward.x;
+            params->CameraForwardY = g_StarfieldState.cameraForward.y;
+            params->CameraForwardZ = g_StarfieldState.cameraForward.z;
+            params->_pad4 = 0.0f;
+            context->Unmap(g_StarfieldState.kartographerCB, 0);
+        }
+        
+        // Set Kartographer shaders and constant buffer
         context->VSSetShader(g_StarfieldState.kartographerVS, nullptr, 0);
         context->PSSetShader(g_StarfieldState.kartographerPS, nullptr, 0);
+        context->PSSetConstantBuffers(0, 1, &g_StarfieldState.kartographerCB);
         
         // Draw fullscreen triangle
         context->Draw(3, 0);
@@ -1557,6 +1633,20 @@ void CR_StarfieldSetKartographerEnabled(unsigned char enabled)
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     g_StarfieldState.kartographerEnabled = (enabled != 0);
     LogToFile("[Starfield] Kartographer %s", g_StarfieldState.kartographerEnabled ? "enabled" : "disabled");
+}
+
+void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
+{
+    if (!params) return;
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    g_StarfieldState.kartographerGridIntensity = params->GridIntensity;
+    g_StarfieldState.kartographerGridThickness = params->GridThickness;
+    g_StarfieldState.kartographerCAStrength = params->ChromaticAberrationStrength;
+    g_StarfieldState.kartographerVignetteStrength = params->VignetteStrength;
+    g_StarfieldState.kartographerVignetteStart = params->VignetteStart;
+    g_StarfieldState.kartographerVignetteEnd = params->VignetteEnd;
+    g_StarfieldState.kartographerPreRotationYaw = params->PreRotationYaw;
+    g_StarfieldState.kartographerPreRotationPitch = params->PreRotationPitch;
 }
 
 extern "C" __declspec(dllexport)

@@ -44,21 +44,6 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Compile KartographerNative.cpp to object file
-cl ^
-  /c ^
-  /std:c++17 ^
-  /EHsc ^
-  /O2 ^
-  /DNDEBUG ^
-  /Iinclude ^
-  /Fobuild\intermediate\KartographerNative.obj ^
-  src\KartographerNative.cpp
-if errorlevel 1 (
-    echo Compilation of KartographerNative.cpp failed!
-    exit /b 1
-)
-
 :: Compile GalaxyCamCompositor.cpp to object file
 cl ^
   /c ^
@@ -78,7 +63,6 @@ if errorlevel 1 (
 link ^
   build\intermediate\CinematicShadersNative.obj ^
   build\intermediate\StarfieldNative.obj ^
-  build\intermediate\KartographerNative.obj ^
   build\intermediate\GalaxyCamCompositor.obj ^
   build\intermediate\CinematicShadersNative.res ^
   d3d11.lib dxgi.lib ole32.lib ^

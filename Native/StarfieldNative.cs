@@ -155,6 +155,23 @@ namespace CinematicShaders.Native
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_StarfieldSetKartographerEnabled(byte enabled);
 
+        // Kartographer visual parameters struct (must match native)
+        [StructLayout(LayoutKind.Sequential)]
+        public struct KartographerParamsNative
+        {
+            public float GridIntensity;        // Default: 0.002, Range: 0.001-0.003
+            public float GridThickness;        // Default: 0.0003, Range: 0.00015-0.00045
+            public float ChromaticAberrationStrength;  // Default: 0.004, Range: 0.002-0.006
+            public float VignetteStrength;     // Default: 0.7, Range: 0.35-1.0
+            public float VignetteStart;        // Default: 1.6, Range: 0.8-2.4
+            public float VignetteEnd;          // Default: 2.2, Range: 1.1-3.3
+            public float PreRotationYaw;       // For UI customization (radians)
+            public float PreRotationPitch;     // For UI customization (radians)
+        }
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_StarfieldSetKartographerParams(ref KartographerParamsNative kartParams);
+
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern int CR_RenderStarfieldCubemap([In] IntPtr[] targetTextures, int faceSize);
 
