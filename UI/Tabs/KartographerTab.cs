@@ -8,6 +8,17 @@ namespace CinematicShaders.UI.Tabs
     {
         private bool _initialized = false;
         private bool _showVisualSettings = true;
+        private bool _showColorDropdown = false;
+        private int _currentColorIndex = 0;
+
+        private readonly string[] _colorNames = { "Seafoam", "Amber", "White", "Green" };
+        private readonly Color[] _colorValues = {
+            new Color(0.1f, 0.9f, 0.7f),
+            new Color(1.0f, 0.65f, 0.0f),
+            new Color(0.85f, 0.95f, 1.0f),
+            new Color(0.25f, 1.0f, 0.0f)
+        };
+        private GUIStyle[] _colorButtonStyles = null;
 
         public KartographerTab()
         {
@@ -76,35 +87,30 @@ namespace CinematicShaders.UI.Tabs
                 PushKartographerParams();
             }
 
-            // Grid Intensity: 0.001 - 0.003, default 0.002
-            GUILayout.Label(new GUIContent($"Grid Intensity: {StarfieldSettings.KartographerGridIntensity:F4}", 
+            // Grid Intensity: display 0-5, internal 0-0.006 (default display ~1.7)
+            float displayIntensity = IntensityToDisplay(StarfieldSettings.KartographerGridIntensity);
+            GUILayout.Label(new GUIContent($"Grid Intensity: {displayIntensity:F1}", 
                 "Brightness of the holographic grid lines"));
-            float newIntensity = GUILayout.HorizontalSlider(StarfieldSettings.KartographerGridIntensity, 0.001f, 0.003f);
-            if (!Mathf.Approximately(newIntensity, StarfieldSettings.KartographerGridIntensity))
+            float newDisplayIntensity = GUILayout.HorizontalSlider(displayIntensity, 0f, 5f);
+            if (!Mathf.Approximately(newDisplayIntensity, displayIntensity))
             {
-                StarfieldSettings.KartographerGridIntensity = newIntensity;
+                StarfieldSettings.KartographerGridIntensity = DisplayToIntensity(newDisplayIntensity);
                 PushKartographerParams();
             }
 
-            // Grid Thickness: 0.00015 - 0.00045, default 0.0003
-            GUILayout.Label(new GUIContent($"Grid Thickness: {StarfieldSettings.KartographerGridThickness:F5}", 
+            // Grid Thickness: display 0-10, internal 0-0.0009 (default display ~3.3)
+            float displayThickness = ThicknessToDisplay(StarfieldSettings.KartographerGridThickness);
+            GUILayout.Label(new GUIContent($"Grid Thickness: {displayThickness:F1}", 
                 "Thickness of the grid lines (lower = sharper)"));
-            float newThickness = GUILayout.HorizontalSlider(StarfieldSettings.KartographerGridThickness, 0.00015f, 0.00045f);
-            if (!Mathf.Approximately(newThickness, StarfieldSettings.KartographerGridThickness))
+            float newDisplayThickness = GUILayout.HorizontalSlider(displayThickness, 0f, 10f);
+            if (!Mathf.Approximately(newDisplayThickness, displayThickness))
             {
-                StarfieldSettings.KartographerGridThickness = newThickness;
+                StarfieldSettings.KartographerGridThickness = DisplayToThickness(newDisplayThickness);
                 PushKartographerParams();
             }
 
-            // Chromatic Aberration: 0.002 - 0.006, default 0.004
-            GUILayout.Label(new GUIContent($"Chromatic Aberration: {StarfieldSettings.KartographerCAStrength:F4}", 
-                "RGB color separation at screen edges (holographic effect)"));
-            float newCA = GUILayout.HorizontalSlider(StarfieldSettings.KartographerCAStrength, 0.002f, 0.006f);
-            if (!Mathf.Approximately(newCA, StarfieldSettings.KartographerCAStrength))
-            {
-                StarfieldSettings.KartographerCAStrength = newCA;
-                PushKartographerParams();
-            }
+            // Grid Color dropdown
+            DrawColorDropdown();
 
             GUILayout.Space(5);
             GUILayout.Label("<b>Vignette Settings</b>", HighLogic.Skin.label);
@@ -174,6 +180,76 @@ namespace CinematicShaders.UI.Tabs
             GUILayout.EndVertical();
         }
 
+        private void DrawColorDropdown()
+        {
+            EnsureColorStyles();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Grid Color", GUILayout.Width(CinematicShadersUIResources.Layout.Dropdowns.DEBUG_LABEL_WIDTH));
+            GUIStyle currentStyle = _colorButtonStyles[_currentColorIndex];
+            if (GUILayout.Button(_colorNames[_currentColorIndex], currentStyle, GUILayout.Width(CinematicShadersUIResources.Layout.Dropdowns.DEBUG_BUTTON_WIDTH)))
+            {
+                _showColorDropdown = !_showColorDropdown;
+            }
+            GUILayout.EndHorizontal();
+
+            if (_showColorDropdown)
+            {
+                GUIStyle boxStyle = CinematicShadersUIResources.Styles.DropdownBox();
+                GUILayout.BeginVertical(boxStyle);
+                for (int i = 0; i < _colorNames.Length; i++)
+                {
+                    if (GUILayout.Button(_colorNames[i], _colorButtonStyles[i]))
+                    {
+                        if (_currentColorIndex != i)
+                        {
+                            _currentColorIndex = i;
+                            // Backend hookup will go here in the future
+                        }
+                        _showColorDropdown = false;
+                    }
+                }
+                GUILayout.EndVertical();
+            }
+        }
+
+        private void EnsureColorStyles()
+        {
+            if (_colorButtonStyles != null) return;
+
+            _colorButtonStyles = new GUIStyle[_colorNames.Length];
+            for (int i = 0; i < _colorNames.Length; i++)
+            {
+                GUIStyle style = new GUIStyle(HighLogic.Skin.button);
+                Texture2D tex = MakeColorTexture(_colorValues[i]);
+                style.normal.background = tex;
+                style.normal.textColor = Color.black;
+                style.hover.background = tex;
+                style.hover.textColor = Color.black;
+                style.active.background = tex;
+                style.active.textColor = Color.black;
+                style.focused.background = tex;
+                style.focused.textColor = Color.black;
+                style.onNormal.background = tex;
+                style.onNormal.textColor = Color.black;
+                style.onHover.background = tex;
+                style.onHover.textColor = Color.black;
+                style.onActive.background = tex;
+                style.onActive.textColor = Color.black;
+                style.onFocused.background = tex;
+                style.onFocused.textColor = Color.black;
+                _colorButtonStyles[i] = style;
+            }
+        }
+
+        private static Texture2D MakeColorTexture(Color color)
+        {
+            Texture2D tex = new Texture2D(1, 1);
+            tex.SetPixel(0, 0, color);
+            tex.Apply();
+            return tex;
+        }
+
         private void PushKartographerParams()
         {
             var kartParams = new StarfieldNative.KartographerParamsNative
@@ -195,17 +271,22 @@ namespace CinematicShaders.UI.Tabs
         {
             StarfieldSettings.KartographerGridIntensity = 0.002f;
             StarfieldSettings.KartographerGridThickness = 0.0003f;
-            StarfieldSettings.KartographerCAStrength = 0.004f;
             StarfieldSettings.KartographerVignetteStrength = 0.7f;
             StarfieldSettings.KartographerVignetteStart = 1.6f;
             StarfieldSettings.KartographerVignetteEnd = 2.2f;
             StarfieldSettings.KartographerRotationYaw = 0.0f;
             StarfieldSettings.KartographerRotationPitch = 0.0f;
             StarfieldSettings.KartographerGridSize = 2;
+            _currentColorIndex = 0;
             
             PushKartographerParams();
             StarfieldSettings.Save();
         }
+
+        private float IntensityToDisplay(float internalVal) => internalVal / 0.006f * 5f;
+        private float DisplayToIntensity(float displayVal) => displayVal / 5f * 0.006f;
+        private float ThicknessToDisplay(float internalVal) => internalVal / 0.0009f * 10f;
+        private float DisplayToThickness(float displayVal) => displayVal / 10f * 0.0009f;
 
         private string GetGridSizeLabel(int size)
         {
