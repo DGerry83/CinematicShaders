@@ -61,6 +61,7 @@ namespace CinematicShaders.Core
         public static float KartographerRotationYaw { get; set; } = 0.0f;           // Range: -PI to PI
         public static float KartographerRotationPitch { get; set; } = 0.0f;         // Range: -PI/2 to PI/2
         public static int KartographerGridSize { get; set; } = 2;                   // 0=Jumbo, 1=Large, 2=Medium, 3=Small, 4=Tiny
+        public static int KartographerGridColor { get; set; } = 0;                  // 0=Seafoam, 1=Amber, 2=White, 3=Green
 
         // HYG Catalog Coordinate Rotation (degrees)
         // Allows aligning the real sky catalog with the game's coordinate system
@@ -223,6 +224,7 @@ namespace CinematicShaders.Core
                 KartographerRotationYaw = float.Parse(settingsNode.GetValue("KartographerRotationYaw") ?? "0.0");
                 KartographerRotationPitch = float.Parse(settingsNode.GetValue("KartographerRotationPitch") ?? "0.0");
                 KartographerGridSize = int.Parse(settingsNode.GetValue("KartographerGridSize") ?? "2");
+                KartographerGridColor = int.Parse(settingsNode.GetValue("KartographerGridColor") ?? "0");
                 ActiveCatalogPath = NormalizeCatalogPath(settingsNode.GetValue("ActiveCatalogPath") ?? "");
                 // IsReadOnly = bool.Parse(settingsNode.GetValue("IsReadOnly") ?? "false");
 
@@ -313,7 +315,8 @@ namespace CinematicShaders.Core
                 VignetteEnd = KartographerVignetteEnd,
                 PreRotationYaw = KartographerRotationYaw,
                 PreRotationPitch = KartographerRotationPitch,
-                GridSizePreset = KartographerGridSize
+                GridSizePreset = KartographerGridSize,
+                GridColorIndex = KartographerGridColor
             };
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
 
@@ -528,6 +531,7 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("KartographerRotationYaw", KartographerRotationYaw);
                 settingsNode.AddValue("KartographerRotationPitch", KartographerRotationPitch);
                 settingsNode.AddValue("KartographerGridSize", KartographerGridSize);
+                settingsNode.AddValue("KartographerGridColor", KartographerGridColor);
                 settingsNode.AddValue("ActiveCatalogPath", NormalizeCatalogPath(ActiveCatalogPath));
                 // settingsNode.AddValue("IsReadOnly", IsReadOnly);
                 settingsNode.AddValue("CatalogSeed", CatalogSeed);

@@ -153,6 +153,7 @@ static struct {
     float kartographerPreRotationYaw = 0.0f;
     float kartographerPreRotationPitch = 0.0f;
     int kartographerGridSizePreset = 2;  // 0=Jumbo, 1=Large, 2=Medium, 3=Small, 4=Tiny
+    int kartographerGridColor = 0;       // 0=Seafoam, 1=Amber, 2=White, 3=Green
 } g_StarfieldState;
 
 // Constant buffer layouts (must match HLSL exactly, 16-byte aligned)
@@ -251,7 +252,7 @@ struct StarfieldPass2Params {
 };
 
 // Kartographer constant buffer layout (must match HLSL exactly)
-// Total size: 96 bytes
+// Total size: 112 bytes
 struct KartographerParams {
     float ResolutionX;              // offset 0
     float ResolutionY;              // offset 4
@@ -267,21 +268,25 @@ struct KartographerParams {
     float PreRotationYaw;           // offset 36
     float PreRotationPitch;         // offset 40
     int GridSizePreset;             // offset 44
+    int GridColorIndex;             // offset 48
+    float _pad1;                    // offset 52
+    float _pad2;                    // offset 56
+    float _padAlignCamera;          // offset 60 (padding to align camera vectors to 16 bytes)
     
-    float CameraRightX;             // offset 48
-    float CameraRightY;             // offset 52
-    float CameraRightZ;             // offset 56
-    float _pad2;                    // offset 60
-    
-    float CameraUpX;                // offset 64
-    float CameraUpY;                // offset 68
-    float CameraUpZ;                // offset 72
+    float CameraRightX;             // offset 64
+    float CameraRightY;             // offset 68
+    float CameraRightZ;             // offset 72
     float _pad3;                    // offset 76
     
-    float CameraForwardX;           // offset 80
-    float CameraForwardY;           // offset 84
-    float CameraForwardZ;           // offset 88
+    float CameraUpX;                // offset 80
+    float CameraUpY;                // offset 84
+    float CameraUpZ;                // offset 88
     float _pad4;                    // offset 92
+    
+    float CameraForwardX;           // offset 96
+    float CameraForwardY;           // offset 100
+    float CameraForwardZ;           // offset 104
+    float _pad5;                    // offset 108
 };
 
 // Soft bloom constant buffer layouts (must match HLSL exactly)
@@ -1639,6 +1644,7 @@ static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
         params->PreRotationYaw = g_StarfieldState.kartographerPreRotationYaw;
         params->PreRotationPitch = g_StarfieldState.kartographerPreRotationPitch;
         params->GridSizePreset = g_StarfieldState.kartographerGridSizePreset;
+        params->GridColorIndex = g_StarfieldState.kartographerGridColor;
         params->CameraRightX = g_StarfieldState.cameraRight.x;
         params->CameraRightY = g_StarfieldState.cameraRight.y;
         params->CameraRightZ = g_StarfieldState.cameraRight.z;
@@ -1665,6 +1671,7 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
     g_StarfieldState.kartographerPreRotationYaw = params->PreRotationYaw;
     g_StarfieldState.kartographerPreRotationPitch = params->PreRotationPitch;
     g_StarfieldState.kartographerGridSizePreset = params->GridSizePreset;
+    g_StarfieldState.kartographerGridColor = params->GridColorIndex;
 }
 
 extern "C" __declspec(dllexport)

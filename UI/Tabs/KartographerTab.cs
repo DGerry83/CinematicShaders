@@ -23,6 +23,7 @@ namespace CinematicShaders.UI.Tabs
         public KartographerTab()
         {
             // Settings loaded by StarfieldSettings on module startup
+            _currentColorIndex = StarfieldSettings.KartographerGridColor;
         }
 
         public void Draw()
@@ -204,7 +205,8 @@ namespace CinematicShaders.UI.Tabs
                         if (_currentColorIndex != i)
                         {
                             _currentColorIndex = i;
-                            // Backend hookup will go here in the future
+                            StarfieldSettings.KartographerGridColor = i;
+                            PushKartographerParams();
                         }
                         _showColorDropdown = false;
                     }
@@ -262,7 +264,8 @@ namespace CinematicShaders.UI.Tabs
                 VignetteEnd = StarfieldSettings.KartographerVignetteEnd,
                 PreRotationYaw = StarfieldSettings.KartographerRotationYaw,
                 PreRotationPitch = StarfieldSettings.KartographerRotationPitch,
-                GridSizePreset = StarfieldSettings.KartographerGridSize
+                GridSizePreset = StarfieldSettings.KartographerGridSize,
+                GridColorIndex = StarfieldSettings.KartographerGridColor
             };
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
         }
@@ -277,6 +280,7 @@ namespace CinematicShaders.UI.Tabs
             StarfieldSettings.KartographerRotationYaw = 0.0f;
             StarfieldSettings.KartographerRotationPitch = 0.0f;
             StarfieldSettings.KartographerGridSize = 2;
+            StarfieldSettings.KartographerGridColor = 0;
             _currentColorIndex = 0;
             
             PushKartographerParams();

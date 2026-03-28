@@ -7,7 +7,7 @@ struct PSInput {
 };
 
 // Constant buffer - must match C++ KartographerParams struct exactly
-// Total size: 96 bytes
+// Total size: 112 bytes
 cbuffer KartographerCB : register(b0) {
     float2 Resolution;          // offset 0
     float Time;                 // offset 8
@@ -22,14 +22,25 @@ cbuffer KartographerCB : register(b0) {
     float PreRotationYaw;       // offset 36
     float PreRotationPitch;     // offset 40
     int GridSizePreset;         // offset 44
+    int GridColorIndex;         // offset 48
+    float _pad1;                // offset 52
+    float _pad2;                // offset 56
     
     // Camera rotation matrix (3x3, row-major for HLSL)
-    float3 CameraRight;         // offset 48
-    float _pad2;
-    float3 CameraUp;            // offset 64
+    float3 CameraRight;         // offset 64
     float _pad3;
-    float3 CameraForward;       // offset 80
+    float3 CameraUp;            // offset 80
     float _pad4;
+    float3 CameraForward;       // offset 96
+    float _pad5;
+};
+
+// Grid colors: 0=Seafoam, 1=Amber, 2=White, 3=Green
+static const float3 kGridColors[4] = {
+    float3(0.1, 0.9, 0.7),   // Seafoam
+    float3(1.0, 0.65, 0.0),  // Amber
+    float3(0.85, 0.95, 1.0), // White
+    float3(0.25, 1.0, 0.0)   // Green
 };
 
 // Grid size presets: 0=Jumbo, 1=Large, 2=Medium, 3=Small, 4=Tiny
@@ -118,7 +129,7 @@ float3 ApplyPreRotation(float3 ray, float yaw, float pitch) {
 }
 
 // Calculate grid glow for a given ray direction and preset
-float3 CalculateGrid(float3 ray, int preset) {
+float3 CalculateGrid(float3 ray, int preset, int colorIdx) {
     float numLong, numLat;
     switch(preset) {
         case 0: numLong = 8.0;  numLat = 5.0;  break;
@@ -137,7 +148,7 @@ float3 CalculateGrid(float3 ray, int preset) {
     float phi = acos(clamp(ray.y, -1.0, 1.0));
     float theta = atan2(ray.z, ray.x);
     
-    static const float3 seafoam = float3(0.1, 0.9, 0.7);
+    float3 gridColor = kGridColors[colorIdx];
     
     // --- MERIDIANS ---
     float t = (theta + 3.14159265) / thetaStep - 0.5;
@@ -169,7 +180,7 @@ float3 CalculateGrid(float3 ray, int preset) {
     float poleFade = smoothstep(0.0, poleFadeStart, phi) * 
                      smoothstep(3.1415927, 3.1415927 - poleFadeStart, phi);
     
-    float3 glowM = seafoam * GridIntensity * (
+    float3 glowM = gridColor * GridIntensity * (
         noiseLeft / (surfLeft + GridThickness) + 
         noiseRight / (surfRight + GridThickness)
     ) * poleFade;
@@ -192,7 +203,7 @@ float3 CalculateGrid(float3 ray, int preset) {
         default: noiseLow = parallelNoise_Tiny[pLow];   noiseHigh = parallelNoise_Tiny[pHigh];   break;
     }
     
-    float3 glowP = seafoam * GridIntensity * (
+    float3 glowP = gridColor * GridIntensity * (
         noiseLow / (distLow + GridThickness) + 
         noiseHigh / (distHigh + GridThickness)
     );
@@ -230,9 +241,10 @@ float4 PSMain(PSInput input) : SV_Target {
     rayB = ApplyPreRotation(rayB, PreRotationYaw, PreRotationPitch);
     
     int preset = GridSizePreset;
-    float3 colR = CalculateGrid(rayR, preset);
-    float3 colG = CalculateGrid(rayG, preset);
-    float3 colB = CalculateGrid(rayB, preset);
+    int colorIdx = GridColorIndex;
+    float3 colR = CalculateGrid(rayR, preset, colorIdx);
+    float3 colG = CalculateGrid(rayG, preset, colorIdx);
+    float3 colB = CalculateGrid(rayB, preset, colorIdx);
     
     float3 col;
     col.r = colR.r;

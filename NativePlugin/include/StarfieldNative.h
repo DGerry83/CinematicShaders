@@ -163,6 +163,7 @@ struct KartographerParamsNative {
     float PreRotationYaw;       // For UI customization (radians)
     float PreRotationPitch;     // For UI customization (radians)
     int GridSizePreset;         // 0=Jumbo, 1=Large, 2=Medium, 3=Small, 4=Tiny
+    int GridColorIndex;         // 0=Seafoam, 1=Amber, 2=White, 3=Green
 };
 
 // Set Kartographer visual parameters

@@ -168,6 +168,7 @@ namespace CinematicShaders.Native
             public float PreRotationYaw;       // For UI customization (radians)
             public float PreRotationPitch;     // For UI customization (radians)
             public int GridSizePreset;         // 0=Jumbo, 1=Large, 2=Medium, 3=Small, 4=Tiny
+            public int GridColorIndex;         // 0=Seafoam, 1=Amber, 2=White, 3=Green
         }
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
