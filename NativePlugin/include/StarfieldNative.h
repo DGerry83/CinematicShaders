@@ -98,6 +98,9 @@ struct StarfieldSettingsNative {
     float SunGlareDimming;      // 1.0 = full brightness, 0.0 = fully dimmed
     float PlanetaryDimming;     // 1.0 = full brightness, 0.0 = fully dimmed
     float GlobalDimming;        // min(Sun, Planetary) - calculated CPU-side
+    
+    // Kartographer integration
+    int EnableKartographer;     // 0 = off, 1 = on
 };
 
 __declspec(dllexport) void CR_StarfieldSetCameraMatrices(
@@ -147,6 +150,9 @@ __declspec(dllexport) void CR_StarfieldInvalidateResources();
 
 // Global scene dimming (per-frame update, separate from settings)
 __declspec(dllexport) void CR_StarfieldSetDimming(float sunGlareDimming, float planetaryDimming);
+
+// Kartographer holographic grid overlay enable/disable
+__declspec(dllexport) void CR_StarfieldSetKartographerEnabled(unsigned char enabled);
 
 // Cubemap rendering - renders starfield to all 6 cubemap faces
 // targetTextures: array of 6 D3D11 textures (one per face)

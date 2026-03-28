@@ -1,4 +1,5 @@
 #include "StarfieldNative.h"
+#include "GalaxyCamCompositor.h"
 #include "../include/StarfieldPass1.h"
 #include "../include/StarfieldPass2.h"
 #include "../include/StarfieldVS.h"
@@ -7,6 +8,8 @@
 #include "../include/StarfieldBlur.h"
 #include "../include/StarfieldPass2Soft.h"
 #include "../include/StarfieldUpscale.h"
+#include "../include/KartographerVS.h"
+#include "../include/KartographerPS.h"
 #include <vector>
 #include <mutex>
 #include <algorithm>
@@ -132,6 +135,12 @@ static struct {
     ID3D11PixelShader* blurPS = nullptr;       // Vertical blur (keep existing name)
     ID3D11PixelShader* softCompositePS = nullptr;
     ID3D11PixelShader* upscalePS = nullptr;
+    
+    // Kartographer holographic grid overlay
+    bool kartographerEnabled = false;
+    ID3D11VertexShader* kartographerVS = nullptr;
+    ID3D11PixelShader* kartographerPS = nullptr;
+    ID3D11BlendState* kartographerBlendState = nullptr;
 } g_StarfieldState;
 
 // Constant buffer layouts (must match HLSL exactly, 16-byte aligned)
@@ -907,6 +916,28 @@ if (!g_StarfieldState.blendState) {
         device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.compositeCB);
     }
     
+    // Kartographer resources (created on-demand when enabled)
+    if (!g_StarfieldState.kartographerVS) {
+        hr = device->CreateVertexShader(g_KartographerVS, sizeof(g_KartographerVS), nullptr, &g_StarfieldState.kartographerVS);
+        if (FAILED(hr)) LogToFile("[Starfield] Failed to create Kartographer VS (0x%08X)", hr);
+    }
+    if (!g_StarfieldState.kartographerPS) {
+        hr = device->CreatePixelShader(g_KartographerPS, sizeof(g_KartographerPS), nullptr, &g_StarfieldState.kartographerPS);
+        if (FAILED(hr)) LogToFile("[Starfield] Failed to create Kartographer PS (0x%08X)", hr);
+    }
+    if (!g_StarfieldState.kartographerBlendState) {
+        D3D11_BLEND_DESC blendDesc = {};
+        blendDesc.RenderTarget[0].BlendEnable = TRUE;
+        blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+        blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ONE;
+        blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+        blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+        blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+        blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+        blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+        device->CreateBlendState(&blendDesc, &g_StarfieldState.kartographerBlendState);
+    }
+    
     if (!g_StarfieldState.device) {
         g_StarfieldState.device = device;
         g_StarfieldState.device->AddRef();
@@ -1177,6 +1208,38 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
     context->PSSetShaderResources(0, 1, psNullSRV);
     context->OMSetRenderTargets(1, &nullRTV, nullptr);
     
+    // Kartographer overlay pass (if enabled)
+    if (g_StarfieldState.kartographerEnabled && g_StarfieldState.kartographerVS && g_StarfieldState.kartographerPS) {
+        // Save current state
+        ID3D11BlendState* oldBlend = nullptr;
+        float oldBlendFactor[4];
+        UINT oldSampleMask;
+        context->OMGetBlendState(&oldBlend, oldBlendFactor, &oldSampleMask);
+        
+        // Set additive blend for grid overlay
+        context->OMSetBlendState(g_StarfieldState.kartographerBlendState, nullptr, 0xFFFFFFFF);
+        context->OMSetDepthStencilState(g_StarfieldState.depthState, 0);
+        context->RSSetState(g_StarfieldState.rasterState);
+        
+        // Set Kartographer shaders
+        context->VSSetShader(g_StarfieldState.kartographerVS, nullptr, 0);
+        context->PSSetShader(g_StarfieldState.kartographerPS, nullptr, 0);
+        
+        // Re-set render target
+        context->OMSetRenderTargets(1, &currentRTV, nullptr);
+        
+        // Draw fullscreen triangle
+        context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        context->IASetInputLayout(nullptr);
+        context->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
+        context->IASetIndexBuffer(nullptr, DXGI_FORMAT_UNKNOWN, 0);
+        context->Draw(3, 0);
+        
+        // Restore blend state
+        context->OMSetBlendState(oldBlend, oldBlendFactor, oldSampleMask);
+        if (oldBlend) oldBlend->Release();
+    }
+    
     // Release our RTV if we created it from explicit render target
     if (usingExplicitRT && currentRTV) {
         currentRTV->Release();
@@ -1413,6 +1476,29 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
     
     context->Draw(3, 0);
     
+    // Kartographer overlay pass (if enabled)
+    if (g_StarfieldState.kartographerEnabled && g_StarfieldState.kartographerVS && g_StarfieldState.kartographerPS) {
+        // Save current state
+        ID3D11BlendState* oldBlend = nullptr;
+        float oldBlendFactor[4];
+        UINT oldSampleMask;
+        context->OMGetBlendState(&oldBlend, oldBlendFactor, &oldSampleMask);
+        
+        // Set additive blend for grid overlay
+        context->OMSetBlendState(g_StarfieldState.kartographerBlendState, nullptr, 0xFFFFFFFF);
+        
+        // Set Kartographer shaders
+        context->VSSetShader(g_StarfieldState.kartographerVS, nullptr, 0);
+        context->PSSetShader(g_StarfieldState.kartographerPS, nullptr, 0);
+        
+        // Draw fullscreen triangle
+        context->Draw(3, 0);
+        
+        // Restore blend state
+        context->OMSetBlendState(oldBlend, oldBlendFactor, oldSampleMask);
+        if (oldBlend) oldBlend->Release();
+    }
+    
     // Cleanup
     context->PSSetShaderResources(0, 2, nullSRV);
     ID3D11RenderTargetView* nullRTV = nullptr;
@@ -1430,6 +1516,19 @@ static void UNITY_INTERFACE_API OnStarfieldRenderEvent(int eventId)
     if (!context) return;
     
     ExecuteStarfieldRender(context);
+    
+    // Render any registered compositor layers on top of the starfield
+    if (GalaxyCamCompositor_HasLayers()) {
+        ID3D11RenderTargetView* currentRTV = nullptr;
+        ID3D11DepthStencilView* currentDSV = nullptr;
+        context->OMGetRenderTargets(1, &currentRTV, &currentDSV);
+        
+        if (currentRTV) {
+            GalaxyCamCompositor_RenderLayers(context, currentRTV, g_StarfieldState.width, g_StarfieldState.height);
+            currentRTV->Release();
+        }
+        if (currentDSV) currentDSV->Release();
+    }
     
     context->Release();
     
@@ -1450,6 +1549,14 @@ void CR_StarfieldSetDimming(float sunGlareDimming, float planetaryDimming)
     // Safety clamp - never allow complete blackness from dimming alone
     if (g_StarfieldState.globalDimming < 0.05f)
         g_StarfieldState.globalDimming = 0.05f;
+}
+
+extern "C" __declspec(dllexport)
+void CR_StarfieldSetKartographerEnabled(unsigned char enabled)
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    g_StarfieldState.kartographerEnabled = (enabled != 0);
+    LogToFile("[Starfield] Kartographer %s", g_StarfieldState.kartographerEnabled ? "enabled" : "disabled");
 }
 
 extern "C" __declspec(dllexport)

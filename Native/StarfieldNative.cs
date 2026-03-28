@@ -153,6 +153,9 @@ namespace CinematicShaders.Native
         public static extern void CR_StarfieldSetDimming(float sunGlareDimming, float planetaryDimming);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_StarfieldSetKartographerEnabled(byte enabled);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern int CR_RenderStarfieldCubemap([In] IntPtr[] targetTextures, int faceSize);
 
 

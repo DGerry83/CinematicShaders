@@ -179,5 +179,16 @@ namespace CinematicShaders.UI
             public const string RotationZLabel = "Rotation Z (Roll)";
             public const string RotationTooltip = "Adjust to align real sky catalog with game coordinates";
         }
+
+        // ============================================================================
+        // KARTOGRAPHER - Holographic grid visualizer
+        // ============================================================================
+        public static class Kartographer
+        {
+            public const string TabName = "Kartographer";
+            public const string EnableToggle = " Enable Holographic Grid";
+            public const string NativeLoadError = "Native plugin failed to load. Check KSP.log for details.";
+            public const string Initializing = "Initializing Kartographer...";
+        }
     }
 }

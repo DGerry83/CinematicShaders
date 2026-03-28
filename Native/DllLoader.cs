@@ -81,6 +81,13 @@ namespace CinematicShaders.Native
                         return;
                     }
 
+                    // Verify Kartographer exports exist
+                    if (GetProcAddress(_handle, "CR_KartographerSetCameraMatrices") == IntPtr.Zero)
+                    {
+                        Debug.LogError("[DllLoader] CR_KartographerSetCameraMatrices export not found!");
+                        return;
+                    }
+
                     _loaded = true;
                     Debug.Log("[DllLoader] Native DLL loaded successfully with dependency path resolution");
                 }

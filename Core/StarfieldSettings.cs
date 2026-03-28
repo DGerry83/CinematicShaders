@@ -46,6 +46,9 @@ namespace CinematicShaders.Core
 
         // Bloom mode toggle: false = Classic (original 4-spike), true = Soft HDR (2-pass)
         public static bool UseSoftBloom { get; set; } = false;
+        
+        // Kartographer holographic grid overlay
+        public static bool EnableKartographer { get; set; } = false;
 
         // HYG Catalog Coordinate Rotation (degrees)
         // Allows aligning the real sky catalog with the game's coordinate system

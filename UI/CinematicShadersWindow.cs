@@ -18,10 +18,11 @@ namespace CinematicShaders.UI
         private GUIStyle tabButtonActiveStyle;
         private string errorMessage = null;
 
-        public enum ShaderTab { GTAO, Starfield }
+        public enum ShaderTab { GTAO, Starfield, Kartographer }
         private ShaderTab currentTab = ShaderTab.GTAO;
         private GTAOTab _gtaoTab;
         private StarfieldTab _starfieldTab;
+        private KartographerTab _kartographerTab;
 
         public event Action OnClose;
         private bool wasVisibleBeforeF2 = false;
@@ -39,6 +40,7 @@ namespace CinematicShaders.UI
             {
                 _gtaoTab = new GTAOTab();
                 _starfieldTab = new StarfieldTab();
+                _kartographerTab = new KartographerTab();
             }
             catch (Exception ex)
             {
@@ -114,6 +116,10 @@ namespace CinematicShaders.UI
                         if (_starfieldTab != null)
                             _starfieldTab.Draw();
                         break;
+                    case ShaderTab.Kartographer:
+                        if (_kartographerTab != null)
+                            _kartographerTab.Draw();
+                        break;
                 }
 
                 GUILayout.EndVertical();
@@ -145,6 +151,13 @@ namespace CinematicShaders.UI
                 GUILayout.Height(tabHeight), GUILayout.Width(tabWidth)))
             {
                 currentTab = ShaderTab.Starfield;
+            }
+
+            GUIStyle kartographerStyle = (currentTab == ShaderTab.Kartographer) ? tabButtonActiveStyle : tabButtonStyle;
+            if (GUILayout.Button(CinematicShadersUIStrings.Kartographer.TabName, kartographerStyle,
+                GUILayout.Height(tabHeight), GUILayout.Width(tabWidth)))
+            {
+                currentTab = ShaderTab.Kartographer;
             }
 
             GUILayout.EndHorizontal();
