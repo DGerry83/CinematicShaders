@@ -167,6 +167,7 @@ namespace CinematicShaders.Native
             public float VignetteEnd;          // Default: 2.2, Range: 1.1-3.3
             public float PreRotationYaw;       // For UI customization (radians)
             public float PreRotationPitch;     // For UI customization (radians)
+            public int GridSizePreset;         // 0=Jumbo, 1=Large, 2=Medium, 3=Small, 4=Tiny
         }
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]

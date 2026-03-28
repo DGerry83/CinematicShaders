@@ -66,6 +66,16 @@ namespace CinematicShaders.UI.Tabs
 
             GUILayout.BeginVertical(HighLogic.Skin.box);
 
+            // Grid Size: 0-4 (Jumbo, Large, Medium, Small, Tiny), default 2 (Medium)
+            GUILayout.Label(new GUIContent($"Grid Size: {GetGridSizeLabel(StarfieldSettings.KartographerGridSize)}",
+                "Density of the holographic grid lines"));
+            int newGridSize = Mathf.RoundToInt(GUILayout.HorizontalSlider(StarfieldSettings.KartographerGridSize, 0, 4));
+            if (newGridSize != StarfieldSettings.KartographerGridSize)
+            {
+                StarfieldSettings.KartographerGridSize = newGridSize;
+                PushKartographerParams();
+            }
+
             // Grid Intensity: 0.001 - 0.003, default 0.002
             GUILayout.Label(new GUIContent($"Grid Intensity: {StarfieldSettings.KartographerGridIntensity:F4}", 
                 "Brightness of the holographic grid lines"));
@@ -175,7 +185,8 @@ namespace CinematicShaders.UI.Tabs
                 VignetteStart = StarfieldSettings.KartographerVignetteStart,
                 VignetteEnd = StarfieldSettings.KartographerVignetteEnd,
                 PreRotationYaw = StarfieldSettings.KartographerRotationYaw,
-                PreRotationPitch = StarfieldSettings.KartographerRotationPitch
+                PreRotationPitch = StarfieldSettings.KartographerRotationPitch,
+                GridSizePreset = StarfieldSettings.KartographerGridSize
             };
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
         }
@@ -190,9 +201,23 @@ namespace CinematicShaders.UI.Tabs
             StarfieldSettings.KartographerVignetteEnd = 2.2f;
             StarfieldSettings.KartographerRotationYaw = 0.0f;
             StarfieldSettings.KartographerRotationPitch = 0.0f;
+            StarfieldSettings.KartographerGridSize = 2;
             
             PushKartographerParams();
             StarfieldSettings.Save();
+        }
+
+        private string GetGridSizeLabel(int size)
+        {
+            switch (size)
+            {
+                case 0: return "Jumbo";
+                case 1: return "Large";
+                case 2: return "Medium";
+                case 3: return "Small";
+                case 4: return "Tiny";
+                default: return "Medium";
+            }
         }
 
         private void DrawTooltip()

@@ -99,8 +99,6 @@ struct StarfieldSettingsNative {
     float PlanetaryDimming;     // 1.0 = full brightness, 0.0 = fully dimmed
     float GlobalDimming;        // min(Sun, Planetary) - calculated CPU-side
     
-    // Kartographer integration
-    int EnableKartographer;     // 0 = off, 1 = on
 };
 
 __declspec(dllexport) void CR_StarfieldSetCameraMatrices(
@@ -164,6 +162,7 @@ struct KartographerParamsNative {
     float VignetteEnd;          // Default: 2.2, Range: 1.1-3.3
     float PreRotationYaw;       // For UI customization (radians)
     float PreRotationPitch;     // For UI customization (radians)
+    int GridSizePreset;         // 0=Jumbo, 1=Large, 2=Medium, 3=Small, 4=Tiny
 };
 
 // Set Kartographer visual parameters

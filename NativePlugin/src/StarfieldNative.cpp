@@ -152,6 +152,7 @@ static struct {
     float kartographerVignetteEnd = 2.2f;
     float kartographerPreRotationYaw = 0.0f;
     float kartographerPreRotationPitch = 0.0f;
+    int kartographerGridSizePreset = 2;  // 0=Jumbo, 1=Large, 2=Medium, 3=Small, 4=Tiny
 } g_StarfieldState;
 
 // Constant buffer layouts (must match HLSL exactly, 16-byte aligned)
@@ -250,27 +251,37 @@ struct StarfieldPass2Params {
 };
 
 // Kartographer constant buffer layout (must match HLSL exactly)
+// Total size: 96 bytes
 struct KartographerParams {
-    float ResolutionX, ResolutionY;
-    float Time;
-    float GridIntensity;
+    float ResolutionX;              // offset 0
+    float ResolutionY;              // offset 4
+    float Time;                     // offset 8
+    float GridIntensity;            // offset 12
     
-    float GridThickness;
-    float ChromaticAberrationStrength;
-    float VignetteStrength;
-    float VignetteStart;
+    float GridThickness;            // offset 16
+    float ChromaticAberrationStrength; // offset 20
+    float VignetteStrength;         // offset 24
+    float VignetteStart;            // offset 28
     
-    float VignetteEnd;
-    float PreRotationYaw;
-    float PreRotationPitch;
-    float _pad1;
+    float VignetteEnd;              // offset 32
+    float PreRotationYaw;           // offset 36
+    float PreRotationPitch;         // offset 40
+    int GridSizePreset;             // offset 44
     
-    float CameraRightX, CameraRightY, CameraRightZ;
-    float _pad2;
-    float CameraUpX, CameraUpY, CameraUpZ;
-    float _pad3;
-    float CameraForwardX, CameraForwardY, CameraForwardZ;
-    float _pad4;
+    float CameraRightX;             // offset 48
+    float CameraRightY;             // offset 52
+    float CameraRightZ;             // offset 56
+    float _pad2;                    // offset 60
+    
+    float CameraUpX;                // offset 64
+    float CameraUpY;                // offset 68
+    float CameraUpZ;                // offset 72
+    float _pad3;                    // offset 76
+    
+    float CameraForwardX;           // offset 80
+    float CameraForwardY;           // offset 84
+    float CameraForwardZ;           // offset 88
+    float _pad4;                    // offset 92
 };
 
 // Soft bloom constant buffer layouts (must match HLSL exactly)
@@ -997,6 +1008,7 @@ if (!g_StarfieldState.blendState) {
 }
 
 static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTargetView* finalRTV);
+static void MapKartographerConstantBuffer(ID3D11DeviceContext* context);
 
 static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
 {
@@ -1266,9 +1278,11 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         context->OMSetDepthStencilState(g_StarfieldState.depthState, 0);
         context->RSSetState(g_StarfieldState.rasterState);
         
-        // Set Kartographer shaders
+        // Set Kartographer shaders and constant buffer
         context->VSSetShader(g_StarfieldState.kartographerVS, nullptr, 0);
         context->PSSetShader(g_StarfieldState.kartographerPS, nullptr, 0);
+        MapKartographerConstantBuffer(context);
+        context->PSSetConstantBuffers(0, 1, &g_StarfieldState.kartographerCB);
         
         // Re-set render target
         context->OMSetRenderTargets(1, &currentRTV, nullptr);
@@ -1533,39 +1547,12 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
         context->OMSetBlendState(g_StarfieldState.kartographerBlendState, nullptr, 0xFFFFFFFF);
         
         // Update and set Kartographer constant buffer
-        D3D11_MAPPED_SUBRESOURCE mappedKart;
-        if (SUCCEEDED(context->Map(g_StarfieldState.kartographerCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedKart))) {
-            KartographerParams* params = (KartographerParams*)mappedKart.pData;
-            params->ResolutionX = (float)g_StarfieldState.width;
-            params->ResolutionY = (float)g_StarfieldState.height;
-            params->Time = (float)g_StarfieldState.frameIndex * 0.016f;  // Approximate time in seconds
-            params->GridIntensity = g_StarfieldState.kartographerGridIntensity;
-            params->GridThickness = g_StarfieldState.kartographerGridThickness;
-            params->ChromaticAberrationStrength = g_StarfieldState.kartographerCAStrength;
-            params->VignetteStrength = g_StarfieldState.kartographerVignetteStrength;
-            params->VignetteStart = g_StarfieldState.kartographerVignetteStart;
-            params->VignetteEnd = g_StarfieldState.kartographerVignetteEnd;
-            params->PreRotationYaw = g_StarfieldState.kartographerPreRotationYaw;
-            params->PreRotationPitch = g_StarfieldState.kartographerPreRotationPitch;
-            params->CameraRightX = g_StarfieldState.cameraRight.x;
-            params->CameraRightY = g_StarfieldState.cameraRight.y;
-            params->CameraRightZ = g_StarfieldState.cameraRight.z;
-            params->_pad2 = 0.0f;
-            params->CameraUpX = g_StarfieldState.cameraUp.x;
-            params->CameraUpY = g_StarfieldState.cameraUp.y;
-            params->CameraUpZ = g_StarfieldState.cameraUp.z;
-            params->_pad3 = 0.0f;
-            params->CameraForwardX = g_StarfieldState.cameraForward.x;
-            params->CameraForwardY = g_StarfieldState.cameraForward.y;
-            params->CameraForwardZ = g_StarfieldState.cameraForward.z;
-            params->_pad4 = 0.0f;
-            context->Unmap(g_StarfieldState.kartographerCB, 0);
-        }
+        MapKartographerConstantBuffer(context);
+        context->PSSetConstantBuffers(0, 1, &g_StarfieldState.kartographerCB);
         
-        // Set Kartographer shaders and constant buffer
+        // Set Kartographer shaders
         context->VSSetShader(g_StarfieldState.kartographerVS, nullptr, 0);
         context->PSSetShader(g_StarfieldState.kartographerPS, nullptr, 0);
-        context->PSSetConstantBuffers(0, 1, &g_StarfieldState.kartographerCB);
         
         // Draw fullscreen triangle
         context->Draw(3, 0);
@@ -1635,6 +1622,36 @@ void CR_StarfieldSetKartographerEnabled(unsigned char enabled)
     LogToFile("[Starfield] Kartographer %s", g_StarfieldState.kartographerEnabled ? "enabled" : "disabled");
 }
 
+static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
+{
+    D3D11_MAPPED_SUBRESOURCE mappedKart;
+    if (SUCCEEDED(context->Map(g_StarfieldState.kartographerCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedKart))) {
+        KartographerParams* params = (KartographerParams*)mappedKart.pData;
+        params->ResolutionX = (float)g_StarfieldState.width;
+        params->ResolutionY = (float)g_StarfieldState.height;
+        params->Time = (float)g_StarfieldState.frameIndex * 0.016f;
+        params->GridIntensity = g_StarfieldState.kartographerGridIntensity;
+        params->GridThickness = g_StarfieldState.kartographerGridThickness;
+        params->ChromaticAberrationStrength = g_StarfieldState.kartographerCAStrength;
+        params->VignetteStrength = g_StarfieldState.kartographerVignetteStrength;
+        params->VignetteStart = g_StarfieldState.kartographerVignetteStart;
+        params->VignetteEnd = g_StarfieldState.kartographerVignetteEnd;
+        params->PreRotationYaw = g_StarfieldState.kartographerPreRotationYaw;
+        params->PreRotationPitch = g_StarfieldState.kartographerPreRotationPitch;
+        params->GridSizePreset = g_StarfieldState.kartographerGridSizePreset;
+        params->CameraRightX = g_StarfieldState.cameraRight.x;
+        params->CameraRightY = g_StarfieldState.cameraRight.y;
+        params->CameraRightZ = g_StarfieldState.cameraRight.z;
+        params->CameraUpX = g_StarfieldState.cameraUp.x;
+        params->CameraUpY = g_StarfieldState.cameraUp.y;
+        params->CameraUpZ = g_StarfieldState.cameraUp.z;
+        params->CameraForwardX = g_StarfieldState.cameraForward.x;
+        params->CameraForwardY = g_StarfieldState.cameraForward.y;
+        params->CameraForwardZ = g_StarfieldState.cameraForward.z;
+        context->Unmap(g_StarfieldState.kartographerCB, 0);
+    }
+}
+
 void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
 {
     if (!params) return;
@@ -1647,6 +1664,7 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
     g_StarfieldState.kartographerVignetteEnd = params->VignetteEnd;
     g_StarfieldState.kartographerPreRotationYaw = params->PreRotationYaw;
     g_StarfieldState.kartographerPreRotationPitch = params->PreRotationPitch;
+    g_StarfieldState.kartographerGridSizePreset = params->GridSizePreset;
 }
 
 extern "C" __declspec(dllexport)

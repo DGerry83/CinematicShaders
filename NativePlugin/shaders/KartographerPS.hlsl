@@ -7,52 +7,91 @@ struct PSInput {
 };
 
 // Constant buffer - must match C++ KartographerParams struct exactly
+// Total size: 96 bytes
 cbuffer KartographerCB : register(b0) {
-    float2 Resolution;          // Screen resolution
-    float Time;                 // For animation/flicker
-    float GridIntensity;        // Default: 0.002, Range: 0.001-0.003
+    float2 Resolution;          // offset 0
+    float Time;                 // offset 8
+    float GridIntensity;        // offset 12
     
-    float GridThickness;        // Default: 0.0003, Range: 0.00015-0.00045
-    float ChromaticAberrationStrength;  // Default: 0.004, Range: 0.002-0.006
-    float VignetteStrength;     // Default: 0.7, Range: 0.35-1.0
-    float VignetteStart;        // Default: 1.6, Range: 0.8-2.4
+    float GridThickness;        // offset 16
+    float ChromaticAberrationStrength;  // offset 20
+    float VignetteStrength;     // offset 24
+    float VignetteStart;        // offset 28
     
-    float VignetteEnd;          // Default: 2.2, Range: 1.1-3.3
-    float PreRotationYaw;       // For UI customization (like star rotation)
-    float PreRotationPitch;     // For UI customization
-    float _pad1;                // Alignment
+    float VignetteEnd;          // offset 32
+    float PreRotationYaw;       // offset 36
+    float PreRotationPitch;     // offset 40
+    int GridSizePreset;         // offset 44
     
     // Camera rotation matrix (3x3, row-major for HLSL)
-    float3 CameraRight;         // Camera right vector in world space
+    float3 CameraRight;         // offset 48
     float _pad2;
-    float3 CameraUp;            // Camera up vector in world space
+    float3 CameraUp;            // offset 64
     float _pad3;
-    float3 CameraForward;       // Camera forward vector in world space
+    float3 CameraForward;       // offset 80
     float _pad4;
 };
 
-// Meridian noise values (same as ShadeRED)
-static const float meridianNoise[16] = {
+// Grid size presets: 0=Jumbo, 1=Large, 2=Medium, 3=Small, 4=Tiny
+
+static const float meridianNoise_Jumbo[8] = {
+    0.920, 1.140, 0.780, 1.050, 1.220, 0.850, 0.960, 1.080
+};
+
+static const float parallelNoise_Jumbo[5] = {
+    1.050, 0.820, 1.130, 0.910, 1.180
+};
+
+static const float meridianNoise_Large[12] = {
+    0.920, 1.140, 0.780, 1.050, 1.220, 0.850,
+    0.960, 1.080, 0.730, 1.180, 0.880, 1.020
+};
+
+static const float parallelNoise_Large[8] = {
+    1.050, 0.820, 1.130, 0.910, 1.180, 0.760, 0.980, 1.060
+};
+
+static const float meridianNoise_Medium[16] = {
     0.920, 1.140, 0.780, 1.050, 1.220, 0.850,
     0.960, 1.080, 0.730, 1.180, 0.880, 1.020,
     0.810, 1.150, 0.940, 1.070
 };
 
-static const float parallelNoise[10] = {
-    1.050, 0.820, 1.130, 0.910, 1.180, 
+static const float parallelNoise_Medium[10] = {
+    1.050, 0.820, 1.130, 0.910, 1.180,
     0.760, 0.980, 1.060, 0.890, 1.140
 };
 
+static const float meridianNoise_Small[24] = {
+    0.920, 1.140, 0.780, 1.050, 1.220, 0.850,
+    0.960, 1.080, 0.730, 1.180, 0.880, 1.020,
+    0.810, 1.150, 0.940, 1.070, 0.990, 1.210,
+    0.840, 1.030, 1.160, 0.910, 0.950, 1.100
+};
+
+static const float parallelNoise_Small[15] = {
+    1.050, 0.820, 1.130, 0.910, 1.180,
+    0.760, 0.980, 1.060, 0.890, 1.140,
+    0.830, 1.010, 1.190, 0.930, 1.070
+};
+
+static const float meridianNoise_Tiny[32] = {
+    0.920, 1.140, 0.780, 1.050, 1.220, 0.850,
+    0.960, 1.080, 0.730, 1.180, 0.880, 1.020,
+    0.810, 1.150, 0.940, 1.070, 0.990, 1.210,
+    0.840, 1.030, 1.160, 0.910, 0.950, 1.100,
+    0.800, 1.130, 0.870, 1.040, 1.200, 0.920, 0.970, 1.090
+};
+
+static const float parallelNoise_Tiny[20] = {
+    1.050, 0.820, 1.130, 0.910, 1.180,
+    0.760, 0.980, 1.060, 0.890, 1.140,
+    0.830, 1.010, 1.190, 0.930, 1.070,
+    0.790, 1.000, 1.170, 0.860, 1.120
+};
+
 // Helper: Transform view-space vector to world-space
-// This is the inverse of the standard world-to-view transform
-// For an orthonormal rotation matrix, inverse = transpose
-// CRITICAL: Unity uses LEFT-HANDED camera space, but we need RIGHT-HANDED for correct rotation.
-// We negate the UP vector to flip the handedness, otherwise pitch becomes roll.
 float3 ViewToWorld(float3 v, float3 right, float3 up, float3 forward) {
-    // Reconstruct world vector from view components and camera basis
-    // In view space: +X = right, +Y = up, +Z = forward (into screen)
-    // In world space: we map these to the camera's basis vectors
-    // Negate up to convert from Unity's left-handed to right-handed system
     return v.x * right - v.y * up + v.z * forward;
 }
 
@@ -63,15 +102,12 @@ float3 ApplyPreRotation(float3 ray, float yaw, float pitch) {
     float cx = cos(pitch);
     float sx = sin(pitch);
     
-    // Yaw (Y-axis rotation) - rotates around view UP axis
     float3 r1 = float3(
         ray.x * cy - ray.z * sy,
         ray.y,
         ray.x * sy + ray.z * cy
     );
     
-    // Pitch (X-axis rotation) - rotates around view RIGHT axis
-    // This should make the grid pitch up/down when the user adjusts pitch
     float3 r2 = float3(
         r1.x,
         r1.y * cx - r1.z * sx,
@@ -81,16 +117,25 @@ float3 ApplyPreRotation(float3 ray, float yaw, float pitch) {
     return normalize(r2);
 }
 
-// Calculate grid glow for a given ray direction
-float3 CalculateGrid(float3 ray) {
+// Calculate grid glow for a given ray direction and preset
+float3 CalculateGrid(float3 ray, int preset) {
+    float numLong, numLat;
+    switch(preset) {
+        case 0: numLong = 8.0;  numLat = 5.0;  break;
+        case 1: numLong = 12.0; numLat = 8.0;  break;
+        case 2: numLong = 16.0; numLat = 10.0; break;
+        case 3: numLong = 24.0; numLat = 15.0; break;
+        default: numLong = 32.0; numLat = 20.0; break;
+    }
+    
+    float thetaStep = 6.2831853 / numLong;
+    float phiStep = 3.1415927 / numLat;
+    int maxMeridianIdx = int(numLong) - 1;
+    int maxParallelIdx = int(numLat) - 1;
+    
     // Convert to spherical coordinates
     float phi = acos(clamp(ray.y, -1.0, 1.0));
     float theta = atan2(ray.z, ray.x);
-    
-    static const float numLong = 16.0;
-    static const float numLat = 10.0;
-    static const float thetaStep = 6.2831853 / numLong;
-    static const float phiStep = 3.1415927 / numLat;
     
     static const float3 seafoam = float3(0.1, 0.9, 0.7);
     
@@ -99,8 +144,8 @@ float3 CalculateGrid(float3 ray) {
     int cellIdx = int(floor(t));
     int mLeft = cellIdx;
     int mRight = cellIdx + 1;
-    if (mLeft < 0) mLeft = 15;
-    if (mRight > 15) mRight = 0;
+    if (mLeft < 0) mLeft = maxMeridianIdx;
+    if (mRight > maxMeridianIdx) mRight = 0;
     
     float distLeft = abs(theta - (-3.14159265 + (float(mLeft) + 0.5) * thetaStep));
     distLeft = min(distLeft, 6.2831853 - distLeft);
@@ -110,8 +155,14 @@ float3 CalculateGrid(float3 ray) {
     float surfLeft = sin(phi) * distLeft;
     float surfRight = sin(phi) * distRight;
     
-    float noiseLeft = meridianNoise[mLeft];
-    float noiseRight = meridianNoise[mRight];
+    float noiseLeft, noiseRight;
+    switch(preset) {
+        case 0:  noiseLeft = meridianNoise_Jumbo[mLeft];  noiseRight = meridianNoise_Jumbo[mRight];  break;
+        case 1:  noiseLeft = meridianNoise_Large[mLeft];  noiseRight = meridianNoise_Large[mRight];  break;
+        case 2:  noiseLeft = meridianNoise_Medium[mLeft]; noiseRight = meridianNoise_Medium[mRight]; break;
+        case 3:  noiseLeft = meridianNoise_Small[mLeft];  noiseRight = meridianNoise_Small[mRight];  break;
+        default: noiseLeft = meridianNoise_Tiny[mLeft];   noiseRight = meridianNoise_Tiny[mRight];   break;
+    }
     
     // Pole fade
     float poleFadeStart = 0.5 * phiStep;
@@ -126,14 +177,20 @@ float3 CalculateGrid(float3 ray) {
     // --- PARALLELS ---
     float p = phi / phiStep - 0.5;
     int pCell = int(floor(p));
-    int pLow = max(0, min(9, pCell));
-    int pHigh = max(0, min(9, pCell + 1));
+    int pLow = max(0, min(maxParallelIdx, pCell));
+    int pHigh = max(0, min(maxParallelIdx, pCell + 1));
     
     float distLow = abs(phi - (float(pLow) + 0.5) * phiStep);
     float distHigh = abs(phi - (float(pHigh) + 0.5) * phiStep);
     
-    float noiseLow = parallelNoise[pLow];
-    float noiseHigh = parallelNoise[pHigh];
+    float noiseLow, noiseHigh;
+    switch(preset) {
+        case 0:  noiseLow = parallelNoise_Jumbo[pLow];  noiseHigh = parallelNoise_Jumbo[pHigh];  break;
+        case 1:  noiseLow = parallelNoise_Large[pLow];  noiseHigh = parallelNoise_Large[pHigh];  break;
+        case 2:  noiseLow = parallelNoise_Medium[pLow]; noiseHigh = parallelNoise_Medium[pHigh]; break;
+        case 3:  noiseLow = parallelNoise_Small[pLow];  noiseHigh = parallelNoise_Small[pHigh];  break;
+        default: noiseLow = parallelNoise_Tiny[pLow];   noiseHigh = parallelNoise_Tiny[pHigh];   break;
+    }
     
     float3 glowP = seafoam * GridIntensity * (
         noiseLow / (distLow + GridThickness) + 
@@ -146,56 +203,42 @@ float3 CalculateGrid(float3 ray) {
 float4 PSMain(PSInput input) : SV_Target {
     float2 fragCoord = input.uv * Resolution;
     
-    // Convert UV to normalized device coordinates (-1 to 1)
-    // Correct for aspect ratio to maintain spherical appearance
     float aspect = Resolution.x / Resolution.y;
     float2 uv = float2(
         (input.uv.x - 0.5) * 2.0 * aspect,
         (input.uv.y - 0.5) * 2.0
     );
     
-    // CHROMATIC ABERRATION SETUP
-    // Perpendicular vector scaled by distance from center
     float2 perp = float2(-uv.y, uv.x) * ChromaticAberrationStrength;
     
-    // Offsets for R and B (G stays centered)
     float2 uvR = uv + perp;
     float2 uvG = uv;
     float2 uvB = uv - perp;
     
-    // Generate view rays (Z-forward, matching Unity/KSP camera space)
-    // tan(fov/2) = 1.0 at 90 deg FOV, but we need to match ShadeRED's 1.732 factor
-    // 1.732 = tan(60 deg), which gives 120 deg FOV total
     static const float focalLength = 1.732;
     
     float3 rayR = normalize(float3(uvR.x, uvR.y, focalLength));
     float3 rayG = normalize(float3(uvG.x, uvG.y, focalLength));
     float3 rayB = normalize(float3(uvB.x, uvB.y, focalLength));
     
-    // Transform from view space to world space using camera basis vectors
-    // This makes the grid "infinitely far" and locked to camera orientation like stars
     rayR = ViewToWorld(rayR, CameraRight, CameraUp, CameraForward);
     rayG = ViewToWorld(rayG, CameraRight, CameraUp, CameraForward);
     rayB = ViewToWorld(rayB, CameraRight, CameraUp, CameraForward);
     
-    // Apply pre-rotation in WORLD space (not view space)
-    // This ensures yaw/pitch rotate the grid relative to world axes, not view axes
     rayR = ApplyPreRotation(rayR, PreRotationYaw, PreRotationPitch);
     rayG = ApplyPreRotation(rayG, PreRotationYaw, PreRotationPitch);
     rayB = ApplyPreRotation(rayB, PreRotationYaw, PreRotationPitch);
     
-    // Calculate grid for each color channel
-    float3 colR = CalculateGrid(rayR);
-    float3 colG = CalculateGrid(rayG);
-    float3 colB = CalculateGrid(rayB);
+    int preset = GridSizePreset;
+    float3 colR = CalculateGrid(rayR, preset);
+    float3 colG = CalculateGrid(rayG, preset);
+    float3 colB = CalculateGrid(rayB, preset);
     
-    // Combine channels
     float3 col;
     col.r = colR.r;
     col.g = colG.g;
     col.b = colB.b;
     
-    // SCREEN-SPACE PHOSPHOR MASK
     float phase = frac(fragCoord.x / 3.0);
     float3 phosphor;
     if (phase < 0.33)       phosphor = float3(1.0, 0.3, 0.3);
@@ -203,14 +246,9 @@ float4 PSMain(PSInput input) : SV_Target {
     else                    phosphor = float3(0.3, 0.3, 1.0);
     
     col = col * phosphor * 1.4;
-    
-    // Tonemapping
     col = tanh(col);
     
-    // VIGNETTE (aspect-ratio correct)
-    // Calculate distance in normalized UV space (0-1 range) for aspect-correct vignette
-    float2 uvNormalized = input.uv * 2.0 - 1.0;  // -1 to 1
-    // Scale X to account for aspect ratio for circular vignette in screen space
+    float2 uvNormalized = input.uv * 2.0 - 1.0;
     uvNormalized.x *= aspect;
     float distFromCenter = length(uvNormalized);
     
