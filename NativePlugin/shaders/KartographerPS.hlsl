@@ -348,30 +348,58 @@ float4 PSMain(PSInput input) : SV_Target {
     }
     
     // ============================================================================
-    // SELECTION CIRCLE (Phase 2)
+    // SELECTION CIRCLE (Phase 2) - DEBUG: 3 concentric circles
     // ============================================================================
     if (SelectionCircleEnabled) {
         float3 shapeColor = kGridColors[GridColorIndex];
         
         float2 center = SelectionCircleCenter;
-        float r = SelectionCircleRadius;
         float thick = SelectionCircleThickness;
-        
-        // Apply CA by offsetting center per-channel
-        float2 caOffset = perp * r * 0.1;
-        
-        float dR = SDF_Circle(uvR.xy, center + caOffset, r);
-        float dG = SDF_Circle(uvG.xy, center, r);
-        float dB = SDF_Circle(uvB.xy, center - caOffset, r);
-        
-        // Apply flicker if SelectionCircleT < 1.0 (phase 4), otherwise steady
         float flicker = SelectionCircleT >= 1.0 ? 1.0 : SelectionCircleT;
         
-        float3 circleGlow = shapeColor * SelectionCircleIntensity * flicker * float3(
-            1.0 / (abs(dR) + thick),
-            1.0 / (abs(dG) + thick),
-            1.0 / (abs(dB) + thick)
-        );
+        float3 circleGlow = float3(0,0,0);
+        
+        // Inner circle (r=0.02)
+        {
+            float r = 0.02;
+            float2 caOffset = perp * r * 0.1;
+            float dR = SDF_Circle(uvR.xy, center + caOffset, r);
+            float dG = SDF_Circle(uvG.xy, center, r);
+            float dB = SDF_Circle(uvB.xy, center - caOffset, r);
+            circleGlow += shapeColor * SelectionCircleIntensity * flicker * float3(
+                1.0 / (abs(dR) + thick),
+                1.0 / (abs(dG) + thick),
+                1.0 / (abs(dB) + thick)
+            );
+        }
+        
+        // Middle circle (r=0.03)
+        {
+            float r = 0.03;
+            float2 caOffset = perp * r * 0.1;
+            float dR = SDF_Circle(uvR.xy, center + caOffset, r);
+            float dG = SDF_Circle(uvG.xy, center, r);
+            float dB = SDF_Circle(uvB.xy, center - caOffset, r);
+            circleGlow += shapeColor * SelectionCircleIntensity * flicker * float3(
+                1.0 / (abs(dR) + thick),
+                1.0 / (abs(dG) + thick),
+                1.0 / (abs(dB) + thick)
+            );
+        }
+        
+        // Outer circle (r=0.04)
+        {
+            float r = 0.04;
+            float2 caOffset = perp * r * 0.1;
+            float dR = SDF_Circle(uvR.xy, center + caOffset, r);
+            float dG = SDF_Circle(uvG.xy, center, r);
+            float dB = SDF_Circle(uvB.xy, center - caOffset, r);
+            circleGlow += shapeColor * SelectionCircleIntensity * flicker * float3(
+                1.0 / (abs(dR) + thick),
+                1.0 / (abs(dG) + thick),
+                1.0 / (abs(dB) + thick)
+            );
+        }
         
         col += circleGlow;
     }

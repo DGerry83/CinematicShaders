@@ -192,9 +192,10 @@ def generate_catalog_json(bin_file, csv_path, constellations, output_name):
                 pass
             
             # Add Cartesian direction vectors for GPU projection (x, y, z in world space)
+            # Must match convert_hyg.py which flips Y to correct mirroring
             try:
                 entry['x'] = float(row.get('x', '0'))
-                entry['y'] = float(row.get('y', '0'))
+                entry['y'] = -float(row.get('y', '0'))
                 entry['z'] = float(row.get('z', '0'))
             except ValueError:
                 entry['x'] = 0.0
