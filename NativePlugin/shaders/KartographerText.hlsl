@@ -1,8 +1,8 @@
 // Kartographer Text Compute Shader
-// Scatters SDF glyphs from atlas into a render target for sampling by KartographerPS
+// Scatters bitmap glyphs from atlas into a render target for sampling by KartographerPS
 // 
 // Inputs:
-//   t0: Atlas texture (R8_UNORM SDF)
+//   t0: Atlas texture (R8_UNORM bitmap coverage)
 //   t1: Glyph instance structured buffer
 //   u0: Output texture (RGBA8 UAV)
 //
@@ -15,7 +15,7 @@ struct GlyphData
     float2 size;     // Output size in pixels
     float4 uv;       // Atlas UV rect (x, y, width, height)
     uint color;      // Packed ARGB
-    float smoothing; // 1.0 / (spread * scale)
+    float smoothing; // unused in bitmap path
 };
 
 cbuffer TextParams : register(b0)
@@ -29,7 +29,7 @@ Texture2D<float> Atlas : register(t0);
 StructuredBuffer<GlyphData> Glyphs : register(t1);
 RWTexture2D<float4> Output : register(u0);
 
-SamplerState LinearClamp : register(s0);
+SamplerState PointClamp : register(s0);
 
 // Unpack ARGB color to float4 RGBA
 float4 UnpackColor(uint color)
@@ -64,15 +64,16 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     {
         for (int x = minPixel.x; x < maxPixel.x; x++)
         {
-            float2 pixelPos = float2(x, y);
-            float2 uv = (pixelPos - g.pos) / g.size;
+            // Sample at destination pixel center for accurate point sampling
+            float2 local = float2(x + 0.5, y + 0.5) - g.pos;
+            float2 uv = local / g.size;
             
-            // Sample atlas
+            // Clamp to avoid right/bottom edge spill due to precision
+            uv = saturate(uv);
+            
+            // Sample bitmap atlas (coverage alpha, not SDF distance)
             float2 atlasUV = float2(g.uv.x, g.uv.y) + uv * float2(g.uv.z, g.uv.w);
-            float dist = Atlas.SampleLevel(LinearClamp, atlasUV, 0);
-            
-            // Convert SDF to alpha (0.5 = edge in normalized SDF)
-            float alpha = smoothstep(0.5 - g.smoothing, 0.5 + g.smoothing, dist);
+            float alpha = Atlas.SampleLevel(PointClamp, atlasUV, 0);
             
             if (alpha > 0.0)
             {

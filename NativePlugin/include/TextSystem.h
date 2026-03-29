@@ -13,14 +13,16 @@ namespace CinematicShaders {
 // Glyph metric data - atlas UVs and pixel dimensions
 struct GlyphMetric {
     float advance;      // Horizontal advance for layout
-    float leftBearing;  // Left side bearing
-    float topBearing;   // Top side bearing
+    float leftBearing;  // Left side bearing (legacy)
+    float topBearing;   // Top side bearing (legacy)
+    float xOffset;      // SDF x offset from stbtt_GetCodepointSDF
+    float yOffset;      // SDF y offset from stbtt_GetCodepointSDF
     float u0, v0;       // Top-left UV in atlas [0-1]
     float u1, v1;       // Bottom-right UV in atlas [0-1]
     int width;          // Pixel width in atlas
     int height;         // Pixel height in atlas
     
-    GlyphMetric() : advance(0), leftBearing(0), topBearing(0),
+    GlyphMetric() : advance(0), leftBearing(0), topBearing(0), xOffset(0), yOffset(0),
                     u0(0), v0(0), u1(0), v1(0), width(0), height(0) {}
 };
 
@@ -35,13 +37,13 @@ struct GlyphInstance {
     float uvW;       // Atlas UV rect width
     float uvH;       // Atlas UV rect height
     uint32_t color;  // Packed ARGB
-    float smoothing; // 1.0 / (spread * scale)
+    float smoothing; // unused in bitmap path (kept for struct alignment)
     
     GlyphInstance() : posX(0), posY(0), sizeX(0), sizeY(0),
                       uvX(0), uvY(0), uvW(0), uvH(0), color(0xFFFFFFFF), smoothing(1.0f) {}
 };
 
-// Text rendering system using SDF atlas
+// Text rendering system using bitmap atlas
 class TextSystem {
 public:
     TextSystem();
@@ -74,20 +76,14 @@ public:
     // Debug: Export atlas to PGM file
     void ExportAtlasToFile(const char* filename);
     
-    // Debug: Export first glyph's intermediate steps
+    // Debug: Export first glyph's bitmap from atlas
     void ExportGlyphDebug(const char* baseFilename);
     
 private:
     // Ensure glyph is packed into atlas (rasterizes if needed)
     bool PackGlyph(int codepoint);
     
-    // Rasterize glyph to bitmap using stb_truetype
-    uint8_t* RasterizeGlyph(int codepoint, int& outW, int& outH);
-    
-    // Generate SDF from bitmap using 8SSEDT
-    void GenerateSDF(const uint8_t* bitmap, int w, int h, uint8_t* outSDF, int outW, int outH);
-    
-    // Upload glyph SDF to atlas texture
+    // Upload glyph bitmap to atlas texture
     void UpdateAtlasRegion(int x, int y, int w, int h, const uint8_t* data);
     
 private:
@@ -108,15 +104,19 @@ private:
     int m_lineGap;
     
     // Atlas packing state
-    std::vector<uint8_t> m_atlasPixels;  // CPU-side atlas for SDF generation
+    std::vector<uint8_t> m_atlasPixels;  // CPU-side atlas for glyph bitmaps
     int m_atlasWidth;
     int m_atlasHeight;
     int m_atlasX;        // Current packing position
     int m_atlasY;
     int m_atlasRowHeight;
     
-    // Glyph cache
+    // Glyph cache (cleared when font size changes)
     std::unordered_map<int, GlyphMetric> m_glyphCache;
+    int m_cachedFontPx = 0;  // Quantized font size to avoid float comparison issues
+    
+    // Clear atlas and glyph cache (called when font size changes)
+    void ClearAtlasAndCache();
     
     // Per-layout instance buffer
     std::vector<GlyphInstance> m_instances;
@@ -126,10 +126,8 @@ private:
     ID3D11ShaderResourceView* m_glyphBufferSRV = nullptr;
     int m_glyphBufferCapacity = 0;
     
-    // SDF parameters
-    static constexpr int SDF_PADDING = 4;      // Padding around glyph in atlas
-    static constexpr int SDF_SPREAD = 4;       // Distance field spread in pixels
-    static constexpr int SDF_DOWN_SAMPLE = 4;  // High-res bitmap is 4x final SDF size
+    // Atlas parameters
+    static constexpr int GLYPH_PADDING = 1;    // Minimal padding for pixel fonts
 };
 
 } // namespace CinematicShaders

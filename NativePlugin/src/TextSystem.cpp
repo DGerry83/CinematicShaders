@@ -18,126 +18,6 @@ extern void LogToFile(const char* fmt, ...);
 namespace CinematicShaders {
 
 // ============================================================================
-// 8SSEDT Distance Transform
-// ============================================================================
-
-// Helper struct for distance transform
-struct Point {
-    int x, y;
-    int distSq() const { return x * x + y * y; }
-};
-
-// 8-connected signed sequential Euclidean distance transform
-// Input: binary bitmap (0 = inside glyph, 255 = outside)
-// Output: 8-bit SDF where 128 = edge, 0 = inside, 255 = outside
-static void ComputeSDF(const uint8_t* input, int w, int h, uint8_t* output, int spread) {
-    std::vector<Point> grid(w * h);
-    
-    // Initialize: inside = (0,0), outside = infinity
-    const int INF = 1000000;
-    for (int y = 0; y < h; y++) {
-        for (int x = 0; x < w; x++) {
-            int idx = y * w + x;
-            // Binary threshold - assume input is anti-aliased
-            // Values < 128 considered "inside" (glyph)
-            if (input[idx] < 128) {
-                grid[idx] = {0, 0};
-            } else {
-                grid[idx] = {INF, INF};
-            }
-        }
-    }
-    
-    // Forward pass
-    for (int y = 0; y < h; y++) {
-        for (int x = 0; x < w; x++) {
-            int idx = y * w + x;
-            Point& p = grid[idx];
-            
-            // Check neighbors above and left
-            if (y > 0) {
-                Point test = grid[(y - 1) * w + x];
-                test.y++;
-                if (test.distSq() < p.distSq()) p = test;
-            }
-            if (x > 0) {
-                Point test = grid[y * w + (x - 1)];
-                test.x++;
-                if (test.distSq() < p.distSq()) p = test;
-            }
-            if (y > 0 && x > 0) {
-                Point test = grid[(y - 1) * w + (x - 1)];
-                test.x++; test.y++;
-                if (test.distSq() < p.distSq()) p = test;
-            }
-            if (y > 0 && x < w - 1) {
-                Point test = grid[(y - 1) * w + (x + 1)];
-                test.x--; test.y++;
-                if (test.distSq() < p.distSq()) p = test;
-            }
-        }
-    }
-    
-    // Backward pass
-    for (int y = h - 1; y >= 0; y--) {
-        for (int x = w - 1; x >= 0; x--) {
-            int idx = y * w + x;
-            Point& p = grid[idx];
-            
-            // Check neighbors below and right
-            if (y < h - 1) {
-                Point test = grid[(y + 1) * w + x];
-                test.y--;
-                if (test.distSq() < p.distSq()) p = test;
-            }
-            if (x < w - 1) {
-                Point test = grid[y * w + (x + 1)];
-                test.x--;
-                if (test.distSq() < p.distSq()) p = test;
-            }
-            if (y < h - 1 && x < w - 1) {
-                Point test = grid[(y + 1) * w + (x + 1)];
-                test.x--; test.y--;
-                if (test.distSq() < p.distSq()) p = test;
-            }
-            if (y < h - 1 && x > 0) {
-                Point test = grid[(y + 1) * w + (x - 1)];
-                test.x++; test.y--;
-                if (test.distSq() < p.distSq()) p = test;
-            }
-        }
-    }
-    
-    // Convert distances to 8-bit SDF
-    // Find max distance for proper normalization
-    float maxDist = 0;
-    for (int y = 0; y < h; y++) {
-        for (int x = 0; x < w; x++) {
-            float dist = std::sqrt(static_cast<float>(grid[y * w + x].distSq()));
-            if (dist > maxDist) maxDist = dist;
-        }
-    }
-    if (maxDist < 1) maxDist = 1; // Avoid divide by zero
-    
-    for (int y = 0; y < h; y++) {
-        for (int x = 0; x < w; x++) {
-            int idx = y * w + x;
-            float dist = std::sqrt(static_cast<float>(grid[idx].distSq()));
-            
-            // Normalize: 0 = center, 255 = far outside
-            // Use actual max distance for better contrast
-            float normalized = (dist / maxDist) * 255.0f;
-            
-            // Clamp to valid range
-            if (normalized < 0) normalized = 0;
-            if (normalized > 255) normalized = 255;
-            
-            output[idx] = static_cast<uint8_t>(normalized);
-        }
-    }
-}
-
-// ============================================================================
 // TextSystem Implementation
 // ============================================================================
 
@@ -154,8 +34,8 @@ TextSystem::TextSystem()
     , m_lineGap(0)
     , m_atlasWidth(0)
     , m_atlasHeight(0)
-    , m_atlasX(SDF_PADDING)
-    , m_atlasY(SDF_PADDING)
+    , m_atlasX(GLYPH_PADDING)
+    , m_atlasY(GLYPH_PADDING)
     , m_atlasRowHeight(0)
 {
 }
@@ -206,7 +86,7 @@ bool TextSystem::Init(ID3D11Device* device, const wchar_t* ttfPath, int atlasSiz
     m_atlasWidth = atlasSize;
     m_atlasHeight = atlasSize;
     m_atlasPixels.resize(m_atlasWidth * m_atlasHeight);
-    std::fill(m_atlasPixels.begin(), m_atlasPixels.end(), static_cast<uint8_t>(128));  // Neutral distance
+    std::fill(m_atlasPixels.begin(), m_atlasPixels.end(), static_cast<uint8_t>(0));  // Transparent background for bitmap atlas
     
     D3D11_TEXTURE2D_DESC texDesc = {};
     texDesc.Width = m_atlasWidth;
@@ -245,6 +125,16 @@ bool TextSystem::Init(ID3D11Device* device, const wchar_t* ttfPath, int atlasSiz
 }
 
 void TextSystem::Shutdown() {
+    if (m_glyphBufferSRV) {
+        m_glyphBufferSRV->Release();
+        m_glyphBufferSRV = nullptr;
+    }
+    if (m_glyphBuffer) {
+        m_glyphBuffer->Release();
+        m_glyphBuffer = nullptr;
+    }
+    m_glyphBufferCapacity = 0;
+    
     if (m_atlasSRV) {
         m_atlasSRV->Release();
         m_atlasSRV = nullptr;
@@ -267,82 +157,24 @@ void TextSystem::Shutdown() {
     m_atlasPixels.clear();
     m_glyphCache.clear();
     m_instances.clear();
+    m_cachedFontPx = 0;
     m_initialized = false;
 }
 
-uint8_t* TextSystem::RasterizeGlyph(int codepoint, int& outW, int& outH) {
-    int glyphIndex = stbtt_FindGlyphIndex(m_fontInfo, codepoint);
-    if (glyphIndex == 0) {
-        return nullptr;  // Glyph not found
-    }
-    
-    // Get glyph box
-    int x0, y0, x1, y1;
-    stbtt_GetGlyphBox(m_fontInfo, glyphIndex, &x0, &y0, &x1, &y1);
-    
-    // Scale to pixels
-    float scale = m_fontScale;
-    int w = static_cast<int>(std::ceil((x1 - x0) * scale)) + SDF_PADDING * 2;
-    int h = static_cast<int>(std::ceil((y1 - y0) * scale)) + SDF_PADDING * 2;
-    
-    if (w <= 0 || h <= 0) {
-        return nullptr;
-    }
-    
-    // Allocate bitmap
-    uint8_t* bitmap = new uint8_t[w * h];
-    std::fill(bitmap, bitmap + w * h, static_cast<uint8_t>(0));
-    
-    // Render glyph
-    int xOffset, yOffset;
-    stbtt_MakeGlyphBitmap(m_fontInfo, bitmap, w, h, w, scale, scale, glyphIndex);
-    
-    outW = w;
-    outH = h;
-    return bitmap;
-}
-
-void TextSystem::GenerateSDF(const uint8_t* bitmap, int w, int h, uint8_t* outSDF, int outW, int outH) {
-    // Input bitmap is already anti-aliased from stbtt
-    // We need to threshold it for the distance transform
-    uint8_t* binary = new uint8_t[w * h];
-    for (int i = 0; i < w * h; i++) {
-        binary[i] = (bitmap[i] > 128) ? 0 : 255;  // 0 = inside, 255 = outside
-    }
-    
-    // Compute SDF
-    std::vector<uint8_t> sdf(w * h);
-    ComputeSDF(binary, w, h, sdf.data(), SDF_SPREAD);
-    
-    delete[] binary;
-    
-    // Downsample to output size
-    // Simple box filter for now
-    int scaleX = w / outW;
-    int scaleY = h / outH;
-    
-    for (int y = 0; y < outH; y++) {
-        for (int x = 0; x < outW; x++) {
-            int sum = 0;
-            for (int sy = 0; sy < scaleY; sy++) {
-                for (int sx = 0; sx < scaleX; sx++) {
-                    int srcX = x * scaleX + sx;
-                    int srcY = y * scaleY + sy;
-                    sum += sdf[srcY * w + srcX];
-                }
-            }
-            outSDF[y * outW + x] = static_cast<uint8_t>(sum / (scaleX * scaleY));
-        }
-    }
-}
-
 void TextSystem::UpdateAtlasRegion(int x, int y, int w, int h, const uint8_t* data) {
+    // Defensive bounds check
+    if (x < 0 || y < 0 || x >= m_atlasWidth || y >= m_atlasHeight || w <= 0 || h <= 0) {
+        return;
+    }
+    
     // Update CPU-side atlas
     for (int row = 0; row < h; row++) {
         if (y + row >= m_atlasHeight) break;
+        int copyW = std::min(w, m_atlasWidth - x);
+        if (copyW <= 0) return;
         std::memcpy(&m_atlasPixels[(y + row) * m_atlasWidth + x], 
                     &data[row * w], 
-                    std::min(w, m_atlasWidth - x));
+                    copyW);
     }
     
     // Update GPU texture
@@ -363,68 +195,105 @@ bool TextSystem::PackGlyph(int codepoint) {
     if (it != m_glyphCache.end()) {
         return true;
     }
-    
-    // Rasterize at high resolution for SDF
-    int bmpW, bmpH;
-    uint8_t* bitmap = RasterizeGlyph(codepoint, bmpW, bmpH);
-    if (!bitmap) {
-        return false;
-    }
-    
-    // Generate SDF (same size for now, could downsample)
-    int sdfW = bmpW;
-    int sdfH = bmpH;
-    uint8_t* sdf = new uint8_t[sdfW * sdfH];
-    GenerateSDF(bitmap, bmpW, bmpH, sdf, sdfW, sdfH);
-    
-    delete[] bitmap;
-    
-    // Find position in atlas
-    if (m_atlasX + sdfW > m_atlasWidth) {
-        // Move to next row
-        m_atlasX = SDF_PADDING;
-        m_atlasY += m_atlasRowHeight + SDF_PADDING;
-        m_atlasRowHeight = 0;
-    }
-    
-    if (m_atlasY + sdfH > m_atlasHeight) {
-        // Atlas full
-        delete[] sdf;
-        return false;
-    }
-    
-    // Store metric
-    GlyphMetric metric;
-    
-    // Get metrics for layout
+
+    // Find glyph index (0 = .notdef fallback, which is valid)
     int glyphIndex = stbtt_FindGlyphIndex(m_fontInfo, codepoint);
-    int advance, leftBearing;
+
+    // Get glyph bitmap bounding box
+    int ix0, iy0, ix1, iy1;
+    stbtt_GetCodepointBitmapBox(m_fontInfo, codepoint, m_fontScale, m_fontScale, &ix0, &iy0, &ix1, &iy1);
+    
+    int bmpW = ix1 - ix0;
+    int bmpH = iy1 - iy0;
+    int xoff = ix0;
+    int yoff = iy0;
+    
+    // Get horizontal metrics for layout advance
+    int advance = 0, leftBearing = 0;
     stbtt_GetGlyphHMetrics(m_fontInfo, glyphIndex, &advance, &leftBearing);
     
-    int x0, y0, x1, y1;
-    stbtt_GetGlyphBox(m_fontInfo, glyphIndex, &x0, &y0, &x1, &y1);
+    if (bmpW <= 0 || bmpH <= 0) {
+        // Zero-width glyph (space, etc) - still need metrics but no bitmap
+        GlyphMetric metric = {};
+        metric.advance = advance * m_fontScale;
+        metric.xOffset = 0;
+        metric.yOffset = 0;
+        metric.width = 0;
+        metric.height = 0;
+        metric.u0 = metric.v0 = metric.u1 = metric.v1 = 0;
+        
+        m_glyphCache[codepoint] = metric;
+        return true;
+    }
+
+    // Find position in atlas
+    if (m_atlasX + bmpW > m_atlasWidth) {
+        // Move to next row
+        m_atlasX = GLYPH_PADDING;
+        m_atlasY += m_atlasRowHeight + GLYPH_PADDING;
+        m_atlasRowHeight = 0;
+    }
+
+    if (m_atlasY + bmpH > m_atlasHeight) {
+        // Atlas full
+        return false;
+    }
+
+    // Allocate temp buffer and render bitmap
+    std::vector<unsigned char> bitmap(bmpW * bmpH, 0);
     
+    // Render the glyph bitmap - this fills the buffer with 8-bit coverage values
+    stbtt_MakeCodepointBitmap(
+        m_fontInfo,
+        bitmap.data(),
+        bmpW,
+        bmpH,
+        bmpW, // stride
+        m_fontScale,
+        m_fontScale,
+        codepoint
+    );
+
+    // Store metric
+    GlyphMetric metric = {};
     metric.advance = advance * m_fontScale;
-    metric.leftBearing = leftBearing * m_fontScale;
-    metric.topBearing = y1 * m_fontScale;
-    metric.u0 = static_cast<float>(m_atlasX) / m_atlasWidth;
-    metric.v0 = static_cast<float>(m_atlasY) / m_atlasHeight;
-    metric.u1 = static_cast<float>(m_atlasX + sdfW) / m_atlasWidth;
-    metric.v1 = static_cast<float>(m_atlasY + sdfH) / m_atlasHeight;
-    metric.width = sdfW;
-    metric.height = sdfH;
-    
+    metric.leftBearing = leftBearing * m_fontScale;  // metadata only; xOffset used for placement
+    metric.topBearing = 0.0f;  // unused in bitmap path; yOffset from bitmap box is authoritative
+    metric.xOffset = static_cast<float>(xoff);  // offset to bitmap left
+    metric.yOffset = static_cast<float>(yoff);  // offset to bitmap top (negative)
+
+    metric.u0 = static_cast<float>(m_atlasX) / static_cast<float>(m_atlasWidth);
+    metric.v0 = static_cast<float>(m_atlasY) / static_cast<float>(m_atlasHeight);
+    metric.u1 = static_cast<float>(m_atlasX + bmpW) / static_cast<float>(m_atlasWidth);
+    metric.v1 = static_cast<float>(m_atlasY + bmpH) / static_cast<float>(m_atlasHeight);
+
+    metric.width = bmpW;
+    metric.height = bmpH;
+
     // Upload to atlas
-    UpdateAtlasRegion(m_atlasX, m_atlasY, sdfW, sdfH, sdf);
-    
-    delete[] sdf;
-    
-    // Update packing state
+    UpdateAtlasRegion(m_atlasX, m_atlasY, bmpW, bmpH, bitmap.data());
+
+    // Cache metric
     m_glyphCache[codepoint] = metric;
-    m_atlasX += sdfW + SDF_PADDING;
-    m_atlasRowHeight = std::max(m_atlasRowHeight, sdfH);
-    
+
+    // Update packing state
+    m_atlasX += bmpW + GLYPH_PADDING;
+    m_atlasRowHeight = std::max(m_atlasRowHeight, bmpH);
+
     return true;
+}
+
+void TextSystem::ClearAtlasAndCache() {
+    m_glyphCache.clear();
+    m_atlasX = GLYPH_PADDING;
+    m_atlasY = GLYPH_PADDING;
+    m_atlasRowHeight = 0;
+    std::fill(m_atlasPixels.begin(), m_atlasPixels.end(), static_cast<uint8_t>(0));
+    
+    // Clear the D3D texture as well
+    if (m_context && m_atlasTex) {
+        m_context->UpdateSubresource(m_atlasTex, 0, nullptr, m_atlasPixels.data(), m_atlasWidth, 0);
+    }
 }
 
 int TextSystem::LayoutString(const char* text, float fontSize, uint32_t color) {
@@ -432,10 +301,19 @@ int TextSystem::LayoutString(const char* text, float fontSize, uint32_t color) {
         return 0;
     }
     
+    // Quantize font size to integer pixels (pixel fonts should use integer sizes)
+    int fontPx = static_cast<int>(std::round(fontSize));
+    
+    // Clear cache if font size changed (glyphs are size-specific)
+    if (fontPx != m_cachedFontPx) {
+        ClearAtlasAndCache();
+        m_cachedFontPx = fontPx;
+    }
+    
     m_instances.clear();
     
     // Set font scale for this layout
-    m_fontScale = stbtt_ScaleForPixelHeight(m_fontInfo, fontSize);
+    m_fontScale = stbtt_ScaleForPixelHeight(m_fontInfo, static_cast<float>(fontPx));
     
     float cursorX = 0.0f;
     float cursorY = 0.0f;
@@ -458,10 +336,12 @@ int TextSystem::LayoutString(const char* text, float fontSize, uint32_t color) {
         
         const GlyphMetric& m = m_glyphCache[codepoint];
         
-        // Create instance
+        // Create instance using bitmap positioning
         GlyphInstance inst;
-        inst.posX = cursorX + m.leftBearing;
-        inst.posY = cursorY + (m_ascent * m_fontScale) - m.topBearing;
+        // xOffset/yOffset are pixel offsets from baseline to bitmap top-left
+        // Snap to integers for pixel-perfect rendering (critical for pixel fonts)
+        inst.posX = std::round(cursorX + m.xOffset);
+        inst.posY = std::round(cursorY + (m_ascent * m_fontScale) + m.yOffset);
         inst.sizeX = static_cast<float>(m.width);
         inst.sizeY = static_cast<float>(m.height);
         inst.uvX = m.u0;
@@ -469,12 +349,19 @@ int TextSystem::LayoutString(const char* text, float fontSize, uint32_t color) {
         inst.uvW = m.u1 - m.u0;
         inst.uvH = m.v1 - m.v0;
         inst.color = color;
-        inst.smoothing = 1.0f / (SDF_SPREAD * m_fontScale);
+        // No smoothing for bitmap fonts - we want crisp pixels
+        inst.smoothing = 0.0f;
         
         m_instances.push_back(inst);
         
-        // Advance cursor
+        // Advance cursor by glyph advance
         cursorX += m.advance;
+        
+        // Apply kerning with next character
+        if (*(p + 1) && *(p + 1) != '\n') {
+            int nextCodepoint = static_cast<unsigned char>(*(p + 1));
+            cursorX += stbtt_GetCodepointKernAdvance(m_fontInfo, codepoint, nextCodepoint) * m_fontScale;
+        }
     }
     
     return static_cast<int>(m_instances.size());
@@ -514,54 +401,39 @@ void TextSystem::ExportGlyphDebug(const char* baseFilename) {
     int codepoint = it->first;
     const GlyphMetric& metric = it->second;
     
-    LogToFile("[Text] ExportGlyphDebug: Exporting glyph %d (codepoint %d)", 
-              stbtt_FindGlyphIndex(m_fontInfo, codepoint), codepoint);
+    LogToFile("[Text] ExportGlyphDebug: Exporting glyph %d (codepoint %d) size %dx%d", 
+              stbtt_FindGlyphIndex(m_fontInfo, codepoint), codepoint, metric.width, metric.height);
     
-    // 1. Export raw bitmap
-    int rawW, rawH;
-    uint8_t* rawBitmap = RasterizeGlyph(codepoint, rawW, rawH);
-    if (rawBitmap) {
-        char rawName[256];
-        snprintf(rawName, sizeof(rawName), "%s_raw.pgm", baseFilename);
-        std::ofstream rawFile(rawName, std::ios::binary);
-        if (rawFile.is_open()) {
-            rawFile << "P5\n" << rawW << " " << rawH << "\n255\n";
-            rawFile.write(reinterpret_cast<const char*>(rawBitmap), rawW * rawH);
-            rawFile.close();
-            LogToFile("[Text] Raw bitmap exported: %s (%dx%d)", rawName, rawW, rawH);
+    // Extract glyph bitmap from atlas
+    if (metric.width > 0 && metric.height > 0) {
+        // Convert UV coordinates back to pixel coordinates
+        int atlasX = static_cast<int>(metric.u0 * m_atlasWidth);
+        int atlasY = static_cast<int>(metric.v0 * m_atlasHeight);
+        
+        // Extract glyph from atlas
+        std::vector<uint8_t> glyphBitmap(metric.width * metric.height);
+        for (int y = 0; y < metric.height; y++) {
+            int srcRow = atlasY + y;
+            int dstRow = y;
+            if (srcRow < m_atlasHeight) {
+                std::memcpy(&glyphBitmap[dstRow * metric.width],
+                           &m_atlasPixels[srcRow * m_atlasWidth + atlasX],
+                           metric.width);
+            }
         }
         
-        // 2. Export binary threshold
-        uint8_t* binary = new uint8_t[rawW * rawH];
-        for (int i = 0; i < rawW * rawH; i++) {
-            binary[i] = (rawBitmap[i] > 128) ? 0 : 255;
+        // Export glyph bitmap
+        char glyphName[256];
+        snprintf(glyphName, sizeof(glyphName), "%s_glyph.pgm", baseFilename);
+        std::ofstream glyphFile(glyphName, std::ios::binary);
+        if (glyphFile.is_open()) {
+            glyphFile << "P5\n" << metric.width << " " << metric.height << "\n255\n";
+            glyphFile.write(reinterpret_cast<const char*>(glyphBitmap.data()), 
+                           metric.width * metric.height);
+            glyphFile.close();
+            LogToFile("[Text] Glyph bitmap exported: %s (%dx%d)", 
+                     glyphName, metric.width, metric.height);
         }
-        char binaryName[256];
-        snprintf(binaryName, sizeof(binaryName), "%s_binary.pgm", baseFilename);
-        std::ofstream binaryFile(binaryName, std::ios::binary);
-        if (binaryFile.is_open()) {
-            binaryFile << "P5\n" << rawW << " " << rawH << "\n255\n";
-            binaryFile.write(reinterpret_cast<const char*>(binary), rawW * rawH);
-            binaryFile.close();
-            LogToFile("[Text] Binary threshold exported: %s", binaryName);
-        }
-        
-        // 3. Export SDF
-        uint8_t* sdf = new uint8_t[rawW * rawH];
-        ComputeSDF(binary, rawW, rawH, sdf, SDF_SPREAD);
-        char sdfName[256];
-        snprintf(sdfName, sizeof(sdfName), "%s_sdf.pgm", baseFilename);
-        std::ofstream sdfFile(sdfName, std::ios::binary);
-        if (sdfFile.is_open()) {
-            sdfFile << "P5\n" << rawW << " " << rawH << "\n255\n";
-            sdfFile.write(reinterpret_cast<const char*>(sdf), rawW * rawH);
-            sdfFile.close();
-            LogToFile("[Text] SDF exported: %s", sdfName);
-        }
-        
-        delete[] binary;
-        delete[] sdf;
-        delete[] rawBitmap;
     }
 }
 
@@ -605,7 +477,7 @@ ID3D11Buffer* TextSystem::GetOrCreateGlyphBuffer() {
         D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
         srvDesc.Format = DXGI_FORMAT_UNKNOWN;
         srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-        srvDesc.Buffer.ElementWidth = instanceSize;
+        srvDesc.Buffer.FirstElement = 0;
         srvDesc.Buffer.NumElements = m_glyphBufferCapacity;
         
         hr = m_device->CreateShaderResourceView(m_glyphBuffer, &srvDesc, &m_glyphBufferSRV);

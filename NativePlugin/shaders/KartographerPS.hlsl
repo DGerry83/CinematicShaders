@@ -362,11 +362,21 @@ float4 PSMain(PSInput input) : SV_Target {
         // TextOrigin and TextAreaSize are in shader-uv space (center=0, +Y=UP)
         float2 textLocal = (uv - TextOrigin) / TextAreaSize;
         
+        // Flip Y because texture UV has 0 at top, shader has +Y=up
+        textLocal.y = 1.0 - textLocal.y;
+        
         if (textLocal.x >= 0.0 && textLocal.x <= 1.0 && 
             textLocal.y >= 0.0 && textLocal.y <= 1.0)
         {
-            float4 textColor = TextTexture.SampleLevel(TextSampler, textLocal, 0);
-            shapeAccum += shapeColor * textColor.rgb * textColor.a * SelectionTextT;
+            // Sample bitmap: stb_truetype returns 8-bit coverage (0=empty, 255=full)
+            // Use point sampling for crisp pixel fonts - direct coverage gives best results
+            float coverage = TextTexture.SampleLevel(TextSampler, textLocal, 0).r;
+            
+            // Direct coverage for authentic pixel font look
+            // For hard thresholding (more DOS-like): float alpha = (coverage >= 0.5) ? 1.0 : 0.0;
+            float alpha = coverage;
+            
+            shapeAccum += shapeColor * alpha * SelectionTextT;
         }
         
         col += shapeAccum;
