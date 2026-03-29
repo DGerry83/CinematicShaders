@@ -305,6 +305,10 @@ namespace CinematicShaders.Core
             StarfieldNative.CR_StarfieldSetSettings(ref nativeSettings);
             
             // Push Kartographer parameters
+            float focalLength = Shaders.Starfield.StarfieldCompositor.CachedVerticalFOV > 0.001f
+                ? 1.0f / Mathf.Tan(Shaders.Starfield.StarfieldCompositor.CachedVerticalFOV * 0.5f)
+                : 1.732f;
+
             var kartParams = new StarfieldNative.KartographerParamsNative
             {
                 GridIntensity = KartographerGridIntensity,
@@ -316,7 +320,8 @@ namespace CinematicShaders.Core
                 PreRotationYaw = KartographerRotationYaw,
                 PreRotationPitch = KartographerRotationPitch,
                 GridSizePreset = KartographerGridSize,
-                GridColorIndex = KartographerGridColor
+                GridColorIndex = KartographerGridColor,
+                FocalLength = focalLength
             };
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
 

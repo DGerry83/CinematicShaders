@@ -24,6 +24,9 @@ namespace CinematicShaders.Shaders.Starfield
         private Vector3 _cachedCameraRight;
         private Vector3 _cachedCameraUp;
         private Vector3 _cachedCameraForward;
+        private float _cachedVerticalFOV;
+
+        public static float CachedVerticalFOV { get; private set; } = 60f * Mathf.Deg2Rad;
 
         void OnEnable()
         {
@@ -321,6 +324,8 @@ namespace CinematicShaders.Shaders.Starfield
             _cachedCameraRight = right;
             _cachedCameraUp = up;
             _cachedCameraForward = forward;
+            _cachedVerticalFOV = verticalFOV;
+            CachedVerticalFOV = verticalFOV;
         }
 
         void Update()
@@ -380,11 +385,11 @@ namespace CinematicShaders.Shaders.Starfield
             // This will be called to update the selector - the actual implementation
             // needs access to the KartographerTab which is managed by the window
             // For now, we'll use a callback pattern
-            KartographerSelectorCallback?.Invoke(_cachedCameraRight, _cachedCameraUp, _cachedCameraForward, _cachedAspect);
+            KartographerSelectorCallback?.Invoke(_cachedCameraRight, _cachedCameraUp, _cachedCameraForward, _cachedAspect, _cachedVerticalFOV);
         }
         
         // Callback for KartographerTab to receive camera updates
-        public static System.Action<Vector3, Vector3, Vector3, float> KartographerSelectorCallback;
+        public static System.Action<Vector3, Vector3, Vector3, float, float> KartographerSelectorCallback;
 
         // Called by manager when settings change
         public void InvalidateResources()

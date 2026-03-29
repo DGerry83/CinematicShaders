@@ -51,7 +51,7 @@ cbuffer KartographerCB : register(b0) {
     float DebugBoxThickness;    // offset 160
     float DebugShapeIntensity;  // offset 164
     float _pad9;
-    float _pad10;
+    float FocalLength;
     
     // Selection circle (32 bytes) - offsets 176-207
     int SelectionCircleEnabled;     // offset 176
@@ -279,7 +279,7 @@ float4 PSMain(PSInput input) : SV_Target {
     float2 uvG = uv;
     float2 uvB = uv - perp;
     
-    static const float focalLength = 1.732;
+    float focalLength = max(FocalLength, 0.001);
     
     float3 rayR = normalize(float3(uvR.x, uvR.y, focalLength));
     float3 rayG = normalize(float3(uvG.x, uvG.y, focalLength));

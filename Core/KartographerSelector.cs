@@ -37,6 +37,7 @@ namespace CinematicShaders.Core
         public Vector3 CameraUp { get; set; }
         public Vector3 CameraForward { get; set; }
         public float AspectRatio { get; set; } = 1.777f;
+        public float VerticalFOV { get; set; } = 1.0472f; // ~60 degrees default
 
         // Enable/disable selection circle rendering
         public bool SelectionCircleEnabled { get; set; } = false;
@@ -268,13 +269,22 @@ namespace CinematicShaders.Core
                 return;
             }
 
+            // Apply catalog rotation to star direction (HYG catalogs are rotated to match game coords)
+            Vector3 rotatedDir = KartographerMath.ApplyCatalogRotation(
+                TrackedStar.Direction,
+                StarfieldSettings.RotationX,
+                StarfieldSettings.RotationY,
+                StarfieldSettings.RotationZ
+            );
+
             // Project to screen space
             TrackedStarScreenUV = KartographerMath.WorldDirectionToScreenUV(
-                TrackedStar.Direction,
+                rotatedDir,
                 CameraRight,
                 CameraUp,
                 CameraForward,
-                AspectRatio
+                AspectRatio,
+                VerticalFOV
             );
 
             // Push to native if on screen
@@ -290,6 +300,16 @@ namespace CinematicShaders.Core
             if (!StarfieldNative.IsLoaded)
                 return;
 
+            // Convert [0,1] screen UV to shader-uv space where center is (0,0)
+            float u = TrackedStarScreenUV.x;
+            float v = TrackedStarScreenUV.y;
+            float centerX = (u - 0.5f) * 2.0f * AspectRatio;
+            float centerY = (v - 0.5f) * 2.0f;
+
+            float focalLength = VerticalFOV > 0.001f
+                ? 1.0f / Mathf.Tan(VerticalFOV * 0.5f)
+                : 1.732f;
+
             // Get current params first
             var kartParams = new StarfieldNative.KartographerParamsNative
             {
@@ -304,9 +324,10 @@ namespace CinematicShaders.Core
                 GridSizePreset = StarfieldSettings.KartographerGridSize,
                 GridColorIndex = StarfieldSettings.KartographerGridColor,
                 DebugShapesEnabled = 0,
+                FocalLength = focalLength,
                 SelectionCircleEnabled = visible ? 1 : 0,
-                SelectionCircleCenterX = TrackedStarScreenUV.x,
-                SelectionCircleCenterY = TrackedStarScreenUV.y,
+                SelectionCircleCenterX = centerX,
+                SelectionCircleCenterY = centerY,
                 SelectionCircleT = 1.0f, // Steady (no flicker for now)
                 SelectionCircleIntensity = 0.002f,
                 SelectionCircleThickness = 0.001f,

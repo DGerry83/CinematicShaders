@@ -208,7 +208,7 @@ namespace CinematicShaders.Native
             public float DebugBoxThickness;        // offset 160
             public float DebugShapeIntensity;      // offset 164
             public float _pad9;                    // offset 168
-            public float _pad10;                   // offset 172
+            public float FocalLength;              // offset 172
             
             // Selection circle (32 bytes) - offsets 176-207
             public int SelectionCircleEnabled;     // offset 176

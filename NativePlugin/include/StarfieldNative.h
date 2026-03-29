@@ -203,7 +203,7 @@ struct KartographerParamsNative {
     float DebugBoxThickness;        // offset 160
     float DebugShapeIntensity;      // offset 164
     float _pad9;                    // offset 168
-    float _pad10;                   // offset 172
+    float FocalLength;              // offset 172
     
     // Selection circle (32 bytes) - offsets 176-207
     int SelectionCircleEnabled;     // offset 176

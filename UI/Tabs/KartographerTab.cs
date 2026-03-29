@@ -31,7 +31,7 @@ namespace CinematicShaders.UI.Tabs
             StarfieldCompositor.KartographerSelectorCallback = OnCameraUpdate;
         }
         
-        private void OnCameraUpdate(Vector3 right, Vector3 up, Vector3 forward, float aspect)
+        private void OnCameraUpdate(Vector3 right, Vector3 up, Vector3 forward, float aspect, float verticalFOV)
         {
             if (_selector != null && _trackPolaris)
             {
@@ -39,6 +39,7 @@ namespace CinematicShaders.UI.Tabs
                 _selector.CameraUp = up;
                 _selector.CameraForward = forward;
                 _selector.AspectRatio = aspect;
+                _selector.VerticalFOV = verticalFOV;
                 _selector.Update();
             }
         }
@@ -311,6 +312,10 @@ namespace CinematicShaders.UI.Tabs
 
         private void PushKartographerParams()
         {
+            float focalLength = StarfieldCompositor.CachedVerticalFOV > 0.001f
+                ? 1.0f / Mathf.Tan(StarfieldCompositor.CachedVerticalFOV * 0.5f)
+                : 1.732f;
+
             var kartParams = new StarfieldNative.KartographerParamsNative
             {
                 GridIntensity = StarfieldSettings.KartographerGridIntensity,
@@ -323,7 +328,8 @@ namespace CinematicShaders.UI.Tabs
                 PreRotationPitch = StarfieldSettings.KartographerRotationPitch,
                 GridSizePreset = StarfieldSettings.KartographerGridSize,
                 GridColorIndex = StarfieldSettings.KartographerGridColor,
-                DebugShapesEnabled = _debugShapesEnabled ? 1 : 0
+                DebugShapesEnabled = _debugShapesEnabled ? 1 : 0,
+                FocalLength = focalLength
             };
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
         }
@@ -377,7 +383,7 @@ namespace CinematicShaders.UI.Tabs
         /// <summary>
         /// Called by StarfieldCompositor to update selector with camera data
         /// </summary>
-        public void UpdateSelector(Vector3 right, Vector3 up, Vector3 forward, float aspect)
+        public void UpdateSelector(Vector3 right, Vector3 up, Vector3 forward, float aspect, float verticalFOV)
         {
             if (_selector != null && _trackPolaris)
             {
@@ -385,6 +391,7 @@ namespace CinematicShaders.UI.Tabs
                 _selector.CameraUp = up;
                 _selector.CameraForward = forward;
                 _selector.AspectRatio = aspect;
+                _selector.VerticalFOV = verticalFOV;
                 _selector.Update();
             }
         }

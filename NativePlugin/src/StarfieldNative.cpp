@@ -155,6 +155,7 @@ static struct {
     int kartographerGridSizePreset = 2;  // 0=Jumbo, 1=Large, 2=Medium, 3=Small, 4=Tiny
     int kartographerGridColor = 0;       // 0=Seafoam, 1=Amber, 2=White, 3=Green
     int kartographerDebugShapesEnabled = 0;  // Phase 1: Debug SDF shapes toggle
+    float kartographerFocalLength = 1.732f;  // Matches 60° vertical FOV
     
     // Kartographer selection circle (cached from C#)
     int kartographerSelectionCircleEnabled = 0;
@@ -312,7 +313,7 @@ struct KartographerParams {
     float DebugBoxThickness;        // offset 160
     float DebugShapeIntensity;      // offset 164
     float _pad9;                    // offset 168
-    float _pad10;                   // offset 172
+    float FocalLength;              // offset 172
     
     // Selection circle (32 bytes) - offsets 176-207
     int SelectionCircleEnabled;     // offset 176
@@ -1722,8 +1723,8 @@ static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
         params->_pad6 = 0.0f;
         params->_pad7 = 0.0f;
         params->_pad8 = 0.0f;
-        params->DebugCircleCenterX = 0.5f;  // Screen center in UV space
-        params->DebugCircleCenterY = 0.5f;
+        params->DebugCircleCenterX = 0.0f;  // Screen center in shader-uv space
+        params->DebugCircleCenterY = 0.0f;
         params->DebugCircleRadius = 0.05f;
         params->DebugCircleThickness = 0.001f;
         params->DebugBoxTopLeftX = 0.35f;
@@ -1733,7 +1734,7 @@ static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
         params->DebugBoxThickness = 0.001f;
         params->DebugShapeIntensity = 0.002f;
         params->_pad9 = 0.0f;
-        params->_pad10 = 0.0f;
+        params->FocalLength = g_StarfieldState.kartographerFocalLength > 0.001f ? g_StarfieldState.kartographerFocalLength : 1.732f;
         
         // Selection circle (filled from cached state set by CR_StarfieldSetKartographerParams)
         params->SelectionCircleEnabled = g_StarfieldState.kartographerSelectionCircleEnabled;
@@ -1777,6 +1778,7 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
     g_StarfieldState.kartographerGridSizePreset = params->GridSizePreset;
     g_StarfieldState.kartographerGridColor = params->GridColorIndex;
     g_StarfieldState.kartographerDebugShapesEnabled = params->DebugShapesEnabled;
+    g_StarfieldState.kartographerFocalLength = params->FocalLength;
     
     // Selection circle parameters (cached for CB update)
     g_StarfieldState.kartographerSelectionCircleEnabled = params->SelectionCircleEnabled;
