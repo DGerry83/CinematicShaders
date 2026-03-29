@@ -154,6 +154,7 @@ static struct {
     float kartographerPreRotationPitch = 0.0f;
     int kartographerGridSizePreset = 2;  // 0=Jumbo, 1=Large, 2=Medium, 3=Small, 4=Tiny
     int kartographerGridColor = 0;       // 0=Seafoam, 1=Amber, 2=White, 3=Green
+    int kartographerDebugShapesEnabled = 0;  // Phase 1: Debug SDF shapes toggle
 } g_StarfieldState;
 
 // Constant buffer layouts (must match HLSL exactly, 16-byte aligned)
@@ -252,18 +253,17 @@ struct StarfieldPass2Params {
 };
 
 // Kartographer constant buffer layout (must match HLSL exactly)
-// Total size: 112 bytes
+// Total size: 256 bytes (Phase 1 expanded)
 struct KartographerParams {
+    // Base grid params (64 bytes)
     float ResolutionX;              // offset 0
     float ResolutionY;              // offset 4
     float Time;                     // offset 8
     float GridIntensity;            // offset 12
-    
     float GridThickness;            // offset 16
     float ChromaticAberrationStrength; // offset 20
     float VignetteStrength;         // offset 24
     float VignetteStart;            // offset 28
-    
     float VignetteEnd;              // offset 32
     float PreRotationYaw;           // offset 36
     float PreRotationPitch;         // offset 40
@@ -271,22 +271,63 @@ struct KartographerParams {
     int GridColorIndex;             // offset 48
     float _pad1;                    // offset 52
     float _pad2;                    // offset 56
-    float _padAlignCamera;          // offset 60 (padding to align camera vectors to 16 bytes)
+    float _padAlignCamera;          // offset 60
     
+    // Camera basis (48 bytes)
     float CameraRightX;             // offset 64
     float CameraRightY;             // offset 68
     float CameraRightZ;             // offset 72
     float _pad3;                    // offset 76
-    
     float CameraUpX;                // offset 80
     float CameraUpY;                // offset 84
     float CameraUpZ;                // offset 88
     float _pad4;                    // offset 92
-    
     float CameraForwardX;           // offset 96
     float CameraForwardY;           // offset 100
     float CameraForwardZ;           // offset 104
     float _pad5;                    // offset 108
+    
+    // Debug shapes (32 bytes)
+    int DebugShapesEnabled;         // offset 112
+    float _pad6;
+    float _pad7;
+    float _pad8;
+    float DebugCircleCenterX;       // offset 128
+    float DebugCircleCenterY;       // offset 132
+    float DebugCircleRadius;        // offset 136
+    float DebugCircleThickness;     // offset 140
+    float DebugBoxTopLeftX;         // offset 144
+    float DebugBoxTopLeftY;         // offset 148
+    float DebugBoxSizeX;            // offset 152
+    float DebugBoxSizeY;            // offset 156
+    float DebugBoxThickness;        // offset 160
+    float DebugShapeIntensity;      // offset 164
+    float _pad9;
+    float _pad10;
+    
+    // Selection animation (32 bytes) - reserved for future phases
+    float SelectionCircleCenterX;   // offset 176
+    float SelectionCircleCenterY;   // offset 180
+    float SelectionCircleT;         // offset 184
+    float SelectionCircleIntensity; // offset 188
+    float SelectionCircleThickness; // offset 192
+    float SelectionCircleRadius;    // offset 196
+    float BoxCenterX;               // offset 200
+    float BoxCenterY;               // offset 204
+    float BoxHalfSizeX;             // offset 208
+    float BoxHalfSizeY;             // offset 212
+    float BoxCornerRadius;          // offset 216
+    float BoxThickness;             // offset 220
+    float BoxT;                     // offset 224
+    float _pad11;
+    
+    // Text stub (16 bytes) - reserved for future phases
+    float TextOriginX;              // offset 232
+    float TextOriginY;              // offset 236
+    float TextAreaSizeX;            // offset 240
+    float TextAreaSizeY;            // offset 244
+    float SelectionTextT;           // offset 248
+    float _pad12;                   // offset 252
 };
 
 // Soft bloom constant buffer layouts (must match HLSL exactly)
@@ -989,7 +1030,7 @@ if (!g_StarfieldState.blendState) {
         device->CreateBlendState(&blendDesc, &g_StarfieldState.kartographerBlendState);
     }
     
-    // Kartographer constant buffer
+    // Kartographer constant buffer (256 bytes for expanded Phase 1 layout)
     if (!g_StarfieldState.kartographerCB) {
         D3D11_BUFFER_DESC cbDesc = {};
         cbDesc.ByteWidth = sizeof(KartographerParams);
@@ -997,6 +1038,7 @@ if (!g_StarfieldState.blendState) {
         cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
         cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
         device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.kartographerCB);
+        LogToFile("[Starfield] Kartographer CB created: %zu bytes", sizeof(KartographerParams));
     }
     
     if (!g_StarfieldState.device) {
@@ -1264,11 +1306,9 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
     context->IASetIndexBuffer(nullptr, DXGI_FORMAT_UNKNOWN, 0);
     context->Draw(3, 0);
     
-    // Cleanup bindings
+    // Cleanup SRV bindings (but keep RTV bound for Kartographer)
     ID3D11ShaderResourceView* psNullSRV[1] = {nullptr};
-    ID3D11RenderTargetView* nullRTV = nullptr;
     context->PSSetShaderResources(0, 1, psNullSRV);
-    context->OMSetRenderTargets(1, &nullRTV, nullptr);
     
     // Kartographer overlay pass (if enabled)
     if (g_StarfieldState.kartographerEnabled && g_StarfieldState.kartographerVS && g_StarfieldState.kartographerPS) {
@@ -1289,8 +1329,7 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         MapKartographerConstantBuffer(context);
         context->PSSetConstantBuffers(0, 1, &g_StarfieldState.kartographerCB);
         
-        // Re-set render target
-        context->OMSetRenderTargets(1, &currentRTV, nullptr);
+        // RTV is still bound from main pass - no need to rebind
         
         // Draw fullscreen triangle
         context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -1304,8 +1343,12 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         if (oldBlend) oldBlend->Release();
     }
     
-    // Release our RTV if we created it from explicit render target
-    if (usingExplicitRT && currentRTV) {
+    // NOW unbind RTV after Kartographer is done (consistent with SoftBloom path)
+    ID3D11RenderTargetView* nullRTV = nullptr;
+    context->OMSetRenderTargets(1, &nullRTV, nullptr);
+    
+    // Release RTV (always, regardless of whether it was explicit or from OMGetRenderTargets)
+    if (currentRTV) {
         currentRTV->Release();
     }
     if (currentDSV) currentDSV->Release();
@@ -1632,6 +1675,8 @@ static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
     D3D11_MAPPED_SUBRESOURCE mappedKart;
     if (SUCCEEDED(context->Map(g_StarfieldState.kartographerCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedKart))) {
         KartographerParams* params = (KartographerParams*)mappedKart.pData;
+        
+        // Base grid params
         params->ResolutionX = (float)g_StarfieldState.width;
         params->ResolutionY = (float)g_StarfieldState.height;
         params->Time = (float)g_StarfieldState.frameIndex * 0.016f;
@@ -1645,15 +1690,66 @@ static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
         params->PreRotationPitch = g_StarfieldState.kartographerPreRotationPitch;
         params->GridSizePreset = g_StarfieldState.kartographerGridSizePreset;
         params->GridColorIndex = g_StarfieldState.kartographerGridColor;
+        params->_pad1 = 0.0f;
+        params->_pad2 = 0.0f;
+        params->_padAlignCamera = 0.0f;
+        
+        // Camera basis
         params->CameraRightX = g_StarfieldState.cameraRight.x;
         params->CameraRightY = g_StarfieldState.cameraRight.y;
         params->CameraRightZ = g_StarfieldState.cameraRight.z;
+        params->_pad3 = 0.0f;
         params->CameraUpX = g_StarfieldState.cameraUp.x;
         params->CameraUpY = g_StarfieldState.cameraUp.y;
         params->CameraUpZ = g_StarfieldState.cameraUp.z;
+        params->_pad4 = 0.0f;
         params->CameraForwardX = g_StarfieldState.cameraForward.x;
         params->CameraForwardY = g_StarfieldState.cameraForward.y;
         params->CameraForwardZ = g_StarfieldState.cameraForward.z;
+        params->_pad5 = 0.0f;
+        
+        // Debug shapes - hard-coded test values (independent of grid settings)
+        params->DebugShapesEnabled = g_StarfieldState.kartographerDebugShapesEnabled;
+        params->_pad6 = 0.0f;
+        params->_pad7 = 0.0f;
+        params->_pad8 = 0.0f;
+        params->DebugCircleCenterX = 0.5f;  // Screen center in UV space
+        params->DebugCircleCenterY = 0.5f;
+        params->DebugCircleRadius = 0.05f;
+        params->DebugCircleThickness = 0.001f;  // Hard-coded, not affected by GridThickness slider
+        params->DebugBoxTopLeftX = 0.35f;
+        params->DebugBoxTopLeftY = 0.45f;
+        params->DebugBoxSizeX = 0.3f;
+        params->DebugBoxSizeY = 0.1f;
+        params->DebugBoxThickness = 0.001f;  // Hard-coded, not affected by GridThickness slider
+        params->DebugShapeIntensity = 0.002f;  // Hard-coded, not affected by GridIntensity slider
+        params->_pad9 = 0.0f;
+        params->_pad10 = 0.0f;
+        
+        // Selection animation (reserved for future phases)
+        params->SelectionCircleCenterX = 0.0f;
+        params->SelectionCircleCenterY = 0.0f;
+        params->SelectionCircleT = 0.0f;
+        params->SelectionCircleIntensity = 0.0f;
+        params->SelectionCircleThickness = 0.0f;
+        params->SelectionCircleRadius = 0.0f;
+        params->BoxCenterX = 0.0f;
+        params->BoxCenterY = 0.0f;
+        params->BoxHalfSizeX = 0.0f;
+        params->BoxHalfSizeY = 0.0f;
+        params->BoxCornerRadius = 0.0f;
+        params->BoxThickness = 0.0f;
+        params->BoxT = 0.0f;
+        params->_pad11 = 0.0f;
+        
+        // Text stub (reserved for future phases)
+        params->TextOriginX = 0.0f;
+        params->TextOriginY = 0.0f;
+        params->TextAreaSizeX = 0.0f;
+        params->TextAreaSizeY = 0.0f;
+        params->SelectionTextT = 0.0f;
+        params->_pad12 = 0.0f;
+        
         context->Unmap(g_StarfieldState.kartographerCB, 0);
     }
 }
@@ -1672,6 +1768,7 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
     g_StarfieldState.kartographerPreRotationPitch = params->PreRotationPitch;
     g_StarfieldState.kartographerGridSizePreset = params->GridSizePreset;
     g_StarfieldState.kartographerGridColor = params->GridColorIndex;
+    g_StarfieldState.kartographerDebugShapesEnabled = params->DebugShapesEnabled;
 }
 
 extern "C" __declspec(dllexport)

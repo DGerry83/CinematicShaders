@@ -152,18 +152,81 @@ __declspec(dllexport) void CR_StarfieldSetDimming(float sunGlareDimming, float p
 // Kartographer holographic grid overlay enable/disable
 __declspec(dllexport) void CR_StarfieldSetKartographerEnabled(unsigned char enabled);
 
-// Kartographer visual parameters struct
+// Kartographer visual parameters struct (Phase 1 expanded - 256 bytes)
 struct KartographerParamsNative {
-    float GridIntensity;        // Default: 0.002, Range: 0.001-0.003
-    float GridThickness;        // Default: 0.0003, Range: 0.00015-0.00045
-    float ChromaticAberrationStrength;  // Default: 0.004, Range: 0.002-0.006
-    float VignetteStrength;     // Default: 0.7, Range: 0.35-1.0
-    float VignetteStart;        // Default: 1.6, Range: 0.8-2.4
-    float VignetteEnd;          // Default: 2.2, Range: 1.1-3.3
-    float PreRotationYaw;       // For UI customization (radians)
-    float PreRotationPitch;     // For UI customization (radians)
-    int GridSizePreset;         // 0=Jumbo, 1=Large, 2=Medium, 3=Small, 4=Tiny
-    int GridColorIndex;         // 0=Seafoam, 1=Amber, 2=White, 3=Green
+    // Base grid params (64 bytes)
+    float ResolutionX;              // offset 0
+    float ResolutionY;              // offset 4
+    float Time;                     // offset 8
+    float GridIntensity;            // offset 12
+    float GridThickness;            // offset 16
+    float ChromaticAberrationStrength; // offset 20
+    float VignetteStrength;         // offset 24
+    float VignetteStart;            // offset 28
+    float VignetteEnd;              // offset 32
+    float PreRotationYaw;           // offset 36
+    float PreRotationPitch;         // offset 40
+    int GridSizePreset;             // offset 44
+    int GridColorIndex;             // offset 48
+    float _pad1;                    // offset 52
+    float _pad2;                    // offset 56
+    float _padAlignCamera;          // offset 60
+    
+    // Camera basis (48 bytes)
+    float CameraRightX;             // offset 64
+    float CameraRightY;             // offset 68
+    float CameraRightZ;             // offset 72
+    float _pad3;                    // offset 76
+    float CameraUpX;                // offset 80
+    float CameraUpY;                // offset 84
+    float CameraUpZ;                // offset 88
+    float _pad4;                    // offset 92
+    float CameraForwardX;           // offset 96
+    float CameraForwardY;           // offset 100
+    float CameraForwardZ;           // offset 104
+    float _pad5;                    // offset 108
+    
+    // Debug shapes (32 bytes)
+    int DebugShapesEnabled;         // offset 112
+    float _pad6;
+    float _pad7;
+    float _pad8;
+    float DebugCircleCenterX;       // offset 128
+    float DebugCircleCenterY;       // offset 132
+    float DebugCircleRadius;        // offset 136
+    float DebugCircleThickness;     // offset 140
+    float DebugBoxTopLeftX;         // offset 144
+    float DebugBoxTopLeftY;         // offset 148
+    float DebugBoxSizeX;            // offset 152
+    float DebugBoxSizeY;            // offset 156
+    float DebugBoxThickness;        // offset 160
+    float DebugShapeIntensity;      // offset 164
+    float _pad9;
+    float _pad10;
+    
+    // Selection animation (32 bytes) - reserved for future phases
+    float SelectionCircleCenterX;   // offset 176
+    float SelectionCircleCenterY;   // offset 180
+    float SelectionCircleT;         // offset 184
+    float SelectionCircleIntensity; // offset 188
+    float SelectionCircleThickness; // offset 192
+    float SelectionCircleRadius;    // offset 196
+    float BoxCenterX;               // offset 200
+    float BoxCenterY;               // offset 204
+    float BoxHalfSizeX;             // offset 208
+    float BoxHalfSizeY;             // offset 212
+    float BoxCornerRadius;          // offset 216
+    float BoxThickness;             // offset 220
+    float BoxT;                     // offset 224
+    float _pad11;
+    
+    // Text stub (16 bytes) - reserved for future phases
+    float TextOriginX;              // offset 232
+    float TextOriginY;              // offset 236
+    float TextAreaSizeX;            // offset 240
+    float TextAreaSizeY;            // offset 244
+    float SelectionTextT;           // offset 248
+    float _pad12;                   // offset 252
 };
 
 // Set Kartographer visual parameters

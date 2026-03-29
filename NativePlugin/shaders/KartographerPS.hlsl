@@ -1,5 +1,6 @@
 // Kartographer Pixel Shader - Holographic Grid Overlay
 // Spherical coordinate grid with chromatic aberration, phosphor mask, and vignette
+// Phase 1: Added debug SDF shapes (circle, rounded box)
 
 struct PSInput {
     float4 position : SV_Position;
@@ -7,8 +8,9 @@ struct PSInput {
 };
 
 // Constant buffer - must match C++ KartographerParams struct exactly
-// Total size: 112 bytes
+// Total size: 256 bytes (Phase 1 expanded)
 cbuffer KartographerCB : register(b0) {
+    // Base grid params (64 bytes)
     float2 Resolution;          // offset 0
     float Time;                 // offset 8
     float GridIntensity;        // offset 12
@@ -25,14 +27,49 @@ cbuffer KartographerCB : register(b0) {
     int GridColorIndex;         // offset 48
     float _pad1;                // offset 52
     float _pad2;                // offset 56
+    float _padAlignCamera;      // offset 60
     
-    // Camera rotation matrix (3x3, row-major for HLSL)
+    // Camera basis (48 bytes)
     float3 CameraRight;         // offset 64
     float _pad3;
     float3 CameraUp;            // offset 80
     float _pad4;
     float3 CameraForward;       // offset 96
     float _pad5;
+    
+    // Debug shapes (32 bytes)
+    int DebugShapesEnabled;     // offset 112
+    float _pad6;
+    float _pad7;
+    float _pad8;
+    float2 DebugCircleCenter;   // offset 128
+    float DebugCircleRadius;    // offset 136
+    float DebugCircleThickness; // offset 140
+    float2 DebugBoxTopLeft;     // offset 144
+    float2 DebugBoxSize;        // offset 152
+    float DebugBoxThickness;    // offset 160
+    float DebugShapeIntensity;  // offset 164
+    float _pad9;
+    float _pad10;
+    
+    // Selection animation (32 bytes) - reserved for future phases
+    float2 SelectionCircleCenter;   // offset 176
+    float SelectionCircleT;         // offset 184
+    float SelectionCircleIntensity; // offset 188
+    float SelectionCircleThickness; // offset 192
+    float SelectionCircleRadius;    // offset 196
+    float2 BoxCenter;               // offset 200
+    float2 BoxHalfSize;             // offset 208
+    float BoxCornerRadius;          // offset 216
+    float BoxThickness;             // offset 220
+    float BoxT;                     // offset 224
+    float _pad11;
+    
+    // Text stub (16 bytes) - reserved for future phases
+    float2 TextOrigin;              // offset 232
+    float2 TextAreaSize;            // offset 240
+    float SelectionTextT;           // offset 248
+    float _pad12;                   // offset 252
 };
 
 // Grid colors: 0=Seafoam, 1=Amber, 2=White, 3=Green
@@ -126,6 +163,19 @@ float3 ApplyPreRotation(float3 ray, float yaw, float pitch) {
     );
     
     return normalize(r2);
+}
+
+// ============================================================================
+// SDF Helpers for Debug Shapes (Phase 1)
+// ============================================================================
+
+float SDF_Circle(float2 p, float2 center, float radius) {
+    return length(p - center) - radius;
+}
+
+float SDF_RoundedBox(float2 p, float2 center, float2 halfSize, float radius) {
+    float2 d = abs(p - center) - halfSize + radius;
+    return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - radius;
 }
 
 // Calculate grid glow for a given ray direction and preset
@@ -250,6 +300,49 @@ float4 PSMain(PSInput input) : SV_Target {
     col.r = colR.r;
     col.g = colG.g;
     col.b = colB.b;
+    
+    // ============================================================================
+    // DEBUG SHAPES (Phase 1)
+    // ============================================================================
+    if (DebugShapesEnabled) {
+        float3 shapeColor = kGridColors[GridColorIndex];
+        
+        // Circle SDF with per-channel chromatic aberration
+        float2 circleCenter = DebugCircleCenter;
+        float r = DebugCircleRadius;
+        float thick = DebugCircleThickness;
+        
+        // Apply CA by offsetting center per-channel using perpendicular vector
+        float2 caOffset = perp * r * 0.1;
+        
+        float dR = SDF_Circle(uvR.xy, circleCenter + caOffset, r);
+        float dG = SDF_Circle(uvG.xy, circleCenter, r);
+        float dB = SDF_Circle(uvB.xy, circleCenter - caOffset, r);
+        
+        float3 circleGlow = shapeColor * DebugShapeIntensity * float3(
+            1.0 / (abs(dR) + thick),
+            1.0 / (abs(dG) + thick),
+            1.0 / (abs(dB) + thick)
+        );
+        
+        // Rounded Box SDF with per-channel CA
+        float2 boxCenter = DebugBoxTopLeft + DebugBoxSize * 0.5;
+        float2 boxHalfSize = DebugBoxSize * 0.5;
+        // Minimal rounding for sharp corners (user request)
+        float boxCornerRad = 0.0005;
+        
+        float dbR = SDF_RoundedBox(uvR.xy, boxCenter + caOffset, boxHalfSize, boxCornerRad);
+        float dbG = SDF_RoundedBox(uvG.xy, boxCenter, boxHalfSize, boxCornerRad);
+        float dbB = SDF_RoundedBox(uvB.xy, boxCenter - caOffset, boxHalfSize, boxCornerRad);
+        
+        float3 boxGlow = shapeColor * DebugShapeIntensity * float3(
+            1.0 / (abs(dbR) + DebugBoxThickness),
+            1.0 / (abs(dbG) + DebugBoxThickness),
+            1.0 / (abs(dbB) + DebugBoxThickness)
+        );
+        
+        col += circleGlow + boxGlow;
+    }
     
     float phase = frac(fragCoord.x / 3.0);
     float3 phosphor;

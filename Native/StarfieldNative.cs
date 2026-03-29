@@ -155,20 +155,84 @@ namespace CinematicShaders.Native
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_StarfieldSetKartographerEnabled(byte enabled);
 
-        // Kartographer visual parameters struct (must match native)
+        // Kartographer visual parameters struct (Phase 1 expanded - must match native exactly)
+        // Total size: 256 bytes
         [StructLayout(LayoutKind.Sequential)]
         public struct KartographerParamsNative
         {
-            public float GridIntensity;        // Default: 0.002, Range: 0.001-0.003
-            public float GridThickness;        // Default: 0.0003, Range: 0.00015-0.00045
-            public float ChromaticAberrationStrength;  // Default: 0.004, Range: 0.002-0.006
-            public float VignetteStrength;     // Default: 0.7, Range: 0.35-1.0
-            public float VignetteStart;        // Default: 1.6, Range: 0.8-2.4
-            public float VignetteEnd;          // Default: 2.2, Range: 1.1-3.3
-            public float PreRotationYaw;       // For UI customization (radians)
-            public float PreRotationPitch;     // For UI customization (radians)
-            public int GridSizePreset;         // 0=Jumbo, 1=Large, 2=Medium, 3=Small, 4=Tiny
-            public int GridColorIndex;         // 0=Seafoam, 1=Amber, 2=White, 3=Green
+            // Base grid params (64 bytes)
+            public float ResolutionX;              // offset 0
+            public float ResolutionY;              // offset 4
+            public float Time;                     // offset 8
+            public float GridIntensity;            // offset 12
+            public float GridThickness;            // offset 16
+            public float ChromaticAberrationStrength; // offset 20
+            public float VignetteStrength;         // offset 24
+            public float VignetteStart;            // offset 28
+            public float VignetteEnd;              // offset 32
+            public float PreRotationYaw;           // offset 36
+            public float PreRotationPitch;         // offset 40
+            public int GridSizePreset;             // offset 44
+            public int GridColorIndex;             // offset 48
+            public float _pad1;                    // offset 52
+            public float _pad2;                    // offset 56
+            public float _padAlignCamera;          // offset 60
+            
+            // Camera basis (48 bytes)
+            public float CameraRightX;             // offset 64
+            public float CameraRightY;             // offset 68
+            public float CameraRightZ;             // offset 72
+            public float _pad3;                    // offset 76
+            public float CameraUpX;                // offset 80
+            public float CameraUpY;                // offset 84
+            public float CameraUpZ;                // offset 88
+            public float _pad4;                    // offset 92
+            public float CameraForwardX;           // offset 96
+            public float CameraForwardY;           // offset 100
+            public float CameraForwardZ;           // offset 104
+            public float _pad5;                    // offset 108
+            
+            // Debug shapes (32 bytes)
+            public int DebugShapesEnabled;         // offset 112
+            public float _pad6;
+            public float _pad7;
+            public float _pad8;
+            public float DebugCircleCenterX;       // offset 128
+            public float DebugCircleCenterY;       // offset 132
+            public float DebugCircleRadius;        // offset 136
+            public float DebugCircleThickness;     // offset 140
+            public float DebugBoxTopLeftX;         // offset 144
+            public float DebugBoxTopLeftY;         // offset 148
+            public float DebugBoxSizeX;            // offset 152
+            public float DebugBoxSizeY;            // offset 156
+            public float DebugBoxThickness;        // offset 160
+            public float DebugShapeIntensity;      // offset 164
+            public float _pad9;
+            public float _pad10;
+            
+            // Selection animation (32 bytes) - reserved for future phases
+            public float SelectionCircleCenterX;   // offset 176
+            public float SelectionCircleCenterY;   // offset 180
+            public float SelectionCircleT;         // offset 184
+            public float SelectionCircleIntensity; // offset 188
+            public float SelectionCircleThickness; // offset 192
+            public float SelectionCircleRadius;    // offset 196
+            public float BoxCenterX;               // offset 200
+            public float BoxCenterY;               // offset 204
+            public float BoxHalfSizeX;             // offset 208
+            public float BoxHalfSizeY;             // offset 212
+            public float BoxCornerRadius;          // offset 216
+            public float BoxThickness;             // offset 220
+            public float BoxT;                     // offset 224
+            public float _pad11;
+            
+            // Text stub (16 bytes) - reserved for future phases
+            public float TextOriginX;              // offset 232
+            public float TextOriginY;              // offset 236
+            public float TextAreaSizeX;            // offset 240
+            public float TextAreaSizeY;            // offset 244
+            public float SelectionTextT;           // offset 248
+            public float _pad12;                   // offset 252
         }
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]

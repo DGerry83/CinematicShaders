@@ -26,6 +26,9 @@ namespace CinematicShaders.UI.Tabs
             _currentColorIndex = StarfieldSettings.KartographerGridColor;
         }
 
+        // Debug shapes state (not persisted to settings file)
+        private bool _debugShapesEnabled = false;
+
         public void Draw()
         {
             if (!_initialized)
@@ -77,6 +80,21 @@ namespace CinematicShaders.UI.Tabs
                 return;
 
             GUILayout.BeginVertical(HighLogic.Skin.box);
+
+            // Debug Shapes Toggle (Phase 1)
+            bool newDebugShapes = GUILayout.Toggle(_debugShapesEnabled,
+                " Draw Debug Shapes", HighLogic.Skin.toggle);
+            if (newDebugShapes != _debugShapesEnabled)
+            {
+                _debugShapesEnabled = newDebugShapes;
+                PushKartographerParams();
+            }
+            if (_debugShapesEnabled)
+            {
+                GUILayout.Label("<color=#888888>Circle + Box at screen center</color>", HighLogic.Skin.label);
+            }
+            
+            GUILayout.Space(5);
 
             // Grid Size: 0-4 (Jumbo, Large, Medium, Small, Tiny), default 2 (Medium)
             GUILayout.Label(new GUIContent($"Grid Size: {GetGridSizeLabel(StarfieldSettings.KartographerGridSize)}",
@@ -265,7 +283,8 @@ namespace CinematicShaders.UI.Tabs
                 PreRotationYaw = StarfieldSettings.KartographerRotationYaw,
                 PreRotationPitch = StarfieldSettings.KartographerRotationPitch,
                 GridSizePreset = StarfieldSettings.KartographerGridSize,
-                GridColorIndex = StarfieldSettings.KartographerGridColor
+                GridColorIndex = StarfieldSettings.KartographerGridColor,
+                DebugShapesEnabled = _debugShapesEnabled ? 1 : 0
             };
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
         }

@@ -191,6 +191,16 @@ def generate_catalog_json(bin_file, csv_path, constellations, output_name):
             except ValueError:
                 pass
             
+            # Add Cartesian direction vectors for GPU projection (x, y, z in world space)
+            try:
+                entry['x'] = float(row.get('x', '0'))
+                entry['y'] = float(row.get('y', '0'))
+                entry['z'] = float(row.get('z', '0'))
+            except ValueError:
+                entry['x'] = 0.0
+                entry['y'] = 0.0
+                entry['z'] = 0.0
+            
             stars[str(hip_id)] = entry
     
     print(f"  Named stars in catalog: {len(stars)}")
