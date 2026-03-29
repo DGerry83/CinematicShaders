@@ -301,21 +301,21 @@ namespace CinematicShaders.UI.Tabs
                 ? 1.0f / Mathf.Tan(StarfieldCompositor.CachedVerticalFOV * 0.5f)
                 : 1.732f;
 
-            var kartParams = new StarfieldNative.KartographerParamsNative
-            {
-                GridIntensity = StarfieldSettings.KartographerGridIntensity,
-                GridThickness = StarfieldSettings.KartographerGridThickness,
-                ChromaticAberrationStrength = StarfieldSettings.KartographerCAStrength,
-                VignetteStrength = StarfieldSettings.KartographerVignetteStrength,
-                VignetteStart = StarfieldSettings.KartographerVignetteStart,
-                VignetteEnd = StarfieldSettings.KartographerVignetteEnd,
-                PreRotationYaw = StarfieldSettings.KartographerRotationYaw,
-                PreRotationPitch = StarfieldSettings.KartographerRotationPitch,
-                GridSizePreset = StarfieldSettings.KartographerGridSize,
-                GridColorIndex = StarfieldSettings.KartographerGridColor,
-                DebugShapesEnabled = _debugShapesEnabled ? 1 : 0,
-                FocalLength = focalLength
-            };
+            // Merge with cached params so we don't stomp selection UI state
+            var kartParams = StarfieldNative.LastKartographerParams;
+            kartParams.GridIntensity = StarfieldSettings.KartographerGridIntensity;
+            kartParams.GridThickness = StarfieldSettings.KartographerGridThickness;
+            kartParams.ChromaticAberrationStrength = StarfieldSettings.KartographerCAStrength;
+            kartParams.VignetteStrength = StarfieldSettings.KartographerVignetteStrength;
+            kartParams.VignetteStart = StarfieldSettings.KartographerVignetteStart;
+            kartParams.VignetteEnd = StarfieldSettings.KartographerVignetteEnd;
+            kartParams.PreRotationYaw = StarfieldSettings.KartographerRotationYaw;
+            kartParams.PreRotationPitch = StarfieldSettings.KartographerRotationPitch;
+            kartParams.GridSizePreset = StarfieldSettings.KartographerGridSize;
+            kartParams.GridColorIndex = StarfieldSettings.KartographerGridColor;
+            kartParams.DebugShapesEnabled = _debugShapesEnabled ? 1 : 0;
+            kartParams.FocalLength = focalLength;
+            StarfieldNative.LastKartographerParams = kartParams;
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
         }
 

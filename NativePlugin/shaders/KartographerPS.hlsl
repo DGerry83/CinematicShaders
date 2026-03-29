@@ -2,6 +2,12 @@
 // Spherical coordinate grid with chromatic aberration, phosphor mask, and vignette
 // Phase 1: Added debug SDF shapes (circle, rounded box)
 // Phase 2: Added selection circle for star tracking
+//
+// COORDINATE SPACE NOTES:
+// - Shader UV space: center = (0,0), +X = right, +Y = up
+// - Screen UV [0,1] maps to: x = (u-0.5)*2*aspect, y = (v-0.5)*2
+// - DebugBoxTopLeft is the actual top-left corner of the box in shader-UV
+// - Box center in shader is computed as: topLeft + size*0.5
 
 struct PSInput {
     float4 position : SV_Position;
@@ -316,6 +322,8 @@ float4 PSMain(PSInput input) : SV_Target {
         float flicker = SelectionCircleT >= 1.0 ? 1.0 : SelectionCircleT;
         
         // --- Info box black backing ---
+        // DebugBoxTopLeft is the actual top-left corner in shader-uv.
+        // Note: for 2D screen placement, +Y goes DOWN the screen (input.uv.y=0 is top).
         float2 boxCenter = DebugBoxTopLeft + DebugBoxSize * 0.5;
         float2 boxHalfSize = DebugBoxSize * 0.5;
         float boxCornerRad = 0.005;

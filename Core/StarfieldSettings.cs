@@ -304,25 +304,24 @@ namespace CinematicShaders.Core
 
             StarfieldNative.CR_StarfieldSetSettings(ref nativeSettings);
             
-            // Push Kartographer parameters
+            // Push Kartographer parameters (merge with cached state so we don't stomp selection UI)
             float focalLength = Shaders.Starfield.StarfieldCompositor.CachedVerticalFOV > 0.001f
                 ? 1.0f / Mathf.Tan(Shaders.Starfield.StarfieldCompositor.CachedVerticalFOV * 0.5f)
                 : 1.732f;
 
-            var kartParams = new StarfieldNative.KartographerParamsNative
-            {
-                GridIntensity = KartographerGridIntensity,
-                GridThickness = KartographerGridThickness,
-                ChromaticAberrationStrength = KartographerCAStrength,
-                VignetteStrength = KartographerVignetteStrength,
-                VignetteStart = KartographerVignetteStart,
-                VignetteEnd = KartographerVignetteEnd,
-                PreRotationYaw = KartographerRotationYaw,
-                PreRotationPitch = KartographerRotationPitch,
-                GridSizePreset = KartographerGridSize,
-                GridColorIndex = KartographerGridColor,
-                FocalLength = focalLength
-            };
+            var kartParams = StarfieldNative.LastKartographerParams;
+            kartParams.GridIntensity = KartographerGridIntensity;
+            kartParams.GridThickness = KartographerGridThickness;
+            kartParams.ChromaticAberrationStrength = KartographerCAStrength;
+            kartParams.VignetteStrength = KartographerVignetteStrength;
+            kartParams.VignetteStart = KartographerVignetteStart;
+            kartParams.VignetteEnd = KartographerVignetteEnd;
+            kartParams.PreRotationYaw = KartographerRotationYaw;
+            kartParams.PreRotationPitch = KartographerRotationPitch;
+            kartParams.GridSizePreset = KartographerGridSize;
+            kartParams.GridColorIndex = KartographerGridColor;
+            kartParams.FocalLength = focalLength;
+            StarfieldNative.LastKartographerParams = kartParams;
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
 
             // Resolve to absolute path for file operations

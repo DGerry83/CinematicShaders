@@ -235,6 +235,13 @@ namespace CinematicShaders.Native
             public float _pad12;                   // offset 252 - total 256 bytes
         }
 
+        /// <summary>
+        /// Cached copy of the last Kartographer params sent to the native plugin.
+        /// All C# callers must read from this, update their specific fields, and write back
+        /// to avoid stomping each other's state (e.g. grid settings vs selection UI).
+        /// </summary>
+        public static KartographerParamsNative LastKartographerParams;
+
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_StarfieldSetKartographerParams(ref KartographerParamsNative kartParams);
 

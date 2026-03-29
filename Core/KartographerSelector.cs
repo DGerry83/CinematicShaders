@@ -293,14 +293,15 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
-        /// Push selection circle params to native plugin
+        /// Push selection circle and info box params to native plugin.
+        /// Merges with cached state so grid settings are preserved.
         /// </summary>
         private void PushToNative(bool visible)
         {
             if (!StarfieldNative.IsLoaded)
                 return;
 
-            // Convert [0,1] screen UV to shader-uv space where center is (0,0)
+            // Convert [0,1] screen UV to shader-uv space where center is (0,0) and Y is up.
             float u = TrackedStarScreenUV.x;
             float v = TrackedStarScreenUV.y;
             float centerX = (u - 0.5f) * 2.0f * AspectRatio;
@@ -310,40 +311,41 @@ namespace CinematicShaders.Core
                 ? 1.0f / Mathf.Tan(VerticalFOV * 0.5f)
                 : 1.732f;
 
-            // Box positioned below and to the right of the selection circle
+            // Box positioned below and to the right of the selection circle.
+            // In shader-uv: +X = right, +Y = down (input.uv.y=0 is top of screen).
+            // So "below" means larger Y.
             float radius = 0.02f;
             float boxTopLeftX = centerX + radius + radius * 0.25f;
-            float boxTopLeftY = centerY - radius - radius * 1.25f;
+            float boxTopLeftY = centerY + radius + radius * 1.25f;
 
-            // Get current params first
-            var kartParams = new StarfieldNative.KartographerParamsNative
-            {
-                GridIntensity = StarfieldSettings.KartographerGridIntensity,
-                GridThickness = StarfieldSettings.KartographerGridThickness,
-                ChromaticAberrationStrength = StarfieldSettings.KartographerCAStrength,
-                VignetteStrength = StarfieldSettings.KartographerVignetteStrength,
-                VignetteStart = StarfieldSettings.KartographerVignetteStart,
-                VignetteEnd = StarfieldSettings.KartographerVignetteEnd,
-                PreRotationYaw = StarfieldSettings.KartographerRotationYaw,
-                PreRotationPitch = StarfieldSettings.KartographerRotationPitch,
-                GridSizePreset = StarfieldSettings.KartographerGridSize,
-                GridColorIndex = StarfieldSettings.KartographerGridColor,
-                DebugShapesEnabled = 0,
-                FocalLength = focalLength,
-                DebugBoxTopLeftX = boxTopLeftX,
-                DebugBoxTopLeftY = boxTopLeftY,
-                DebugBoxSizeX = 0.14f,
-                DebugBoxSizeY = 0.10f,
-                DebugBoxThickness = 0.001f,
-                SelectionCircleEnabled = visible ? 1 : 0,
-                SelectionCircleCenterX = centerX,
-                SelectionCircleCenterY = centerY,
-                SelectionCircleT = 1.0f, // Steady (no flicker for now)
-                SelectionCircleIntensity = 0.002f,
-                SelectionCircleThickness = 0.001f,
-                SelectionCircleRadius = 0.02f
-            };
+            // Merge with cached params so we don't stomp grid settings
+            var kartParams = StarfieldNative.LastKartographerParams;
+            kartParams.GridIntensity = StarfieldSettings.KartographerGridIntensity;
+            kartParams.GridThickness = StarfieldSettings.KartographerGridThickness;
+            kartParams.ChromaticAberrationStrength = StarfieldSettings.KartographerCAStrength;
+            kartParams.VignetteStrength = StarfieldSettings.KartographerVignetteStrength;
+            kartParams.VignetteStart = StarfieldSettings.KartographerVignetteStart;
+            kartParams.VignetteEnd = StarfieldSettings.KartographerVignetteEnd;
+            kartParams.PreRotationYaw = StarfieldSettings.KartographerRotationYaw;
+            kartParams.PreRotationPitch = StarfieldSettings.KartographerRotationPitch;
+            kartParams.GridSizePreset = StarfieldSettings.KartographerGridSize;
+            kartParams.GridColorIndex = StarfieldSettings.KartographerGridColor;
+            kartParams.DebugShapesEnabled = 0;
+            kartParams.FocalLength = focalLength;
+            kartParams.DebugBoxTopLeftX = boxTopLeftX;
+            kartParams.DebugBoxTopLeftY = boxTopLeftY;
+            kartParams.DebugBoxSizeX = 0.14f;
+            kartParams.DebugBoxSizeY = 0.10f;
+            kartParams.DebugBoxThickness = 0.001f;
+            kartParams.SelectionCircleEnabled = visible ? 1 : 0;
+            kartParams.SelectionCircleCenterX = centerX;
+            kartParams.SelectionCircleCenterY = centerY;
+            kartParams.SelectionCircleT = 1.0f; // Steady (no flicker for now)
+            kartParams.SelectionCircleIntensity = 0.002f;
+            kartParams.SelectionCircleThickness = 0.001f;
+            kartParams.SelectionCircleRadius = 0.02f;
 
+            StarfieldNative.LastKartographerParams = kartParams;
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
         }
 
