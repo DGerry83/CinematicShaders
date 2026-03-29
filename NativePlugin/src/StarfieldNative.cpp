@@ -1,5 +1,6 @@
 #include "StarfieldNative.h"
 #include "GalaxyCamCompositor.h"
+#include "TextSystem.h"
 #include "../include/StarfieldPass1.h"
 #include "../include/StarfieldPass2.h"
 #include "../include/StarfieldVS.h"
