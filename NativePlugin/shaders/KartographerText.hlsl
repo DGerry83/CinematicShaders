@@ -41,12 +41,49 @@ float4 UnpackColor(uint color)
     return float4(r, g, b, a);
 }
 
-// DEBUG: Fill entire output texture with red
-[numthreads(16, 16, 1)]
+[numthreads(64, 1, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x < (uint)OutputSize.x && id.y < (uint)OutputSize.y)
+    uint idx = id.x;
+    if (idx >= (uint)GlyphCount)
+        return;
+    
+    GlyphData g = Glyphs[idx];
+    float4 col = UnpackColor(g.color);
+    
+    // Calculate pixel bounds for this glyph
+    int2 minPixel = int2(g.pos);
+    int2 maxPixel = int2(g.pos + g.size);
+    
+    // Clamp to output bounds
+    minPixel = clamp(minPixel, int2(0, 0), int2(OutputSize));
+    maxPixel = clamp(maxPixel, int2(0, 0), int2(OutputSize));
+    
+    // Rasterize glyph quad
+    for (int y = minPixel.y; y < maxPixel.y; y++)
     {
-        Output[id.xy] = float4(1.0, 0.0, 0.0, 1.0);
+        for (int x = minPixel.x; x < maxPixel.x; x++)
+        {
+            float2 pixelPos = float2(x, y);
+            float2 uv = (pixelPos - g.pos) / g.size;
+            
+            // Sample atlas
+            float2 atlasUV = float2(g.uv.x, g.uv.y) + uv * float2(g.uv.z, g.uv.w);
+            float dist = Atlas.SampleLevel(LinearClamp, atlasUV, 0);
+            
+            // Convert SDF to alpha (0.5 = edge in normalized SDF)
+            float alpha = smoothstep(0.5 - g.smoothing, 0.5 + g.smoothing, dist);
+            
+            if (alpha > 0.0)
+            {
+                uint2 coord = uint2(x, y);
+                float4 src = col;
+                src.a *= alpha;
+                
+                // Alpha blend with existing content
+                float4 dst = Output[coord];
+                Output[coord] = src + dst * (1.0 - src.a);
+            }
+        }
     }
 }

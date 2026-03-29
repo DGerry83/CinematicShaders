@@ -109,13 +109,24 @@ static void ComputeSDF(const uint8_t* input, int w, int h, uint8_t* output, int 
     }
     
     // Convert distances to 8-bit SDF
+    // Find max distance for proper normalization
+    float maxDist = 0;
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            float dist = std::sqrt(static_cast<float>(grid[y * w + x].distSq()));
+            if (dist > maxDist) maxDist = dist;
+        }
+    }
+    if (maxDist < 1) maxDist = 1; // Avoid divide by zero
+    
     for (int y = 0; y < h; y++) {
         for (int x = 0; x < w; x++) {
             int idx = y * w + x;
             float dist = std::sqrt(static_cast<float>(grid[idx].distSq()));
             
-            // Normalize: 128 = edge, positive = outside, negative = inside
-            float normalized = 128.0f + (dist / static_cast<float>(spread)) * 128.0f;
+            // Normalize: 0 = center, 255 = far outside
+            // Use actual max distance for better contrast
+            float normalized = (dist / maxDist) * 255.0f;
             
             // Clamp to valid range
             if (normalized < 0) normalized = 0;
@@ -469,6 +480,91 @@ int TextSystem::LayoutString(const char* text, float fontSize, uint32_t color) {
     return static_cast<int>(m_instances.size());
 }
 
+void TextSystem::ExportAtlasToFile(const char* filename) {
+    if (!m_initialized || m_atlasPixels.empty()) {
+        LogToFile("[Text] ExportAtlasToFile: Atlas not initialized or empty");
+        return;
+    }
+    
+    // Save as PGM (grayscale) - simple format we can open
+    std::ofstream file(filename, std::ios::binary);
+    if (!file.is_open()) {
+        LogToFile("[Text] ExportAtlasToFile: Failed to open %s", filename);
+        return;
+    }
+    
+    // PGM header
+    file << "P5\n" << m_atlasWidth << " " << m_atlasHeight << "\n255\n";
+    
+    // Write pixel data
+    file.write(reinterpret_cast<const char*>(m_atlasPixels.data()), m_atlasPixels.size());
+    file.close();
+    
+    LogToFile("[Text] Atlas exported to %s (%dx%d)", filename, m_atlasWidth, m_atlasHeight);
+}
+
+void TextSystem::ExportGlyphDebug(const char* baseFilename) {
+    if (!m_initialized || m_glyphCache.empty()) {
+        LogToFile("[Text] ExportGlyphDebug: No glyphs to export");
+        return;
+    }
+    
+    // Get first cached glyph
+    auto it = m_glyphCache.begin();
+    int codepoint = it->first;
+    const GlyphMetric& metric = it->second;
+    
+    LogToFile("[Text] ExportGlyphDebug: Exporting glyph %d (codepoint %d)", 
+              stbtt_FindGlyphIndex(m_fontInfo, codepoint), codepoint);
+    
+    // 1. Export raw bitmap
+    int rawW, rawH;
+    uint8_t* rawBitmap = RasterizeGlyph(codepoint, rawW, rawH);
+    if (rawBitmap) {
+        char rawName[256];
+        snprintf(rawName, sizeof(rawName), "%s_raw.pgm", baseFilename);
+        std::ofstream rawFile(rawName, std::ios::binary);
+        if (rawFile.is_open()) {
+            rawFile << "P5\n" << rawW << " " << rawH << "\n255\n";
+            rawFile.write(reinterpret_cast<const char*>(rawBitmap), rawW * rawH);
+            rawFile.close();
+            LogToFile("[Text] Raw bitmap exported: %s (%dx%d)", rawName, rawW, rawH);
+        }
+        
+        // 2. Export binary threshold
+        uint8_t* binary = new uint8_t[rawW * rawH];
+        for (int i = 0; i < rawW * rawH; i++) {
+            binary[i] = (rawBitmap[i] > 128) ? 0 : 255;
+        }
+        char binaryName[256];
+        snprintf(binaryName, sizeof(binaryName), "%s_binary.pgm", baseFilename);
+        std::ofstream binaryFile(binaryName, std::ios::binary);
+        if (binaryFile.is_open()) {
+            binaryFile << "P5\n" << rawW << " " << rawH << "\n255\n";
+            binaryFile.write(reinterpret_cast<const char*>(binary), rawW * rawH);
+            binaryFile.close();
+            LogToFile("[Text] Binary threshold exported: %s", binaryName);
+        }
+        
+        // 3. Export SDF
+        uint8_t* sdf = new uint8_t[rawW * rawH];
+        ComputeSDF(binary, rawW, rawH, sdf, SDF_SPREAD);
+        char sdfName[256];
+        snprintf(sdfName, sizeof(sdfName), "%s_sdf.pgm", baseFilename);
+        std::ofstream sdfFile(sdfName, std::ios::binary);
+        if (sdfFile.is_open()) {
+            sdfFile << "P5\n" << rawW << " " << rawH << "\n255\n";
+            sdfFile.write(reinterpret_cast<const char*>(sdf), rawW * rawH);
+            sdfFile.close();
+            LogToFile("[Text] SDF exported: %s", sdfName);
+        }
+        
+        delete[] binary;
+        delete[] sdf;
+        delete[] rawBitmap;
+    }
+}
+
 ID3D11Buffer* TextSystem::GetOrCreateGlyphBuffer() {
     if (m_instances.empty())
         return nullptr;
@@ -607,4 +703,16 @@ int CR_TextGetGlyphCount(TextSystemHandle handle) {
     if (!handle) return 0;
     TextSystem* ts = static_cast<TextSystem*>(handle);
     return ts->GetGlyphCount();
+}
+
+void CR_TextExportAtlas(TextSystemHandle handle, const char* filename) {
+    if (!handle) return;
+    TextSystem* ts = static_cast<TextSystem*>(handle);
+    ts->ExportAtlasToFile(filename);
+}
+
+void CR_TextExportGlyphDebug(TextSystemHandle handle, const char* baseFilename) {
+    if (!handle) return;
+    TextSystem* ts = static_cast<TextSystem*>(handle);
+    ts->ExportGlyphDebug(baseFilename);
 }

@@ -71,6 +71,12 @@ public:
     ID3D11Buffer* GetOrCreateGlyphBuffer();
     ID3D11ShaderResourceView* GetGlyphBufferSRV() { return m_glyphBufferSRV; }
     
+    // Debug: Export atlas to PGM file
+    void ExportAtlasToFile(const char* filename);
+    
+    // Debug: Export first glyph's intermediate steps
+    void ExportGlyphDebug(const char* baseFilename);
+    
 private:
     // Ensure glyph is packed into atlas (rasterizes if needed)
     bool PackGlyph(int codepoint);
@@ -144,4 +150,8 @@ typedef void* TextSystemHandle;
     __declspec(dllexport) ID3D11ShaderResourceView* CR_TextGetAtlasSRV(TextSystemHandle handle);
     __declspec(dllexport) const CinematicShaders::GlyphInstance* CR_TextGetGlyphPtr(TextSystemHandle handle);
     __declspec(dllexport) int CR_TextGetGlyphCount(TextSystemHandle handle);
+    
+    // Debug export
+    __declspec(dllexport) void CR_TextExportAtlas(TextSystemHandle handle, const char* filename);
+    __declspec(dllexport) void CR_TextExportGlyphDebug(TextSystemHandle handle, const char* baseFilename);
 }

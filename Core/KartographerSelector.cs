@@ -54,8 +54,8 @@ namespace CinematicShaders.Core
         private RenderTexture _textTexture = null;
         private string _lastText = null;
         private bool _textDirty = false;
-        private static readonly int TEXT_TEXTURE_SIZE = 512;
-        private static readonly float FONT_SIZE = 24f;
+        private static readonly int TEXT_TEXTURE_SIZE = 2048;
+        private static readonly float FONT_SIZE = 400f;
 
         // ============================================================================
 
@@ -216,6 +216,11 @@ namespace CinematicShaders.Core
                 Debug.LogWarning("[KartographerSelector] Text layout returned 0 glyphs");
                 return;
             }
+
+            // DEBUG: Export atlas to file
+            string atlasPath = Path.Combine(Path.GetTempPath(), "CinematicShaders_Atlas.pgm");
+            StarfieldNative.CR_TextExportAtlas(_textSystem, atlasPath);
+            Debug.Log($"[KartographerSelector] Atlas exported to: {atlasPath}");
 
             // Get glyph data pointer from native
             System.IntPtr glyphPtr = StarfieldNative.CR_TextGetGlyphPtr(_textSystem);
@@ -562,13 +567,12 @@ namespace CinematicShaders.Core
             kartParams.SelectionCircleThickness = 0.001f;
             kartParams.SelectionCircleRadius = 0.02f;
 
-            // Text params (Phase 4) - placeholder for now
-            // These define where text appears inside the info box
-            kartParams.TextOriginX = boxTopLeftX + 0.005f; // Small margin inside box
+            // Text params
+            kartParams.TextOriginX = boxTopLeftX + 0.005f;
             kartParams.TextOriginY = boxTopLeftY + 0.005f;
-            kartParams.TextAreaSizeX = 0.13f; // Slightly smaller than box
+            kartParams.TextAreaSizeX = 0.13f;
             kartParams.TextAreaSizeY = 0.09f;
-            kartParams.SelectionTextT = 1.0f; // Steady (no flicker for now)
+            kartParams.SelectionTextT = 1.0f;
 
             StarfieldNative.LastKartographerParams = kartParams;
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
@@ -583,6 +587,36 @@ namespace CinematicShaders.Core
             SelectionCircleEnabled = false;
             _textDirty = true; // Clear text on next update
             PushToNative(false);
+        }
+
+        /// <summary>
+        /// Export font atlas to PGM file for debugging
+        /// </summary>
+        public void ExportFontAtlas()
+        {
+            if (_textSystem == IntPtr.Zero)
+            {
+                Debug.LogWarning("[KartographerSelector] Cannot export atlas - text system not initialized");
+                return;
+            }
+            string path = Path.Combine(Path.GetTempPath(), "CinematicShaders_Atlas.pgm");
+            StarfieldNative.CR_TextExportAtlas(_textSystem, path);
+            Debug.Log($"[KartographerSelector] Font atlas exported to: {path}");
+        }
+
+        /// <summary>
+        /// Export glyph debug files (raw, binary, SDF)
+        /// </summary>
+        public void ExportGlyphDebug()
+        {
+            if (_textSystem == IntPtr.Zero)
+            {
+                Debug.LogWarning("[KartographerSelector] Cannot export glyph debug - text system not initialized");
+                return;
+            }
+            string basePath = Path.Combine(Path.GetTempPath(), "CinematicShaders_Glyph");
+            StarfieldNative.CR_TextExportGlyphDebug(_textSystem, basePath);
+            Debug.Log($"[KartographerSelector] Glyph debug exported to: {basePath}_*.pgm");
         }
 
         /// <summary>

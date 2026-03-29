@@ -103,7 +103,7 @@ namespace CinematicShaders.UI.Tabs
 
             GUILayout.BeginVertical(HighLogic.Skin.box);
 
-            // Star Tracking Toggle (Phase 2)
+            // Debug: Track Polaris button
             bool newTrackPolaris = GUILayout.Toggle(_trackPolaris,
                 " Track Polaris", HighLogic.Skin.toggle);
             if (newTrackPolaris != _trackPolaris)
@@ -117,6 +117,18 @@ namespace CinematicShaders.UI.Tabs
                 {
                     StopTracking();
                 }
+            }
+
+            // Debug: Export font atlas
+            if (GUILayout.Button("Export Font Atlas"))
+            {
+                ExportFontAtlas();
+            }
+
+            // Debug: Export glyph debug files
+            if (GUILayout.Button("Export Glyph Debug"))
+            {
+                ExportGlyphDebug();
             }
             
             GUILayout.Space(5);
@@ -336,7 +348,29 @@ namespace CinematicShaders.UI.Tabs
             StarfieldSettings.Save();
         }
 
-        // Phase 2: Star tracking
+        // Debug: Export font atlas to file
+        private void ExportFontAtlas()
+        {
+            if (_selector == null)
+            {
+                Debug.LogWarning("[KartographerTab] Cannot export atlas - selector not initialized");
+                return;
+            }
+            _selector.ExportFontAtlas();
+        }
+
+        // Debug: Export glyph debug files
+        private void ExportGlyphDebug()
+        {
+            if (_selector == null)
+            {
+                Debug.LogWarning("[KartographerTab] Cannot export glyph debug - selector not initialized");
+                return;
+            }
+            _selector.ExportGlyphDebug();
+        }
+
+        // Debug: Track Polaris
         private void StartTrackingPolaris()
         {
             if (_selector == null)

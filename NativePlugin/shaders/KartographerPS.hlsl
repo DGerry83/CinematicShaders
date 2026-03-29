@@ -359,28 +359,14 @@ float4 PSMain(PSInput input) : SV_Target {
         );
         
         // --- Text rendering (on top of darkened background) ---
-        // AGGRESSIVE DEBUG: Always draw something text-related
+        // TextOrigin and TextAreaSize are in shader-uv space (center=0, +Y=UP)
         float2 textLocal = (uv - TextOrigin) / TextAreaSize;
         
-        // Draw yellow cross at TextOrigin point
-        float distToOrigin = length(uv - TextOrigin);
-        if (distToOrigin < 0.005) shapeAccum += float3(2.0, 2.0, 0.0); // Yellow dot at origin
-        
-        // Draw magenta cross at TextOrigin + TextAreaSize (bottom-right corner)
-        float2 textBR = TextOrigin + TextAreaSize;
-        float distToBR = length(uv - textBR);
-        if (distToBR < 0.005) shapeAccum += float3(2.0, 0.0, 2.0); // Magenta dot at BR corner
-        
-        // If inside text area, show green border + text
         if (textLocal.x >= 0.0 && textLocal.x <= 1.0 && 
             textLocal.y >= 0.0 && textLocal.y <= 1.0)
         {
             float4 textColor = TextTexture.SampleLevel(TextSampler, textLocal, 0);
-            float border = 0.02;
-            bool isBorder = textLocal.x < border || textLocal.x > (1.0-border) ||
-                           textLocal.y < border || textLocal.y > (1.0-border);
-            if (isBorder) shapeAccum += float3(0.0, 2.0, 0.0); // Green border
-            else if (textColor.a > 0.01) shapeAccum += shapeColor * textColor.rgb * textColor.a;
+            shapeAccum += shapeColor * textColor.rgb * textColor.a * SelectionTextT;
         }
         
         col += shapeAccum;

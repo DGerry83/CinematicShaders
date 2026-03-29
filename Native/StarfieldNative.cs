@@ -55,6 +55,12 @@ namespace CinematicShaders.Native
         public static extern int CR_TextGetGlyphCount(IntPtr textSystem);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_TextExportAtlas(IntPtr textSystem, [MarshalAs(UnmanagedType.LPStr)] string filename);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_TextExportGlyphDebug(IntPtr textSystem, [MarshalAs(UnmanagedType.LPStr)] string baseFilename);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_TextDispatch(
             IntPtr textSystem,
             IntPtr outputTexture,
