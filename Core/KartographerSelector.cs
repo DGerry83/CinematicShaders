@@ -1,6 +1,8 @@
 using CinematicShaders.Native;
+using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using UnityEngine;
 
 namespace CinematicShaders.Core
@@ -14,12 +16,14 @@ namespace CinematicShaders.Core
         public string Name;
         public string SpectralType;
         public float Magnitude;
+        public float DistanceLy;
+        public string Constellation;
         public Vector3 Direction;
     }
 
     /// <summary>
     /// Tracks selected/hovered stars and projects them to screen space for HUD rendering.
-    /// Phase 2/3 hybrid: JSON loading + projection math with visual debug via selection circle.
+    /// Phase 4: Added text rendering for info box.
     /// </summary>
     public class KartographerSelector
     {
@@ -41,6 +45,210 @@ namespace CinematicShaders.Core
 
         // Enable/disable selection circle rendering
         public bool SelectionCircleEnabled { get; set; } = false;
+
+        // ============================================================================
+        // Text System (Phase 4)
+        // ============================================================================
+        private IntPtr _textSystem = IntPtr.Zero;
+        private ComputeBuffer _glyphBuffer = null;
+        private RenderTexture _textTexture = null;
+        private string _lastText = null;
+        private bool _textDirty = false;
+        private static readonly int TEXT_TEXTURE_SIZE = 512;
+        private static readonly float FONT_SIZE = 24f;
+
+        // ============================================================================
+
+        /// <summary>
+        /// Initialize the text system with the retro font
+        /// </summary>
+        public void InitializeTextSystem()
+        {
+            if (_textSystem != IntPtr.Zero)
+                return; // Already initialized
+
+            if (!StarfieldNative.IsLoaded)
+            {
+                Debug.LogWarning("[KartographerSelector] Cannot initialize text system - native DLL not loaded");
+                return;
+            }
+
+            try
+            {
+                // Build font path: ../PluginData/Fonts/Ac437_Rainbow100_re_66.ttf
+                // C# DLL is in Plugins/, font is in PluginData/ at mod root level
+                string assemblyPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                string fontPath = Path.GetFullPath(Path.Combine(assemblyPath, "..", "PluginData", "Fonts", "Ac437_Rainbow100_re_66.ttf"));
+
+                if (!File.Exists(fontPath))
+                {
+                    Debug.LogError($"[KartographerSelector] Font file not found: {fontPath}");
+                    return;
+                }
+
+                // Initialize text system with device source texture
+                _textSystem = StarfieldNative.CR_TextInit(
+                    Texture2D.whiteTexture.GetNativeTexturePtr(),
+                    fontPath);
+
+                if (_textSystem == IntPtr.Zero)
+                {
+                    Debug.LogError("[KartographerSelector] Failed to initialize text system");
+                    return;
+                }
+
+                Debug.Log($"[KartographerSelector] Text system initialized with font: {fontPath}");
+
+                // Create text render texture (ARGB32 with random read/write for UAV)
+                _textTexture = new RenderTexture(TEXT_TEXTURE_SIZE, TEXT_TEXTURE_SIZE / 2, 0, RenderTextureFormat.ARGB32);
+                _textTexture.enableRandomWrite = true;
+                _textTexture.Create();
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[KartographerSelector] Text system initialization failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Build formatted text string for the tracked star
+        /// </summary>
+        /// <summary>
+        /// Get visual description for spectral type
+        /// </summary>
+        private string GetSpectralDescription(string spectralType)
+        {
+            if (string.IsNullOrEmpty(spectralType) || spectralType == "?")
+                return "UNKNOWN";
+            
+            char type = spectralType[0];
+            switch (type)
+            {
+                case 'O': return "BLUE SUPERGIANT";
+                case 'B': return "BLUE-WHITE";
+                case 'A': return "WHITE";
+                case 'F': return "YELLOW-WHITE";
+                case 'G': return "YELLOW";
+                case 'K': return "ORANGE";
+                case 'M': return "RED GIANT";
+                case 'L': return "BROWN DWARF";
+                default: return "UNKNOWN";
+            }
+        }
+
+        /// <summary>
+        /// Build formatted text for star info box
+        /// Format: All caps, line breaks after each field
+        /// </summary>
+        private string BuildStarText(NamedStar star)
+        {
+            if (star == null)
+                return "";
+
+            var sb = new System.Text.StringBuilder();
+            
+            // NAME: <name>
+            sb.AppendLine($"NAME: {star.Name.ToUpper()}");
+            
+            // DISTANCE: <distance> LY
+            if (star.DistanceLy > 0)
+            {
+                sb.AppendLine($"DISTANCE: {star.DistanceLy:F1} LY");
+            }
+            else
+            {
+                sb.AppendLine("DISTANCE: UNKNOWN");
+            }
+            
+            // MAGNITUDE: <mag>
+            sb.AppendLine($"MAGNITUDE: {star.Magnitude:F2}");
+            
+            // TYPE: <spectral description>
+            string typeDesc = GetSpectralDescription(star.SpectralType);
+            sb.AppendLine($"TYPE: {typeDesc}");
+            
+            // CONSTELLATION: <constellation name>
+            sb.AppendLine($"CONSTELLATION: {star.Constellation.ToUpper()}");
+            
+            // HIP#####
+            sb.Append($"HIP{star.HipparcosID}");
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Update text texture when tracked star changes
+        /// </summary>
+        private void UpdateTextTexture()
+        {
+            if (_textSystem == IntPtr.Zero)
+            {
+                InitializeTextSystem();
+                if (_textSystem == IntPtr.Zero)
+                    return;
+            }
+
+            // Build text for current star
+            string text = BuildStarText(TrackedStar);
+            
+            // Skip if text hasn't changed
+            if (text == _lastText && !_textDirty)
+                return;
+
+            _lastText = text;
+            _textDirty = false;
+
+            if (string.IsNullOrEmpty(text))
+            {
+                // Clear texture
+                RenderTexture.active = _textTexture;
+                GL.Clear(true, true, Color.clear);
+                RenderTexture.active = null;
+                return;
+            }
+
+            // Layout text in native code
+            uint color = 0xFFFFFFFF; // White ARGB
+            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, text, FONT_SIZE, color);
+
+            if (glyphCount <= 0)
+            {
+                Debug.LogWarning("[KartographerSelector] Text layout returned 0 glyphs");
+                return;
+            }
+
+            // Get glyph data pointer from native
+            System.IntPtr glyphPtr = StarfieldNative.CR_TextGetGlyphPtr(_textSystem);
+            if (glyphPtr == System.IntPtr.Zero)
+            {
+                Debug.LogError("[KartographerSelector] Failed to get glyph pointer");
+                return;
+            }
+
+            // Ensure compute buffer is sized correctly
+            int bufferSize = glyphCount * System.Runtime.InteropServices.Marshal.SizeOf(typeof(StarfieldNative.GlyphData));
+            if (_glyphBuffer == null || _glyphBuffer.count < glyphCount)
+            {
+                if (_glyphBuffer != null)
+                    _glyphBuffer.Release();
+                
+                _glyphBuffer = new ComputeBuffer(Mathf.Max(glyphCount, 64), System.Runtime.InteropServices.Marshal.SizeOf(typeof(StarfieldNative.GlyphData)), ComputeBufferType.Default);
+            }
+
+            // Dispatch native compute shader to render text to texture
+            // The glyph buffer is created/managed internally by the text system
+            StarfieldNative.CR_TextDispatch(
+                _textSystem,
+                _textTexture.GetNativeTexturePtr(),
+                glyphCount,
+                TEXT_TEXTURE_SIZE,
+                TEXT_TEXTURE_SIZE / 2);
+            
+            // Set text texture for pixel shader sampling
+            StarfieldNative.CR_SetTextTexture(_textTexture.GetNativeTexturePtr());
+            
+            Debug.Log($"[KartographerSelector] Text rendered: {glyphCount} glyphs for '{text.Replace('\n', '|')}'");
+        }
 
         /// <summary>
         /// Load the JSON sidecar for the active catalog using simple parsing
@@ -174,7 +382,9 @@ namespace CinematicShaders.Core
                 HipparcosID = hipId,
                 Name = ExtractStringValue(starJson, "proper") ?? ExtractStringValue(starJson, "full_designation") ?? $"HIP {hipId}",
                 SpectralType = ExtractStringValue(starJson, "spectral") ?? "?",
-                Magnitude = ExtractFloatValue(starJson, "magnitude", 99f)
+                Magnitude = ExtractFloatValue(starJson, "magnitude", 99f),
+                DistanceLy = ExtractFloatValue(starJson, "distance_ly", 0f),
+                Constellation = ExtractStringValue(starJson, "constellation") ?? "?"
             };
 
             // Extract direction vector
@@ -248,6 +458,7 @@ namespace CinematicShaders.Core
             {
                 TrackedStar = star;
                 SelectionCircleEnabled = true;
+                _textDirty = true; // Mark text for update
                 Debug.Log($"[KartographerSelector] Now tracking: {star.Name} (HIP {hipId})");
             }
             else
@@ -286,6 +497,12 @@ namespace CinematicShaders.Core
                 AspectRatio,
                 VerticalFOV
             );
+
+            // Update text texture if needed
+            if (_textDirty || TrackedStar != null)
+            {
+                UpdateTextTexture();
+            }
 
             // Push to native if on screen
             bool onScreen = KartographerMath.IsOnScreen(TrackedStarScreenUV);
@@ -345,6 +562,14 @@ namespace CinematicShaders.Core
             kartParams.SelectionCircleThickness = 0.001f;
             kartParams.SelectionCircleRadius = 0.02f;
 
+            // Text params (Phase 4) - placeholder for now
+            // These define where text appears inside the info box
+            kartParams.TextOriginX = boxTopLeftX + 0.005f; // Small margin inside box
+            kartParams.TextOriginY = boxTopLeftY + 0.005f;
+            kartParams.TextAreaSizeX = 0.13f; // Slightly smaller than box
+            kartParams.TextAreaSizeY = 0.09f;
+            kartParams.SelectionTextT = 1.0f; // Steady (no flicker for now)
+
             StarfieldNative.LastKartographerParams = kartParams;
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
         }
@@ -356,7 +581,33 @@ namespace CinematicShaders.Core
         {
             TrackedStar = null;
             SelectionCircleEnabled = false;
+            _textDirty = true; // Clear text on next update
             PushToNative(false);
+        }
+
+        /// <summary>
+        /// Cleanup resources
+        /// </summary>
+        public void Dispose()
+        {
+            if (_textSystem != IntPtr.Zero)
+            {
+                StarfieldNative.CR_TextShutdown(_textSystem);
+                _textSystem = IntPtr.Zero;
+            }
+
+            if (_glyphBuffer != null)
+            {
+                _glyphBuffer.Release();
+                _glyphBuffer = null;
+            }
+
+            if (_textTexture != null)
+            {
+                _textTexture.Release();
+                UnityEngine.Object.Destroy(_textTexture);
+                _textTexture = null;
+            }
         }
     }
 }

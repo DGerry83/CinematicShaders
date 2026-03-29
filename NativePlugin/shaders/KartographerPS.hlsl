@@ -89,6 +89,10 @@ static const float3 kGridColors[4] = {
     float3(0.25, 1.0, 0.0)   // Green
 };
 
+// Text texture (rendered by compute shader)
+Texture2D<float4> TextTexture : register(t2);
+SamplerState TextSampler : register(s0);
+
 // Grid size presets: 0=Jumbo, 1=Large, 2=Medium, 3=Small, 4=Tiny
 
 static const float meridianNoise_Jumbo[8] = {
@@ -311,19 +315,18 @@ float4 PSMain(PSInput input) : SV_Target {
     col.b = colB.b;
     
     // ============================================================================
-    // SELECTION CIRCLE + INFO BOX
+    // SELECTION CIRCLE + INFO BOX + TEXT
     // ============================================================================
     if (SelectionCircleEnabled) {
         float3 shapeColor = kGridColors[GridColorIndex];
+        float3 shapeAccum = float3(0, 0, 0);
         
         float2 center = SelectionCircleCenter;
         float r = SelectionCircleRadius;
         float thick = SelectionCircleThickness;
         float flicker = SelectionCircleT >= 1.0 ? 1.0 : SelectionCircleT;
         
-        // --- Info box black backing ---
-        // DebugBoxTopLeft is the actual top-left corner in shader-uv.
-        // Note: for 2D screen placement, +Y goes DOWN the screen (input.uv.y=0 is top).
+        // --- Info box black backing (FIRST - darkens background) ---
         float2 boxCenter = DebugBoxTopLeft + DebugBoxSize * 0.5;
         float2 boxHalfSize = DebugBoxSize * 0.5;
         float boxCornerRad = 0.005;
@@ -338,7 +341,7 @@ float4 PSMain(PSInput input) : SV_Target {
         float dG = SDF_Circle(uvG.xy, center, r);
         float dB = SDF_Circle(uvB.xy, center - caOffset, r);
         
-        float3 shapeAccum = shapeColor * SelectionCircleIntensity * flicker * float3(
+        shapeAccum += shapeColor * SelectionCircleIntensity * flicker * float3(
             1.0 / (abs(dR) + thick),
             1.0 / (abs(dG) + thick),
             1.0 / (abs(dB) + thick)
@@ -354,6 +357,31 @@ float4 PSMain(PSInput input) : SV_Target {
             1.0 / (abs(dbG) + DebugBoxThickness),
             1.0 / (abs(dbB) + DebugBoxThickness)
         );
+        
+        // --- Text rendering (on top of darkened background) ---
+        // AGGRESSIVE DEBUG: Always draw something text-related
+        float2 textLocal = (uv - TextOrigin) / TextAreaSize;
+        
+        // Draw yellow cross at TextOrigin point
+        float distToOrigin = length(uv - TextOrigin);
+        if (distToOrigin < 0.005) shapeAccum += float3(2.0, 2.0, 0.0); // Yellow dot at origin
+        
+        // Draw magenta cross at TextOrigin + TextAreaSize (bottom-right corner)
+        float2 textBR = TextOrigin + TextAreaSize;
+        float distToBR = length(uv - textBR);
+        if (distToBR < 0.005) shapeAccum += float3(2.0, 0.0, 2.0); // Magenta dot at BR corner
+        
+        // If inside text area, show green border + text
+        if (textLocal.x >= 0.0 && textLocal.x <= 1.0 && 
+            textLocal.y >= 0.0 && textLocal.y <= 1.0)
+        {
+            float4 textColor = TextTexture.SampleLevel(TextSampler, textLocal, 0);
+            float border = 0.02;
+            bool isBorder = textLocal.x < border || textLocal.x > (1.0-border) ||
+                           textLocal.y < border || textLocal.y > (1.0-border);
+            if (isBorder) shapeAccum += float3(0.0, 2.0, 0.0); // Green border
+            else if (textColor.a > 0.01) shapeAccum += shapeColor * textColor.rgb * textColor.a;
+        }
         
         col += shapeAccum;
     }

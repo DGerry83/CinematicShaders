@@ -11,6 +11,7 @@
 #include "../include/StarfieldUpscale.h"
 #include "../include/KartographerVS.h"
 #include "../include/KartographerPS.h"
+#include "../include/KartographerText.h"
 #include <vector>
 #include <mutex>
 #include <algorithm>
@@ -171,6 +172,19 @@ static struct {
     float kartographerSelectionCircleIntensity = 0.0f;
     float kartographerSelectionCircleThickness = 0.0f;
     float kartographerSelectionCircleRadius = 0.0f;
+    
+    // Kartographer text params (cached from C#)
+    float kartographerTextOriginX = 0.0f;
+    float kartographerTextOriginY = 0.0f;
+    float kartographerTextAreaSizeX = 0.0f;
+    float kartographerTextAreaSizeY = 0.0f;
+    float kartographerSelectionTextT = 0.0f;
+    
+    // Text rendering system resources
+    ID3D11ComputeShader* textCS = nullptr;
+    ID3D11Buffer* textCB = nullptr;
+    ID3D11SamplerState* textSampler = nullptr;
+    ID3D11ShaderResourceView* textTextureSRV = nullptr;
 } g_StarfieldState;
 
 // Constant buffer layouts (must match HLSL exactly, 16-byte aligned)
@@ -1345,6 +1359,14 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         MapKartographerConstantBuffer(context);
         context->PSSetConstantBuffers(0, 1, &g_StarfieldState.kartographerCB);
         
+        // Bind text texture to slot t2 if available
+        if (g_StarfieldState.textTextureSRV) {
+            LogToFile("[Text] Binding text texture SRV %p to PS slot t2", g_StarfieldState.textTextureSRV);
+            context->PSSetShaderResources(2, 1, &g_StarfieldState.textTextureSRV);
+        } else {
+            LogToFile("[Text] No text texture SRV available (null), nothing bound to t2");
+        }
+        
         // RTV is still bound from main pass - no need to rebind
         
         // Draw fullscreen triangle
@@ -1618,6 +1640,11 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
         context->VSSetShader(g_StarfieldState.kartographerVS, nullptr, 0);
         context->PSSetShader(g_StarfieldState.kartographerPS, nullptr, 0);
         
+        // Bind text texture to slot t2 if available
+        if (g_StarfieldState.textTextureSRV) {
+            context->PSSetShaderResources(2, 1, &g_StarfieldState.textTextureSRV);
+        }
+        
         // Draw fullscreen triangle
         context->Draw(3, 0);
         
@@ -1757,12 +1784,12 @@ static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
         params->_padSelection5 = 0.0f;
         params->_padSelection6 = 0.0f;
         
-        // Text stub (reserved for future phases)
-        params->TextOriginX = 0.0f;
-        params->TextOriginY = 0.0f;
-        params->TextAreaSizeX = 0.0f;
-        params->TextAreaSizeY = 0.0f;
-        params->SelectionTextT = 0.0f;
+        // Text params
+        params->TextOriginX = g_StarfieldState.kartographerTextOriginX;
+        params->TextOriginY = g_StarfieldState.kartographerTextOriginY;
+        params->TextAreaSizeX = g_StarfieldState.kartographerTextAreaSizeX;
+        params->TextAreaSizeY = g_StarfieldState.kartographerTextAreaSizeY;
+        params->SelectionTextT = g_StarfieldState.kartographerSelectionTextT;
         params->_pad12 = 0.0f;
         
         context->Unmap(g_StarfieldState.kartographerCB, 0);
@@ -1799,6 +1826,255 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
     g_StarfieldState.kartographerSelectionCircleIntensity = params->SelectionCircleIntensity;
     g_StarfieldState.kartographerSelectionCircleThickness = params->SelectionCircleThickness;
     g_StarfieldState.kartographerSelectionCircleRadius = params->SelectionCircleRadius;
+    
+    // Text parameters (cached for CB update)
+    g_StarfieldState.kartographerTextOriginX = params->TextOriginX;
+    g_StarfieldState.kartographerTextOriginY = params->TextOriginY;
+    g_StarfieldState.kartographerTextAreaSizeX = params->TextAreaSizeX;
+    g_StarfieldState.kartographerTextAreaSizeY = params->TextAreaSizeY;
+    g_StarfieldState.kartographerSelectionTextT = params->SelectionTextT;
+}
+
+// ============================================================================
+// Text Rendering System Exports (Phase 4)
+// ============================================================================
+
+struct TextParams {
+    int GlyphCount;
+    float OutputSizeX;
+    float OutputSizeY;
+    float Pad;
+};
+
+extern "C" __declspec(dllexport)
+void CR_TextDispatch(
+    void* textSystem,
+    ID3D11Texture2D* outputTexture,
+    int glyphCount,
+    int outputWidth,
+    int outputHeight)
+{
+    LogToFile("[Text] CR_TextDispatch called: textSystem=%p, outputTexture=%p, glyphs=%d, size=%dx%d",
+              textSystem, outputTexture, glyphCount, outputWidth, outputHeight);
+    
+    if (!textSystem || !outputTexture) {
+        LogToFile("[Text] Early exit: textSystem=%p, outputTexture=%p", textSystem, outputTexture);
+        return;
+    }
+    
+    CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(textSystem);
+    LogToFile("[Text] TextSystem cast successful");
+    
+    // Ensure glyph buffer is created and populated
+    LogToFile("[Text] Getting glyph buffer...");
+    ID3D11Buffer* glyphBuffer = ts->GetOrCreateGlyphBuffer();
+    if (!glyphBuffer) {
+        LogToFile("[Text] FAILED: GetOrCreateGlyphBuffer returned null");
+        return;
+    }
+    LogToFile("[Text] Glyph buffer obtained: %p", glyphBuffer);
+    
+    ID3D11ShaderResourceView* glyphSRV = ts->GetGlyphBufferSRV();
+    if (!glyphSRV) {
+        LogToFile("[Text] FAILED: GetGlyphBufferSRV returned null");
+        return;
+    }
+    LogToFile("[Text] Glyph SRV obtained: %p", glyphSRV);
+    
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    LogToFile("[Text] Got state mutex");
+    
+    if (!g_StarfieldState.device) {
+        LogToFile("[Text] FAILED: No device available");
+        return;
+    }
+    LogToFile("[Text] Device available: %p", g_StarfieldState.device);
+    
+    ID3D11DeviceContext* context = nullptr;
+    g_StarfieldState.device->GetImmediateContext(&context);
+    if (!context) {
+        LogToFile("[Text] FAILED: GetImmediateContext returned null");
+        return;
+    }
+    LogToFile("[Text] Context obtained: %p", context);
+    
+    // Create compute shader if not already created
+    if (!g_StarfieldState.textCS) {
+        LogToFile("[Text] Creating compute shader...");
+        LogToFile("[Text] Shader bytecode size: %zu bytes", sizeof(g_KartographerTextCS));
+        HRESULT hr = g_StarfieldState.device->CreateComputeShader(
+            g_KartographerTextCS, sizeof(g_KartographerTextCS), nullptr, &g_StarfieldState.textCS);
+        if (FAILED(hr)) {
+            LogToFile("[Text] FAILED: CreateComputeShader returned 0x%08X", hr);
+            context->Release();
+            return;
+        }
+        LogToFile("[Text] Compute shader created: %p", g_StarfieldState.textCS);
+    } else {
+        LogToFile("[Text] Using existing compute shader: %p", g_StarfieldState.textCS);
+    }
+    
+    // Create constant buffer if not already created
+    if (!g_StarfieldState.textCB) {
+        LogToFile("[Text] Creating constant buffer...");
+        D3D11_BUFFER_DESC cbDesc = {};
+        cbDesc.ByteWidth = sizeof(TextParams);
+        cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+        cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        HRESULT hr = g_StarfieldState.device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.textCB);
+        if (SUCCEEDED(hr)) {
+            LogToFile("[Text] Constant buffer created: %p", g_StarfieldState.textCB);
+        } else {
+            LogToFile("[Text] WARNING: CreateBuffer for CB returned 0x%08X", hr);
+        }
+    } else {
+        LogToFile("[Text] Using existing constant buffer: %p", g_StarfieldState.textCB);
+    }
+    
+    // Create sampler if not already created
+    if (!g_StarfieldState.textSampler) {
+        LogToFile("[Text] Creating sampler state...");
+        D3D11_SAMPLER_DESC sampDesc = {};
+        sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+        sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+        sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+        sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+        HRESULT hr = g_StarfieldState.device->CreateSamplerState(&sampDesc, &g_StarfieldState.textSampler);
+        if (SUCCEEDED(hr)) {
+            LogToFile("[Text] Sampler created: %p", g_StarfieldState.textSampler);
+        } else {
+            LogToFile("[Text] WARNING: CreateSamplerState returned 0x%08X", hr);
+        }
+    } else {
+        LogToFile("[Text] Using existing sampler: %p", g_StarfieldState.textSampler);
+    }
+    
+    // Create UAV for output texture
+    LogToFile("[Text] Creating UAV for output texture...");
+    ID3D11UnorderedAccessView* outputUAV = nullptr;
+    D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+    uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+    HRESULT hr = g_StarfieldState.device->CreateUnorderedAccessView(outputTexture, &uavDesc, &outputUAV);
+    if (FAILED(hr)) {
+        LogToFile("[Text] FAILED: CreateUnorderedAccessView returned 0x%08X", hr);
+        context->Release();
+        return;
+    }
+    LogToFile("[Text] UAV created: %p", outputUAV);
+    
+    // Get atlas texture from text system
+    LogToFile("[Text] Getting atlas SRV...");
+    ID3D11ShaderResourceView* atlasSRV = ts->GetAtlasSRV();
+    if (!atlasSRV) {
+        LogToFile("[Text] FAILED: GetAtlasSRV returned null");
+        outputUAV->Release();
+        context->Release();
+        return;
+    }
+    LogToFile("[Text] Atlas SRV obtained: %p", atlasSRV);
+    
+    // Update constant buffer
+    LogToFile("[Text] Updating constant buffer...");
+    D3D11_MAPPED_SUBRESOURCE mapped;
+    if (SUCCEEDED(context->Map(g_StarfieldState.textCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+        TextParams* params = (TextParams*)mapped.pData;
+        params->GlyphCount = glyphCount;
+        params->OutputSizeX = (float)outputWidth;
+        params->OutputSizeY = (float)outputHeight;
+        params->Pad = 0.0f;
+        context->Unmap(g_StarfieldState.textCB, 0);
+        LogToFile("[Text] Constant buffer updated: GlyphCount=%d, OutputSize=(%.0f, %.0f)", 
+                  glyphCount, (float)outputWidth, (float)outputHeight);
+    } else {
+        LogToFile("[Text] WARNING: Failed to map constant buffer");
+    }
+    
+    // Clear output texture
+    LogToFile("[Text] Clearing output UAV...");
+    UINT clearColor[4] = {0, 0, 0, 0};
+    context->ClearUnorderedAccessViewUint(outputUAV, clearColor);
+    
+    // Set compute shader and resources
+    LogToFile("[Text] Binding compute shader...");
+    context->CSSetShader(g_StarfieldState.textCS, nullptr, 0);
+    LogToFile("[Text] Binding constant buffer...");
+    context->CSSetConstantBuffers(0, 1, &g_StarfieldState.textCB);
+    LogToFile("[Text] Binding SRVs (atlas=%p, glyph=%p)...", atlasSRV, glyphSRV);
+    ID3D11ShaderResourceView* srvs[2] = {atlasSRV, glyphSRV}; // t0 = atlas, t1 = glyph buffer
+    context->CSSetShaderResources(0, 2, srvs);
+    LogToFile("[Text] Binding sampler...");
+    context->CSSetSamplers(0, 1, &g_StarfieldState.textSampler);
+    
+    LogToFile("[Text] Binding UAV...");
+    ID3D11UnorderedAccessView* uavs[1] = {outputUAV};
+    context->CSSetUnorderedAccessViews(0, 1, uavs, nullptr);
+    
+    // Dispatch compute shader
+    // For debug shader: threads = ceil(outputWidth/16) x ceil(outputHeight/16)
+    UINT dispatchX = (outputWidth + 15) / 16;
+    UINT dispatchY = (outputHeight + 15) / 16;
+    LogToFile("[Text] DISPATCHING: %u x %u groups for %dx%d texture", dispatchX, dispatchY, outputWidth, outputHeight);
+    context->Dispatch(dispatchX, dispatchY, 1);
+    LogToFile("[Text] Dispatch returned");
+    
+    // Unbind resources
+    LogToFile("[Text] Unbinding resources...");
+    ID3D11UnorderedAccessView* nullUAV[1] = {nullptr};
+    ID3D11ShaderResourceView* nullSRV[2] = {nullptr, nullptr};
+    context->CSSetUnorderedAccessViews(0, 1, nullUAV, nullptr);
+    context->CSSetShaderResources(0, 2, nullSRV);
+    context->CSSetShader(nullptr, nullptr, 0);
+    LogToFile("[Text] Resources unbound");
+    
+    outputUAV->Release();
+    context->Release();
+    LogToFile("[Text] CR_TextDispatch complete");
+}
+
+extern "C" __declspec(dllexport)
+void CR_SetTextTexture(ID3D11Texture2D* texture)
+{
+    LogToFile("[Text] CR_SetTextTexture called: texture=%p", texture);
+    
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    LogToFile("[Text] Got state mutex, device=%p", g_StarfieldState.device);
+    
+    // Release old SRV if exists
+    if (g_StarfieldState.textTextureSRV) {
+        LogToFile("[Text] Releasing old SRV: %p", g_StarfieldState.textTextureSRV);
+        g_StarfieldState.textTextureSRV->Release();
+        g_StarfieldState.textTextureSRV = nullptr;
+    }
+    
+    if (texture && g_StarfieldState.device) {
+        // Get texture description for debugging
+        D3D11_TEXTURE2D_DESC desc;
+        texture->GetDesc(&desc);
+        LogToFile("[Text] Texture desc: %dx%d, Format=%d, BindFlags=0x%X, Usage=%d", 
+                  desc.Width, desc.Height, desc.Format, desc.BindFlags, desc.Usage);
+        
+        // Check if texture has required bind flags
+        if (!(desc.BindFlags & D3D11_BIND_SHADER_RESOURCE)) {
+            LogToFile("[Text] ERROR: Texture does NOT have D3D11_BIND_SHADER_RESOURCE flag!");
+        }
+        
+        // Create SRV for the texture
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MipLevels = 1;
+        LogToFile("[Text] Creating SRV with Format=R8G8B8A8_UNORM...");
+        HRESULT hr = g_StarfieldState.device->CreateShaderResourceView(texture, &srvDesc, &g_StarfieldState.textTextureSRV);
+        if (FAILED(hr)) {
+            LogToFile("[Text] FAILED: CreateShaderResourceView returned 0x%08X", hr);
+        } else {
+            LogToFile("[Text] Text texture SRV created: %p", g_StarfieldState.textTextureSRV);
+        }
+    } else {
+        LogToFile("[Text] Clearing text texture (texture=%p, device=%p)", texture, g_StarfieldState.device);
+    }
 }
 
 extern "C" __declspec(dllexport)

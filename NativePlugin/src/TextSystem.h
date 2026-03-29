@@ -67,6 +67,10 @@ public:
     int GetGlyphCount() const { return static_cast<int>(m_instances.size()); }
     int GetAtlasSize() const { return m_atlasWidth; }
     
+    // Create/update D3D11 buffer with current glyph instances for compute shader
+    ID3D11Buffer* GetOrCreateGlyphBuffer();
+    ID3D11ShaderResourceView* GetGlyphBufferSRV() { return m_glyphBufferSRV; }
+    
 private:
     // Ensure glyph is packed into atlas (rasterizes if needed)
     bool PackGlyph(int codepoint);
@@ -110,6 +114,11 @@ private:
     
     // Per-layout instance buffer
     std::vector<GlyphInstance> m_instances;
+    
+    // D3D11 glyph buffer for compute shader (created on demand)
+    ID3D11Buffer* m_glyphBuffer = nullptr;
+    ID3D11ShaderResourceView* m_glyphBufferSRV = nullptr;
+    int m_glyphBufferCapacity = 0;
     
     // SDF parameters
     static constexpr int SDF_PADDING = 4;      // Padding around glyph in atlas

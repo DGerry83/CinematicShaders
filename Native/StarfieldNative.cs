@@ -17,6 +17,54 @@ namespace CinematicShaders.Native
 
         public static bool IsLoaded => DllLoader.IsLoaded;
 
+        // ============================================================================
+        // Text System structs and imports (Phase 2 - Font Integration)
+        // ============================================================================
+        
+        [StructLayout(LayoutKind.Sequential)]
+        public struct GlyphData
+        {
+            public float PosX;
+            public float PosY;
+            public float SizeX;
+            public float SizeY;
+            public float UvX;
+            public float UvY;
+            public float UvW;
+            public float UvH;
+            public uint Color;
+            public float Smoothing;
+        }
+        
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr CR_TextInit(IntPtr deviceSourceTexture, [MarshalAs(UnmanagedType.LPWStr)] string fontPath);
+        
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_TextShutdown(IntPtr textSystem);
+        
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CR_TextLayout(IntPtr textSystem, [MarshalAs(UnmanagedType.LPStr)] string text, float fontSize, uint color);
+        
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr CR_TextGetAtlasSRV(IntPtr textSystem);
+        
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr CR_TextGetGlyphPtr(IntPtr textSystem);
+        
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CR_TextGetGlyphCount(IntPtr textSystem);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_TextDispatch(
+            IntPtr textSystem,
+            IntPtr outputTexture,
+            int glyphCount,
+            int outputWidth,
+            int outputHeight);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_SetTextTexture(IntPtr texture);
+
         [StructLayout(LayoutKind.Sequential)]
         public struct StarfieldSettingsNative
         {

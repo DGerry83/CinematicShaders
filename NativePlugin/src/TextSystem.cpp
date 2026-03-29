@@ -4,6 +4,9 @@
 #include <fstream>
 #include <algorithm>
 
+// Logging from main native module
+extern void LogToFile(const char* fmt, ...);
+
 // Windows headers define min/max macros that conflict with std::min/max
 #undef min
 #undef max
@@ -466,6 +469,68 @@ int TextSystem::LayoutString(const char* text, float fontSize, uint32_t color) {
     return static_cast<int>(m_instances.size());
 }
 
+ID3D11Buffer* TextSystem::GetOrCreateGlyphBuffer() {
+    if (m_instances.empty())
+        return nullptr;
+    
+    int requiredCount = static_cast<int>(m_instances.size());
+    int instanceSize = sizeof(GlyphInstance);
+    int requiredSize = requiredCount * instanceSize;
+    
+    // Create or resize buffer if needed
+    if (!m_glyphBuffer || m_glyphBufferCapacity < requiredCount) {
+        if (m_glyphBuffer) {
+            m_glyphBuffer->Release();
+            m_glyphBuffer = nullptr;
+        }
+        if (m_glyphBufferSRV) {
+            m_glyphBufferSRV->Release();
+            m_glyphBufferSRV = nullptr;
+        }
+        
+        // Allocate with some headroom
+        m_glyphBufferCapacity = std::max(requiredCount * 2, 256);
+        
+        D3D11_BUFFER_DESC desc = {};
+        desc.ByteWidth = m_glyphBufferCapacity * instanceSize;
+        desc.Usage = D3D11_USAGE_DYNAMIC;
+        desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        desc.StructureByteStride = instanceSize;
+        desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+        
+        HRESULT hr = m_device->CreateBuffer(&desc, nullptr, &m_glyphBuffer);
+        if (FAILED(hr)) {
+            m_glyphBufferCapacity = 0;
+            return nullptr;
+        }
+        
+        // Create SRV for the buffer
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+        srvDesc.Buffer.ElementWidth = instanceSize;
+        srvDesc.Buffer.NumElements = m_glyphBufferCapacity;
+        
+        hr = m_device->CreateShaderResourceView(m_glyphBuffer, &srvDesc, &m_glyphBufferSRV);
+        if (FAILED(hr)) {
+            m_glyphBuffer->Release();
+            m_glyphBuffer = nullptr;
+            m_glyphBufferCapacity = 0;
+            return nullptr;
+        }
+    }
+    
+    // Update buffer with current glyph data
+    D3D11_MAPPED_SUBRESOURCE mapped;
+    if (SUCCEEDED(m_context->Map(m_glyphBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+        memcpy(mapped.pData, m_instances.data(), requiredSize);
+        m_context->Unmap(m_glyphBuffer, 0);
+    }
+    
+    return m_glyphBuffer;
+}
+
 } // namespace CinematicShaders
 
 // ============================================================================
@@ -475,7 +540,10 @@ int TextSystem::LayoutString(const char* text, float fontSize, uint32_t color) {
 using namespace CinematicShaders;
 
 TextSystemHandle CR_TextInit(ID3D11Texture2D* deviceSourceTexture, const wchar_t* fontPath) {
+    LogToFile("[Text] CR_TextInit called: deviceSourceTexture=%p, fontPath=%ls", deviceSourceTexture, fontPath ? fontPath : L"(null)");
+    
     if (!deviceSourceTexture || !fontPath) {
+        LogToFile("[Text] CR_TextInit FAILED: null argument (texture=%p, path=%ls)", deviceSourceTexture, fontPath ? L"valid" : L"null");
         return nullptr;
     }
     
@@ -483,16 +551,22 @@ TextSystemHandle CR_TextInit(ID3D11Texture2D* deviceSourceTexture, const wchar_t
     ID3D11Device* device = nullptr;
     deviceSourceTexture->GetDevice(&device);
     if (!device) {
+        LogToFile("[Text] CR_TextInit FAILED: GetDevice returned null");
         return nullptr;
     }
+    LogToFile("[Text] Got device from texture: %p", device);
     
     TextSystem* ts = new TextSystem();
+    LogToFile("[Text] Created TextSystem object: %p", ts);
+    
     if (!ts->Init(device, fontPath)) {
+        LogToFile("[Text] CR_TextInit FAILED: TextSystem::Init failed");
         delete ts;
         device->Release();
         return nullptr;
     }
     
+    LogToFile("[Text] CR_TextInit SUCCESS: handle=%p", ts);
     device->Release();
     return ts;
 }
@@ -505,9 +579,16 @@ void CR_TextShutdown(TextSystemHandle handle) {
 }
 
 int CR_TextLayout(TextSystemHandle handle, const char* text, float fontSize, uint32_t color) {
-    if (!handle) return 0;
+    LogToFile("[Text] CR_TextLayout called: handle=%p, text='%s', fontSize=%.1f, color=0x%08X", handle, text ? text : "(null)", fontSize, color);
+    
+    if (!handle) {
+        LogToFile("[Text] CR_TextLayout FAILED: null handle");
+        return 0;
+    }
     TextSystem* ts = static_cast<TextSystem*>(handle);
-    return ts->LayoutString(text, fontSize, color);
+    int count = ts->LayoutString(text, fontSize, color);
+    LogToFile("[Text] CR_TextLayout: LayoutString returned %d glyphs", count);
+    return count;
 }
 
 ID3D11ShaderResourceView* CR_TextGetAtlasSRV(TextSystemHandle handle) {

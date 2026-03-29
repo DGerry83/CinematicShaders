@@ -152,6 +152,17 @@ if %errorlevel% neq 0 (
 echo   Success --^> ..\include\KartographerPS.h
 echo.
 
+REM Compile text rendering compute shader
+echo Compiling KartographerText.hlsl (Text Rendering Compute Shader)...
+"%FXC%" /T cs_5_0 /E CSMain /Fh "..\include\KartographerText.h" /Vn "g_KartographerTextCS" "..\Shaders\KartographerText.hlsl"
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: KartographerText compilation failed!
+    exit /b %errorlevel%
+)
+echo   Success --^> ..\include\KartographerText.h
+echo.
+
 echo ============================================
 echo SUCCESS: All shaders compiled
 echo ============================================

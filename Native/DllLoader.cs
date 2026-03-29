@@ -88,6 +88,13 @@ namespace CinematicShaders.Native
                         return;
                     }
 
+                    // Verify Text System exports exist
+                    if (GetProcAddress(_handle, "CR_TextInit") == IntPtr.Zero)
+                    {
+                        Debug.LogError("[DllLoader] CR_TextInit export not found!");
+                        return;
+                    }
+
                     _loaded = true;
                     Debug.Log("[DllLoader] Native DLL loaded successfully with dependency path resolution");
                 }

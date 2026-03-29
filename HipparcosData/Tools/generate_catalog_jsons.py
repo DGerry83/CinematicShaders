@@ -191,6 +191,15 @@ def generate_catalog_json(bin_file, csv_path, constellations, output_name):
             except ValueError:
                 pass
             
+            # Add distance in light years (convert from parsecs)
+            try:
+                dist_pc = float(row.get('dist', '0'))
+                if dist_pc > 0 and dist_pc < 100000:  # Valid distance range
+                    dist_ly = round(dist_pc * 3.26156, 2)
+                    entry['distance_ly'] = dist_ly
+            except ValueError:
+                pass
+            
             # Add Cartesian direction vectors for GPU projection (x, y, z in world space)
             # Must match convert_hyg.py which flips Y to correct mirroring
             try:
