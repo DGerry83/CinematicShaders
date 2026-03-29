@@ -360,24 +360,33 @@ float4 PSMain(PSInput input) : SV_Target {
         
         // --- Text rendering (on top of darkened background) ---
         // TextOrigin and TextAreaSize are in shader-uv space (center=0, +Y=UP)
-        float2 textLocal = (uv - TextOrigin) / TextAreaSize;
+        // Apply chromatic aberration: sample text 3 times with RGB offset UVs
+        float2 textLocalR = (uvR - TextOrigin) / TextAreaSize;
+        float2 textLocalG = (uvG - TextOrigin) / TextAreaSize;
+        float2 textLocalB = (uvB - TextOrigin) / TextAreaSize;
         
         // Flip Y because texture UV has 0 at top, shader has +Y=up
-        textLocal.y = 1.0 - textLocal.y;
+        textLocalR.y = 1.0 - textLocalR.y;
+        textLocalG.y = 1.0 - textLocalG.y;
+        textLocalB.y = 1.0 - textLocalB.y;
         
-        if (textLocal.x >= 0.0 && textLocal.x <= 1.0 && 
-            textLocal.y >= 0.0 && textLocal.y <= 1.0)
-        {
-            // Sample bitmap: stb_truetype returns 8-bit coverage (0=empty, 255=full)
-            // Use point sampling for crisp pixel fonts - direct coverage gives best results
-            float coverage = TextTexture.SampleLevel(TextSampler, textLocal, 0).r;
+        // Sample text coverage for each channel separately (chromatic aberration)
+        float coverageR = 0.0, coverageG = 0.0, coverageB = 0.0;
+        
+        if (textLocalR.x >= 0.0 && textLocalR.x <= 1.0 && 
+            textLocalR.y >= 0.0 && textLocalR.y <= 1.0)
+            coverageR = TextTexture.SampleLevel(TextSampler, textLocalR, 0).r;
             
-            // Direct coverage for authentic pixel font look
-            // For hard thresholding (more DOS-like): float alpha = (coverage >= 0.5) ? 1.0 : 0.0;
-            float alpha = coverage;
+        if (textLocalG.x >= 0.0 && textLocalG.x <= 1.0 && 
+            textLocalG.y >= 0.0 && textLocalG.y <= 1.0)
+            coverageG = TextTexture.SampleLevel(TextSampler, textLocalG, 0).r;
             
-            shapeAccum += shapeColor * alpha * SelectionTextT;
-        }
+        if (textLocalB.x >= 0.0 && textLocalB.x <= 1.0 && 
+            textLocalB.y >= 0.0 && textLocalB.y <= 1.0)
+            coverageB = TextTexture.SampleLevel(TextSampler, textLocalB, 0).r;
+        
+        // Add text with per-channel coverage for chromatic aberration effect
+        shapeAccum += shapeColor * SelectionTextT * float3(coverageR, coverageG, coverageB);
         
         col += shapeAccum;
     }

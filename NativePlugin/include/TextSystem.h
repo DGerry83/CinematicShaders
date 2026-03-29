@@ -62,6 +62,10 @@ public:
     // color: packed ARGB (e.g., 0xFFFFFFFF for white)
     int LayoutString(const char* text, float fontSize, uint32_t color);
     
+    // Measure text dimensions without rendering. Returns bounds in pixels.
+    // Returns: width, height via out params
+    void MeasureString(const char* text, float fontSize, float& outWidth, float& outHeight);
+    
     // Accessors for C# interop
     ID3D11ShaderResourceView* GetAtlasSRV() const { return m_atlasSRV; }
     ID3D11Texture2D* GetAtlasTexture() const { return m_atlasTex; }
@@ -143,6 +147,9 @@ typedef void* TextSystemHandle;
     
     // Layout text
     __declspec(dllexport) int CR_TextLayout(TextSystemHandle handle, const char* text, float fontSize, uint32_t color);
+    
+    // Measure text (no rendering)
+    __declspec(dllexport) void CR_TextMeasure(TextSystemHandle handle, const char* text, float fontSize, float* outWidth, float* outHeight);
     
     // Access results
     __declspec(dllexport) ID3D11ShaderResourceView* CR_TextGetAtlasSRV(TextSystemHandle handle);

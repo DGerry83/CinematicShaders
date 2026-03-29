@@ -46,6 +46,9 @@ namespace CinematicShaders.Native
         public static extern int CR_TextLayout(IntPtr textSystem, [MarshalAs(UnmanagedType.LPStr)] string text, float fontSize, uint color);
         
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_TextMeasure(IntPtr textSystem, [MarshalAs(UnmanagedType.LPStr)] string text, float fontSize, out float outWidth, out float outHeight);
+        
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr CR_TextGetAtlasSRV(IntPtr textSystem);
         
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]

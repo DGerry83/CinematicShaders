@@ -54,8 +54,16 @@ namespace CinematicShaders.Core
         private RenderTexture _textTexture = null;
         private string _lastText = null;
         private bool _textDirty = false;
-        private static readonly int TEXT_TEXTURE_SIZE = 2048;
-        private static readonly float FONT_SIZE = 400f;
+        private static readonly int TEXT_TEXTURE_SIZE = 512;
+        private static readonly float FONT_SIZE = 64f;
+        
+        // Text measurement for auto-sizing (updated when text changes)
+        private float _textWidthPixels = 0f;
+        private float _textHeightPixels = 0f;
+        
+        // Conversion factor: pixels to shader-uv space (approximate)
+        // At 1080p, 512 pixels ≈ 0.094 shader-uv units horizontally
+        private static readonly float PIXELS_TO_SHADER_UV = 0.00018f;
 
         // ============================================================================
 
@@ -124,15 +132,15 @@ namespace CinematicShaders.Core
             char type = spectralType[0];
             switch (type)
             {
-                case 'O': return "BLUE SUPERGIANT";
-                case 'B': return "BLUE-WHITE";
-                case 'A': return "WHITE";
-                case 'F': return "YELLOW-WHITE";
-                case 'G': return "YELLOW";
-                case 'K': return "ORANGE";
-                case 'M': return "RED GIANT";
-                case 'L': return "BROWN DWARF";
-                default: return "UNKNOWN";
+                case 'O': return "O - BLUE SUPERGIANT";
+                case 'B': return "B - BLUE-WHITE";
+                case 'A': return "A - WHITE";
+                case 'F': return "F - YELLOW-WHITE";
+                case 'G': return "G - YELLOW";
+                case 'K': return "L - ORANGE";
+                case 'M': return "M - RED GIANT";
+                case 'L': return "L - BROWN DWARF";
+                default: return "?? UNKNOWN";
             }
         }
 
@@ -207,6 +215,10 @@ namespace CinematicShaders.Core
                 return;
             }
 
+            // Measure text for auto-sizing
+            StarfieldNative.CR_TextMeasure(_textSystem, text, FONT_SIZE, out _textWidthPixels, out _textHeightPixels);
+            Debug.Log($"[KartographerSelector] Text measured: {_textWidthPixels:F1} x {_textHeightPixels:F1} pixels");
+            
             // Layout text in native code
             uint color = 0xFFFFFFFF; // White ARGB
             int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, text, FONT_SIZE, color);
@@ -554,10 +566,19 @@ namespace CinematicShaders.Core
             kartParams.GridColorIndex = StarfieldSettings.KartographerGridColor;
             kartParams.DebugShapesEnabled = 0;
             kartParams.FocalLength = focalLength;
+            // Auto-size box based on measured text with padding
+            float paddingPixels = 20f; // 10px padding on each side
+            float boxWidthUV = (_textWidthPixels + paddingPixels * 2) * PIXELS_TO_SHADER_UV * AspectRatio;
+            float boxHeightUV = (_textHeightPixels + paddingPixels * 2) * PIXELS_TO_SHADER_UV;
+            
+            // Minimum box size
+            boxWidthUV = Mathf.Max(boxWidthUV, 0.08f);
+            boxHeightUV = Mathf.Max(boxHeightUV, 0.06f);
+            
             kartParams.DebugBoxTopLeftX = boxTopLeftX;
             kartParams.DebugBoxTopLeftY = boxTopLeftY;
-            kartParams.DebugBoxSizeX = 0.14f;
-            kartParams.DebugBoxSizeY = 0.10f;
+            kartParams.DebugBoxSizeX = boxWidthUV;
+            kartParams.DebugBoxSizeY = boxHeightUV;
             kartParams.DebugBoxThickness = 0.001f;
             kartParams.SelectionCircleEnabled = visible ? 1 : 0;
             kartParams.SelectionCircleCenterX = centerX;
@@ -567,11 +588,12 @@ namespace CinematicShaders.Core
             kartParams.SelectionCircleThickness = 0.001f;
             kartParams.SelectionCircleRadius = 0.02f;
 
-            // Text params
-            kartParams.TextOriginX = boxTopLeftX + 0.005f;
-            kartParams.TextOriginY = boxTopLeftY + 0.005f;
-            kartParams.TextAreaSizeX = 0.13f;
-            kartParams.TextAreaSizeY = 0.09f;
+            // Text params - match text area to box size minus padding
+            float textPaddingUV = 0.008f;
+            kartParams.TextOriginX = boxTopLeftX + textPaddingUV;
+            kartParams.TextOriginY = boxTopLeftY + textPaddingUV;
+            kartParams.TextAreaSizeX = boxWidthUV - textPaddingUV * 2;
+            kartParams.TextAreaSizeY = boxHeightUV - textPaddingUV * 2;
             kartParams.SelectionTextT = 1.0f;
 
             StarfieldNative.LastKartographerParams = kartParams;

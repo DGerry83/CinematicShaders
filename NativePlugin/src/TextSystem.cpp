@@ -342,12 +342,14 @@ int TextSystem::LayoutString(const char* text, float fontSize, uint32_t color) {
         // Snap to integers for pixel-perfect rendering (critical for pixel fonts)
         inst.posX = std::round(cursorX + m.xOffset);
         inst.posY = std::round(cursorY + (m_ascent * m_fontScale) + m.yOffset);
+        
         inst.sizeX = static_cast<float>(m.width);
         inst.sizeY = static_cast<float>(m.height);
         inst.uvX = m.u0;
-        inst.uvY = m.v0;
+        // Flip V to flip glyph vertically (atlas has top-first, we need bottom-first for correct rendering)
+        inst.uvY = m.v1;
         inst.uvW = m.u1 - m.u0;
-        inst.uvH = m.v1 - m.v0;
+        inst.uvH = m.v0 - m.v1;
         inst.color = color;
         // No smoothing for bitmap fonts - we want crisp pixels
         inst.smoothing = 0.0f;
@@ -365,6 +367,57 @@ int TextSystem::LayoutString(const char* text, float fontSize, uint32_t color) {
     }
     
     return static_cast<int>(m_instances.size());
+}
+
+void TextSystem::MeasureString(const char* text, float fontSize, float& outWidth, float& outHeight) {
+    outWidth = 0.0f;
+    outHeight = 0.0f;
+    
+    if (!m_initialized || !text) {
+        return;
+    }
+    
+    // Quantize font size
+    int fontPx = static_cast<int>(std::round(fontSize));
+    
+    // Need to ensure font is set up for metrics
+    if (fontPx != m_cachedFontPx) {
+        // Just set the scale temporarily for measurement
+        m_fontScale = stbtt_ScaleForPixelHeight(m_fontInfo, static_cast<float>(fontPx));
+    } else {
+        m_fontScale = stbtt_ScaleForPixelHeight(m_fontInfo, static_cast<float>(fontPx));
+    }
+    
+    float lineHeight = (m_ascent - m_descent + m_lineGap) * m_fontScale;
+    float maxWidth = 0.0f;
+    float currentLineWidth = 0.0f;
+    int lineCount = 1;
+    
+    for (const char* p = text; *p; ++p) {
+        int codepoint = static_cast<unsigned char>(*p);
+        
+        if (codepoint == '\n') {
+            maxWidth = std::max(maxWidth, currentLineWidth);
+            currentLineWidth = 0.0f;
+            lineCount++;
+        } else {
+            // Ensure glyph is available for metrics
+            PackGlyph(codepoint);
+            auto it = m_glyphCache.find(codepoint);
+            if (it != m_glyphCache.end()) {
+                const GlyphMetric& m = it->second;
+                currentLineWidth += m.advance;
+                if (*(p + 1) && *(p + 1) != '\n') {
+                    int nextCodepoint = static_cast<unsigned char>(*(p + 1));
+                    currentLineWidth += stbtt_GetCodepointKernAdvance(m_fontInfo, codepoint, nextCodepoint) * m_fontScale;
+                }
+            }
+        }
+    }
+    maxWidth = std::max(maxWidth, currentLineWidth);
+    
+    outWidth = maxWidth;
+    outHeight = lineCount * lineHeight;
 }
 
 void TextSystem::ExportAtlasToFile(const char* filename) {
@@ -546,8 +599,10 @@ void CR_TextShutdown(TextSystemHandle handle) {
     }
 }
 
+extern "C" __declspec(dllexport)
 int CR_TextLayout(TextSystemHandle handle, const char* text, float fontSize, uint32_t color) {
-    LogToFile("[Text] CR_TextLayout called: handle=%p, text='%s', fontSize=%.1f, color=0x%08X", handle, text ? text : "(null)", fontSize, color);
+    LogToFile("[Text] CR_TextLayout called: handle=%p, text='%s', fontSize=%.1f, color=0x%08X", 
+              handle, text ? text : "(null)", fontSize, color);
     
     if (!handle) {
         LogToFile("[Text] CR_TextLayout FAILED: null handle");
@@ -557,6 +612,17 @@ int CR_TextLayout(TextSystemHandle handle, const char* text, float fontSize, uin
     int count = ts->LayoutString(text, fontSize, color);
     LogToFile("[Text] CR_TextLayout: LayoutString returned %d glyphs", count);
     return count;
+}
+
+extern "C" __declspec(dllexport)
+void CR_TextMeasure(TextSystemHandle handle, const char* text, float fontSize, float* outWidth, float* outHeight) {
+    if (!handle || !outWidth || !outHeight) {
+        if (outWidth) *outWidth = 0.0f;
+        if (outHeight) *outHeight = 0.0f;
+        return;
+    }
+    TextSystem* ts = static_cast<TextSystem*>(handle);
+    ts->MeasureString(text, fontSize, *outWidth, *outHeight);
 }
 
 ID3D11ShaderResourceView* CR_TextGetAtlasSRV(TextSystemHandle handle) {
