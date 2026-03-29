@@ -310,6 +310,11 @@ namespace CinematicShaders.Core
                 ? 1.0f / Mathf.Tan(VerticalFOV * 0.5f)
                 : 1.732f;
 
+            // Box positioned below and to the right of the selection circle
+            float radius = 0.02f;
+            float boxTopLeftX = centerX + radius + radius * 0.25f;
+            float boxTopLeftY = centerY - radius - radius * 1.25f;
+
             // Get current params first
             var kartParams = new StarfieldNative.KartographerParamsNative
             {
@@ -325,13 +330,18 @@ namespace CinematicShaders.Core
                 GridColorIndex = StarfieldSettings.KartographerGridColor,
                 DebugShapesEnabled = 0,
                 FocalLength = focalLength,
+                DebugBoxTopLeftX = boxTopLeftX,
+                DebugBoxTopLeftY = boxTopLeftY,
+                DebugBoxSizeX = 0.14f,
+                DebugBoxSizeY = 0.10f,
+                DebugBoxThickness = 0.001f,
                 SelectionCircleEnabled = visible ? 1 : 0,
                 SelectionCircleCenterX = centerX,
                 SelectionCircleCenterY = centerY,
                 SelectionCircleT = 1.0f, // Steady (no flicker for now)
                 SelectionCircleIntensity = 0.002f,
                 SelectionCircleThickness = 0.001f,
-                SelectionCircleRadius = 0.03f
+                SelectionCircleRadius = 0.02f
             };
 
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);

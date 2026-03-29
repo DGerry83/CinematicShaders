@@ -305,103 +305,49 @@ float4 PSMain(PSInput input) : SV_Target {
     col.b = colB.b;
     
     // ============================================================================
-    // DEBUG SHAPES (Phase 1)
-    // ============================================================================
-    if (DebugShapesEnabled) {
-        float3 shapeColor = kGridColors[GridColorIndex];
-        
-        // Circle SDF with per-channel chromatic aberration
-        float2 circleCenter = DebugCircleCenter;
-        float r = DebugCircleRadius;
-        float thick = DebugCircleThickness;
-        
-        // Apply CA by offsetting center per-channel using perpendicular vector
-        float2 caOffset = perp * r * 0.1;
-        
-        float dR = SDF_Circle(uvR.xy, circleCenter + caOffset, r);
-        float dG = SDF_Circle(uvG.xy, circleCenter, r);
-        float dB = SDF_Circle(uvB.xy, circleCenter - caOffset, r);
-        
-        float3 circleGlow = shapeColor * DebugShapeIntensity * float3(
-            1.0 / (abs(dR) + thick),
-            1.0 / (abs(dG) + thick),
-            1.0 / (abs(dB) + thick)
-        );
-        
-        // Rounded Box SDF with per-channel CA
-        float2 boxCenter = DebugBoxTopLeft + DebugBoxSize * 0.5;
-        float2 boxHalfSize = DebugBoxSize * 0.5;
-        // Minimal rounding for sharp corners (user request)
-        float boxCornerRad = 0.0005;
-        
-        float dbR = SDF_RoundedBox(uvR.xy, boxCenter + caOffset, boxHalfSize, boxCornerRad);
-        float dbG = SDF_RoundedBox(uvG.xy, boxCenter, boxHalfSize, boxCornerRad);
-        float dbB = SDF_RoundedBox(uvB.xy, boxCenter - caOffset, boxHalfSize, boxCornerRad);
-        
-        float3 boxGlow = shapeColor * DebugShapeIntensity * float3(
-            1.0 / (abs(dbR) + DebugBoxThickness),
-            1.0 / (abs(dbG) + DebugBoxThickness),
-            1.0 / (abs(dbB) + DebugBoxThickness)
-        );
-        
-        col += circleGlow + boxGlow;
-    }
-    
-    // ============================================================================
-    // SELECTION CIRCLE (Phase 2) - DEBUG: 3 concentric circles
+    // SELECTION CIRCLE + INFO BOX
     // ============================================================================
     if (SelectionCircleEnabled) {
         float3 shapeColor = kGridColors[GridColorIndex];
         
         float2 center = SelectionCircleCenter;
+        float r = SelectionCircleRadius;
         float thick = SelectionCircleThickness;
         float flicker = SelectionCircleT >= 1.0 ? 1.0 : SelectionCircleT;
         
-        float3 circleGlow = float3(0,0,0);
+        // --- Info box black backing ---
+        float2 boxCenter = DebugBoxTopLeft + DebugBoxSize * 0.5;
+        float2 boxHalfSize = DebugBoxSize * 0.5;
+        float boxCornerRad = 0.005;
         
-        // Inner circle (r=0.02)
-        {
-            float r = 0.02;
-            float2 caOffset = perp * r * 0.1;
-            float dR = SDF_Circle(uvR.xy, center + caOffset, r);
-            float dG = SDF_Circle(uvG.xy, center, r);
-            float dB = SDF_Circle(uvB.xy, center - caOffset, r);
-            circleGlow += shapeColor * SelectionCircleIntensity * flicker * float3(
-                1.0 / (abs(dR) + thick),
-                1.0 / (abs(dG) + thick),
-                1.0 / (abs(dB) + thick)
-            );
-        }
+        float backSdf = SDF_RoundedBox(uv, boxCenter, boxHalfSize, boxCornerRad);
+        float backMask = smoothstep(0.0, 0.003, -backSdf);
+        col = lerp(col, col * 0.05, backMask);
         
-        // Middle circle (r=0.03)
-        {
-            float r = 0.03;
-            float2 caOffset = perp * r * 0.1;
-            float dR = SDF_Circle(uvR.xy, center + caOffset, r);
-            float dG = SDF_Circle(uvG.xy, center, r);
-            float dB = SDF_Circle(uvB.xy, center - caOffset, r);
-            circleGlow += shapeColor * SelectionCircleIntensity * flicker * float3(
-                1.0 / (abs(dR) + thick),
-                1.0 / (abs(dG) + thick),
-                1.0 / (abs(dB) + thick)
-            );
-        }
+        // --- Selection circle glow ---
+        float2 caOffset = perp * r * 0.1;
+        float dR = SDF_Circle(uvR.xy, center + caOffset, r);
+        float dG = SDF_Circle(uvG.xy, center, r);
+        float dB = SDF_Circle(uvB.xy, center - caOffset, r);
         
-        // Outer circle (r=0.04)
-        {
-            float r = 0.04;
-            float2 caOffset = perp * r * 0.1;
-            float dR = SDF_Circle(uvR.xy, center + caOffset, r);
-            float dG = SDF_Circle(uvG.xy, center, r);
-            float dB = SDF_Circle(uvB.xy, center - caOffset, r);
-            circleGlow += shapeColor * SelectionCircleIntensity * flicker * float3(
-                1.0 / (abs(dR) + thick),
-                1.0 / (abs(dG) + thick),
-                1.0 / (abs(dB) + thick)
-            );
-        }
+        float3 shapeAccum = shapeColor * SelectionCircleIntensity * flicker * float3(
+            1.0 / (abs(dR) + thick),
+            1.0 / (abs(dG) + thick),
+            1.0 / (abs(dB) + thick)
+        );
         
-        col += circleGlow;
+        // --- Info box outline ---
+        float dbR = SDF_RoundedBox(uvR.xy, boxCenter + caOffset, boxHalfSize, boxCornerRad);
+        float dbG = SDF_RoundedBox(uvG.xy, boxCenter, boxHalfSize, boxCornerRad);
+        float dbB = SDF_RoundedBox(uvB.xy, boxCenter - caOffset, boxHalfSize, boxCornerRad);
+        
+        shapeAccum += shapeColor * SelectionCircleIntensity * flicker * float3(
+            1.0 / (abs(dbR) + DebugBoxThickness),
+            1.0 / (abs(dbG) + DebugBoxThickness),
+            1.0 / (abs(dbB) + DebugBoxThickness)
+        );
+        
+        col += shapeAccum;
     }
     
     float phase = frac(fragCoord.x / 3.0);

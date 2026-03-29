@@ -103,21 +103,6 @@ namespace CinematicShaders.UI.Tabs
 
             GUILayout.BeginVertical(HighLogic.Skin.box);
 
-            // Debug Shapes Toggle (Phase 1)
-            bool newDebugShapes = GUILayout.Toggle(_debugShapesEnabled,
-                " Draw Debug Shapes", HighLogic.Skin.toggle);
-            if (newDebugShapes != _debugShapesEnabled)
-            {
-                _debugShapesEnabled = newDebugShapes;
-                PushKartographerParams();
-            }
-            if (_debugShapesEnabled)
-            {
-                GUILayout.Label("<color=#888888>Circle + Box at screen center</color>", HighLogic.Skin.label);
-            }
-            
-            GUILayout.Space(5);
-            
             // Star Tracking Toggle (Phase 2)
             bool newTrackPolaris = GUILayout.Toggle(_trackPolaris,
                 " Track Polaris", HighLogic.Skin.toggle);

@@ -219,6 +219,7 @@ struct KartographerParamsNative {
     float _padSelection4;           // offset 216
     float _padSelection5;           // offset 220
     float _padSelection6;           // offset 224
+    float _padSelection7;           // offset 228
     
     // Text stub (16 bytes) - offsets 232-247
     float TextOriginX;              // offset 232
