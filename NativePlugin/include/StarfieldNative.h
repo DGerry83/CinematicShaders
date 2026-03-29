@@ -152,9 +152,10 @@ __declspec(dllexport) void CR_StarfieldSetDimming(float sunGlareDimming, float p
 // Kartographer holographic grid overlay enable/disable
 __declspec(dllexport) void CR_StarfieldSetKartographerEnabled(unsigned char enabled);
 
-// Kartographer visual parameters struct (Phase 1 expanded - 256 bytes)
+// Kartographer visual parameters struct (Phase 2 expanded - 256 bytes)
+// Layout matches HLSL exactly - do not modify without updating shader
 struct KartographerParamsNative {
-    // Base grid params (64 bytes)
+    // Base grid params (64 bytes) - offsets 0-63
     float ResolutionX;              // offset 0
     float ResolutionY;              // offset 4
     float Time;                     // offset 8
@@ -172,7 +173,7 @@ struct KartographerParamsNative {
     float _pad2;                    // offset 56
     float _padAlignCamera;          // offset 60
     
-    // Camera basis (48 bytes)
+    // Camera basis (48 bytes) - offsets 64-111
     float CameraRightX;             // offset 64
     float CameraRightY;             // offset 68
     float CameraRightZ;             // offset 72
@@ -186,11 +187,11 @@ struct KartographerParamsNative {
     float CameraForwardZ;           // offset 104
     float _pad5;                    // offset 108
     
-    // Debug shapes (32 bytes)
+    // Debug shapes (32 bytes) - offsets 112-143
     int DebugShapesEnabled;         // offset 112
-    float _pad6;
-    float _pad7;
-    float _pad8;
+    float _pad6;                    // offset 116
+    float _pad7;                    // offset 120
+    float _pad8;                    // offset 124
     float DebugCircleCenterX;       // offset 128
     float DebugCircleCenterY;       // offset 132
     float DebugCircleRadius;        // offset 136
@@ -201,26 +202,25 @@ struct KartographerParamsNative {
     float DebugBoxSizeY;            // offset 156
     float DebugBoxThickness;        // offset 160
     float DebugShapeIntensity;      // offset 164
-    float _pad9;
-    float _pad10;
+    float _pad9;                    // offset 168
+    float _pad10;                   // offset 172
     
-    // Selection animation (32 bytes) - reserved for future phases
-    float SelectionCircleCenterX;   // offset 176
-    float SelectionCircleCenterY;   // offset 180
-    float SelectionCircleT;         // offset 184
-    float SelectionCircleIntensity; // offset 188
-    float SelectionCircleThickness; // offset 192
-    float SelectionCircleRadius;    // offset 196
-    float BoxCenterX;               // offset 200
-    float BoxCenterY;               // offset 204
-    float BoxHalfSizeX;             // offset 208
-    float BoxHalfSizeY;             // offset 212
-    float BoxCornerRadius;          // offset 216
-    float BoxThickness;             // offset 220
-    float BoxT;                     // offset 224
-    float _pad11;
+    // Selection circle (32 bytes) - offsets 176-207
+    int SelectionCircleEnabled;     // offset 176
+    float _padSelection1;           // offset 180
+    float _padSelection2;           // offset 184
+    float _padSelection3;           // offset 188
+    float SelectionCircleCenterX;   // offset 192
+    float SelectionCircleCenterY;   // offset 196
+    float SelectionCircleT;         // offset 200
+    float SelectionCircleIntensity; // offset 204
+    float SelectionCircleThickness; // offset 208
+    float SelectionCircleRadius;    // offset 212
+    float _padSelection4;           // offset 216
+    float _padSelection5;           // offset 220
+    float _padSelection6;           // offset 224
     
-    // Text stub (16 bytes) - reserved for future phases
+    // Text stub (16 bytes) - offsets 232-247
     float TextOriginX;              // offset 232
     float TextOriginY;              // offset 236
     float TextAreaSizeX;            // offset 240

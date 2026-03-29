@@ -1,5 +1,6 @@
 ﻿using CinematicShaders.Core;
 using CinematicShaders.Native;
+using CinematicShaders.UI;
 using System;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -18,6 +19,11 @@ namespace CinematicShaders.Shaders.Starfield
         // Cached camera params to detect FOV changes
         private float _cachedFOV;
         private float _cachedAspect;
+        
+        // Cached camera basis for KartographerSelector (Phase 2)
+        private Vector3 _cachedCameraRight;
+        private Vector3 _cachedCameraUp;
+        private Vector3 _cachedCameraForward;
 
         void OnEnable()
         {
@@ -310,6 +316,11 @@ namespace CinematicShaders.Shaders.Starfield
             StarfieldNative.CR_StarfieldSetDimming(sunGlareDimming, planetaryDimming);
 
             _frameIndex = (_frameIndex + 1) & 7; // Temporal index 0-7
+            
+            // Cache camera basis for KartographerSelector (Phase 2)
+            _cachedCameraRight = right;
+            _cachedCameraUp = up;
+            _cachedCameraForward = forward;
         }
 
         void Update()
@@ -351,7 +362,29 @@ namespace CinematicShaders.Shaders.Starfield
                 StarfieldSettings.InvalidateCatalogForReload();
                 StarfieldSettings.PushSettingsToNative();
             }
+            
+            // Update KartographerSelector with current camera basis (Phase 2)
+            if (CinematicShadersWindow.Instance != null && 
+                CinematicShadersWindow.Instance.WindowRect.width > 0)
+            {
+                // Get the KartographerTab and update it
+                var window = CinematicShadersWindow.Instance;
+                // Use reflection to access private field or add a public method
+                // For now, we'll use a static approach
+                UpdateKartographerSelector();
+            }
         }
+        
+        private void UpdateKartographerSelector()
+        {
+            // This will be called to update the selector - the actual implementation
+            // needs access to the KartographerTab which is managed by the window
+            // For now, we'll use a callback pattern
+            KartographerSelectorCallback?.Invoke(_cachedCameraRight, _cachedCameraUp, _cachedCameraForward, _cachedAspect);
+        }
+        
+        // Callback for KartographerTab to receive camera updates
+        public static System.Action<Vector3, Vector3, Vector3, float> KartographerSelectorCallback;
 
         // Called by manager when settings change
         public void InvalidateResources()

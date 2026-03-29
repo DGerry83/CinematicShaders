@@ -1,5 +1,7 @@
 using CinematicShaders.Core;
 using CinematicShaders.Native;
+using CinematicShaders.Shaders.Starfield;
+using System.IO;
 using UnityEngine;
 
 namespace CinematicShaders.UI.Tabs
@@ -24,10 +26,29 @@ namespace CinematicShaders.UI.Tabs
         {
             // Settings loaded by StarfieldSettings on module startup
             _currentColorIndex = StarfieldSettings.KartographerGridColor;
+            
+            // Register for camera update callbacks from StarfieldCompositor
+            StarfieldCompositor.KartographerSelectorCallback = OnCameraUpdate;
+        }
+        
+        private void OnCameraUpdate(Vector3 right, Vector3 up, Vector3 forward, float aspect)
+        {
+            if (_selector != null && _trackPolaris)
+            {
+                _selector.CameraRight = right;
+                _selector.CameraUp = up;
+                _selector.CameraForward = forward;
+                _selector.AspectRatio = aspect;
+                _selector.Update();
+            }
         }
 
         // Debug shapes state (not persisted to settings file)
         private bool _debugShapesEnabled = false;
+        
+        // Star tracking state (Phase 2)
+        private bool _trackPolaris = false;
+        private KartographerSelector _selector;
 
         public void Draw()
         {
@@ -92,6 +113,24 @@ namespace CinematicShaders.UI.Tabs
             if (_debugShapesEnabled)
             {
                 GUILayout.Label("<color=#888888>Circle + Box at screen center</color>", HighLogic.Skin.label);
+            }
+            
+            GUILayout.Space(5);
+            
+            // Star Tracking Toggle (Phase 2)
+            bool newTrackPolaris = GUILayout.Toggle(_trackPolaris,
+                " Track Polaris", HighLogic.Skin.toggle);
+            if (newTrackPolaris != _trackPolaris)
+            {
+                _trackPolaris = newTrackPolaris;
+                if (_trackPolaris)
+                {
+                    StartTrackingPolaris();
+                }
+                else
+                {
+                    StopTracking();
+                }
             }
             
             GUILayout.Space(5);
@@ -304,6 +343,50 @@ namespace CinematicShaders.UI.Tabs
             
             PushKartographerParams();
             StarfieldSettings.Save();
+        }
+
+        // Phase 2: Star tracking
+        private void StartTrackingPolaris()
+        {
+            if (_selector == null)
+            {
+                _selector = new KartographerSelector();
+            }
+            
+            // Load JSON for current catalog
+            string catalogPath = StarfieldSettings.ActiveCatalogPath;
+            if (!string.IsNullOrEmpty(catalogPath))
+            {
+                string absolutePath = Path.Combine(KSPUtil.ApplicationRootPath, catalogPath);
+                _selector.LoadJsonForCatalog(absolutePath);
+                
+                // Start tracking Polaris (HIP 11767)
+                _selector.TrackStarByHipId(11767);
+            }
+            else
+            {
+                Debug.LogWarning("[KartographerTab] No active catalog to load star data from");
+            }
+        }
+        
+        private void StopTracking()
+        {
+            _selector?.StopTracking();
+        }
+        
+        /// <summary>
+        /// Called by StarfieldCompositor to update selector with camera data
+        /// </summary>
+        public void UpdateSelector(Vector3 right, Vector3 up, Vector3 forward, float aspect)
+        {
+            if (_selector != null && _trackPolaris)
+            {
+                _selector.CameraRight = right;
+                _selector.CameraUp = up;
+                _selector.CameraForward = forward;
+                _selector.AspectRatio = aspect;
+                _selector.Update();
+            }
         }
 
         private float IntensityToDisplay(float internalVal) => internalVal / 0.006f * 5f;

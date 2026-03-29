@@ -1,6 +1,7 @@
 // Kartographer Pixel Shader - Holographic Grid Overlay
 // Spherical coordinate grid with chromatic aberration, phosphor mask, and vignette
 // Phase 1: Added debug SDF shapes (circle, rounded box)
+// Phase 2: Added selection circle for star tracking
 
 struct PSInput {
     float4 position : SV_Position;
@@ -52,20 +53,22 @@ cbuffer KartographerCB : register(b0) {
     float _pad9;
     float _pad10;
     
-    // Selection animation (32 bytes) - reserved for future phases
-    float2 SelectionCircleCenter;   // offset 176
-    float SelectionCircleT;         // offset 184
-    float SelectionCircleIntensity; // offset 188
-    float SelectionCircleThickness; // offset 192
-    float SelectionCircleRadius;    // offset 196
-    float2 BoxCenter;               // offset 200
-    float2 BoxHalfSize;             // offset 208
-    float BoxCornerRadius;          // offset 216
-    float BoxThickness;             // offset 220
-    float BoxT;                     // offset 224
-    float _pad11;
+    // Selection circle (32 bytes) - offsets 176-207
+    int SelectionCircleEnabled;     // offset 176
+    float _padSelection1;           // offset 180
+    float _padSelection2;           // offset 184
+    float _padSelection3;           // offset 188
+    float2 SelectionCircleCenter;   // offset 192
+    float SelectionCircleT;         // offset 200
+    float SelectionCircleIntensity; // offset 204
+    float SelectionCircleThickness; // offset 208
+    float SelectionCircleRadius;    // offset 212
+    float _padSelection4;           // offset 216
+    float _padSelection5;           // offset 220
+    float _padSelection6;           // offset 224
+    float _padSelection7;           // offset 228
     
-    // Text stub (16 bytes) - reserved for future phases
+    // Text stub (16 bytes) - offsets 232-247
     float2 TextOrigin;              // offset 232
     float2 TextAreaSize;            // offset 240
     float SelectionTextT;           // offset 248
@@ -342,6 +345,35 @@ float4 PSMain(PSInput input) : SV_Target {
         );
         
         col += circleGlow + boxGlow;
+    }
+    
+    // ============================================================================
+    // SELECTION CIRCLE (Phase 2)
+    // ============================================================================
+    if (SelectionCircleEnabled) {
+        float3 shapeColor = kGridColors[GridColorIndex];
+        
+        float2 center = SelectionCircleCenter;
+        float r = SelectionCircleRadius;
+        float thick = SelectionCircleThickness;
+        
+        // Apply CA by offsetting center per-channel
+        float2 caOffset = perp * r * 0.1;
+        
+        float dR = SDF_Circle(uvR.xy, center + caOffset, r);
+        float dG = SDF_Circle(uvG.xy, center, r);
+        float dB = SDF_Circle(uvB.xy, center - caOffset, r);
+        
+        // Apply flicker if SelectionCircleT < 1.0 (phase 4), otherwise steady
+        float flicker = SelectionCircleT >= 1.0 ? 1.0 : SelectionCircleT;
+        
+        float3 circleGlow = shapeColor * SelectionCircleIntensity * flicker * float3(
+            1.0 / (abs(dR) + thick),
+            1.0 / (abs(dG) + thick),
+            1.0 / (abs(dB) + thick)
+        );
+        
+        col += circleGlow;
     }
     
     float phase = frac(fragCoord.x / 3.0);

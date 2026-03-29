@@ -155,12 +155,12 @@ namespace CinematicShaders.Native
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_StarfieldSetKartographerEnabled(byte enabled);
 
-        // Kartographer visual parameters struct (Phase 1 expanded - must match native exactly)
+        // Kartographer visual parameters struct (Phase 2 expanded - must match native exactly)
         // Total size: 256 bytes
         [StructLayout(LayoutKind.Sequential)]
         public struct KartographerParamsNative
         {
-            // Base grid params (64 bytes)
+            // Base grid params (64 bytes) - offsets 0-63
             public float ResolutionX;              // offset 0
             public float ResolutionY;              // offset 4
             public float Time;                     // offset 8
@@ -178,7 +178,7 @@ namespace CinematicShaders.Native
             public float _pad2;                    // offset 56
             public float _padAlignCamera;          // offset 60
             
-            // Camera basis (48 bytes)
+            // Camera basis (48 bytes) - offsets 64-111
             public float CameraRightX;             // offset 64
             public float CameraRightY;             // offset 68
             public float CameraRightZ;             // offset 72
@@ -192,11 +192,11 @@ namespace CinematicShaders.Native
             public float CameraForwardZ;           // offset 104
             public float _pad5;                    // offset 108
             
-            // Debug shapes (32 bytes)
+            // Debug shapes (32 bytes) - offsets 112-143
             public int DebugShapesEnabled;         // offset 112
-            public float _pad6;
-            public float _pad7;
-            public float _pad8;
+            public float _pad6;                    // offset 116
+            public float _pad7;                    // offset 120
+            public float _pad8;                    // offset 124
             public float DebugCircleCenterX;       // offset 128
             public float DebugCircleCenterY;       // offset 132
             public float DebugCircleRadius;        // offset 136
@@ -207,32 +207,32 @@ namespace CinematicShaders.Native
             public float DebugBoxSizeY;            // offset 156
             public float DebugBoxThickness;        // offset 160
             public float DebugShapeIntensity;      // offset 164
-            public float _pad9;
-            public float _pad10;
+            public float _pad9;                    // offset 168
+            public float _pad10;                   // offset 172
             
-            // Selection animation (32 bytes) - reserved for future phases
-            public float SelectionCircleCenterX;   // offset 176
-            public float SelectionCircleCenterY;   // offset 180
-            public float SelectionCircleT;         // offset 184
-            public float SelectionCircleIntensity; // offset 188
-            public float SelectionCircleThickness; // offset 192
-            public float SelectionCircleRadius;    // offset 196
-            public float BoxCenterX;               // offset 200
-            public float BoxCenterY;               // offset 204
-            public float BoxHalfSizeX;             // offset 208
-            public float BoxHalfSizeY;             // offset 212
-            public float BoxCornerRadius;          // offset 216
-            public float BoxThickness;             // offset 220
-            public float BoxT;                     // offset 224
-            public float _pad11;
+            // Selection circle (32 bytes) - offsets 176-207
+            public int SelectionCircleEnabled;     // offset 176
+            public float _padSelection1;           // offset 180
+            public float _padSelection2;           // offset 184
+            public float _padSelection3;           // offset 188
+            public float SelectionCircleCenterX;   // offset 192
+            public float SelectionCircleCenterY;   // offset 196
+            public float SelectionCircleT;         // offset 200
+            public float SelectionCircleIntensity; // offset 204
+            public float SelectionCircleThickness; // offset 208
+            public float SelectionCircleRadius;    // offset 212
+            public float _padSelection4;           // offset 216
+            public float _padSelection5;           // offset 220
+            public float _padSelection6;           // offset 224
+            public float _padSelection7;           // offset 228
             
-            // Text stub (16 bytes) - reserved for future phases
+            // Text stub (16 bytes) - offsets 232-247
             public float TextOriginX;              // offset 232
             public float TextOriginY;              // offset 236
             public float TextAreaSizeX;            // offset 240
             public float TextAreaSizeY;            // offset 244
             public float SelectionTextT;           // offset 248
-            public float _pad12;                   // offset 252
+            public float _pad12;                   // offset 252 - total 256 bytes
         }
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]

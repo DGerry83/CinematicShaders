@@ -155,6 +155,15 @@ static struct {
     int kartographerGridSizePreset = 2;  // 0=Jumbo, 1=Large, 2=Medium, 3=Small, 4=Tiny
     int kartographerGridColor = 0;       // 0=Seafoam, 1=Amber, 2=White, 3=Green
     int kartographerDebugShapesEnabled = 0;  // Phase 1: Debug SDF shapes toggle
+    
+    // Kartographer selection circle (cached from C#)
+    int kartographerSelectionCircleEnabled = 0;
+    float kartographerSelectionCircleCenterX = 0.0f;
+    float kartographerSelectionCircleCenterY = 0.0f;
+    float kartographerSelectionCircleT = 0.0f;
+    float kartographerSelectionCircleIntensity = 0.0f;
+    float kartographerSelectionCircleThickness = 0.0f;
+    float kartographerSelectionCircleRadius = 0.0f;
 } g_StarfieldState;
 
 // Constant buffer layouts (must match HLSL exactly, 16-byte aligned)
@@ -253,9 +262,9 @@ struct StarfieldPass2Params {
 };
 
 // Kartographer constant buffer layout (must match HLSL exactly)
-// Total size: 256 bytes (Phase 1 expanded)
+// Total size: 256 bytes (Phase 2 expanded)
 struct KartographerParams {
-    // Base grid params (64 bytes)
+    // Base grid params (64 bytes) - offsets 0-63
     float ResolutionX;              // offset 0
     float ResolutionY;              // offset 4
     float Time;                     // offset 8
@@ -273,7 +282,7 @@ struct KartographerParams {
     float _pad2;                    // offset 56
     float _padAlignCamera;          // offset 60
     
-    // Camera basis (48 bytes)
+    // Camera basis (48 bytes) - offsets 64-111
     float CameraRightX;             // offset 64
     float CameraRightY;             // offset 68
     float CameraRightZ;             // offset 72
@@ -287,11 +296,11 @@ struct KartographerParams {
     float CameraForwardZ;           // offset 104
     float _pad5;                    // offset 108
     
-    // Debug shapes (32 bytes)
+    // Debug shapes (32 bytes) - offsets 112-143
     int DebugShapesEnabled;         // offset 112
-    float _pad6;
-    float _pad7;
-    float _pad8;
+    float _pad6;                    // offset 116
+    float _pad7;                    // offset 120
+    float _pad8;                    // offset 124
     float DebugCircleCenterX;       // offset 128
     float DebugCircleCenterY;       // offset 132
     float DebugCircleRadius;        // offset 136
@@ -302,26 +311,26 @@ struct KartographerParams {
     float DebugBoxSizeY;            // offset 156
     float DebugBoxThickness;        // offset 160
     float DebugShapeIntensity;      // offset 164
-    float _pad9;
-    float _pad10;
+    float _pad9;                    // offset 168
+    float _pad10;                   // offset 172
     
-    // Selection animation (32 bytes) - reserved for future phases
-    float SelectionCircleCenterX;   // offset 176
-    float SelectionCircleCenterY;   // offset 180
-    float SelectionCircleT;         // offset 184
-    float SelectionCircleIntensity; // offset 188
-    float SelectionCircleThickness; // offset 192
-    float SelectionCircleRadius;    // offset 196
-    float BoxCenterX;               // offset 200
-    float BoxCenterY;               // offset 204
-    float BoxHalfSizeX;             // offset 208
-    float BoxHalfSizeY;             // offset 212
-    float BoxCornerRadius;          // offset 216
-    float BoxThickness;             // offset 220
-    float BoxT;                     // offset 224
-    float _pad11;
+    // Selection circle (32 bytes) - offsets 176-207
+    int SelectionCircleEnabled;     // offset 176
+    float _padSelection1;           // offset 180
+    float _padSelection2;           // offset 184
+    float _padSelection3;           // offset 188
+    float SelectionCircleCenterX;   // offset 192
+    float SelectionCircleCenterY;   // offset 196
+    float SelectionCircleT;         // offset 200
+    float SelectionCircleIntensity; // offset 204
+    float SelectionCircleThickness; // offset 208
+    float SelectionCircleRadius;    // offset 212
+    float _padSelection4;           // offset 216
+    float _padSelection5;           // offset 220
+    float _padSelection6;           // offset 224
+    float _padSelection7;           // offset 228
     
-    // Text stub (16 bytes) - reserved for future phases
+    // Text stub (16 bytes) - offsets 232-247
     float TextOriginX;              // offset 232
     float TextOriginY;              // offset 236
     float TextAreaSizeX;            // offset 240
@@ -1716,31 +1725,30 @@ static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
         params->DebugCircleCenterX = 0.5f;  // Screen center in UV space
         params->DebugCircleCenterY = 0.5f;
         params->DebugCircleRadius = 0.05f;
-        params->DebugCircleThickness = 0.001f;  // Hard-coded, not affected by GridThickness slider
+        params->DebugCircleThickness = 0.001f;
         params->DebugBoxTopLeftX = 0.35f;
         params->DebugBoxTopLeftY = 0.45f;
         params->DebugBoxSizeX = 0.3f;
         params->DebugBoxSizeY = 0.1f;
-        params->DebugBoxThickness = 0.001f;  // Hard-coded, not affected by GridThickness slider
-        params->DebugShapeIntensity = 0.002f;  // Hard-coded, not affected by GridIntensity slider
+        params->DebugBoxThickness = 0.001f;
+        params->DebugShapeIntensity = 0.002f;
         params->_pad9 = 0.0f;
         params->_pad10 = 0.0f;
         
-        // Selection animation (reserved for future phases)
-        params->SelectionCircleCenterX = 0.0f;
-        params->SelectionCircleCenterY = 0.0f;
-        params->SelectionCircleT = 0.0f;
-        params->SelectionCircleIntensity = 0.0f;
-        params->SelectionCircleThickness = 0.0f;
-        params->SelectionCircleRadius = 0.0f;
-        params->BoxCenterX = 0.0f;
-        params->BoxCenterY = 0.0f;
-        params->BoxHalfSizeX = 0.0f;
-        params->BoxHalfSizeY = 0.0f;
-        params->BoxCornerRadius = 0.0f;
-        params->BoxThickness = 0.0f;
-        params->BoxT = 0.0f;
-        params->_pad11 = 0.0f;
+        // Selection circle (filled from cached state set by CR_StarfieldSetKartographerParams)
+        params->SelectionCircleEnabled = g_StarfieldState.kartographerSelectionCircleEnabled;
+        params->_padSelection1 = 0.0f;
+        params->_padSelection2 = 0.0f;
+        params->_padSelection3 = 0.0f;
+        params->SelectionCircleCenterX = g_StarfieldState.kartographerSelectionCircleCenterX;
+        params->SelectionCircleCenterY = g_StarfieldState.kartographerSelectionCircleCenterY;
+        params->SelectionCircleT = g_StarfieldState.kartographerSelectionCircleT;
+        params->SelectionCircleIntensity = g_StarfieldState.kartographerSelectionCircleIntensity;
+        params->SelectionCircleThickness = g_StarfieldState.kartographerSelectionCircleThickness;
+        params->SelectionCircleRadius = g_StarfieldState.kartographerSelectionCircleRadius;
+        params->_padSelection4 = 0.0f;
+        params->_padSelection5 = 0.0f;
+        params->_padSelection6 = 0.0f;
         
         // Text stub (reserved for future phases)
         params->TextOriginX = 0.0f;
@@ -1769,6 +1777,15 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
     g_StarfieldState.kartographerGridSizePreset = params->GridSizePreset;
     g_StarfieldState.kartographerGridColor = params->GridColorIndex;
     g_StarfieldState.kartographerDebugShapesEnabled = params->DebugShapesEnabled;
+    
+    // Selection circle parameters (cached for CB update)
+    g_StarfieldState.kartographerSelectionCircleEnabled = params->SelectionCircleEnabled;
+    g_StarfieldState.kartographerSelectionCircleCenterX = params->SelectionCircleCenterX;
+    g_StarfieldState.kartographerSelectionCircleCenterY = params->SelectionCircleCenterY;
+    g_StarfieldState.kartographerSelectionCircleT = params->SelectionCircleT;
+    g_StarfieldState.kartographerSelectionCircleIntensity = params->SelectionCircleIntensity;
+    g_StarfieldState.kartographerSelectionCircleThickness = params->SelectionCircleThickness;
+    g_StarfieldState.kartographerSelectionCircleRadius = params->SelectionCircleRadius;
 }
 
 extern "C" __declspec(dllexport)
