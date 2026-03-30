@@ -8,6 +8,17 @@ using UnityEngine;
 namespace CinematicShaders.Core
 {
     /// <summary>
+    /// Animation phases for star selection UI
+    /// </summary>
+    public enum SelectionAnimationPhase
+    {
+        Circle,     // 0-0.4s: Circle flickers
+        Box,        // 0.4s: Box snaps on
+        Text,       // 0.4s-1.9s: Text types on
+        Complete    // 1.9s+: Cursor blinks
+    }
+
+    /// <summary>
     /// Named star data from JSON sidecar
     /// </summary>
     public class NamedStar
@@ -61,6 +72,15 @@ namespace CinematicShaders.Core
         // Debug logging
         private NamedStar _lastLoggedHover = null;
         private bool _debugLoggingEnabled = true;
+
+        // ============================================================================
+        // Sequential Animation State (Phase 1: Text Type-On System)
+        // ============================================================================
+        private SelectionAnimationPhase _animationPhase = SelectionAnimationPhase.Complete;
+        private float _textTypeT = 0.0f;  // 0-1 progress for text type-on animation
+        private int _lastLockedStarHIP = 0;  // For same-star reselection check
+        private string _fullStarText = "";  // Complete text for current star
+        private string _currentDisplayText = "";  // Text with cursor for rendering
 
         // ============================================================================
         // Text System (Phase 4)
@@ -202,7 +222,124 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
+        /// Build display text with cursor for type-on animation
+        /// Progresses at ~15 characters per second over 1.5s
+        /// </summary>
+        private string BuildDisplayTextWithCursor(string fullText, float typeT)
+        {
+            if (string.IsNullOrEmpty(fullText))
+                return "";
+
+            // Type-on phase: progressively reveal characters
+            if (typeT < 1.0f)
+            {
+                int visibleChars = (int)(fullText.Length * typeT);
+                visibleChars = Mathf.Clamp(visibleChars, 0, fullText.Length);
+                // Use ^| escape sequence - C++ will decode to U+258C LEFT HALF BLOCK
+                return fullText.Substring(0, visibleChars) + "^|";
+            }
+            
+            // Complete phase: full text with blinking cursor at 2Hz
+            // 2Hz blink = 0.25s on, 0.25s off
+            // 2Hz blink = 0.25s on, 0.25s off
+            bool cursorVisible = (Time.time * 2.0f) % 2.0f < 1.0f;
+            // Use ^| escape sequence - C++ will decode to U+258C LEFT HALF BLOCK
+            return fullText + (cursorVisible ? "^|" : " ");
+        }
+
+        /// <summary>
+        /// Start or continue animation for a newly locked star
+        /// Checks for same-star reselection to avoid restarting animation
+        /// </summary>
+        private void StartAnimationForStar(NamedStar star)
+        {
+            if (star == null)
+                return;
+
+            // Check for same-star reselection - keep animation stable
+            if (_lastLockedStarHIP == star.HipparcosID && _animationPhase == SelectionAnimationPhase.Complete)
+            {
+                // Same star, already complete - just ensure text is up to date
+                _fullStarText = BuildStarText(star);
+                _currentDisplayText = BuildDisplayTextWithCursor(_fullStarText, 1.0f);
+                _textDirty = true;
+                return;
+            }
+
+            // New star or re-selecting during animation - reset and start fresh
+            _lastLockedStarHIP = star.HipparcosID;
+            _animationPhase = SelectionAnimationPhase.Circle;
+            _selectionFlickerT = 0.0f;
+            _textTypeT = 0.0f;
+            _fullStarText = BuildStarText(star);
+            _currentDisplayText = "^|";  // Start with just cursor (escape sequence for U+258C)
+            _textDirty = true;
+            
+            Debug.Log($"[KartographerSelector] Animation started for {star.Name} (HIP {star.HipparcosID})");
+        }
+
+        /// <summary>
+        /// Update animation phases based on elapsed time
+        /// Circle: 0-0.4s, Box: 0.4s, Text: 0.4s-1.9s, Complete: 1.9s+
+        /// </summary>
+        private void UpdateAnimation()
+        {
+            if (_lockedStar == null)
+            {
+                // Reset when no star locked
+                _animationPhase = SelectionAnimationPhase.Complete;
+                _selectionFlickerT = 1.0f;
+                _textTypeT = 0.0f;
+                return;
+            }
+
+            // Update circle flicker (0-0.4s)
+            if (_animationPhase == SelectionAnimationPhase.Circle)
+            {
+                _selectionFlickerT += Time.deltaTime / 0.4f;
+                if (_selectionFlickerT >= 1.0f)
+                {
+                    _selectionFlickerT = 1.0f;
+                    _animationPhase = SelectionAnimationPhase.Box;
+                    Debug.Log("[KartographerSelector] Animation phase: Box");
+                }
+            }
+
+            // Box snaps on immediately when circle completes (0.4s)
+            if (_animationPhase == SelectionAnimationPhase.Box)
+            {
+                _animationPhase = SelectionAnimationPhase.Text;
+                Debug.Log("[KartographerSelector] Animation phase: Text");
+            }
+
+            // Text type-on (0.4s-1.9s = 1.5s duration)
+            if (_animationPhase == SelectionAnimationPhase.Text)
+            {
+                _textTypeT += Time.deltaTime / 1.5f;
+                if (_textTypeT >= 1.0f)
+                {
+                    _textTypeT = 1.0f;
+                    _animationPhase = SelectionAnimationPhase.Complete;
+                    Debug.Log("[KartographerSelector] Animation phase: Complete");
+                }
+                
+                // Update display text with cursor
+                _currentDisplayText = BuildDisplayTextWithCursor(_fullStarText, _textTypeT);
+                _textDirty = true;
+            }
+
+            // Complete phase - keep cursor blinking
+            if (_animationPhase == SelectionAnimationPhase.Complete)
+            {
+                // Update cursor blink each frame
+                _currentDisplayText = BuildDisplayTextWithCursor(_fullStarText, 1.0f);
+                _textDirty = true;
+            }
+        }
+
+        /// <summary>
         /// Update text texture when tracked star changes
+        /// Uses progressively built display text for type-on animation
         /// </summary>
         private void UpdateTextTexture()
         {
@@ -213,8 +350,9 @@ namespace CinematicShaders.Core
                     return;
             }
 
-            // Build text for current star
-            string text = BuildStarText(TrackedStar);
+            // Use the progressively built display text (with cursor) for animation
+            // This will type on during Text phase and blink cursor in Complete phase
+            string text = _currentDisplayText;
             
             // Skip if text hasn't changed
             if (text == _lastText && !_textDirty)
@@ -687,14 +825,26 @@ namespace CinematicShaders.Core
                     // Already locked - unlock
                     Debug.Log($"[KartographerSelector] UNLOCKED: {_lockedStar.Name}");
                     _lockedStar = null;
+                    _lastLockedStarHIP = 0;  // Clear last locked star
                 }
                 else if (_hoveredStar != null)
                 {
-                    // Lock the hovered star
-                    _lockedStar = _hoveredStar;
-                    _selectionFlickerT = 0.0f;  // Start flicker animation
-                    _starHash = _lockedStar.HipparcosID * 0.123f;  // Unique hash per star
-                    Debug.Log($"[KartographerSelector] LOCKED: {_lockedStar.Name} (HIP {_lockedStar.HipparcosID})");
+                    // Check for same-star reselection
+                    if (_lastLockedStarHIP == _hoveredStar.HipparcosID && 
+                        _animationPhase == SelectionAnimationPhase.Complete)
+                    {
+                        // Same star clicked again while complete - just re-lock without animation reset
+                        _lockedStar = _hoveredStar;
+                        Debug.Log($"[KartographerSelector] RE-LOCKED (stable): {_lockedStar.Name} (HIP {_lockedStar.HipparcosID})");
+                    }
+                    else
+                    {
+                        // Lock the hovered star and start animation
+                        _lockedStar = _hoveredStar;
+                        _starHash = _lockedStar.HipparcosID * 0.123f;  // Unique hash per star
+                        StartAnimationForStar(_lockedStar);
+                        Debug.Log($"[KartographerSelector] LOCKED: {_lockedStar.Name} (HIP {_lockedStar.HipparcosID})");
+                    }
                 }
             }
 
@@ -703,21 +853,26 @@ namespace CinematicShaders.Core
             {
                 Debug.Log($"[KartographerSelector] UNLOCKED (ESC): {_lockedStar.Name}");
                 _lockedStar = null;
+                _lastLockedStarHIP = 0;  // Clear last locked star
             }
 
-            // Update flicker animation
-            if (_lockedStar != null && _selectionFlickerT < 1.0f)
-            {
-                _selectionFlickerT += Time.deltaTime / 0.4f;  // 0.4s animation
-                if (_selectionFlickerT > 1.0f)
-                    _selectionFlickerT = 1.0f;
-            }
+            // Update sequential animation phases
+            UpdateAnimation();
 
             // Determine which star to display (locked takes priority)
             NamedStar displayStar = _lockedStar ?? _hoveredStar;
             Vector2 displayUV = _lockedStar != null ? 
                 ProjectStarToUV(_lockedStar) : _hoveredStarUV;
             bool isHoverOnly = (_lockedStar == null && _hoveredStar != null);
+
+            // Handle hover-only text (simple, no animation)
+            if (isHoverOnly && displayStar != null)
+            {
+                // Hover mode: just show star name only, no animation
+                _fullStarText = displayStar.Name.ToUpper();
+                _currentDisplayText = _fullStarText;
+                _textDirty = true;
+            }
 
             // Update legacy tracking for compatibility with existing PushToNative
             if (displayStar != null)
@@ -738,6 +893,9 @@ namespace CinematicShaders.Core
                 TrackedStar = null;
                 TrackedStarScreenUV = new Vector2(-1, -1);
                 SelectionCircleEnabled = false;
+                // Clear animation state when nothing displayed
+                _animationPhase = SelectionAnimationPhase.Complete;
+                _lastLockedStarHIP = 0;
             }
             _lastLoggedHover = displayStar;
 
@@ -768,6 +926,17 @@ namespace CinematicShaders.Core
                 AspectRatio,
                 VerticalFOV
             );
+
+            // Start animation if this is a new tracked star
+            if (TrackedStar != null && _lastLockedStarHIP != TrackedStar.HipparcosID)
+            {
+                _lockedStar = TrackedStar;  // Treat as locked for animation
+                _starHash = TrackedStar.HipparcosID * 0.123f;
+                StartAnimationForStar(TrackedStar);
+            }
+
+            // Update animation phases
+            UpdateAnimation();
 
             // Update text texture if needed
             if (_textDirty || TrackedStar != null)
@@ -878,7 +1047,9 @@ namespace CinematicShaders.Core
             
             // Hover vs locked intensity and box visibility
             float intensity = isHoverOnly ? 0.001f : 0.002f;
-            bool showBox = !isHoverOnly && visible;  // Only show box for locked stars
+            // Box only shows during/after Box phase (not during Circle flicker)
+            // Hover never shows box, locked shows box only when animation phase >= Box
+            bool showBox = !isHoverOnly && visible && _animationPhase >= SelectionAnimationPhase.Box;
             
             kartParams.DebugBoxTopLeftX = boxTopLeftX;
             kartParams.DebugBoxTopLeftY = boxTopLeftY;
@@ -924,8 +1095,13 @@ namespace CinematicShaders.Core
         public void StopTracking()
         {
             TrackedStar = null;
+            _lockedStar = null;
             SelectionCircleEnabled = false;
             _textDirty = true; // Clear text on next update
+            _animationPhase = SelectionAnimationPhase.Complete;
+            _lastLockedStarHIP = 0;
+            _textTypeT = 0.0f;
+            _selectionFlickerT = 1.0f;
             PushToNative(false);
         }
 

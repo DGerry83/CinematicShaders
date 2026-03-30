@@ -329,6 +329,12 @@ int TextSystem::LayoutString(const char* text, float fontSize, uint32_t color) {
             continue;
         }
         
+        // Handle escape sequence: ^| -> U+258C LEFT HALF BLOCK
+        if (codepoint == '^' && *(p+1) == '|') {
+            codepoint = 0x258C;  // U+258C LEFT HALF BLOCK
+            p++;  // Skip the '|' character
+        }
+        
         // Pack glyph into atlas
         if (!PackGlyph(codepoint)) {
             continue;  // Skip if can't pack
@@ -420,10 +426,19 @@ void TextSystem::MeasureString(const char* text, float fontSize, float& outWidth
     for (const char* p = text; *p; ++p) {
         int codepoint = static_cast<unsigned char>(*p);
         
+        // Handle escape sequence: ^| -> U+258C LEFT HALF BLOCK
+        if (codepoint == '^' && *(p+1) == '|') {
+            codepoint = 0x258C;  // U+258C LEFT HALF BLOCK
+            p++;  // Skip the '|' character
+        }
+        
         if (codepoint == '\n') {
             maxWidth = std::max(maxWidth, currentLineWidth);
             currentLineWidth = 0.0f;
             lineCount++;
+        } else if (codepoint == 0x258C) {
+            // Cursor glyph - use approximate advance (it's a half block)
+            currentLineWidth += fontPx * 0.5f;  // Half width of a typical character
         } else {
             // Ensure glyph is available for metrics
             PackGlyph(codepoint);
