@@ -27,6 +27,13 @@ namespace CinematicShaders.Shaders.Starfield
         private float _cachedVerticalFOV;
 
         public static float CachedVerticalFOV { get; private set; } = 60f * Mathf.Deg2Rad;
+        
+        // Public static camera basis for grid label and other grid-fixed elements
+        // Updated every frame, accessible without needing a selector instance
+        public static Vector3 CameraRight { get; private set; } = Vector3.right;
+        public static Vector3 CameraUp { get; private set; } = Vector3.up;
+        public static Vector3 CameraForward { get; private set; } = Vector3.forward;
+        public static float CameraAspect { get; private set; } = 1.777f;
 
         void OnEnable()
         {
@@ -326,6 +333,12 @@ namespace CinematicShaders.Shaders.Starfield
             _cachedCameraForward = forward;
             _cachedVerticalFOV = verticalFOV;
             CachedVerticalFOV = verticalFOV;
+            
+            // Update public static fields for grid label access (doesn't require selector)
+            CameraRight = right;
+            CameraUp = up;
+            CameraForward = forward;
+            CameraAspect = _cachedAspect;
         }
 
         void Update()

@@ -49,6 +49,9 @@ namespace CinematicShaders.UI.Tabs
         
         // Star tracking
         private KartographerSelector _selector;
+        
+        // Grid label system (new 8-label support)
+        private GridLabelSystem _labelSystem;
 
         public void Draw()
         {
@@ -80,6 +83,9 @@ namespace CinematicShaders.UI.Tabs
                     StopTracking();
                 }
             }
+            
+            // Update grid labels independently of selector - runs when Kartographer is enabled
+            UpdateGridLabels();
 
             DrawTooltip();
         }
@@ -128,6 +134,26 @@ namespace CinematicShaders.UI.Tabs
                 {
                     _selector.SetMouseHoverMode(newMouseHoverMode);
                 }
+            }
+            
+            GUILayout.Space(5);
+            
+            // Grid Label HUCK toggle - optional label painted onto grid
+            bool newHUCKMode = GUILayout.Toggle(StarfieldSettings.EnableGridLabelHUCK, 
+                " Show HUCK Label", HighLogic.Skin.toggle);
+            if (newHUCKMode != StarfieldSettings.EnableGridLabelHUCK)
+            {
+                StarfieldSettings.EnableGridLabelHUCK = newHUCKMode;
+                StarfieldSettings.Save();
+                
+                // Update label system immediately
+                if (_labelSystem == null)
+                {
+                    _labelSystem = new GridLabelSystem();
+                }
+                _labelSystem.SetLabelEnabled("huck", newHUCKMode);
+                
+                Debug.Log($"[KartographerTab] HUCK label toggled: {newHUCKMode}");
             }
             
             GUILayout.Space(5);
@@ -230,6 +256,16 @@ namespace CinematicShaders.UI.Tabs
             if (GUILayout.Button("Reset to Defaults"))
             {
                 ResetToDefaults();
+            }
+
+            // Debug buttons
+            GUILayout.Space(10);
+            GUILayout.Label("<b>Debug</b>", HighLogic.Skin.label);
+            
+            if (GUILayout.Button("Export Grid Label Texture"))
+            {
+                Debug.Log("[KartographerTab] Export Grid Label Texture button clicked");
+                ExportGridLabelDebug();
             }
 
             GUILayout.EndVertical();
@@ -400,6 +436,73 @@ namespace CinematicShaders.UI.Tabs
                 case 3: return "Small";
                 case 4: return "Tiny";
                 default: return "Medium";
+            }
+        }
+
+        /// <summary>
+        /// Update grid labels - runs independently of selector when Kartographer is enabled
+        /// This handles grid-fixed labels that are always on when enabled
+        /// </summary>
+        private void UpdateGridLabels()
+        {
+            if (!StarfieldSettings.EnableKartographer)
+            {
+                // Clear all grid labels when Kartographer disabled
+                if (_labelSystem != null)
+                {
+                    var kartParams = StarfieldNative.LastKartographerParams;
+                    kartParams.GridLabelEnabledMask = 0;
+                    StarfieldNative.LastKartographerParams = kartParams;
+                    StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
+                }
+                return;
+            }
+            
+            // Initialize label system if needed
+            if (_labelSystem == null)
+            {
+                _labelSystem = new GridLabelSystem();
+            }
+            
+            // Update HUCK label enabled state from settings
+            var huckLabel = _labelSystem.GetLabel("huck");
+            if (huckLabel != null && huckLabel.Enabled != StarfieldSettings.EnableGridLabelHUCK)
+            {
+                _labelSystem.SetLabelEnabled("huck", StarfieldSettings.EnableGridLabelHUCK);
+            }
+            
+            // Update all labels
+            _labelSystem.Update();
+        }
+
+        /// <summary>
+        /// Standalone grid label debug export - does not depend on selector
+        /// </summary>
+        private void ExportGridLabelDebug()
+        {
+            Debug.Log("[KartographerTab] Starting standalone grid label export...");
+            
+            try
+            {
+                // Create temporary selector just for this export
+                var debugSelector = new KartographerSelector();
+                
+                // Load catalog JSON path
+                string catalogPath = StarfieldSettings.ActiveCatalogPath;
+                if (!string.IsNullOrEmpty(catalogPath))
+                {
+                    string absolutePath = Path.Combine(KSPUtil.ApplicationRootPath, catalogPath);
+                    debugSelector.LoadJsonForCatalog(absolutePath);
+                }
+                
+                debugSelector.ExportGridLabelTexture();
+                
+                // Cleanup
+                debugSelector.Dispose();
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[KartographerTab] Export failed: {ex.Message}\n{ex.StackTrace}");
             }
         }
 

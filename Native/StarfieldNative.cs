@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -76,6 +76,9 @@ namespace CinematicShaders.Native
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_SetTextTexture(IntPtr texture);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_SetGridLabelTexture(int slot, IntPtr texture);
 
         [StructLayout(LayoutKind.Sequential)]
         public struct StarfieldSettingsNative
@@ -195,12 +198,11 @@ namespace CinematicShaders.Native
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_StarfieldGenerateCatalog(int seed, int count);
 
-        // Catalog save/load exports
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        public static extern int CR_StarfieldGetCatalogData([Out] StarDataNative[] outBuffer, int maxCount);
+        public static extern int CR_StarfieldGetCatalogData(StarDataNative[] outBuffer, int maxCount);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CR_StarfieldLoadCatalog([In] StarDataNative[] buffer, int count, int heroCount);
+        public static extern void CR_StarfieldLoadCatalog(StarDataNative[] buffer, int count, int heroCount);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern int CR_StarfieldGetCatalogSize();
@@ -208,6 +210,14 @@ namespace CinematicShaders.Native
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern int CR_StarfieldGetHeroCount();
 
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern byte CR_StarfieldIsDeviceReady();
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern byte CR_StarfieldCatalogNeedsReload();
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_StarfieldInvalidateResources();
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_StarfieldSetDimming(float sunGlareDimming, float planetaryDimming);
@@ -215,8 +225,62 @@ namespace CinematicShaders.Native
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_StarfieldSetKartographerEnabled(byte enabled);
 
-        // Kartographer visual parameters struct (Phase 2 expanded - must match native exactly)
-        // Total size: 256 bytes
+        // ============================================================================
+        // Convenience wrappers (C#-friendly versions)
+        // ============================================================================
+        
+        public static bool CatalogNeedsReload()
+        {
+            return CR_StarfieldCatalogNeedsReload() != 0;
+        }
+        
+        public static void InvalidateResources()
+        {
+            CR_StarfieldInvalidateResources();
+        }
+        
+        public static int GetCatalogSize()
+        {
+            return CR_StarfieldGetCatalogSize();
+        }
+        
+        public static int GetHeroCount()
+        {
+            return CR_StarfieldGetHeroCount();
+        }
+        
+        public static StarDataNative[] GetCatalogData(int count)
+        {
+            if (count <= 0) return new StarDataNative[0];
+            
+            var buffer = new StarDataNative[count];
+            int actualCount = CR_StarfieldGetCatalogData(buffer, count);
+            
+            if (actualCount != count)
+            {
+                Debug.LogWarning($"[StarfieldNative] Catalog size mismatch: expected {count}, got {actualCount}");
+                // Resize array to actual count
+                System.Array.Resize(ref buffer, actualCount);
+            }
+            
+            return buffer;
+        }
+        
+        public static void LoadCatalog(StarDataNative[] stars, int heroCount)
+        {
+            if (stars == null || stars.Length == 0)
+            {
+                Debug.LogWarning("[StarfieldNative] Cannot load null or empty catalog");
+                return;
+            }
+            CR_StarfieldLoadCatalog(stars, stars.Length, heroCount);
+        }
+
+        // ============================================================================
+        // Kartographer Parameters - 8 Label Support (Phase 2)
+        // Total size: 544 bytes (34 × 16)
+        // ============================================================================
+        
         [StructLayout(LayoutKind.Sequential)]
         public struct KartographerParamsNative
         {
@@ -226,7 +290,7 @@ namespace CinematicShaders.Native
             public float Time;                     // offset 8
             public float GridIntensity;            // offset 12
             public float GridThickness;            // offset 16
-            public float ChromaticAberrationStrength; // offset 20
+            public float ChromaticAberrationStrength;  // offset 20
             public float VignetteStrength;         // offset 24
             public float VignetteStart;            // offset 28
             public float VignetteEnd;              // offset 32
@@ -272,7 +336,7 @@ namespace CinematicShaders.Native
             
             // Selection circle (32 bytes) - offsets 176-207
             public int SelectionCircleEnabled;     // offset 176
-            public float SelectionStarHash;        // offset 180 - for flicker variation
+            public float SelectionStarHash;        // offset 180
             public float _padSelection2;           // offset 184
             public float _padSelection3;           // offset 188
             public float SelectionCircleCenterX;   // offset 192
@@ -292,133 +356,109 @@ namespace CinematicShaders.Native
             public float TextAreaSizeX;            // offset 240
             public float TextAreaSizeY;            // offset 244
             public float SelectionTextT;           // offset 248
-            public float _pad12;                   // offset 252 - total 256 bytes
+            
+            // Grid Labels (8 labels) - offsets 252-543
+            // Bitmask for enabled labels (bit 0 = label 0, bit 1 = label 1, etc.)
+            public uint GridLabelEnabledMask;      // offset 252
+            public float _padGridMask1;            // offset 256
+            public float _padGridMask2;            // offset 260
+            public float _padGridMask3;            // offset 264
+            
+            // Label 0 (32 bytes) - offsets 268-299
+            public float GridLabel0_PosX;          // offset 268
+            public float GridLabel0_PosY;          // offset 272
+            public float GridLabel0_PosZ;          // offset 276
+            public float GridLabel0_SizeX;         // offset 280
+            public float GridLabel0_TangentX;      // offset 284
+            public float GridLabel0_TangentY;      // offset 288
+            public float GridLabel0_TangentZ;      // offset 292
+            public float GridLabel0_SizeY;         // offset 296
+            
+            // Label 1 (32 bytes) - offsets 300-331
+            public float GridLabel1_PosX;          // offset 300
+            public float GridLabel1_PosY;          // offset 304
+            public float GridLabel1_PosZ;          // offset 308
+            public float GridLabel1_SizeX;         // offset 312
+            public float GridLabel1_TangentX;      // offset 316
+            public float GridLabel1_TangentY;      // offset 320
+            public float GridLabel1_TangentZ;      // offset 324
+            public float GridLabel1_SizeY;         // offset 328
+            
+            // Label 2 (32 bytes) - offsets 332-363
+            public float GridLabel2_PosX;          // offset 332
+            public float GridLabel2_PosY;          // offset 336
+            public float GridLabel2_PosZ;          // offset 340
+            public float GridLabel2_SizeX;         // offset 344
+            public float GridLabel2_TangentX;      // offset 348
+            public float GridLabel2_TangentY;      // offset 352
+            public float GridLabel2_TangentZ;      // offset 356
+            public float GridLabel2_SizeY;         // offset 360
+            
+            // Label 3 (32 bytes) - offsets 364-395
+            public float GridLabel3_PosX;          // offset 364
+            public float GridLabel3_PosY;          // offset 368
+            public float GridLabel3_PosZ;          // offset 372
+            public float GridLabel3_SizeX;         // offset 376
+            public float GridLabel3_TangentX;      // offset 380
+            public float GridLabel3_TangentY;      // offset 384
+            public float GridLabel3_TangentZ;      // offset 388
+            public float GridLabel3_SizeY;         // offset 392
+            
+            // Label 4 (32 bytes) - offsets 396-427
+            public float GridLabel4_PosX;          // offset 396
+            public float GridLabel4_PosY;          // offset 400
+            public float GridLabel4_PosZ;          // offset 404
+            public float GridLabel4_SizeX;         // offset 408
+            public float GridLabel4_TangentX;      // offset 412
+            public float GridLabel4_TangentY;      // offset 416
+            public float GridLabel4_TangentZ;      // offset 420
+            public float GridLabel4_SizeY;         // offset 424
+            
+            // Label 5 (32 bytes) - offsets 428-459
+            public float GridLabel5_PosX;          // offset 428
+            public float GridLabel5_PosY;          // offset 432
+            public float GridLabel5_PosZ;          // offset 436
+            public float GridLabel5_SizeX;         // offset 440
+            public float GridLabel5_TangentX;      // offset 444
+            public float GridLabel5_TangentY;      // offset 448
+            public float GridLabel5_TangentZ;      // offset 452
+            public float GridLabel5_SizeY;         // offset 456
+            
+            // Label 6 (32 bytes) - offsets 460-491
+            public float GridLabel6_PosX;          // offset 460
+            public float GridLabel6_PosY;          // offset 464
+            public float GridLabel6_PosZ;          // offset 468
+            public float GridLabel6_SizeX;         // offset 472
+            public float GridLabel6_TangentX;      // offset 476
+            public float GridLabel6_TangentY;      // offset 480
+            public float GridLabel6_TangentZ;      // offset 484
+            public float GridLabel6_SizeY;         // offset 488
+            
+            // Label 7 (32 bytes) - offsets 492-523
+            public float GridLabel7_PosX;          // offset 492
+            public float GridLabel7_PosY;          // offset 496
+            public float GridLabel7_PosZ;          // offset 500
+            public float GridLabel7_SizeX;         // offset 504
+            public float GridLabel7_TangentX;      // offset 508
+            public float GridLabel7_TangentY;      // offset 512
+            public float GridLabel7_TangentZ;      // offset 516
+            public float GridLabel7_SizeY;         // offset 520
+            
+            // Final padding to reach 544 bytes (Label 7 ends at 524, need 20 more bytes)
+            public float _padEnd1;                 // offset 524
+            public float _padEnd2;                 // offset 528
+            public float _padEnd3;                 // offset 532
+            public float _padEnd4;                 // offset 536
+            public float _padEnd5;                 // offset 540
         }
 
-        /// <summary>
-        /// Cached copy of the last Kartographer params sent to the native plugin.
-        /// All C# callers must read from this, update their specific fields, and write back
-        /// to avoid stomping each other's state (e.g. grid settings vs selection UI).
-        /// </summary>
+        // Last params cache for incremental updates
         public static KartographerParamsNative LastKartographerParams;
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CR_StarfieldSetKartographerParams(ref KartographerParamsNative kartParams);
+        public static extern void CR_StarfieldSetKartographerParams(ref KartographerParamsNative parameters);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        public static extern int CR_RenderStarfieldCubemap([In] IntPtr[] targetTextures, int faceSize);
-
-
-        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        public static extern byte CR_StarfieldIsDeviceReady();
-
-        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        public static extern byte CR_StarfieldCatalogNeedsReload();
-
-        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CR_StarfieldInvalidateResources();
-
-        /// <summary>
-        /// Check if the D3D11 device is initialized and ready
-        /// </summary>
-        public static bool IsDeviceReady()
-        {
-            try
-            {
-                return CR_StarfieldIsDeviceReady() != 0;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Check if catalog needs reload (device was acquired but catalog empty). Resets flag after reading.
-        /// </summary>
-        public static bool CatalogNeedsReload()
-        {
-            try
-            {
-                return CR_StarfieldCatalogNeedsReload() != 0;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Invalidate GPU resources (call on scene change to force recreation, preserves catalog)
-        /// </summary>
-        public static void InvalidateResources()
-        {
-            try
-            {
-                CR_StarfieldInvalidateResources();
-            }
-            catch
-            {
-                // Ignore if DLL not loaded
-            }
-        }
-
-        /// <summary>
-        /// Get current catalog data from native plugin
-        /// </summary>
-        public static StarDataNative[] GetCatalogData(int count)
-        {
-            if (count <= 0) return new StarDataNative[0];
-            
-            var buffer = new StarDataNative[count];
-            int actualCount = CR_StarfieldGetCatalogData(buffer, count);
-            
-            if (actualCount != count)
-            {
-                Debug.LogWarning($"[StarfieldNative] Catalog size mismatch: expected {count}, got {actualCount}");
-                // Resize array to actual count
-                if (actualCount > 0)
-                {
-                    var actual = new StarDataNative[actualCount];
-                    Array.Copy(buffer, actual, actualCount);
-                    return actual;
-                }
-                return new StarDataNative[0];
-            }
-            
-            return buffer;
-        }
-
-        /// <summary>
-        /// Load a catalog into the native plugin
-        /// </summary>
-        public static void LoadCatalog(StarDataNative[] stars, int heroCount)
-        {
-            if (stars == null || stars.Length == 0)
-            {
-                Debug.LogWarning("[StarfieldNative] Cannot load null or empty catalog");
-                return;
-            }
-            
-            CR_StarfieldLoadCatalog(stars, stars.Length, heroCount);
-        }
-
-        /// <summary>
-        /// Get the number of stars in the current catalog
-        /// </summary>
-        public static int GetCatalogSize()
-        {
-            return CR_StarfieldGetCatalogSize();
-        }
-
-        /// <summary>
-        /// Get the number of hero stars in the current catalog
-        /// </summary>
-        public static int GetHeroCount()
-        {
-            return CR_StarfieldGetHeroCount();
-        }
-
-        
+        public static extern int CR_RenderStarfieldCubemap(IntPtr[] targetTextures, int faceSize);
     }
 }

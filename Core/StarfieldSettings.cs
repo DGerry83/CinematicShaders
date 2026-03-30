@@ -50,6 +50,9 @@ namespace CinematicShaders.Core
         // Kartographer holographic grid overlay
         public static bool EnableKartographer { get; set; } = false;
         
+        // Grid labels - optional labels painted onto the grid sphere
+        public static bool EnableGridLabelHUCK { get; set; } = false;  // HUCK text label
+        
         // Kartographer star tracking (debug feature)
         public static bool EnablePolarisTracking { get; set; } = false;
         public static int KartographerTrackedStarHIP { get; set; } = 0;  // 0 = none, otherwise HIP ID

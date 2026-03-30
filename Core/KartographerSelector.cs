@@ -1,4 +1,5 @@
 using CinematicShaders.Native;
+using CinematicShaders.Shaders.Starfield;
 using CinematicShaders.UI;
 using System;
 using System.Collections.Generic;
@@ -70,9 +71,8 @@ namespace CinematicShaders.Core
         private float _starHash = 0f;  // Hash of locked star for flicker variation
         private bool _mouseHoverMode = false;  // Enable mouse hover selection
         
-        // Debug logging
+        // Track last displayed star to prevent redundant text updates
         private NamedStar _lastLoggedHover = null;
-        private bool _debugLoggingEnabled = true;
 
         // ============================================================================
         // Sequential Animation State (Phase 1: Text Type-On System)
@@ -100,6 +100,15 @@ namespace CinematicShaders.Core
         // Padding around text inside the box (pixels)
         private static readonly float BOX_PADDING_PIXELS = 20f;
         private static readonly float BOX_PADDING_BOTTOM_PIXELS = 72f;  // Extra padding on bottom
+
+        // ============================================================================
+        // Grid Label Text (HUCK) - Grid-Fixed Type (rotates with grid)
+        // ============================================================================
+        private RenderTexture _gridLabelTexture = null;
+        private bool _gridLabelDirty = true;
+        private static readonly float GRID_LABEL_BASE_SIZE = 18f;  // Regular text size (was 12)
+        private static readonly float GRID_LABEL_LARGE_SIZE = 27f;  // First letter size (1.5x base)
+        private static readonly int GRID_LABEL_TEXTURE_SIZE = 256;
 
         // ============================================================================
 
@@ -424,22 +433,6 @@ namespace CinematicShaders.Core
                     longestLine = line;
                 }
             }
-            float screenAspectLog = (float)Screen.width / Screen.height;
-            float p2uX = (2.0f * screenAspectLog) / Screen.width;
-            float p2uY = 2.0f / Screen.height;
-            Debug.Log($"[KartographerSelector] TEXT DEBUG:");
-            Debug.Log($"  Content: {text.Replace('\n', '|')}");
-            Debug.Log($"  Longest line ({maxLineLen} chars): '{longestLine}'");
-            Debug.Log($"  Measured: {measuredWidth:F1} x {measuredHeight:F1}px");
-            Debug.Log($"  Bounds: {boundsWidth:F1} x {boundsHeight:F1}px");
-            Debug.Log($"  Using: {_textWidthPixels:F1} x {_textHeightPixels:F1}px");
-            Debug.Log($"  Screen: {Screen.width}x{Screen.height}, pixelsToUv=({p2uX:F6}, {p2uY:F6})");
-
-            // DEBUG: Export atlas to file
-            string atlasPath = Path.Combine(Path.GetTempPath(), "CinematicShaders_Atlas.pgm");
-            StarfieldNative.CR_TextExportAtlas(_textSystem, atlasPath);
-            Debug.Log($"[KartographerSelector] Atlas exported to: {atlasPath}");
-
             // Get glyph data pointer from native
             System.IntPtr glyphPtr = StarfieldNative.CR_TextGetGlyphPtr(_textSystem);
             if (glyphPtr == System.IntPtr.Zero)
@@ -469,8 +462,6 @@ namespace CinematicShaders.Core
             
             // Set text texture for pixel shader sampling
             StarfieldNative.CR_SetTextTexture(_textTexture.GetNativeTexturePtr());
-            
-            Debug.Log($"[KartographerSelector] Text rendered: {glyphCount} glyphs for '{text.Replace('\n', '|')}'");
         }
 
         /// <summary>
@@ -506,6 +497,185 @@ namespace CinematicShaders.Core
             catch (System.Exception ex)
             {
                 Debug.LogError($"[KartographerSelector] Failed to load JSON: {ex.Message}");
+            }
+        }
+
+        // ============================================================================
+        // Grid Label Text (HUCK) Methods
+        // ============================================================================
+
+        /// <summary>
+        /// Initialize the grid label texture (256x256)
+        /// </summary>
+        private void InitializeGridLabelTexture()
+        {
+            if (_gridLabelTexture != null)
+                return;
+
+            Debug.Log("[KartographerSelector] Creating grid label texture...");
+            
+            _gridLabelTexture = new RenderTexture(GRID_LABEL_TEXTURE_SIZE, GRID_LABEL_TEXTURE_SIZE, 0, RenderTextureFormat.ARGB32);
+            _gridLabelTexture.enableRandomWrite = true;
+            _gridLabelTexture.Create();
+            _gridLabelDirty = true;
+            
+            Debug.Log($"[KartographerSelector] Grid label texture created: {GRID_LABEL_TEXTURE_SIZE}x{GRID_LABEL_TEXTURE_SIZE}, format=ARGB32, enableRandomWrite=True, IsCreated={_gridLabelTexture.IsCreated()}");
+        }
+
+        /// <summary>
+        /// Build the HUCK grid label text
+        /// For now using single font size (12px) - mixed sizes require text system changes
+        /// </summary>
+        private void BuildGridLabelTexture()
+        {
+            if (_textSystem == IntPtr.Zero)
+            {
+                InitializeTextSystem();
+                if (_textSystem == IntPtr.Zero)
+                    return;
+            }
+
+            if (_gridLabelTexture == null)
+            {
+                InitializeGridLabelTexture();
+            }
+
+            if (!_gridLabelDirty)
+                return;
+
+            _gridLabelDirty = false;
+
+            Debug.Log("[KartographerSelector] Building grid label texture...");
+            
+            // Build multi-line text: "HOLOGRAPHIC\nUNIVERSAL\nCELESTIAL\nKARTOGRAPHER"
+            string gridLabelText = "HOLOGRAPHIC\nUNIVERSAL\nCELESTIAL\nKARTOGRAPHER";
+            uint color = 0xFFFFFFFF; // White ARGB
+
+            // Layout and render text
+            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, gridLabelText, GRID_LABEL_BASE_SIZE, color);
+            
+            Debug.Log($"[KartographerSelector] Grid label layout: {glyphCount} glyphs for text '{gridLabelText.Replace('\n', '|')}' at size {GRID_LABEL_BASE_SIZE}px");
+            
+            if (glyphCount <= 0)
+            {
+                Debug.LogWarning("[KartographerSelector] Grid label layout returned 0 glyphs");
+                return;
+            }
+
+            // Clear texture
+            RenderTexture.active = _gridLabelTexture;
+            GL.Clear(true, true, Color.clear);
+            RenderTexture.active = null;
+            Debug.Log("[KartographerSelector] Grid label texture cleared");
+
+            // Render to texture
+            IntPtr texturePtr = _gridLabelTexture.GetNativeTexturePtr();
+            Debug.Log($"[KartographerSelector] Grid label texture native ptr: {texturePtr}");
+            
+            StarfieldNative.CR_TextDispatch(
+                _textSystem,
+                texturePtr,
+                glyphCount,
+                GRID_LABEL_TEXTURE_SIZE,
+                GRID_LABEL_TEXTURE_SIZE);
+
+            // Set the grid label texture for shader (slot 0 - legacy compatibility)
+            StarfieldNative.CR_SetGridLabelTexture(0, texturePtr);
+            Debug.Log($"[KartographerSelector] Grid label texture built and set to native. Texture: {GRID_LABEL_TEXTURE_SIZE}x{GRID_LABEL_TEXTURE_SIZE}, {glyphCount} glyphs");
+        }
+
+        /// <summary>
+        /// Get the number of latitude lines (parallels) for current grid preset
+        /// </summary>
+        private int GetGridNumLat()
+        {
+            switch (StarfieldSettings.KartographerGridSize)
+            {
+                case 0: return 5;   // Jumbo
+                case 1: return 8;   // Large
+                case 2: return 10;  // Medium
+                case 3: return 15;  // Small
+                case 4: return 20;  // Tiny
+                default: return 10; // Medium
+            }
+        }
+
+        /// <summary>
+        /// Calculate grid label tangent frame for tangent-plane projection
+        /// Returns position, tangent, and bitangent vectors
+        /// </summary>
+        private void GetGridLabelTangentFrame(out Vector3 position, out Vector3 tangent, out Vector3 bitangent)
+        {
+            int numLat = GetGridNumLat();
+            int numLong = GetGridNumLong();
+            
+            float phiStep = Mathf.PI / numLat;
+            float thetaStep = 2.0f * Mathf.PI / numLong;
+
+            // 1 cell up from south pole
+            float phi = Mathf.PI - phiStep * 2.0f;
+            
+            // Align with meridian (use first meridian, offset to center in cell)
+            float theta = -Mathf.PI + thetaStep * 0.5f;
+
+            // Spherical to Cartesian (Y-up) - this is the normal (points outward from sphere center)
+            float sinPhi = Mathf.Sin(phi);
+            float x = sinPhi * Mathf.Cos(theta);
+            float y = Mathf.Cos(phi);
+            float z = sinPhi * Mathf.Sin(theta);
+            Vector3 normal = new Vector3(x, y, z);
+
+            // Calculate tangent frame at this point on the sphere
+            // Tangent points along parallel (east/west direction on sphere)
+            // This is dP/dtheta
+            Vector3 unrotatedTangent = new Vector3(
+                -sinPhi * Mathf.Sin(theta),
+                0.0f,
+                sinPhi * Mathf.Cos(theta)
+            ).normalized;
+            
+            // Bitangent points toward north pole (up on the sphere surface)
+            // This is dP/dphi
+            Vector3 unrotatedBitangent = new Vector3(
+                Mathf.Cos(phi) * Mathf.Cos(theta),
+                -Mathf.Sin(phi),
+                Mathf.Cos(phi) * Mathf.Sin(theta)
+            ).normalized;
+
+            // Apply grid rotation to position and frame
+            normal = KartographerMath.ApplyCatalogRotation(normal, 0f,
+                StarfieldSettings.KartographerRotationYaw,
+                StarfieldSettings.KartographerRotationPitch);
+            
+            unrotatedTangent = KartographerMath.ApplyCatalogRotation(unrotatedTangent, 0f,
+                StarfieldSettings.KartographerRotationYaw,
+                StarfieldSettings.KartographerRotationPitch);
+            
+            unrotatedBitangent = KartographerMath.ApplyCatalogRotation(unrotatedBitangent, 0f,
+                StarfieldSettings.KartographerRotationYaw,
+                StarfieldSettings.KartographerRotationPitch);
+
+            position = normal.normalized;
+            
+            // Re-orthonormalize after rotation
+            tangent = unrotatedTangent.normalized;
+            bitangent = Vector3.Cross(normal, tangent).normalized; // Ensure perpendicular
+            tangent = Vector3.Cross(bitangent, normal).normalized; // Re-orthogonalize
+        }
+
+        /// <summary>
+        /// Get number of longitude lines (meridians) for current grid preset
+        /// </summary>
+        private int GetGridNumLong()
+        {
+            switch (StarfieldSettings.KartographerGridSize)
+            {
+                case 0: return 8;   // Jumbo
+                case 1: return 12;  // Large
+                case 2: return 16;  // Medium
+                case 3: return 24;  // Small
+                case 4: return 32;  // Tiny
+                default: return 16; // Medium
             }
         }
 
@@ -823,24 +993,6 @@ namespace CinematicShaders.Core
                 }
             }
 
-            // Periodic debug logging (every 30 frames)
-            if (_debugLoggingEnabled && _frameCounter % 30 == 0)
-            {
-                // Compute mouse world direction for comparison
-                Vector3 mouseWorldDir = MouseUVToWorldDirection(mouseUV);
-                Debug.Log($"[KartographerSelector] DEBUG Frame {_frameCounter}:");
-                Debug.Log($"  Mouse pixel: ({Input.mousePosition.x:F0}, {Input.mousePosition.y:F0})");
-                Debug.Log($"  Mouse UV: ({mouseUV.x:F4}, {mouseUV.y:F4}) [Y FLIPPED]");
-                Debug.Log($"  Mouse world dir: ({mouseWorldDir.x:F4}, {mouseWorldDir.y:F4}, {mouseWorldDir.z:F4})");
-                if (nearestStar != null)
-                {
-                    Debug.Log($"  Nearest star: {nearestStar.Name} (HIP {nearestStar.HipparcosID})");
-                    Debug.Log($"  Star world dir: ({nearestStar.Direction.x:F4}, {nearestStar.Direction.y:F4}, {nearestStar.Direction.z:F4})");
-                    Debug.Log($"  Star UV: ({nearestUV.x:F4}, {nearestUV.y:F4})");
-                    Debug.Log($"  Distance: {nearestDist:F4} (threshold: {HOVER_THRESHOLD:F4})");
-                }
-            }
-
             // Handle hover state (blocked when mouse over UI - can't hover new stars)
             if (!mouseOverUI)
             {
@@ -1091,8 +1243,63 @@ namespace CinematicShaders.Core
             kartParams.TextAreaSizeY = textHeightUV;
             kartParams.SelectionTextT = 1.0f;
 
+            // Save selection params to cache and send to native
             StarfieldNative.LastKartographerParams = kartParams;
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
+
+            // Grid Label (HUCK) params - pushed via standalone method
+            PushGridLabelParams();
+        }
+        
+        /// <summary>
+        /// Push grid label params to native - can be called independently of selection system
+        /// This allows grid labels to work without mouse hover being enabled
+        /// Uses slot 0 for backward compatibility.
+        /// </summary>
+        public void PushGridLabelParams()
+        {
+            // Get current params (used in both branches)
+            var labelParams = StarfieldNative.LastKartographerParams;
+            
+            if (!StarfieldSettings.EnableKartographer)
+            {
+                // Kartographer disabled - ensure label is off
+                if ((labelParams.GridLabelEnabledMask & 1u) != 0)
+                {
+                    labelParams.GridLabelEnabledMask &= ~1u;  // Clear bit 0
+                    StarfieldNative.LastKartographerParams = labelParams;
+                    StarfieldNative.CR_StarfieldSetKartographerParams(ref labelParams);
+                }
+                return;
+            }
+            
+            BuildGridLabelTexture();
+            
+            Vector3 labelPos, labelTangent, labelBitangent;
+            GetGridLabelTangentFrame(out labelPos, out labelTangent, out labelBitangent);
+            
+            // Calculate world-space size for the texture
+            int numLat = GetGridNumLat();
+            float phiStep = Mathf.PI / numLat;
+            float angularSize = phiStep * 0.8f; // Slightly smaller than full cell
+            
+            float worldSizeY = angularSize * 0.5f;
+            float worldSizeX = worldSizeY * 1.5f;
+            
+            // Update params with grid label data (slot 0)
+            labelParams.GridLabelEnabledMask |= 1u;  // Set bit 0
+            labelParams.GridLabel0_PosX = labelPos.x;
+            labelParams.GridLabel0_PosY = labelPos.y;
+            labelParams.GridLabel0_PosZ = labelPos.z;
+            labelParams.GridLabel0_TangentX = labelTangent.x;
+            labelParams.GridLabel0_TangentY = labelTangent.y;
+            labelParams.GridLabel0_TangentZ = labelTangent.z;
+            // Bitangent calculated in shader as cross(pos, tangent)
+            labelParams.GridLabel0_SizeX = worldSizeX;
+            labelParams.GridLabel0_SizeY = worldSizeY;
+            
+            StarfieldNative.LastKartographerParams = labelParams;
+            StarfieldNative.CR_StarfieldSetKartographerParams(ref labelParams);
         }
 
         /// <summary>
@@ -1170,6 +1377,67 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
+        /// Export the grid label texture to PNG for debugging
+        /// </summary>
+        public void ExportGridLabelTexture()
+        {
+            // Auto-initialize if needed
+            if (_textSystem == IntPtr.Zero)
+            {
+                InitializeTextSystem();
+            }
+            
+            if (_gridLabelTexture == null)
+            {
+                InitializeGridLabelTexture();
+            }
+            
+            // Force rebuild
+            _gridLabelDirty = true;
+            BuildGridLabelTexture();
+            
+            if (_gridLabelTexture == null)
+            {
+                Debug.LogError("[KartographerSelector] Export failed - texture is still null after initialization attempt");
+                return;
+            }
+
+            // Create a temporary Texture2D to read the RenderTexture
+            RenderTexture.active = _gridLabelTexture;
+            Texture2D tex = new Texture2D(_gridLabelTexture.width, _gridLabelTexture.height, TextureFormat.RGBA32, false);
+            tex.ReadPixels(new Rect(0, 0, _gridLabelTexture.width, _gridLabelTexture.height), 0, 0);
+            tex.Apply();
+            RenderTexture.active = null;
+
+            // Encode to PNG and save
+            byte[] pngData = tex.EncodeToPNG();
+            string path = Path.Combine(Path.GetTempPath(), "CinematicShaders_GridLabel.png");
+            File.WriteAllBytes(path, pngData);
+            
+            UnityEngine.Object.Destroy(tex);
+            
+            Debug.Log($"[KartographerSelector] Grid label texture exported to: {path}");
+            
+            // Also dump current params using tangent frame
+            Vector3 labelPos, labelTangent, labelBitangent;
+            GetGridLabelTangentFrame(out labelPos, out labelTangent, out labelBitangent);
+            
+            int numLat = GetGridNumLat();
+            float phiStep = Mathf.PI / numLat;
+            float angularSize = phiStep * 0.8f;
+            float worldSizeY = angularSize * 0.5f;
+            float worldSizeX = worldSizeY * 1.5f;
+            
+            Debug.Log($"[KartographerSelector] Grid Label Debug State (Tangent Frame):");
+            Debug.Log($"  Texture: {_gridLabelTexture.width}x{_gridLabelTexture.height}, IsCreated={_gridLabelTexture.IsCreated()}");
+            Debug.Log($"  Position: ({labelPos.x:F4}, {labelPos.y:F4}, {labelPos.z:F4})");
+            Debug.Log($"  Tangent: ({labelTangent.x:F4}, {labelTangent.y:F4}, {labelTangent.z:F4})");
+            Debug.Log($"  Bitangent: ({labelBitangent.x:F4}, {labelBitangent.y:F4}, {labelBitangent.z:F4})");
+            Debug.Log($"  World Size: ({worldSizeX:F4}, {worldSizeY:F4})");
+            Debug.Log($"  Grid Preset: {StarfieldSettings.KartographerGridSize}, Rotation: Yaw={StarfieldSettings.KartographerRotationYaw:F2}, Pitch={StarfieldSettings.KartographerRotationPitch:F2}");
+        }
+
+        /// <summary>
         /// Cleanup resources
         /// </summary>
         public void Dispose()
@@ -1191,6 +1459,13 @@ namespace CinematicShaders.Core
                 _textTexture.Release();
                 UnityEngine.Object.Destroy(_textTexture);
                 _textTexture = null;
+            }
+
+            if (_gridLabelTexture != null)
+            {
+                _gridLabelTexture.Release();
+                UnityEngine.Object.Destroy(_gridLabelTexture);
+                _gridLabelTexture = null;
             }
         }
     }

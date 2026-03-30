@@ -152,8 +152,9 @@ __declspec(dllexport) void CR_StarfieldSetDimming(float sunGlareDimming, float p
 // Kartographer holographic grid overlay enable/disable
 __declspec(dllexport) void CR_StarfieldSetKartographerEnabled(unsigned char enabled);
 
-// Kartographer visual parameters struct (Phase 2 expanded - 256 bytes)
-// Layout matches HLSL exactly - do not modify without updating shader
+// Kartographer visual parameters struct (Phase 2 - 8 Label Support)
+// Layout matches HLSL exactly - 544 bytes (16 × 34)
+// Do not modify without updating shader
 struct KartographerParamsNative {
     // Base grid params (64 bytes) - offsets 0-63
     float ResolutionX;              // offset 0
@@ -161,7 +162,7 @@ struct KartographerParamsNative {
     float Time;                     // offset 8
     float GridIntensity;            // offset 12
     float GridThickness;            // offset 16
-    float ChromaticAberrationStrength; // offset 20
+    float ChromaticAberrationStrength;  // offset 20
     float VignetteStrength;         // offset 24
     float VignetteStart;            // offset 28
     float VignetteEnd;              // offset 32
@@ -207,7 +208,7 @@ struct KartographerParamsNative {
     
     // Selection circle (32 bytes) - offsets 176-207
     int SelectionCircleEnabled;     // offset 176
-    float SelectionStarHash;        // offset 180 - for flicker variation
+    float SelectionStarHash;        // offset 180
     float _padSelection2;           // offset 184
     float _padSelection3;           // offset 188
     float SelectionCircleCenterX;   // offset 192
@@ -227,11 +228,108 @@ struct KartographerParamsNative {
     float TextAreaSizeX;            // offset 240
     float TextAreaSizeY;            // offset 244
     float SelectionTextT;           // offset 248
-    float _pad12;                   // offset 252
+    
+    // Grid Labels (8 labels) - offsets 252-543
+    // Bitmask for enabled labels (bit 0 = label 0, bit 1 = label 1, etc.)
+    unsigned int GridLabelEnabledMask;  // offset 252
+    float _padGridMask1;            // offset 256
+    float _padGridMask2;            // offset 260
+    float _padGridMask3;            // offset 264
+    
+    // Label 0 (32 bytes) - offsets 268-299
+    float GridLabel0_PosX;          // offset 268
+    float GridLabel0_PosY;          // offset 272
+    float GridLabel0_PosZ;          // offset 276
+    float GridLabel0_SizeX;         // offset 280
+    float GridLabel0_TangentX;      // offset 284
+    float GridLabel0_TangentY;      // offset 288
+    float GridLabel0_TangentZ;      // offset 292
+    float GridLabel0_SizeY;         // offset 296
+    
+    // Label 1 (32 bytes) - offsets 300-331
+    float GridLabel1_PosX;          // offset 300
+    float GridLabel1_PosY;          // offset 304
+    float GridLabel1_PosZ;          // offset 308
+    float GridLabel1_SizeX;         // offset 312
+    float GridLabel1_TangentX;      // offset 316
+    float GridLabel1_TangentY;      // offset 320
+    float GridLabel1_TangentZ;      // offset 324
+    float GridLabel1_SizeY;         // offset 328
+    
+    // Label 2 (32 bytes) - offsets 332-363
+    float GridLabel2_PosX;          // offset 332
+    float GridLabel2_PosY;          // offset 336
+    float GridLabel2_PosZ;          // offset 340
+    float GridLabel2_SizeX;         // offset 344
+    float GridLabel2_TangentX;      // offset 348
+    float GridLabel2_TangentY;      // offset 352
+    float GridLabel2_TangentZ;      // offset 356
+    float GridLabel2_SizeY;         // offset 360
+    
+    // Label 3 (32 bytes) - offsets 364-395
+    float GridLabel3_PosX;          // offset 364
+    float GridLabel3_PosY;          // offset 368
+    float GridLabel3_PosZ;          // offset 372
+    float GridLabel3_SizeX;         // offset 376
+    float GridLabel3_TangentX;      // offset 380
+    float GridLabel3_TangentY;      // offset 384
+    float GridLabel3_TangentZ;      // offset 388
+    float GridLabel3_SizeY;         // offset 392
+    
+    // Label 4 (32 bytes) - offsets 396-427
+    float GridLabel4_PosX;          // offset 396
+    float GridLabel4_PosY;          // offset 400
+    float GridLabel4_PosZ;          // offset 404
+    float GridLabel4_SizeX;         // offset 408
+    float GridLabel4_TangentX;      // offset 412
+    float GridLabel4_TangentY;      // offset 416
+    float GridLabel4_TangentZ;      // offset 420
+    float GridLabel4_SizeY;         // offset 424
+    
+    // Label 5 (32 bytes) - offsets 428-459
+    float GridLabel5_PosX;          // offset 428
+    float GridLabel5_PosY;          // offset 432
+    float GridLabel5_PosZ;          // offset 436
+    float GridLabel5_SizeX;         // offset 440
+    float GridLabel5_TangentX;      // offset 444
+    float GridLabel5_TangentY;      // offset 448
+    float GridLabel5_TangentZ;      // offset 452
+    float GridLabel5_SizeY;         // offset 456
+    
+    // Label 6 (32 bytes) - offsets 460-491
+    float GridLabel6_PosX;          // offset 460
+    float GridLabel6_PosY;          // offset 464
+    float GridLabel6_PosZ;          // offset 468
+    float GridLabel6_SizeX;         // offset 472
+    float GridLabel6_TangentX;      // offset 476
+    float GridLabel6_TangentY;      // offset 480
+    float GridLabel6_TangentZ;      // offset 484
+    float GridLabel6_SizeY;         // offset 488
+    
+    // Label 7 (32 bytes) - offsets 492-523
+    float GridLabel7_PosX;          // offset 492
+    float GridLabel7_PosY;          // offset 496
+    float GridLabel7_PosZ;          // offset 500
+    float GridLabel7_SizeX;         // offset 504
+    float GridLabel7_TangentX;      // offset 508
+    float GridLabel7_TangentY;      // offset 512
+    float GridLabel7_TangentZ;      // offset 516
+    float GridLabel7_SizeY;         // offset 520
+    
+    // Final padding to reach 544 bytes (16 × 34)
+    float _padEnd1;                 // offset 524
+    float _padEnd2;                 // offset 528
+    float _padEnd3;                 // offset 532
+    float _padEnd4;                 // offset 536
+    float _padEnd5;                 // offset 540
+    float _padEnd6;                 // offset 544
 };
 
 // Set Kartographer visual parameters
 __declspec(dllexport) void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params);
+
+// Set grid label texture for a specific slot (0-7)
+__declspec(dllexport) void CR_SetGridLabelTexture(int slot, ID3D11Texture2D* texture);
 
 // Cubemap rendering - renders starfield to all 6 cubemap faces
 // targetTextures: array of 6 D3D11 textures (one per face)

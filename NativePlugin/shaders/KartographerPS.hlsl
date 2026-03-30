@@ -2,6 +2,7 @@
 // Spherical coordinate grid with chromatic aberration, phosphor mask, and vignette
 // Phase 1: Added debug SDF shapes (circle, rounded box)
 // Phase 2: Added selection circle for star tracking
+// Phase 3: Fixed tangent plane projection for grid labels
 //
 // COORDINATE SPACE NOTES:
 // - Shader UV space: center = (0,0), +X = right, +Y = up
@@ -15,7 +16,7 @@ struct PSInput {
 };
 
 // Constant buffer - must match C++ KartographerParams struct exactly
-// Total size: 256 bytes (Phase 1 expanded)
+// Total size: 544 bytes (16 × 34)
 cbuffer KartographerCB : register(b0) {
     // Base grid params (64 bytes)
     float2 Resolution;          // offset 0
@@ -78,7 +79,55 @@ cbuffer KartographerCB : register(b0) {
     float2 TextOrigin;              // offset 232
     float2 TextAreaSize;            // offset 240
     float SelectionTextT;           // offset 248
-    float _pad12;                   // offset 252
+    
+    // Grid Labels (8 labels) - offsets 252-543
+    uint GridLabelEnabledMask;      // offset 252 - bit i = label i enabled
+    float _padGridMask1;            // offset 256
+    float _padGridMask2;            // offset 260
+    float _padGridMask3;            // offset 264
+    
+    // Label data packed as float4 to save constant buffer space
+    // Each label: float4(pos.xyz, sizeX), float4(tangent.xyz, sizeY)
+    // Bitangent = normalize(cross(pos, tangent))  (for unit sphere, normal = pos)
+    
+    // Label 0 - offsets 268-299
+    float4 GridLabel0_PosTangentX;  // xyz=pos, w=sizeX
+    float4 GridLabel0_TangentY;     // xyz=tangent, w=sizeY
+    
+    // Label 1 - offsets 300-331
+    float4 GridLabel1_PosTangentX;
+    float4 GridLabel1_TangentY;
+    
+    // Label 2 - offsets 332-363
+    float4 GridLabel2_PosTangentX;
+    float4 GridLabel2_TangentY;
+    
+    // Label 3 - offsets 364-395
+    float4 GridLabel3_PosTangentX;
+    float4 GridLabel3_TangentY;
+    
+    // Label 4 - offsets 396-427
+    float4 GridLabel4_PosTangentX;
+    float4 GridLabel4_TangentY;
+    
+    // Label 5 - offsets 428-459
+    float4 GridLabel5_PosTangentX;
+    float4 GridLabel5_TangentY;
+    
+    // Label 6 - offsets 460-491
+    float4 GridLabel6_PosTangentX;
+    float4 GridLabel6_TangentY;
+    
+    // Label 7 - offsets 492-523
+    float4 GridLabel7_PosTangentX;
+    float4 GridLabel7_TangentY;
+    
+    // Padding to 544 bytes (Label 7 ends at 523, need 20 more bytes)
+    float _padEnd1;
+    float _padEnd2;
+    float _padEnd3;
+    float _padEnd4;
+    float _padEnd5;
 };
 
 // Grid colors: 0=Seafoam, 1=Amber, 2=White, 3=Green
@@ -91,6 +140,7 @@ static const float3 kGridColors[4] = {
 
 // Text texture (rendered by compute shader)
 Texture2D<float4> TextTexture : register(t2);
+Texture2D<float4> GridLabelTextures[8] : register(t3); // One texture per label slot
 SamplerState TextSampler : register(s0);
 
 // Grid size presets: 0=Jumbo, 1=Large, 2=Medium, 3=Small, 4=Tiny
@@ -284,6 +334,126 @@ float3 CalculateGrid(float3 ray, int preset, int colorIdx) {
     return glowM + glowP;
 }
 
+// ============================================================================
+// Grid Label Rendering - Fixed Tangent Plane Projection
+// ============================================================================
+
+// Render a single grid label using tangent plane projection
+// labelPos: position on unit sphere (also the normal)
+// labelTangent: tangent vector (east/west along parallel)
+// sizeX, sizeY: world space size of the label quad
+// texIndex: which texture slot to sample
+// ray: view direction in world space
+// gridColor: color to tint the label
+float3 RenderGridLabel(
+    float3 labelPos, float3 labelTangent, float sizeX, float sizeY,
+    int texIndex, float3 ray, float3 gridColor,
+    float2 caOffsetUV  // chromatic aberration offset in UV space
+) {
+    // Camera is at origin in view space, which is also world origin
+    // The view ray has already been transformed to world space
+    float3 cameraPos = float3(0.0, 0.0, 0.0);
+    
+    // Normal at label position (for unit sphere at origin, normal = position)
+    float3 labelNormal = normalize(labelPos);
+    
+    // Calculate bitangent = cross(normal, tangent)
+    // This gives us a complete orthonormal frame: normal, tangent, bitangent
+    float3 labelBitangent = normalize(cross(labelNormal, labelTangent));
+    
+    // Intersect ray with tangent plane at label position
+    // Plane equation: dot(P - labelPos, labelNormal) = 0
+    // Ray: P = cameraPos + t * rayDir = t * rayDir (since camera is at origin)
+    // Solve: dot(t * rayDir - labelPos, labelNormal) = 0
+    // t * dot(rayDir, labelNormal) - dot(labelPos, labelNormal) = 0
+    // t = dot(labelPos, labelNormal) / dot(rayDir, labelNormal)
+    // Since |labelPos| = 1 and labelNormal = normalize(labelPos):
+    // dot(labelPos, labelNormal) = |labelPos| = 1 (approximately, due to normalization)
+    
+    float denom = dot(ray, labelNormal);
+    
+    // If denom is near zero, ray is parallel to plane - skip this label
+    if (abs(denom) < 0.001) return float3(0, 0, 0);
+    
+    float t = 1.0 / denom;  // Since dot(labelPos, labelNormal) ≈ 1 for unit sphere
+    
+    // If t < 0, intersection is behind camera
+    if (t < 0.0) return float3(0, 0, 0);
+    
+    // Intersection point
+    float3 hitPoint = ray * t;
+    
+    // Vector from label center to hit point
+    float3 localPos = hitPoint - labelPos;
+    
+    // Project onto tangent frame to get UV coordinates
+    // u goes along tangent (east/west), v goes along bitangent (toward pole)
+    float u = dot(localPos, labelTangent) / sizeX + 0.5;
+    float v = dot(localPos, labelBitangent) / sizeY + 0.5;
+    
+    // Check if within label bounds [0, 1]
+    if (u < 0.0 || u > 1.0 || v < 0.0 || v > 1.0) return float3(0, 0, 0);
+    
+    float2 uv = float2(u, v);
+    
+    // Apply chromatic aberration
+    float2 uvR = uv + caOffsetUV * 0.5;
+    float2 uvG = uv;
+    float2 uvB = uv - caOffsetUV * 0.5;
+    
+    // Sample texture (clamp to avoid artifacts at edges)
+    // Use switch since dynamic texture array indexing requires unroll
+    float labelR = 0.0, labelG = 0.0, labelB = 0.0;
+    switch(texIndex) {
+        case 0:
+            labelR = GridLabelTextures[0].SampleLevel(TextSampler, saturate(uvR), 0).r;
+            labelG = GridLabelTextures[0].SampleLevel(TextSampler, saturate(uvG), 0).r;
+            labelB = GridLabelTextures[0].SampleLevel(TextSampler, saturate(uvB), 0).r;
+            break;
+        case 1:
+            labelR = GridLabelTextures[1].SampleLevel(TextSampler, saturate(uvR), 0).r;
+            labelG = GridLabelTextures[1].SampleLevel(TextSampler, saturate(uvG), 0).r;
+            labelB = GridLabelTextures[1].SampleLevel(TextSampler, saturate(uvB), 0).r;
+            break;
+        case 2:
+            labelR = GridLabelTextures[2].SampleLevel(TextSampler, saturate(uvR), 0).r;
+            labelG = GridLabelTextures[2].SampleLevel(TextSampler, saturate(uvG), 0).r;
+            labelB = GridLabelTextures[2].SampleLevel(TextSampler, saturate(uvB), 0).r;
+            break;
+        case 3:
+            labelR = GridLabelTextures[3].SampleLevel(TextSampler, saturate(uvR), 0).r;
+            labelG = GridLabelTextures[3].SampleLevel(TextSampler, saturate(uvG), 0).r;
+            labelB = GridLabelTextures[3].SampleLevel(TextSampler, saturate(uvB), 0).r;
+            break;
+        case 4:
+            labelR = GridLabelTextures[4].SampleLevel(TextSampler, saturate(uvR), 0).r;
+            labelG = GridLabelTextures[4].SampleLevel(TextSampler, saturate(uvG), 0).r;
+            labelB = GridLabelTextures[4].SampleLevel(TextSampler, saturate(uvB), 0).r;
+            break;
+        case 5:
+            labelR = GridLabelTextures[5].SampleLevel(TextSampler, saturate(uvR), 0).r;
+            labelG = GridLabelTextures[5].SampleLevel(TextSampler, saturate(uvG), 0).r;
+            labelB = GridLabelTextures[5].SampleLevel(TextSampler, saturate(uvB), 0).r;
+            break;
+        case 6:
+            labelR = GridLabelTextures[6].SampleLevel(TextSampler, saturate(uvR), 0).r;
+            labelG = GridLabelTextures[6].SampleLevel(TextSampler, saturate(uvG), 0).r;
+            labelB = GridLabelTextures[6].SampleLevel(TextSampler, saturate(uvB), 0).r;
+            break;
+        case 7:
+            labelR = GridLabelTextures[7].SampleLevel(TextSampler, saturate(uvR), 0).r;
+            labelG = GridLabelTextures[7].SampleLevel(TextSampler, saturate(uvG), 0).r;
+            labelB = GridLabelTextures[7].SampleLevel(TextSampler, saturate(uvB), 0).r;
+            break;
+    }
+    
+    return gridColor * float3(labelR, labelG, labelB);
+}
+
+// ============================================================================
+// Main Pixel Shader
+// ============================================================================
+
 float4 PSMain(PSInput input) : SV_Target {
     float2 fragCoord = input.uv * Resolution;
     
@@ -397,6 +567,42 @@ float4 PSMain(PSInput input) : SV_Target {
         shapeAccum += shapeColor * SelectionTextT * float3(coverageR, coverageG, coverageB);
         
         col += shapeAccum;
+    }
+    
+    // ============================================================================
+    // GRID LABELS (HUCK, SOI, etc.) - Tangent Plane Projection
+    // Text is "painted" onto the sphere surface, rotates with grid
+    // ============================================================================
+    if (GridLabelEnabledMask != 0) {
+        float3 gridColor = kGridColors[GridColorIndex];
+        
+        // Chromatic aberration offset for labels (smaller than main grid)
+        float2 caOffsetLabel = perp * 0.02;
+        
+        // Process each enabled label
+        for (int i = 0; i < 8; i++) {
+            if ((GridLabelEnabledMask & (1u << i)) == 0) continue;
+            
+            float4 posTanX, tanY;
+            switch(i) {
+                case 0: posTanX = GridLabel0_PosTangentX; tanY = GridLabel0_TangentY; break;
+                case 1: posTanX = GridLabel1_PosTangentX; tanY = GridLabel1_TangentY; break;
+                case 2: posTanX = GridLabel2_PosTangentX; tanY = GridLabel2_TangentY; break;
+                case 3: posTanX = GridLabel3_PosTangentX; tanY = GridLabel3_TangentY; break;
+                case 4: posTanX = GridLabel4_PosTangentX; tanY = GridLabel4_TangentY; break;
+                case 5: posTanX = GridLabel5_PosTangentX; tanY = GridLabel5_TangentY; break;
+                case 6: posTanX = GridLabel6_PosTangentX; tanY = GridLabel6_TangentY; break;
+                case 7: posTanX = GridLabel7_PosTangentX; tanY = GridLabel7_TangentY; break;
+            }
+            
+            float3 labelPos = posTanX.xyz;
+            float3 labelTangent = tanY.xyz;
+            float sizeX = posTanX.w;
+            float sizeY = tanY.w;
+            
+            // Render label (use green channel ray as base, with CA offset)
+            col += RenderGridLabel(labelPos, labelTangent, sizeX, sizeY, i, rayG, gridColor, caOffsetLabel);
+        }
     }
     
     float phase = frac(fragCoord.x / 3.0);
