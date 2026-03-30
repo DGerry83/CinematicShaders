@@ -365,10 +365,7 @@ float4 PSMain(PSInput input) : SV_Target {
         float2 textLocalG = (uvG - TextOrigin) / TextAreaSize;
         float2 textLocalB = (uvB - TextOrigin) / TextAreaSize;
         
-        // Flip Y because texture UV has 0 at top, shader has +Y=up
-        textLocalR.y = 1.0 - textLocalR.y;
-        textLocalG.y = 1.0 - textLocalG.y;
-        textLocalB.y = 1.0 - textLocalB.y;
+        // No Y-flip needed - texture is rendered right-side-up by compute shader
         
         // Sample text coverage for each channel separately (chromatic aberration)
         float coverageR = 0.0, coverageG = 0.0, coverageB = 0.0;

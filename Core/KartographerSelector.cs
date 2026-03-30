@@ -54,16 +54,15 @@ namespace CinematicShaders.Core
         private RenderTexture _textTexture = null;
         private string _lastText = null;
         private bool _textDirty = false;
-        private static readonly int TEXT_TEXTURE_SIZE = 512;
-        private static readonly float FONT_SIZE = 64f;
+        private static readonly float FONT_SIZE = 24f;
         
-        // Text measurement for auto-sizing (updated when text changes)
+        // Text measurement for auto-sizing (actual bounds from native, updated when text changes)
         private float _textWidthPixels = 0f;
         private float _textHeightPixels = 0f;
         
-        // Conversion factor: pixels to shader-uv space (approximate)
-        // At 1080p, 512 pixels ≈ 0.094 shader-uv units horizontally
-        private static readonly float PIXELS_TO_SHADER_UV = 0.00018f;
+        // Padding around text inside the box (pixels)
+        private static readonly float BOX_PADDING_PIXELS = 20f;
+        private static readonly float BOX_PADDING_BOTTOM_PIXELS = 72f;  // Extra padding on bottom
 
         // ============================================================================
 
@@ -107,8 +106,8 @@ namespace CinematicShaders.Core
 
                 Debug.Log($"[KartographerSelector] Text system initialized with font: {fontPath}");
 
-                // Create text render texture (ARGB32 with random read/write for UAV)
-                _textTexture = new RenderTexture(TEXT_TEXTURE_SIZE, TEXT_TEXTURE_SIZE / 2, 0, RenderTextureFormat.ARGB32);
+                // Create text render texture (1024x1024 for lots of room)
+                _textTexture = new RenderTexture(1024, 1024, 0, RenderTextureFormat.ARGB32);
                 _textTexture.enableRandomWrite = true;
                 _textTexture.Create();
             }
@@ -156,27 +155,29 @@ namespace CinematicShaders.Core
             var sb = new System.Text.StringBuilder();
             
             // NAME: <name>
-            sb.AppendLine($"NAME: {star.Name.ToUpper()}");
+            sb.Append("NAME: ");
+            sb.Append(star.Name.ToUpper());
+            sb.Append('\n');
             
             // DISTANCE: <distance> LY
             if (star.DistanceLy > 0)
             {
-                sb.AppendLine($"DISTANCE: {star.DistanceLy:F1} LY");
+                sb.Append($"DISTANCE: {star.DistanceLy:F1} LY\n");
             }
             else
             {
-                sb.AppendLine("DISTANCE: UNKNOWN");
+                sb.Append("DISTANCE: UNKNOWN\n");
             }
             
             // MAGNITUDE: <mag>
-            sb.AppendLine($"MAGNITUDE: {star.Magnitude:F2}");
+            sb.Append($"MAGNITUDE: {star.Magnitude:F2}\n");
             
             // TYPE: <spectral description>
             string typeDesc = GetSpectralDescription(star.SpectralType);
-            sb.AppendLine($"TYPE: {typeDesc}");
+            sb.Append($"TYPE: {typeDesc}\n");
             
             // CONSTELLATION: <constellation name>
-            sb.AppendLine($"CONSTELLATION: {star.Constellation.ToUpper()}");
+            sb.Append($"CONSTELLATION: {star.Constellation.ToUpper()}\n");
             
             // HIP#####
             sb.Append($"HIP{star.HipparcosID}");
@@ -215,10 +216,6 @@ namespace CinematicShaders.Core
                 return;
             }
 
-            // Measure text for auto-sizing
-            StarfieldNative.CR_TextMeasure(_textSystem, text, FONT_SIZE, out _textWidthPixels, out _textHeightPixels);
-            Debug.Log($"[KartographerSelector] Text measured: {_textWidthPixels:F1} x {_textHeightPixels:F1} pixels");
-            
             // Layout text in native code
             uint color = 0xFFFFFFFF; // White ARGB
             int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, text, FONT_SIZE, color);
@@ -228,6 +225,40 @@ namespace CinematicShaders.Core
                 Debug.LogWarning("[KartographerSelector] Text layout returned 0 glyphs");
                 return;
             }
+            
+            // Get ACTUAL rendered bounds (width from glyph coverage, height from line metrics)
+            float measuredWidth, measuredHeight;
+            StarfieldNative.CR_TextMeasure(_textSystem, text, FONT_SIZE, out measuredWidth, out measuredHeight);
+            
+            float boundsWidth, boundsHeight;
+            StarfieldNative.CR_TextGetBounds(_textSystem, out boundsWidth, out boundsHeight);
+            
+            // Use bounds for width (actual pixel coverage including last glyph), measure for height (proper line spacing)
+            _textWidthPixels = boundsWidth;
+            _textHeightPixels = measuredHeight;
+            
+            // Log text content and dimensions for debugging
+            string[] lines = text.Split('\n');
+            int maxLineLen = 0;
+            string longestLine = "";
+            foreach (var line in lines)
+            {
+                if (line.Length > maxLineLen)
+                {
+                    maxLineLen = line.Length;
+                    longestLine = line;
+                }
+            }
+            float screenAspectLog = (float)Screen.width / Screen.height;
+            float p2uX = (2.0f * screenAspectLog) / Screen.width;
+            float p2uY = 2.0f / Screen.height;
+            Debug.Log($"[KartographerSelector] TEXT DEBUG:");
+            Debug.Log($"  Content: {text.Replace('\n', '|')}");
+            Debug.Log($"  Longest line ({maxLineLen} chars): '{longestLine}'");
+            Debug.Log($"  Measured: {measuredWidth:F1} x {measuredHeight:F1}px");
+            Debug.Log($"  Bounds: {boundsWidth:F1} x {boundsHeight:F1}px");
+            Debug.Log($"  Using: {_textWidthPixels:F1} x {_textHeightPixels:F1}px");
+            Debug.Log($"  Screen: {Screen.width}x{Screen.height}, pixelsToUv=({p2uX:F6}, {p2uY:F6})");
 
             // DEBUG: Export atlas to file
             string atlasPath = Path.Combine(Path.GetTempPath(), "CinematicShaders_Atlas.pgm");
@@ -258,8 +289,8 @@ namespace CinematicShaders.Core
                 _textSystem,
                 _textTexture.GetNativeTexturePtr(),
                 glyphCount,
-                TEXT_TEXTURE_SIZE,
-                TEXT_TEXTURE_SIZE / 2);
+                1024,
+                1024);
             
             // Set text texture for pixel shader sampling
             StarfieldNative.CR_SetTextTexture(_textTexture.GetNativeTexturePtr());
@@ -497,6 +528,15 @@ namespace CinematicShaders.Core
                 return;
             }
 
+            // Validate camera basis vectors are initialized (scene change resets them)
+            // CameraForward.sqrMagnitude > 0.5f ensures valid camera data is present
+            if (CameraForward.sqrMagnitude < 0.5f)
+            {
+                // Camera not ready yet, hide the tracking UI until it is
+                PushToNative(false);
+                return;
+            }
+
             // Apply catalog rotation to star direction (HYG catalogs are rotated to match game coords)
             Vector3 rotatedDir = KartographerMath.ApplyCatalogRotation(
                 TrackedStar.Direction,
@@ -566,10 +606,15 @@ namespace CinematicShaders.Core
             kartParams.GridColorIndex = StarfieldSettings.KartographerGridColor;
             kartParams.DebugShapesEnabled = 0;
             kartParams.FocalLength = focalLength;
-            // Auto-size box based on measured text with padding
-            float paddingPixels = 20f; // 10px padding on each side
-            float boxWidthUV = (_textWidthPixels + paddingPixels * 2) * PIXELS_TO_SHADER_UV * AspectRatio;
-            float boxHeightUV = (_textHeightPixels + paddingPixels * 2) * PIXELS_TO_SHADER_UV;
+            // Calculate UV conversion for 1:1 pixel mapping (square pixels)
+            // Shader UV space: X=[-aspect, aspect], Y=[-1, 1]
+            // For 1:1 pixels: uvX * (Screen.height/2) = pixelCount (shader handles aspect internally)
+            float screenHeight = Screen.height;
+            float pixelsToUv = 2.0f / screenHeight;                      // same scale for X and Y
+            
+            // Box size: text bounds + padding on all sides
+            float boxWidthUV = (_textWidthPixels + BOX_PADDING_PIXELS * 2) * pixelsToUv;
+            float boxHeightUV = (_textHeightPixels + BOX_PADDING_PIXELS * 2) * pixelsToUv;
             
             // Minimum box size
             boxWidthUV = Mathf.Max(boxWidthUV, 0.08f);
@@ -588,12 +633,22 @@ namespace CinematicShaders.Core
             kartParams.SelectionCircleThickness = 0.001f;
             kartParams.SelectionCircleRadius = 0.02f;
 
-            // Text params - match text area to box size minus padding
-            float textPaddingUV = 0.008f;
-            kartParams.TextOriginX = boxTopLeftX + textPaddingUV;
-            kartParams.TextOriginY = boxTopLeftY + textPaddingUV;
-            kartParams.TextAreaSizeX = boxWidthUV - textPaddingUV * 2;
-            kartParams.TextAreaSizeY = boxHeightUV - textPaddingUV * 2;
+            // Text params - TextAreaSize maps the ENTIRE 1024x1024 texture to shader UV
+            // For 1:1 pixel mapping, use the texture dimensions (1024x1024), not the measured text bounds
+            float textureSize = 1024f;
+            float textWidthUV = textureSize * pixelsToUv;
+            float textHeightUV = textureSize * pixelsToUv;
+            
+            // Left-align text at top of box with padding
+            float textPaddingUV = 0.01f; // Small padding from edges
+            float textOriginX = boxTopLeftX + textPaddingUV;
+            float textOriginY = boxTopLeftY + textPaddingUV;
+            
+            kartParams.TextOriginX = textOriginX;
+            kartParams.TextOriginY = textOriginY;
+            // TextAreaSize matches actual text size - no stretching
+            kartParams.TextAreaSizeX = textWidthUV;
+            kartParams.TextAreaSizeY = textHeightUV;
             kartParams.SelectionTextT = 1.0f;
 
             StarfieldNative.LastKartographerParams = kartParams;
@@ -639,6 +694,34 @@ namespace CinematicShaders.Core
             string basePath = Path.Combine(Path.GetTempPath(), "CinematicShaders_Glyph");
             StarfieldNative.CR_TextExportGlyphDebug(_textSystem, basePath);
             Debug.Log($"[KartographerSelector] Glyph debug exported to: {basePath}_*.pgm");
+        }
+
+        /// <summary>
+        /// Export the rendered text texture to PNG for debugging
+        /// </summary>
+        public void ExportTextTexture()
+        {
+            if (_textTexture == null)
+            {
+                Debug.LogWarning("[KartographerSelector] Cannot export text texture - not initialized");
+                return;
+            }
+
+            // Create a temporary Texture2D to read the RenderTexture
+            RenderTexture.active = _textTexture;
+            Texture2D tex = new Texture2D(_textTexture.width, _textTexture.height, TextureFormat.RGBA32, false);
+            tex.ReadPixels(new Rect(0, 0, _textTexture.width, _textTexture.height), 0, 0);
+            tex.Apply();
+            RenderTexture.active = null;
+
+            // Encode to PNG and save
+            byte[] pngData = tex.EncodeToPNG();
+            string path = Path.Combine(Path.GetTempPath(), "CinematicShaders_TextTexture.png");
+            File.WriteAllBytes(path, pngData);
+            
+            UnityEngine.Object.Destroy(tex);
+            
+            Debug.Log($"[KartographerSelector] Text texture exported to: {path}");
         }
 
         /// <summary>

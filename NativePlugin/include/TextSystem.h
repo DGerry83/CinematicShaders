@@ -62,6 +62,10 @@ public:
     // color: packed ARGB (e.g., 0xFFFFFFFF for white)
     int LayoutString(const char* text, float fontSize, uint32_t color);
     
+    // Get bounds of last laid-out text. Returns width/height via out params.
+    // This is the ACTUAL rendered size based on glyph positions, not estimates.
+    void GetTextBounds(float& outWidth, float& outHeight) const;
+    
     // Measure text dimensions without rendering. Returns bounds in pixels.
     // Returns: width, height via out params
     void MeasureString(const char* text, float fontSize, float& outWidth, float& outHeight);
@@ -147,6 +151,9 @@ typedef void* TextSystemHandle;
     
     // Layout text
     __declspec(dllexport) int CR_TextLayout(TextSystemHandle handle, const char* text, float fontSize, uint32_t color);
+    
+    // Get actual bounds of laid-out text (width/height via out params)
+    __declspec(dllexport) void CR_TextGetBounds(TextSystemHandle handle, float* outWidth, float* outHeight);
     
     // Measure text (no rendering)
     __declspec(dllexport) void CR_TextMeasure(TextSystemHandle handle, const char* text, float fontSize, float* outWidth, float* outHeight);

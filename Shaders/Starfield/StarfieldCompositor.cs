@@ -369,13 +369,9 @@ namespace CinematicShaders.Shaders.Starfield
             }
             
             // Update KartographerSelector with current camera basis (Phase 2)
-            if (CinematicShadersWindow.Instance != null && 
-                CinematicShadersWindow.Instance.WindowRect.width > 0)
+            // Always call if callback is registered - the selector needs updates even when UI is closed
+            if (KartographerSelectorCallback != null)
             {
-                // Get the KartographerTab and update it
-                var window = CinematicShadersWindow.Instance;
-                // Use reflection to access private field or add a public method
-                // For now, we'll use a static approach
                 UpdateKartographerSelector();
             }
         }

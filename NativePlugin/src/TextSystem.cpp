@@ -346,10 +346,9 @@ int TextSystem::LayoutString(const char* text, float fontSize, uint32_t color) {
         inst.sizeX = static_cast<float>(m.width);
         inst.sizeY = static_cast<float>(m.height);
         inst.uvX = m.u0;
-        // Flip V to flip glyph vertically (atlas has top-first, we need bottom-first for correct rendering)
-        inst.uvY = m.v1;
+        inst.uvY = m.v0;
         inst.uvW = m.u1 - m.u0;
-        inst.uvH = m.v0 - m.v1;
+        inst.uvH = m.v1 - m.v0;
         inst.color = color;
         // No smoothing for bitmap fonts - we want crisp pixels
         inst.smoothing = 0.0f;
@@ -367,6 +366,31 @@ int TextSystem::LayoutString(const char* text, float fontSize, uint32_t color) {
     }
     
     return static_cast<int>(m_instances.size());
+}
+
+void TextSystem::GetTextBounds(float& outWidth, float& outHeight) const {
+    outWidth = 0.0f;
+    outHeight = 0.0f;
+    
+    if (m_instances.empty()) {
+        return;
+    }
+    
+    // Find min/max bounds of all glyph instances
+    float minX = FLT_MAX;
+    float minY = FLT_MAX;
+    float maxX = -FLT_MAX;
+    float maxY = -FLT_MAX;
+    
+    for (const auto& inst : m_instances) {
+        minX = std::min(minX, inst.posX);
+        minY = std::min(minY, inst.posY);
+        maxX = std::max(maxX, inst.posX + inst.sizeX);
+        maxY = std::max(maxY, inst.posY + inst.sizeY);
+    }
+    
+    outWidth = maxX - minX;
+    outHeight = maxY - minY;
 }
 
 void TextSystem::MeasureString(const char* text, float fontSize, float& outWidth, float& outHeight) {
@@ -612,6 +636,17 @@ int CR_TextLayout(TextSystemHandle handle, const char* text, float fontSize, uin
     int count = ts->LayoutString(text, fontSize, color);
     LogToFile("[Text] CR_TextLayout: LayoutString returned %d glyphs", count);
     return count;
+}
+
+extern "C" __declspec(dllexport)
+void CR_TextGetBounds(TextSystemHandle handle, float* outWidth, float* outHeight) {
+    if (!handle || !outWidth || !outHeight) {
+        if (outWidth) *outWidth = 0.0f;
+        if (outHeight) *outHeight = 0.0f;
+        return;
+    }
+    TextSystem* ts = static_cast<TextSystem*>(handle);
+    ts->GetTextBounds(*outWidth, *outHeight);
 }
 
 extern "C" __declspec(dllexport)

@@ -50,6 +50,9 @@ namespace CinematicShaders.Core
         // Kartographer holographic grid overlay
         public static bool EnableKartographer { get; set; } = false;
         
+        // Kartographer star tracking (debug feature)
+        public static bool EnablePolarisTracking { get; set; } = false;
+        
         // Kartographer visual parameters
         public static float KartographerGridIntensity { get; set; } = 0.002f;      // Range: 0.001-0.003
         public static float KartographerGridThickness { get; set; } = 0.0003f;      // Range: 0.00015-0.00045
@@ -215,6 +218,7 @@ namespace CinematicShaders.Core
                 
                 // Kartographer settings
                 EnableKartographer = bool.Parse(settingsNode.GetValue("EnableKartographer") ?? "false");
+                EnablePolarisTracking = bool.Parse(settingsNode.GetValue("EnablePolarisTracking") ?? "false");
                 KartographerGridIntensity = float.Parse(settingsNode.GetValue("KartographerGridIntensity") ?? "0.002");
                 KartographerGridThickness = float.Parse(settingsNode.GetValue("KartographerGridThickness") ?? "0.0003");
                 // KartographerCAStrength is hard-coded, no longer loaded from config
@@ -526,6 +530,7 @@ namespace CinematicShaders.Core
                 
                 // Kartographer settings
                 settingsNode.AddValue("EnableKartographer", EnableKartographer);
+                settingsNode.AddValue("EnablePolarisTracking", EnablePolarisTracking);
                 settingsNode.AddValue("KartographerGridIntensity", KartographerGridIntensity);
                 settingsNode.AddValue("KartographerGridThickness", KartographerGridThickness);
                 // KartographerCAStrength is hard-coded, no longer saved to config

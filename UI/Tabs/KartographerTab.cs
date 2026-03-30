@@ -26,6 +26,7 @@ namespace CinematicShaders.UI.Tabs
         {
             // Settings loaded by StarfieldSettings on module startup
             _currentColorIndex = StarfieldSettings.KartographerGridColor;
+            _trackPolaris = StarfieldSettings.EnablePolarisTracking;
             
             // Register for camera update callbacks from StarfieldCompositor
             StarfieldCompositor.KartographerSelectorCallback = OnCameraUpdate;
@@ -33,7 +34,7 @@ namespace CinematicShaders.UI.Tabs
         
         private void OnCameraUpdate(Vector3 right, Vector3 up, Vector3 forward, float aspect, float verticalFOV)
         {
-            if (_selector != null && _trackPolaris)
+            if (_selector != null && forward.sqrMagnitude > 0.5f)
             {
                 _selector.CameraRight = right;
                 _selector.CameraUp = up;
@@ -109,6 +110,8 @@ namespace CinematicShaders.UI.Tabs
             if (newTrackPolaris != _trackPolaris)
             {
                 _trackPolaris = newTrackPolaris;
+                StarfieldSettings.EnablePolarisTracking = _trackPolaris;
+                StarfieldSettings.Save();
                 if (_trackPolaris)
                 {
                     StartTrackingPolaris();
@@ -125,10 +128,10 @@ namespace CinematicShaders.UI.Tabs
                 ExportFontAtlas();
             }
 
-            // Debug: Export glyph debug files
-            if (GUILayout.Button("Export Glyph Debug"))
+            // Debug: Export text texture
+            if (GUILayout.Button("Export Text Texture"))
             {
-                ExportGlyphDebug();
+                ExportTextTexture();
             }
             
             GUILayout.Space(5);
@@ -359,15 +362,15 @@ namespace CinematicShaders.UI.Tabs
             _selector.ExportFontAtlas();
         }
 
-        // Debug: Export glyph debug files
-        private void ExportGlyphDebug()
+        // Debug: Export text texture to PNG
+        private void ExportTextTexture()
         {
             if (_selector == null)
             {
-                Debug.LogWarning("[KartographerTab] Cannot export glyph debug - selector not initialized");
+                Debug.LogWarning("[KartographerTab] Cannot export text texture - selector not initialized");
                 return;
             }
-            _selector.ExportGlyphDebug();
+            _selector.ExportTextTexture();
         }
 
         // Debug: Track Polaris
