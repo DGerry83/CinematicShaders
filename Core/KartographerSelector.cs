@@ -47,6 +47,22 @@ namespace CinematicShaders.Core
         public bool SelectionCircleEnabled { get; set; } = false;
 
         // ============================================================================
+        // Hover/Click Selection State
+        // ============================================================================
+        private NamedStar _hoveredStar = null;
+        private NamedStar _lockedStar = null;
+        private Vector2 _hoveredStarUV = new Vector2(-1, -1);
+        private float _selectionFlickerT = 1.0f;  // 0-1, animation progress
+        private bool _wasMouseDown = false;
+        private int _frameCounter = 0;
+        private float _starHash = 0f;  // Hash of locked star for flicker variation
+        private bool _mouseHoverMode = false;  // Enable mouse hover selection
+        
+        // Debug logging
+        private NamedStar _lastLoggedHover = null;
+        private bool _debugLoggingEnabled = true;
+
+        // ============================================================================
         // Text System (Phase 4)
         // ============================================================================
         private IntPtr _textSystem = IntPtr.Zero;
@@ -516,27 +532,225 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
+        /// Enable/disable mouse hover selection mode
+        /// </summary>
+        public void SetMouseHoverMode(bool enabled)
+        {
+            _mouseHoverMode = enabled;
+            Debug.Log($"[KartographerSelector] Mouse hover selection: {(enabled ? "ENABLED" : "DISABLED")}");
+            if (!enabled)
+            {
+                // Clear hover state when disabling
+                _hoveredStar = null;
+                _hoveredStarUV = new Vector2(-1, -1);
+            }
+        }
+
+        /// <summary>
         /// Update projection and push to native plugin
-        /// Call this from StarfieldCompositor.Update() or similar
+        /// Handles hover/click selection for all named stars
         /// </summary>
         public void Update()
         {
-            if (!SelectionCircleEnabled || TrackedStar == null)
-            {
-                TrackedStarScreenUV = new Vector2(-1, -1);
-                PushToNative(false);
-                return;
-            }
-
+            _frameCounter++;
+            
             // Validate camera basis vectors are initialized (scene change resets them)
-            // CameraForward.sqrMagnitude > 0.5f ensures valid camera data is present
             if (CameraForward.sqrMagnitude < 0.5f)
             {
-                // Camera not ready yet, hide the tracking UI until it is
                 PushToNative(false);
                 return;
             }
 
+            // Skip if no star data loaded
+            if (!_jsonLoaded || _namedStars.Count == 0)
+            {
+                PushToNative(false);
+                return;
+            }
+
+            // MOUSE HOVER MODE: Project stars and check mouse position
+            if (_mouseHoverMode)
+            {
+                UpdateMouseHoverSelection();
+            }
+            // LEGACY MODE: Use TrackedStar from debug buttons
+            else if (TrackedStar != null)
+            {
+                UpdateLegacyTracking();
+            }
+            else
+            {
+                PushToNative(false);
+            }
+        }
+
+        /// <summary>
+        /// Update mouse hover selection logic
+        /// </summary>
+        private void UpdateMouseHoverSelection()
+        {
+            // Get mouse position in UV space
+            // NOTE: Unity's Input.mousePosition.y is bottom-up, screen UV is top-down
+            Vector2 mouseUV = new Vector2(
+                Input.mousePosition.x / Screen.width,
+                1.0f - (Input.mousePosition.y / Screen.height)  // Flip Y
+            );
+
+            // Project all named stars and find nearest to mouse
+            NamedStar nearestStar = null;
+            Vector2 nearestUV = new Vector2(-1, -1);
+            float nearestDist = float.MaxValue;
+            
+            // Threshold: ~0.02 UV units (~40px at 1080p, ~20px at 4K)
+            const float HOVER_THRESHOLD = 0.02f;
+
+            foreach (var star in _namedStars.Values)
+            {
+                Vector3 rotatedDir = KartographerMath.ApplyCatalogRotation(
+                    star.Direction,
+                    StarfieldSettings.RotationX,
+                    StarfieldSettings.RotationY,
+                    StarfieldSettings.RotationZ
+                );
+
+                Vector2 starUV = KartographerMath.WorldDirectionToScreenUV(
+                    rotatedDir,
+                    CameraRight,
+                    CameraUp,
+                    CameraForward,
+                    AspectRatio,
+                    VerticalFOV
+                );
+
+                // Skip stars behind camera
+                if (starUV.x < 0)
+                    continue;
+
+                // Check if on screen (with margin)
+                if (!KartographerMath.IsOnScreen(starUV, 0.1f))
+                    continue;
+
+                float dist = Vector2.Distance(mouseUV, starUV);
+                if (dist < nearestDist)
+                {
+                    nearestDist = dist;
+                    nearestStar = star;
+                    nearestUV = starUV;
+                }
+            }
+
+            // Periodic debug logging (every 30 frames)
+            if (_debugLoggingEnabled && _frameCounter % 30 == 0)
+            {
+                // Compute mouse world direction for comparison
+                Vector3 mouseWorldDir = MouseUVToWorldDirection(mouseUV);
+                Debug.Log($"[KartographerSelector] DEBUG Frame {_frameCounter}:");
+                Debug.Log($"  Mouse pixel: ({Input.mousePosition.x:F0}, {Input.mousePosition.y:F0})");
+                Debug.Log($"  Mouse UV: ({mouseUV.x:F4}, {mouseUV.y:F4}) [Y FLIPPED]");
+                Debug.Log($"  Mouse world dir: ({mouseWorldDir.x:F4}, {mouseWorldDir.y:F4}, {mouseWorldDir.z:F4})");
+                if (nearestStar != null)
+                {
+                    Debug.Log($"  Nearest star: {nearestStar.Name} (HIP {nearestStar.HipparcosID})");
+                    Debug.Log($"  Star world dir: ({nearestStar.Direction.x:F4}, {nearestStar.Direction.y:F4}, {nearestStar.Direction.z:F4})");
+                    Debug.Log($"  Star UV: ({nearestUV.x:F4}, {nearestUV.y:F4})");
+                    Debug.Log($"  Distance: {nearestDist:F4} (threshold: {HOVER_THRESHOLD:F4})");
+                }
+            }
+
+            // Handle hover state
+            bool isMouseDown = Input.GetMouseButton(0);
+            bool mouseClicked = isMouseDown && !_wasMouseDown;
+            _wasMouseDown = isMouseDown;
+
+            // Event-based hover logging
+            if (nearestDist < HOVER_THRESHOLD && nearestStar != null)
+            {
+                if (_hoveredStar != nearestStar)
+                {
+                    _hoveredStar = nearestStar;
+                    _hoveredStarUV = nearestUV;
+                    Debug.Log($"[KartographerSelector] HOVER: {nearestStar.Name} (HIP {nearestStar.HipparcosID}), dist={nearestDist:F4}");
+                }
+            }
+            else if (_hoveredStar != null)
+            {
+                Debug.Log($"[KartographerSelector] HOVER CLEARED");
+                _hoveredStar = null;
+                _hoveredStarUV = new Vector2(-1, -1);
+            }
+
+            // Handle click to lock/unlock
+            if (mouseClicked)
+            {
+                if (_lockedStar != null)
+                {
+                    // Already locked - unlock
+                    Debug.Log($"[KartographerSelector] UNLOCKED: {_lockedStar.Name}");
+                    _lockedStar = null;
+                }
+                else if (_hoveredStar != null)
+                {
+                    // Lock the hovered star
+                    _lockedStar = _hoveredStar;
+                    _selectionFlickerT = 0.0f;  // Start flicker animation
+                    _starHash = _lockedStar.HipparcosID * 0.123f;  // Unique hash per star
+                    Debug.Log($"[KartographerSelector] LOCKED: {_lockedStar.Name} (HIP {_lockedStar.HipparcosID})");
+                }
+            }
+
+            // Check for ESC to unlock
+            if (_lockedStar != null && Input.GetKeyDown(KeyCode.Escape))
+            {
+                Debug.Log($"[KartographerSelector] UNLOCKED (ESC): {_lockedStar.Name}");
+                _lockedStar = null;
+            }
+
+            // Update flicker animation
+            if (_lockedStar != null && _selectionFlickerT < 1.0f)
+            {
+                _selectionFlickerT += Time.deltaTime / 0.4f;  // 0.4s animation
+                if (_selectionFlickerT > 1.0f)
+                    _selectionFlickerT = 1.0f;
+            }
+
+            // Determine which star to display (locked takes priority)
+            NamedStar displayStar = _lockedStar ?? _hoveredStar;
+            Vector2 displayUV = _lockedStar != null ? 
+                ProjectStarToUV(_lockedStar) : _hoveredStarUV;
+            bool isHoverOnly = (_lockedStar == null && _hoveredStar != null);
+
+            // Update legacy tracking for compatibility with existing PushToNative
+            if (displayStar != null)
+            {
+                TrackedStar = displayStar;
+                TrackedStarScreenUV = displayUV;
+                SelectionCircleEnabled = true;
+                
+                // Mark text dirty if star changed
+                if (_textDirty || displayStar != _lastLoggedHover)
+                {
+                    _textDirty = true;
+                    UpdateTextTexture();
+                }
+            }
+            else
+            {
+                TrackedStar = null;
+                TrackedStarScreenUV = new Vector2(-1, -1);
+                SelectionCircleEnabled = false;
+            }
+            _lastLoggedHover = displayStar;
+
+            // Push to native with hover vs locked intensity
+            bool onScreen = KartographerMath.IsOnScreen(TrackedStarScreenUV);
+            PushToNative(onScreen, isHoverOnly);
+        }
+
+        /// <summary>
+        /// Legacy tracking mode for debug buttons
+        /// </summary>
+        private void UpdateLegacyTracking()
+        {
             // Apply catalog rotation to star direction (HYG catalogs are rotated to match game coords)
             Vector3 rotatedDir = KartographerMath.ApplyCatalogRotation(
                 TrackedStar.Direction,
@@ -563,14 +777,56 @@ namespace CinematicShaders.Core
 
             // Push to native if on screen
             bool onScreen = KartographerMath.IsOnScreen(TrackedStarScreenUV);
-            PushToNative(onScreen);
+            PushToNative(onScreen, false);  // Never hover mode for legacy
+        }
+
+        /// <summary>
+        /// Convert mouse UV to world direction (inverse of projection)
+        /// </summary>
+        private Vector3 MouseUVToWorldDirection(Vector2 mouseUV)
+        {
+            // Convert UV to NDC
+            float ndcX = (mouseUV.x - 0.5f) * 2.0f * AspectRatio;
+            float ndcY = (mouseUV.y - 0.5f) * 2.0f;
+
+            // Convert NDC to view direction
+            float focalLength = 1.0f / Mathf.Tan(VerticalFOV * 0.5f);
+            float vx = ndcX / focalLength;
+            float vy = ndcY / focalLength;
+            float vz = 1.0f;
+
+            // ViewToWorld: world = v.x * right - v.y * up + v.z * forward
+            Vector3 worldDir = vx * CameraRight - vy * CameraUp + vz * CameraForward;
+            return worldDir.normalized;
+        }
+
+        /// <summary>
+        /// Project a star to screen UV
+        /// </summary>
+        private Vector2 ProjectStarToUV(NamedStar star)
+        {
+            Vector3 rotatedDir = KartographerMath.ApplyCatalogRotation(
+                star.Direction,
+                StarfieldSettings.RotationX,
+                StarfieldSettings.RotationY,
+                StarfieldSettings.RotationZ
+            );
+
+            return KartographerMath.WorldDirectionToScreenUV(
+                rotatedDir,
+                CameraRight,
+                CameraUp,
+                CameraForward,
+                AspectRatio,
+                VerticalFOV
+            );
         }
 
         /// <summary>
         /// Push selection circle and info box params to native plugin.
         /// Merges with cached state so grid settings are preserved.
         /// </summary>
-        private void PushToNative(bool visible)
+        private void PushToNative(bool visible, bool isHoverOnly = false)
         {
             if (!StarfieldNative.IsLoaded)
                 return;
@@ -620,18 +876,25 @@ namespace CinematicShaders.Core
             boxWidthUV = Mathf.Max(boxWidthUV, 0.08f);
             boxHeightUV = Mathf.Max(boxHeightUV, 0.06f);
             
+            // Hover vs locked intensity and box visibility
+            float intensity = isHoverOnly ? 0.001f : 0.002f;
+            bool showBox = !isHoverOnly && visible;  // Only show box for locked stars
+            
             kartParams.DebugBoxTopLeftX = boxTopLeftX;
             kartParams.DebugBoxTopLeftY = boxTopLeftY;
-            kartParams.DebugBoxSizeX = boxWidthUV;
-            kartParams.DebugBoxSizeY = boxHeightUV;
+            // Box size: 0 for hover (invisible), full size for locked
+            kartParams.DebugBoxSizeX = showBox ? boxWidthUV : 0.0f;
+            kartParams.DebugBoxSizeY = showBox ? boxHeightUV : 0.0f;
             kartParams.DebugBoxThickness = 0.001f;
             kartParams.SelectionCircleEnabled = visible ? 1 : 0;
             kartParams.SelectionCircleCenterX = centerX;
             kartParams.SelectionCircleCenterY = centerY;
-            kartParams.SelectionCircleT = 1.0f; // Steady (no flicker for now)
-            kartParams.SelectionCircleIntensity = 0.002f;
+            // Flicker T: hover = 1.0 (steady), locked = animated 0-1
+            kartParams.SelectionCircleT = isHoverOnly ? 1.0f : _selectionFlickerT;
+            kartParams.SelectionCircleIntensity = intensity;
             kartParams.SelectionCircleThickness = 0.001f;
-            kartParams.SelectionCircleRadius = 0.02f;
+            kartParams.SelectionCircleRadius = isHoverOnly ? 0.015f : 0.02f;
+            kartParams.SelectionStarHash = _starHash;
 
             // Text params - TextAreaSize maps the ENTIRE 1024x1024 texture to shader UV
             // For 1:1 pixel mapping, use the texture dimensions (1024x1024), not the measured text bounds

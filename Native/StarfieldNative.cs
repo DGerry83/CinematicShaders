@@ -272,7 +272,7 @@ namespace CinematicShaders.Native
             
             // Selection circle (32 bytes) - offsets 176-207
             public int SelectionCircleEnabled;     // offset 176
-            public float _padSelection1;           // offset 180
+            public float SelectionStarHash;        // offset 180 - for flicker variation
             public float _padSelection2;           // offset 184
             public float _padSelection3;           // offset 188
             public float SelectionCircleCenterX;   // offset 192

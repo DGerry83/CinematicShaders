@@ -207,7 +207,7 @@ struct KartographerParamsNative {
     
     // Selection circle (32 bytes) - offsets 176-207
     int SelectionCircleEnabled;     // offset 176
-    float _padSelection1;           // offset 180
+    float SelectionStarHash;        // offset 180 - for flicker variation
     float _padSelection2;           // offset 184
     float _padSelection3;           // offset 188
     float SelectionCircleCenterX;   // offset 192

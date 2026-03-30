@@ -166,6 +166,7 @@ static struct {
     
     // Kartographer selection circle (cached from C#)
     int kartographerSelectionCircleEnabled = 0;
+    float kartographerStarHash = 0.0f;
     float kartographerSelectionCircleCenterX = 0.0f;
     float kartographerSelectionCircleCenterY = 0.0f;
     float kartographerSelectionCircleT = 0.0f;
@@ -337,7 +338,7 @@ struct KartographerParams {
     
     // Selection circle (32 bytes) - offsets 176-207
     int SelectionCircleEnabled;     // offset 176
-    float _padSelection1;           // offset 180
+    float SelectionStarHash;        // offset 180 - for flicker variation
     float _padSelection2;           // offset 184
     float _padSelection3;           // offset 188
     float SelectionCircleCenterX;   // offset 192
@@ -1771,7 +1772,7 @@ static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
         
         // Selection circle (filled from cached state set by CR_StarfieldSetKartographerParams)
         params->SelectionCircleEnabled = g_StarfieldState.kartographerSelectionCircleEnabled;
-        params->_padSelection1 = 0.0f;
+        params->SelectionStarHash = g_StarfieldState.kartographerStarHash;
         params->_padSelection2 = 0.0f;
         params->_padSelection3 = 0.0f;
         params->SelectionCircleCenterX = g_StarfieldState.kartographerSelectionCircleCenterX;
@@ -1820,6 +1821,7 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
     
     // Selection circle parameters (cached for CB update)
     g_StarfieldState.kartographerSelectionCircleEnabled = params->SelectionCircleEnabled;
+    g_StarfieldState.kartographerStarHash = params->SelectionStarHash;
     g_StarfieldState.kartographerSelectionCircleCenterX = params->SelectionCircleCenterX;
     g_StarfieldState.kartographerSelectionCircleCenterY = params->SelectionCircleCenterY;
     g_StarfieldState.kartographerSelectionCircleT = params->SelectionCircleT;

@@ -133,6 +133,21 @@ namespace CinematicShaders.UI.Tabs
             
             GUILayout.Space(5);
 
+            // Mouse hover selection mode toggle
+            bool newMouseHoverMode = GUILayout.Toggle(StarfieldSettings.KartographerMouseHoverSelect, 
+                " Mouse Hover Selection", HighLogic.Skin.toggle);
+            if (newMouseHoverMode != StarfieldSettings.KartographerMouseHoverSelect)
+            {
+                StarfieldSettings.KartographerMouseHoverSelect = newMouseHoverMode;
+                StarfieldSettings.Save();
+                if (_selector != null)
+                {
+                    _selector.SetMouseHoverMode(newMouseHoverMode);
+                }
+            }
+            
+            GUILayout.Space(5);
+
             // Grid Size: 0-4 (Jumbo, Large, Medium, Small, Tiny), default 2 (Medium)
             GUILayout.Label(new GUIContent($"Grid Size: {GetGridSizeLabel(StarfieldSettings.KartographerGridSize)}",
                 "Density of the holographic grid lines"));

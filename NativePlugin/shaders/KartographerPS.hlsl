@@ -61,7 +61,7 @@ cbuffer KartographerCB : register(b0) {
     
     // Selection circle (32 bytes) - offsets 176-207
     int SelectionCircleEnabled;     // offset 176
-    float _padSelection1;           // offset 180
+    float SelectionStarHash;        // offset 180 - for flicker variation
     float _padSelection2;           // offset 184
     float _padSelection3;           // offset 188
     float2 SelectionCircleCenter;   // offset 192
@@ -184,6 +184,16 @@ float3 ApplyPreRotation(float3 ray, float yaw, float pitch) {
 
 float SDF_Circle(float2 p, float2 center, float radius) {
     return length(p - center) - radius;
+}
+
+// Flicker animation for fluorescent tube effect
+// t = 0 -> always off, t = 1 -> always on
+// In between: random on/off with duty cycle = t
+float Flicker(float t, float time, float hash) {
+    if (t <= 0.0) return 0.0;
+    if (t >= 1.0) return 1.0;
+    float noise = frac(sin(hash * 43758.5453) * 12.9898 + time * 30.0);
+    return noise < t ? 1.0 : 0.0;
 }
 
 float SDF_RoundedBox(float2 p, float2 center, float2 halfSize, float radius) {
@@ -324,7 +334,8 @@ float4 PSMain(PSInput input) : SV_Target {
         float2 center = SelectionCircleCenter;
         float r = SelectionCircleRadius;
         float thick = SelectionCircleThickness;
-        float flicker = SelectionCircleT >= 1.0 ? 1.0 : SelectionCircleT;
+        // Flicker animation: struggling fluorescent tube effect
+        float flicker = Flicker(SelectionCircleT, Time, SelectionStarHash);
         
         // --- Info box black backing (FIRST - darkens background) ---
         float2 boxCenter = DebugBoxTopLeft + DebugBoxSize * 0.5;
