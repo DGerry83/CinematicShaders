@@ -47,6 +47,9 @@ namespace CinematicShaders.UI.Tabs
         // Debug shapes state (not persisted to settings file)
         private bool _debugShapesEnabled = false;
         
+        // Debug label visualization (shows solid color instead of texture)
+        private bool _labelDebugMode = false;
+        
         // Star tracking
         private KartographerSelector _selector;
         
@@ -154,6 +157,23 @@ namespace CinematicShaders.UI.Tabs
                 _labelSystem.SetLabelEnabled("huck", newHUCKMode);
                 
                 Debug.Log($"[KartographerTab] HUCK label toggled: {newHUCKMode}");
+            }
+            
+            // Debug visualization toggle - shows solid color instead of texture
+            GUILayout.Space(5);
+            bool newDebugMode = GUILayout.Toggle(_labelDebugMode, 
+                " Debug Label Visualization", HighLogic.Skin.toggle);
+            if (newDebugMode != _labelDebugMode)
+            {
+                _labelDebugMode = newDebugMode;
+                uint debugMask = newDebugMode ? 1u : 0u;  // Bit 0 = label 0 (HUCK)
+                
+                var nativeParams = StarfieldNative.LastKartographerParams;
+                nativeParams.GridLabelDebugMask = debugMask;
+                StarfieldNative.LastKartographerParams = nativeParams;
+                StarfieldNative.CR_StarfieldSetKartographerParams(ref nativeParams);
+                
+                Debug.Log($"[KartographerTab] Label debug mode: {(newDebugMode ? "ON" : "OFF")} (mask: 0x{debugMask:X})");
             }
             
             GUILayout.Space(5);
@@ -266,6 +286,68 @@ namespace CinematicShaders.UI.Tabs
             {
                 Debug.Log("[KartographerTab] Export Grid Label Texture button clicked");
                 ExportGridLabelDebug();
+            }
+            
+            // Label debug tuning sliders
+            if (_labelSystem != null)
+            {
+                var huck = _labelSystem.GetLabel("huck");
+                if (huck != null)
+                {
+                    GUILayout.Space(10);
+                    GUILayout.Label("<b>Label Debug Tuning</b>", HighLogic.Skin.label);
+                    
+                    GUILayout.Label($"Rotation: {huck.RotationDegrees:F1}°");
+                    float newRot = GUILayout.HorizontalSlider(huck.RotationDegrees, -10f, 10f);
+                    if (!Mathf.Approximately(newRot, huck.RotationDegrees))
+                    {
+                        huck.RotationDegrees = newRot;
+                        huck.PositionDirty = true;
+                    }
+                    
+                    GUILayout.Label($"Left Padding: {huck.PaddingLeft:F2}");
+                    float newPadL = GUILayout.HorizontalSlider(huck.PaddingLeft, 0f, 0.5f);
+                    if (!Mathf.Approximately(newPadL, huck.PaddingLeft))
+                    {
+                        huck.PaddingLeft = newPadL;
+                        huck.PositionDirty = true;
+                    }
+                    
+                    GUILayout.Label($"Bottom Padding: {huck.PaddingBottom:F2}");
+                    float newPadB = GUILayout.HorizontalSlider(huck.PaddingBottom, 0f, 0.5f);
+                    if (!Mathf.Approximately(newPadB, huck.PaddingBottom))
+                    {
+                        huck.PaddingBottom = newPadB;
+                        huck.PositionDirty = true;
+                    }
+                    
+                    GUILayout.Label($"Font Size: {huck.FontSizePixels:F0}");
+                    float newFont = GUILayout.HorizontalSlider(huck.FontSizePixels, 8f, 48f);
+                    if (!Mathf.Approximately(newFont, huck.FontSizePixels))
+                    {
+                        huck.FontSizePixels = newFont;
+                        huck.ForceTextureUpdate = true;
+                    }
+                    
+                    GUILayout.Label($"Baseline Offset: {huck.BaselineOffset:F2}");
+                    float newBase = GUILayout.HorizontalSlider(huck.BaselineOffset, 0.5f, 1.5f);
+                    if (!Mathf.Approximately(newBase, huck.BaselineOffset))
+                    {
+                        huck.BaselineOffset = newBase;
+                        huck.ForceTextureUpdate = true;
+                    }
+                    
+                    if (GUILayout.Button("Reset Label Tuning"))
+                    {
+                        huck.RotationDegrees = -2f;
+                        huck.PaddingLeft = 0.12f;
+                        huck.PaddingBottom = 0.12f;
+                        huck.FontSizePixels = 18f;
+                        huck.BaselineOffset = 0.9f;
+                        huck.TextureDirty = true;
+                        huck.PositionDirty = true;
+                    }
+                }
             }
 
             GUILayout.EndVertical();

@@ -16,7 +16,7 @@ struct PSInput {
 };
 
 // Constant buffer - must match C++ KartographerParams struct exactly
-// Total size: 544 bytes (16 × 34)
+// Total size: 608 bytes (16 × 38)
 cbuffer KartographerCB : register(b0) {
     // Base grid params (64 bytes)
     float2 Resolution;          // offset 0
@@ -45,7 +45,7 @@ cbuffer KartographerCB : register(b0) {
     float3 CameraForward;       // offset 96
     float _pad5;
     
-    // Debug shapes (32 bytes)
+    // Debug shapes / Info box (48 bytes) - offsets 112-159
     int DebugShapesEnabled;     // offset 112
     float _pad6;
     float _pad7;
@@ -58,9 +58,9 @@ cbuffer KartographerCB : register(b0) {
     float DebugBoxThickness;    // offset 160
     float DebugShapeIntensity;  // offset 164
     float _pad9;
-    float FocalLength;
+    float FocalLength;          // offset 172
     
-    // Selection circle (32 bytes) - offsets 176-207
+    // Selection circle (56 bytes) - offsets 176-231
     int SelectionCircleEnabled;     // offset 176
     float SelectionStarHash;        // offset 180 - for flicker variation
     float _padSelection2;           // offset 184
@@ -75,59 +75,76 @@ cbuffer KartographerCB : register(b0) {
     float _padSelection6;           // offset 224
     float _padSelection7;           // offset 228
     
-    // Text stub (16 bytes) - offsets 232-247
+    // Text stub (20 bytes) - offsets 232-251
     float2 TextOrigin;              // offset 232
     float2 TextAreaSize;            // offset 240
     float SelectionTextT;           // offset 248
     
-    // Grid Labels (8 labels) - offsets 252-543
+    // Grid Labels (8 labels) - offsets 252-527
     uint GridLabelEnabledMask;      // offset 252 - bit i = label i enabled
     float _padGridMask1;            // offset 256
     float _padGridMask2;            // offset 260
     float _padGridMask3;            // offset 264
+    float _padGridMask4;            // offset 268
     
     // Label data packed as float4 to save constant buffer space
     // Each label: float4(pos.xyz, sizeX), float4(tangent.xyz, sizeY)
     // Bitangent = normalize(cross(pos, tangent))  (for unit sphere, normal = pos)
     
-    // Label 0 - offsets 268-299
+    // Label 0 - offsets 272-303
     float4 GridLabel0_PosTangentX;  // xyz=pos, w=sizeX
     float4 GridLabel0_TangentY;     // xyz=tangent, w=sizeY
     
-    // Label 1 - offsets 300-331
+    // Label 1 - offsets 304-335
     float4 GridLabel1_PosTangentX;
     float4 GridLabel1_TangentY;
     
-    // Label 2 - offsets 332-363
+    // Label 2 - offsets 336-367
     float4 GridLabel2_PosTangentX;
     float4 GridLabel2_TangentY;
     
-    // Label 3 - offsets 364-395
+    // Label 3 - offsets 368-399
     float4 GridLabel3_PosTangentX;
     float4 GridLabel3_TangentY;
     
-    // Label 4 - offsets 396-427
+    // Label 4 - offsets 400-431
     float4 GridLabel4_PosTangentX;
     float4 GridLabel4_TangentY;
     
-    // Label 5 - offsets 428-459
+    // Label 5 - offsets 432-463
     float4 GridLabel5_PosTangentX;
     float4 GridLabel5_TangentY;
     
-    // Label 6 - offsets 460-491
+    // Label 6 - offsets 464-495
     float4 GridLabel6_PosTangentX;
     float4 GridLabel6_TangentY;
     
-    // Label 7 - offsets 492-523
+    // Label 7 - offsets 496-527
     float4 GridLabel7_PosTangentX;
     float4 GridLabel7_TangentY;
     
-    // Padding to 544 bytes (Label 7 ends at 523, need 20 more bytes)
-    float _padEnd1;
-    float _padEnd2;
-    float _padEnd3;
-    float _padEnd4;
-    float _padEnd5;
+    // Debug mask and per-label visual params (80 bytes) - offsets 528-607
+    uint GridLabelDebugMask;        // offset 528 - bit mask for debug visualization
+    
+    // Label intensities (8 floats = 32 bytes)
+    float LabelIntensity0;          // offset 532
+    float LabelIntensity1;          // offset 536
+    float LabelIntensity2;          // offset 540
+    float LabelIntensity3;          // offset 544
+    float LabelIntensity4;          // offset 548
+    float LabelIntensity5;          // offset 552
+    float LabelIntensity6;          // offset 556
+    float LabelIntensity7;          // offset 560
+    
+    // Label color overrides (8 uints = 32 bytes, packed ARGB)
+    uint LabelColor0;               // offset 564
+    uint LabelColor1;               // offset 568
+    uint LabelColor2;               // offset 572
+    uint LabelColor3;               // offset 576
+    uint LabelColor4;               // offset 580
+    uint LabelColor5;               // offset 584
+    uint LabelColor6;               // offset 588
+    uint LabelColor7;               // offset 592
 };
 
 // Grid colors: 0=Seafoam, 1=Amber, 2=White, 3=Green
@@ -350,6 +367,43 @@ float3 RenderGridLabel(
     int texIndex, float3 ray, float3 gridColor,
     float2 caOffsetUV  // chromatic aberration offset in UV space
 ) {
+    // Debug visualization: if debug bit is set for this label, show solid color
+    if ((GridLabelDebugMask & (1u << texIndex)) != 0) {
+        // Ray-plane intersection to determine if we hit the label area
+        float3 labelNormal = normalize(labelPos);
+        float3 labelBitangent = normalize(cross(labelNormal, labelTangent));
+        
+        float denom = dot(ray, labelNormal);
+        if (abs(denom) < 0.001) return float3(0, 0, 0);
+        
+        float t = 1.0 / denom;
+        if (t < 0.0) return float3(0, 0, 0);
+        
+        float3 hitPoint = ray * t;
+        float3 localPos = hitPoint - labelPos;
+        
+        // Bottom-left anchored: u increases east, v increases south (flipped from texture)
+        float u = dot(localPos, labelTangent) / sizeX;
+        float v = -dot(localPos, labelBitangent) / sizeY + 1.0;
+        
+        // Return bright debug color (no texture sampling)
+        if (u >= 0.0 && u <= 1.0 && v >= 0.0 && v <= 1.0) {
+            // Different color per label for identification
+            float3 debugColors[8] = {
+                float3(1.0, 0.0, 0.0),  // Red (label 0 - HUCK)
+                float3(0.0, 1.0, 0.0),  // Green (label 1)
+                float3(0.0, 0.0, 1.0),  // Blue (label 2)
+                float3(1.0, 1.0, 0.0),  // Yellow (label 3)
+                float3(1.0, 0.0, 1.0),  // Magenta (label 4)
+                float3(0.0, 1.0, 1.0),  // Cyan (label 5)
+                float3(1.0, 0.5, 0.0),  // Orange (label 6)
+                float3(1.0, 1.0, 1.0)   // White (label 7)
+            };
+            return debugColors[texIndex];
+        }
+        return float3(0, 0, 0);
+    }
+    
     // Camera is at origin in view space, which is also world origin
     // The view ray has already been transformed to world space
     float3 cameraPos = float3(0.0, 0.0, 0.0);
@@ -387,9 +441,10 @@ float3 RenderGridLabel(
     float3 localPos = hitPoint - labelPos;
     
     // Project onto tangent frame to get UV coordinates
-    // u goes along tangent (east/west), v goes along bitangent (toward pole)
-    float u = dot(localPos, labelTangent) / sizeX + 0.5;
-    float v = dot(localPos, labelBitangent) / sizeY + 0.5;
+    // Bottom-left corner anchored: labelPos is the bottom-left of the quad
+    // u increases east along tangent, v increases south (flipped so text reads top-to-bottom)
+    float u = dot(localPos, labelTangent) / sizeX;
+    float v = -dot(localPos, labelBitangent) / sizeY + 1.0;
     
     // Check if within label bounds [0, 1]
     if (u < 0.0 || u > 1.0 || v < 0.0 || v > 1.0) return float3(0, 0, 0);
@@ -447,7 +502,31 @@ float3 RenderGridLabel(
             break;
     }
     
-    return gridColor * float3(labelR, labelG, labelB);
+    // Apply per-label intensity and optional color override
+    float intensity;
+    uint colorOverride;
+    switch(texIndex) {
+        case 0: intensity = LabelIntensity0; colorOverride = LabelColor0; break;
+        case 1: intensity = LabelIntensity1; colorOverride = LabelColor1; break;
+        case 2: intensity = LabelIntensity2; colorOverride = LabelColor2; break;
+        case 3: intensity = LabelIntensity3; colorOverride = LabelColor3; break;
+        case 4: intensity = LabelIntensity4; colorOverride = LabelColor4; break;
+        case 5: intensity = LabelIntensity5; colorOverride = LabelColor5; break;
+        case 6: intensity = LabelIntensity6; colorOverride = LabelColor6; break;
+        case 7: intensity = LabelIntensity7; colorOverride = LabelColor7; break;
+        default: intensity = 1.0; colorOverride = 0; break;
+    }
+    
+    float3 finalColor = gridColor;
+    // If color override is non-zero, use it (unpack ARGB to RGB)
+    if (colorOverride != 0) {
+        float r = float((colorOverride >> 16) & 0xFF) / 255.0;
+        float g = float((colorOverride >> 8) & 0xFF) / 255.0;
+        float b = float(colorOverride & 0xFF) / 255.0;
+        finalColor = float3(r, g, b);
+    }
+    
+    return finalColor * float3(labelR, labelG, labelB) * intensity;
 }
 
 // ============================================================================

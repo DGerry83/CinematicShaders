@@ -75,6 +75,24 @@ namespace CinematicShaders.Native
             int outputHeight);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CR_TextLayoutEx(
+            IntPtr textSystem,
+            [MarshalAs(UnmanagedType.LPStr)] string text,
+            float fontSize,
+            uint color,
+            float originX,
+            float originY);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_TextDispatchEx(
+            IntPtr textSystem,
+            IntPtr outputTexture,
+            int glyphCount,
+            int outputWidth,
+            int outputHeight,
+            int clearOutput);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_SetTextTexture(IntPtr texture);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
@@ -278,178 +296,217 @@ namespace CinematicShaders.Native
 
         // ============================================================================
         // Kartographer Parameters - 8 Label Support (Phase 2)
-        // Total size: 544 bytes (34 × 16)
+        // Total size: 608 bytes (16 × 38)
+        // Generated from ReferenceNotes/tools/generate_struct.py
         // ============================================================================
         
-        [StructLayout(LayoutKind.Sequential)]
+        [StructLayout(LayoutKind.Sequential, Pack = 16)]
         public struct KartographerParamsNative
         {
-            // Base grid params (64 bytes) - offsets 0-63
-            public float ResolutionX;              // offset 0
-            public float ResolutionY;              // offset 4
-            public float Time;                     // offset 8
-            public float GridIntensity;            // offset 12
-            public float GridThickness;            // offset 16
-            public float ChromaticAberrationStrength;  // offset 20
-            public float VignetteStrength;         // offset 24
-            public float VignetteStart;            // offset 28
-            public float VignetteEnd;              // offset 32
-            public float PreRotationYaw;           // offset 36
-            public float PreRotationPitch;         // offset 40
-            public int GridSizePreset;             // offset 44
-            public int GridColorIndex;             // offset 48
-            public float _pad1;                    // offset 52
-            public float _pad2;                    // offset 56
-            public float _padAlignCamera;          // offset 60
-            
-            // Camera basis (48 bytes) - offsets 64-111
-            public float CameraRightX;             // offset 64
-            public float CameraRightY;             // offset 68
-            public float CameraRightZ;             // offset 72
-            public float _pad3;                    // offset 76
-            public float CameraUpX;                // offset 80
-            public float CameraUpY;                // offset 84
-            public float CameraUpZ;                // offset 88
-            public float _pad4;                    // offset 92
-            public float CameraForwardX;           // offset 96
-            public float CameraForwardY;           // offset 100
-            public float CameraForwardZ;           // offset 104
-            public float _pad5;                    // offset 108
-            
-            // Debug shapes (32 bytes) - offsets 112-143
-            public int DebugShapesEnabled;         // offset 112
-            public float _pad6;                    // offset 116
-            public float _pad7;                    // offset 120
-            public float _pad8;                    // offset 124
-            public float DebugCircleCenterX;       // offset 128
-            public float DebugCircleCenterY;       // offset 132
-            public float DebugCircleRadius;        // offset 136
-            public float DebugCircleThickness;     // offset 140
-            public float DebugBoxTopLeftX;         // offset 144
-            public float DebugBoxTopLeftY;         // offset 148
-            public float DebugBoxSizeX;            // offset 152
-            public float DebugBoxSizeY;            // offset 156
-            public float DebugBoxThickness;        // offset 160
-            public float DebugShapeIntensity;      // offset 164
-            public float _pad9;                    // offset 168
-            public float FocalLength;              // offset 172
-            
-            // Selection circle (32 bytes) - offsets 176-207
-            public int SelectionCircleEnabled;     // offset 176
-            public float SelectionStarHash;        // offset 180
-            public float _padSelection2;           // offset 184
-            public float _padSelection3;           // offset 188
-            public float SelectionCircleCenterX;   // offset 192
-            public float SelectionCircleCenterY;   // offset 196
-            public float SelectionCircleT;         // offset 200
-            public float SelectionCircleIntensity; // offset 204
-            public float SelectionCircleThickness; // offset 208
-            public float SelectionCircleRadius;    // offset 212
-            public float _padSelection4;           // offset 216
-            public float _padSelection5;           // offset 220
-            public float _padSelection6;           // offset 224
-            public float _padSelection7;           // offset 228
-            
-            // Text stub (16 bytes) - offsets 232-247
-            public float TextOriginX;              // offset 232
-            public float TextOriginY;              // offset 236
-            public float TextAreaSizeX;            // offset 240
-            public float TextAreaSizeY;            // offset 244
-            public float SelectionTextT;           // offset 248
-            
-            // Grid Labels (8 labels) - offsets 252-543
-            // Bitmask for enabled labels (bit 0 = label 0, bit 1 = label 1, etc.)
-            public uint GridLabelEnabledMask;      // offset 252
-            public float _padGridMask1;            // offset 256
-            public float _padGridMask2;            // offset 260
-            public float _padGridMask3;            // offset 264
-            
-            // Label 0 (32 bytes) - offsets 268-299
-            public float GridLabel0_PosX;          // offset 268
-            public float GridLabel0_PosY;          // offset 272
-            public float GridLabel0_PosZ;          // offset 276
-            public float GridLabel0_SizeX;         // offset 280
-            public float GridLabel0_TangentX;      // offset 284
-            public float GridLabel0_TangentY;      // offset 288
-            public float GridLabel0_TangentZ;      // offset 292
-            public float GridLabel0_SizeY;         // offset 296
-            
-            // Label 1 (32 bytes) - offsets 300-331
-            public float GridLabel1_PosX;          // offset 300
-            public float GridLabel1_PosY;          // offset 304
-            public float GridLabel1_PosZ;          // offset 308
-            public float GridLabel1_SizeX;         // offset 312
-            public float GridLabel1_TangentX;      // offset 316
-            public float GridLabel1_TangentY;      // offset 320
-            public float GridLabel1_TangentZ;      // offset 324
-            public float GridLabel1_SizeY;         // offset 328
-            
-            // Label 2 (32 bytes) - offsets 332-363
-            public float GridLabel2_PosX;          // offset 332
-            public float GridLabel2_PosY;          // offset 336
-            public float GridLabel2_PosZ;          // offset 340
-            public float GridLabel2_SizeX;         // offset 344
-            public float GridLabel2_TangentX;      // offset 348
-            public float GridLabel2_TangentY;      // offset 352
-            public float GridLabel2_TangentZ;      // offset 356
-            public float GridLabel2_SizeY;         // offset 360
-            
-            // Label 3 (32 bytes) - offsets 364-395
-            public float GridLabel3_PosX;          // offset 364
-            public float GridLabel3_PosY;          // offset 368
-            public float GridLabel3_PosZ;          // offset 372
-            public float GridLabel3_SizeX;         // offset 376
-            public float GridLabel3_TangentX;      // offset 380
-            public float GridLabel3_TangentY;      // offset 384
-            public float GridLabel3_TangentZ;      // offset 388
-            public float GridLabel3_SizeY;         // offset 392
-            
-            // Label 4 (32 bytes) - offsets 396-427
-            public float GridLabel4_PosX;          // offset 396
-            public float GridLabel4_PosY;          // offset 400
-            public float GridLabel4_PosZ;          // offset 404
-            public float GridLabel4_SizeX;         // offset 408
-            public float GridLabel4_TangentX;      // offset 412
-            public float GridLabel4_TangentY;      // offset 416
-            public float GridLabel4_TangentZ;      // offset 420
-            public float GridLabel4_SizeY;         // offset 424
-            
-            // Label 5 (32 bytes) - offsets 428-459
-            public float GridLabel5_PosX;          // offset 428
-            public float GridLabel5_PosY;          // offset 432
-            public float GridLabel5_PosZ;          // offset 436
-            public float GridLabel5_SizeX;         // offset 440
-            public float GridLabel5_TangentX;      // offset 444
-            public float GridLabel5_TangentY;      // offset 448
-            public float GridLabel5_TangentZ;      // offset 452
-            public float GridLabel5_SizeY;         // offset 456
-            
-            // Label 6 (32 bytes) - offsets 460-491
-            public float GridLabel6_PosX;          // offset 460
-            public float GridLabel6_PosY;          // offset 464
-            public float GridLabel6_PosZ;          // offset 468
-            public float GridLabel6_SizeX;         // offset 472
-            public float GridLabel6_TangentX;      // offset 476
-            public float GridLabel6_TangentY;      // offset 480
-            public float GridLabel6_TangentZ;      // offset 484
-            public float GridLabel6_SizeY;         // offset 488
-            
-            // Label 7 (32 bytes) - offsets 492-523
-            public float GridLabel7_PosX;          // offset 492
-            public float GridLabel7_PosY;          // offset 496
-            public float GridLabel7_PosZ;          // offset 500
-            public float GridLabel7_SizeX;         // offset 504
-            public float GridLabel7_TangentX;      // offset 508
-            public float GridLabel7_TangentY;      // offset 512
-            public float GridLabel7_TangentZ;      // offset 516
-            public float GridLabel7_SizeY;         // offset 520
-            
-            // Final padding to reach 544 bytes (Label 7 ends at 524, need 20 more bytes)
-            public float _padEnd1;                 // offset 524
-            public float _padEnd2;                 // offset 528
-            public float _padEnd3;                 // offset 532
-            public float _padEnd4;                 // offset 536
-            public float _padEnd5;                 // offset 540
+            // Field offsets (bytes):
+            //     0: ResolutionX (float)
+            //     4: ResolutionY (float)
+            //     8: Time (float)
+            //    12: GridIntensity (float)
+            //    16: GridThickness (float)
+            //    20: ChromaticAberrationStrength (float)
+            //    24: VignetteStrength (float)
+            //    28: VignetteStart (float)
+            //    32: VignetteEnd (float)
+            //    36: PreRotationYaw (float)
+            //    40: PreRotationPitch (float)
+            //    44: GridSizePreset (int)
+            //    48: GridColorIndex (int)
+            //    52: _pad1 (float)
+            //    56: _pad2 (float)
+            //    60: _padAlignCamera (float)
+            //    64: CameraRightX (float)
+            //    68: CameraRightY (float)
+            //    72: CameraRightZ (float)
+            //    76: _pad3 (float)
+            //    80: CameraUpX (float)
+            //    84: CameraUpY (float)
+            //    88: CameraUpZ (float)
+            //    92: _pad4 (float)
+            //    96: CameraForwardX (float)
+            //   100: CameraForwardY (float)
+            //   104: CameraForwardZ (float)
+            //   108: _pad5 (float)
+            //   112: DebugShapesEnabled (int)
+            //   116: _pad6 (float)
+            //   120: _pad7 (float)
+            //   124: _pad8 (float)
+            //   128: DebugCircleCenterX (float)
+            //   132: DebugCircleCenterY (float)
+            //   136: DebugCircleRadius (float)
+            //   140: DebugCircleThickness (float)
+            //   144: DebugBoxTopLeftX (float)
+            //   148: DebugBoxTopLeftY (float)
+            //   152: DebugBoxSizeX (float)
+            //   156: DebugBoxSizeY (float)
+            //   160: DebugBoxThickness (float)
+            //   164: DebugShapeIntensity (float)
+            //   168: _pad9 (float)
+            //   172: FocalLength (float)
+            //   176: SelectionCircleEnabled (int)
+            //   180: SelectionStarHash (float)
+            //   184: _padSelection2 (float)
+            //   188: _padSelection3 (float)
+            //   192: SelectionCircleCenterX (float)
+            //   196: SelectionCircleCenterY (float)
+            //   200: SelectionCircleT (float)
+            //   204: SelectionCircleIntensity (float)
+            //   208: SelectionCircleThickness (float)
+            //   212: SelectionCircleRadius (float)
+            //   216: _padSelection4 (float)
+            //   220: _padSelection5 (float)
+            //   224: _padSelection6 (float)
+            //   228: _padSelection7 (float)
+            //   232: TextOriginX (float)
+            //   236: TextOriginY (float)
+            //   240: TextAreaSizeX (float)
+            //   244: TextAreaSizeY (float)
+            //   248: SelectionTextT (float)
+            //   252: GridLabelEnabledMask (uint)
+            //   256: _padGridMask1 (float)
+            //   260: _padGridMask2 (float)
+            //   264: _padGridMask3 (float)
+            //   268: _padGridMask4 (float)
+            //   272: GridLabel0_PosTangentX (float4)
+            //   288: GridLabel0_TangentY (float4)
+            //   304: GridLabel1_PosTangentX (float4)
+            //   320: GridLabel1_TangentY (float4)
+            //   336: GridLabel2_PosTangentX (float4)
+            //   352: GridLabel2_TangentY (float4)
+            //   368: GridLabel3_PosTangentX (float4)
+            //   384: GridLabel3_TangentY (float4)
+            //   400: GridLabel4_PosTangentX (float4)
+            //   416: GridLabel4_TangentY (float4)
+            //   432: GridLabel5_PosTangentX (float4)
+            //   448: GridLabel5_TangentY (float4)
+            //   464: GridLabel6_PosTangentX (float4)
+            //   480: GridLabel6_TangentY (float4)
+            //   496: GridLabel7_PosTangentX (float4)
+            //   512: GridLabel7_TangentY (float4)
+            //   528: GridLabelDebugMask (uint)
+            //   532: LabelIntensity0 (float)
+            //   536: LabelIntensity1 (float)
+            //   540: LabelIntensity2 (float)
+            //   544: LabelIntensity3 (float)
+            //   548: LabelIntensity4 (float)
+            //   552: LabelIntensity5 (float)
+            //   556: LabelIntensity6 (float)
+            //   560: LabelIntensity7 (float)
+            //   564: LabelColor0 (uint)
+            //   568: LabelColor1 (uint)
+            //   572: LabelColor2 (uint)
+            //   576: LabelColor3 (uint)
+            //   580: LabelColor4 (uint)
+            //   584: LabelColor5 (uint)
+            //   588: LabelColor6 (uint)
+            //   592: LabelColor7 (uint)
+
+            public float ResolutionX;
+            public float ResolutionY;
+            public float Time;
+            public float GridIntensity;
+            public float GridThickness;
+            public float ChromaticAberrationStrength;
+            public float VignetteStrength;
+            public float VignetteStart;
+            public float VignetteEnd;
+            public float PreRotationYaw;
+            public float PreRotationPitch;
+            public int GridSizePreset;
+            public int GridColorIndex;
+            public float _pad1;
+            public float _pad2;
+            public float _padAlignCamera;
+            public float CameraRightX;
+            public float CameraRightY;
+            public float CameraRightZ;
+            public float _pad3;
+            public float CameraUpX;
+            public float CameraUpY;
+            public float CameraUpZ;
+            public float _pad4;
+            public float CameraForwardX;
+            public float CameraForwardY;
+            public float CameraForwardZ;
+            public float _pad5;
+            public int DebugShapesEnabled;
+            public float _pad6;
+            public float _pad7;
+            public float _pad8;
+            public float DebugCircleCenterX;
+            public float DebugCircleCenterY;
+            public float DebugCircleRadius;
+            public float DebugCircleThickness;
+            public float DebugBoxTopLeftX;
+            public float DebugBoxTopLeftY;
+            public float DebugBoxSizeX;
+            public float DebugBoxSizeY;
+            public float DebugBoxThickness;
+            public float DebugShapeIntensity;
+            public float _pad9;
+            public float FocalLength;
+            public int SelectionCircleEnabled;
+            public float SelectionStarHash;
+            public float _padSelection2;
+            public float _padSelection3;
+            public float SelectionCircleCenterX;
+            public float SelectionCircleCenterY;
+            public float SelectionCircleT;
+            public float SelectionCircleIntensity;
+            public float SelectionCircleThickness;
+            public float SelectionCircleRadius;
+            public float _padSelection4;
+            public float _padSelection5;
+            public float _padSelection6;
+            public float _padSelection7;
+            public float TextOriginX;
+            public float TextOriginY;
+            public float TextAreaSizeX;
+            public float TextAreaSizeY;
+            public float SelectionTextT;
+            public uint GridLabelEnabledMask;
+            public float _padGridMask1;
+            public float _padGridMask2;
+            public float _padGridMask3;
+            public float _padGridMask4;
+            public Vector4 GridLabel0_PosTangentX;
+            public Vector4 GridLabel0_TangentY;
+            public Vector4 GridLabel1_PosTangentX;
+            public Vector4 GridLabel1_TangentY;
+            public Vector4 GridLabel2_PosTangentX;
+            public Vector4 GridLabel2_TangentY;
+            public Vector4 GridLabel3_PosTangentX;
+            public Vector4 GridLabel3_TangentY;
+            public Vector4 GridLabel4_PosTangentX;
+            public Vector4 GridLabel4_TangentY;
+            public Vector4 GridLabel5_PosTangentX;
+            public Vector4 GridLabel5_TangentY;
+            public Vector4 GridLabel6_PosTangentX;
+            public Vector4 GridLabel6_TangentY;
+            public Vector4 GridLabel7_PosTangentX;
+            public Vector4 GridLabel7_TangentY;
+            public uint GridLabelDebugMask;
+            public float LabelIntensity0;
+            public float LabelIntensity1;
+            public float LabelIntensity2;
+            public float LabelIntensity3;
+            public float LabelIntensity4;
+            public float LabelIntensity5;
+            public float LabelIntensity6;
+            public float LabelIntensity7;
+            public uint LabelColor0;
+            public uint LabelColor1;
+            public uint LabelColor2;
+            public uint LabelColor3;
+            public uint LabelColor4;
+            public uint LabelColor5;
+            public uint LabelColor6;
+            public uint LabelColor7;
         }
 
         // Last params cache for incremental updates

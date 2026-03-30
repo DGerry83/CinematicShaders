@@ -297,6 +297,10 @@ void TextSystem::ClearAtlasAndCache() {
 }
 
 int TextSystem::LayoutString(const char* text, float fontSize, uint32_t color) {
+    return LayoutStringEx(text, fontSize, color, 0.0f, 0.0f);
+}
+
+int TextSystem::LayoutStringEx(const char* text, float fontSize, uint32_t color, float originX, float originY) {
     if (!m_initialized || !text) {
         return 0;
     }
@@ -315,8 +319,8 @@ int TextSystem::LayoutString(const char* text, float fontSize, uint32_t color) {
     // Set font scale for this layout
     m_fontScale = stbtt_ScaleForPixelHeight(m_fontInfo, static_cast<float>(fontPx));
     
-    float cursorX = 0.0f;
-    float cursorY = 0.0f;
+    float cursorX = originX;
+    float cursorY = originY;
     float lineHeight = (m_ascent - m_descent + m_lineGap) * m_fontScale;
     
     for (const char* p = text; *p; ++p) {
@@ -324,7 +328,7 @@ int TextSystem::LayoutString(const char* text, float fontSize, uint32_t color) {
         
         // Handle newline
         if (codepoint == '\n') {
-            cursorX = 0.0f;
+            cursorX = originX;
             cursorY += lineHeight;
             continue;
         }
@@ -651,6 +655,15 @@ int CR_TextLayout(TextSystemHandle handle, const char* text, float fontSize, uin
     int count = ts->LayoutString(text, fontSize, color);
     LogToFile("[Text] CR_TextLayout: LayoutString returned %d glyphs", count);
     return count;
+}
+
+extern "C" __declspec(dllexport)
+int CR_TextLayoutEx(TextSystemHandle handle, const char* text, float fontSize, uint32_t color, float originX, float originY) {
+    if (!handle) {
+        return 0;
+    }
+    TextSystem* ts = static_cast<TextSystem*>(handle);
+    return ts->LayoutStringEx(text, fontSize, color, originX, originY);
 }
 
 extern "C" __declspec(dllexport)

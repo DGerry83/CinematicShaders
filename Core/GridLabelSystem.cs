@@ -23,12 +23,17 @@ namespace CinematicShaders.Core
     public class GridLabel
     {
         public string Id;                    // Unique identifier (e.g., "huck", "kerbin_soi")
-        public string Text;                  // Text to display
+        public string Text;                  // Active text to display
+        public string DefaultText;           // Original fallback text for variant resolution
         public float Latitude;               // -90 to 90 degrees
         public float Longitude;              // -180 to 180 degrees
         public float FontSizePixels;         // Font size for texture generation
         public bool Enabled;                 // Toggle state
         public GridLabelType LabelType;      // Category for UI grouping
+        
+        // Visual settings (new)
+        public float Intensity = 1.0f;       // Brightness multiplier
+        public Color OverrideColor = Color.clear;  // Color.clear = use grid color
         
         // Runtime data
         public RenderTexture Texture;        // Generated texture
@@ -39,6 +44,24 @@ namespace CinematicShaders.Core
         public bool PositionDirty;           // Needs recalculation
         public float WorldSizeX;             // World-space width
         public float WorldSizeY;             // World-space height
+        
+        // Dynamic text throttling (new)
+        public string LastText;              // Last text that was rendered
+        public float LastUpdateTime;         // Time of last texture update
+        public float MinUpdateInterval = 0.1f;  // Minimum seconds between updates (10 FPS)
+        public bool ForceTextureUpdate = false; // Bypass throttling for real-time tuning
+        public bool SnapToGrid = false;         // Align to grid cell bottom-left corner
+        public string InitialsText;              // Active big-first-letter text (2-pass rendering)
+        public string DefaultInitialsText;       // Original fallback initials for variant resolution
+        public float InitialsFontSizeMultiplier = 1.3f;  // Size multiplier for initials
+        public Dictionary<int, string> Variants;       // Grid-preset-aware text variants (key = max preset index)
+        public Dictionary<int, string> InitialsVariants; // Matching initials variants for 2-pass rendering
+        
+        // Per-label positioning tunables
+        public float RotationDegrees = 0f;   // Clockwise rotation around normal
+        public float PaddingLeft = 0.12f;    // Fraction of WorldSizeX to nudge east
+        public float PaddingBottom = 0.12f;  // Fraction of WorldSizeY to nudge north
+        public float BaselineOffset = 0.9f;  // Body text baseline alignment factor
     }
 
     /// <summary>
@@ -56,6 +79,11 @@ namespace CinematicShaders.Core
         
         // Cache for native texture bindings - avoid rebinding same texture
         private IntPtr[] _boundTextures = new IntPtr[MAX_LABELS];
+        
+        // Debug tracking
+        private int _lastEnabledCount = -1;
+        private uint _lastEnabledMask = 0;
+        private int _lastGridPreset = -1;
         
         // Font configuration
         private const float DEFAULT_FONT_SIZE = 18f;
@@ -121,14 +149,29 @@ namespace CinematicShaders.Core
             RegisterLabel(new GridLabel
             {
                 Id = "huck",
-                Text = "HUCK",
+                Text = "H\nU\nC\nK\nv0.6.28",
+                DefaultText = "H\nU\nC\nK\nv0.6.28",
+                InitialsText = null,
+                DefaultInitialsText = null,
                 Latitude = -75f,
                 Longitude = 0f,
                 FontSizePixels = DEFAULT_FONT_SIZE,
                 Enabled = StarfieldSettings.EnableGridLabelHUCK,
                 LabelType = GridLabelType.System,
                 TextureDirty = true,
-                PositionDirty = true
+                PositionDirty = true,
+                SnapToGrid = true,
+                Variants = new Dictionary<int, string>
+                {
+                    { 1, "OLOGRAPHIC\nNIVERSAL\nELESTIAL\nARTOGRAPHER\nv0.6.28" }  // Jumbo + Large
+                },
+                InitialsVariants = new Dictionary<int, string>
+                {
+                    { 1, "H\nU\nC\nK" }  // Jumbo + Large
+                },
+                RotationDegrees = -2f,
+                PaddingLeft = 0.12f,
+                PaddingBottom = 0.12f
             });
         }
         
@@ -235,15 +278,80 @@ namespace CinematicShaders.Core
                 if (_enabledLabels.Count >= MAX_LABELS) break;
             }
             
+            // Debug: Log when enabled label count changes
+            if (_enabledLabels.Count != _lastEnabledCount)
+            {
+                _lastEnabledCount = _enabledLabels.Count;
+                Debug.Log($"[GridLabelSystem] Enabled labels changed: {_enabledLabels.Count} labels active");
+                foreach (var l in _enabledLabels)
+                {
+                    Debug.Log($"[GridLabelSystem]  - {l.Id}: '{l.Text}' at ({l.Latitude:F1}°, {l.Longitude:F1}°)");
+                }
+            }
+            
+            // Detect grid preset changes and resolve label variants
+            int currentPreset = Mathf.Clamp(StarfieldSettings.KartographerGridSize, 0, 4);
+            if (currentPreset != _lastGridPreset)
+            {
+                _lastGridPreset = currentPreset;
+                foreach (var label in _enabledLabels)
+                {
+                    string resolvedText = ResolveVariant(label.Variants, label.DefaultText, currentPreset);
+                    string resolvedInitials = ResolveVariant(label.InitialsVariants, label.DefaultInitialsText, currentPreset);
+                    
+                    if (resolvedText != label.Text || resolvedInitials != label.InitialsText)
+                    {
+                        label.Text = resolvedText;
+                        label.InitialsText = resolvedInitials;
+                        label.TextureDirty = true;
+                    }
+                    
+                    if (label.SnapToGrid)
+                    {
+                        label.PositionDirty = true;
+                    }
+                }
+            }
+            
             // Update each enabled label
             for (int i = 0; i < _enabledLabels.Count; i++)
             {
                 var label = _enabledLabels[i];
                 
-                // Generate texture if needed
-                if (label.Texture == null || label.TextureDirty)
+                // Generate texture if needed (with throttling for dynamic text)
+                if (label.Texture == null || label.TextureDirty || label.ForceTextureUpdate)
                 {
-                    GenerateTexture(label);
+                    bool shouldUpdate = true;
+                    
+                    if (label.ForceTextureUpdate)
+                    {
+                        // Real-time tuning: bypass all throttling
+                        label.ForceTextureUpdate = false;
+                    }
+                    else
+                    {
+                        // Throttling: only update at most every MinUpdateInterval seconds
+                        float timeSinceLastUpdate = Time.time - label.LastUpdateTime;
+                        if (timeSinceLastUpdate < label.MinUpdateInterval)
+                        {
+                            shouldUpdate = false;
+                        }
+                        // Also check if text actually changed
+                        else if (label.Text == label.LastText)
+                        {
+                            // Text unchanged and enough time passed - no need to regenerate
+                            label.TextureDirty = false;
+                            shouldUpdate = false;
+                        }
+                    }
+                    
+                    if (shouldUpdate)
+                    {
+                        GenerateTexture(label);
+                        label.LastText = label.Text;
+                        label.LastUpdateTime = Time.time;
+                        label.TextureDirty = false;
+                    }
                 }
                 
                 // Update position if needed
@@ -260,6 +368,62 @@ namespace CinematicShaders.Core
             DisableUnusedSlots(_enabledLabels.Count);
         }
         
+        /// <summary>
+        /// Packs a Color into a uint (ARGB format for shader)
+        /// </summary>
+        private uint PackColor(Color color)
+        {
+            uint a = (uint)(color.a * 255) << 24;
+            uint r = (uint)(color.r * 255) << 16;
+            uint g = (uint)(color.g * 255) << 8;
+            uint b = (uint)(color.b * 255);
+            return a | r | g | b;
+        }
+        
+        /// <summary>
+        /// Resolves a grid-preset-aware variant string. Returns fallback if no variant matches.
+        /// </summary>
+        private string ResolveVariant(Dictionary<int, string> variants, string fallback, int preset)
+        {
+            if (variants == null || variants.Count == 0)
+                return fallback;
+            
+            int bestThreshold = int.MaxValue;
+            string bestText = fallback;
+            
+            foreach (var kvp in variants)
+            {
+                if (preset <= kvp.Key && kvp.Key < bestThreshold)
+                {
+                    bestThreshold = kvp.Key;
+                    bestText = kvp.Value;
+                }
+            }
+            return bestText;
+        }
+        
+        /// <summary>
+        /// Sets per-label intensity (brightness multiplier)
+        /// </summary>
+        public void SetLabelIntensity(string id, float intensity)
+        {
+            if (_labels.TryGetValue(id, out var label))
+            {
+                label.Intensity = intensity;
+            }
+        }
+        
+        /// <summary>
+        /// Sets per-label color override (Color.clear to use grid color)
+        /// </summary>
+        public void SetLabelColor(string id, Color color)
+        {
+            if (_labels.TryGetValue(id, out var label))
+            {
+                label.OverrideColor = color;
+            }
+        }
+        
         private void GenerateTexture(GridLabel label)
         {
             if (_textSystem == IntPtr.Zero) return;
@@ -272,32 +436,77 @@ namespace CinematicShaders.Core
                 label.Texture.Create();
             }
             
-            // Layout text
             uint color = 0xFFFFFFFF; // White
-            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, label.Text, label.FontSizePixels, color);
+            float boundsWidth, boundsHeight;
             
-            if (glyphCount <= 0)
+            if (!string.IsNullOrEmpty(label.InitialsText))
             {
-                Debug.LogWarning($"[GridLabelSystem] Text layout failed for '{label.Text}'");
-                label.TextureDirty = false;
-                return;
+                // Two-pass rendering: big initials + body text
+                float initialsSize = label.FontSizePixels * label.InitialsFontSizeMultiplier;
+                float hPadding = 4.0f;
+                float vPadding = 2.0f;
+                
+                // Measure both parts
+                StarfieldNative.CR_TextMeasure(_textSystem, label.InitialsText, initialsSize, out float iw, out float ih);
+                StarfieldNative.CR_TextMeasure(_textSystem, label.Text, label.FontSizePixels, out float bw, out float bh);
+                
+                // Align baselines: offset body so first baseline matches initials first baseline
+                float bodyOriginY = (initialsSize - label.FontSizePixels) * label.BaselineOffset;
+                
+                boundsWidth = Mathf.Max(iw, iw + hPadding + bw);
+                boundsHeight = Mathf.Max(ih, bodyOriginY + bh);
+                float originY = TEXTURE_SIZE - boundsHeight - vPadding;
+                
+                // Pass 1: render initials (clears texture), aligned to bottom-left of texture
+                int g1 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.InitialsText, initialsSize, color, 0.0f, originY);
+                if (g1 > 0)
+                {
+                    StarfieldNative.CR_TextDispatchEx(
+                        _textSystem,
+                        label.Texture.GetNativeTexturePtr(),
+                        g1,
+                        TEXTURE_SIZE,
+                        TEXTURE_SIZE,
+                        1);
+                }
+                
+                // Pass 2: render body next to initials (no clear)
+                int g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, iw + hPadding, originY + bodyOriginY);
+                if (g2 > 0)
+                {
+                    StarfieldNative.CR_TextDispatchEx(
+                        _textSystem,
+                        label.Texture.GetNativeTexturePtr(),
+                        g2,
+                        TEXTURE_SIZE,
+                        TEXTURE_SIZE,
+                        0);
+                }
             }
-            
-            // Get text dimensions
-            StarfieldNative.CR_TextGetBounds(_textSystem, out float boundsWidth, out float boundsHeight);
-            
-            // Clear texture
-            RenderTexture.active = label.Texture;
-            GL.Clear(true, true, Color.clear);
-            RenderTexture.active = null;
-            
-            // Render glyphs
-            StarfieldNative.CR_TextDispatch(
-                _textSystem,
-                label.Texture.GetNativeTexturePtr(),
-                glyphCount,
-                TEXTURE_SIZE,
-                TEXTURE_SIZE);
+            else
+            {
+                // Single-pass rendering, aligned to bottom-left of texture
+                float vPadding = 2.0f;
+                StarfieldNative.CR_TextMeasure(_textSystem, label.Text, label.FontSizePixels, out boundsWidth, out boundsHeight);
+                float originY = TEXTURE_SIZE - boundsHeight - vPadding;
+                
+                int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, 0.0f, originY);
+                
+                if (glyphCount <= 0)
+                {
+                    Debug.LogWarning($"[GridLabelSystem] Text layout failed for '{label.Text}'");
+                    return;
+                }
+                
+                // Render glyphs (clears texture)
+                StarfieldNative.CR_TextDispatchEx(
+                    _textSystem,
+                    label.Texture.GetNativeTexturePtr(),
+                    glyphCount,
+                    TEXTURE_SIZE,
+                    TEXTURE_SIZE,
+                    1);
+            }
             
             // Calculate world size based on text aspect ratio
             float aspect = boundsWidth / Mathf.Max(boundsHeight, 1f);
@@ -309,21 +518,46 @@ namespace CinematicShaders.Core
             label.WorldSizeY = baseAngularSize;
             label.WorldSizeX = label.WorldSizeY * aspect;
             
-            label.TextureDirty = false;
-            
             // Bind texture to native slot
             int slot = _enabledLabels.IndexOf(label);
             if (slot >= 0)
             {
                 StarfieldNative.CR_SetGridLabelTexture(slot, label.Texture.GetNativeTexturePtr());
+                Debug.Log($"[GridLabelSystem] Generated texture for '{label.Text}' in slot {slot}, size {label.WorldSizeX:F3}x{label.WorldSizeY:F3}, aspect={aspect:F2}");
             }
         }
         
         private void CalculateTangentFrame(GridLabel label)
         {
-            // Convert lat/lon to world position on unit sphere
-            float latRad = label.Latitude * Mathf.Deg2Rad;
-            float lonRad = label.Longitude * Mathf.Deg2Rad;
+            float latRad, lonRad;
+            
+            if (label.SnapToGrid)
+            {
+                // Snap to bottom-left corner of the grid cell containing 0° longitude
+                // at the southernmost parallel for the current preset
+                int[] gridMeridians = { 8, 12, 16, 24, 32 };
+                int[] gridParallels = { 5, 8, 10, 15, 20 };
+                int preset = Mathf.Clamp(StarfieldSettings.KartographerGridSize, 0, 4);
+                int numLong = gridMeridians[preset];
+                int numLat = gridParallels[preset];
+                
+                float thetaStep = 2.0f * Mathf.PI / numLong;
+                float phiStep = Mathf.PI / numLat;
+                
+                // Southernmost parallel (bottom of cell)
+                float phi = (numLat - 0.5f) * phiStep;
+                latRad = Mathf.PI / 2.0f - phi;
+                
+                // Western meridian of cell containing 0° longitude
+                int cellIdx = Mathf.FloorToInt(numLong / 2f - 0.5f);
+                float lon = -Mathf.PI + (cellIdx + 0.5f) * thetaStep;
+                lonRad = lon;
+            }
+            else
+            {
+                latRad = label.Latitude * Mathf.Deg2Rad;
+                lonRad = label.Longitude * Mathf.Deg2Rad;
+            }
             
             // Standard spherical to Cartesian
             // x = cos(lat) * cos(lon)
@@ -360,88 +594,114 @@ namespace CinematicShaders.Core
             // Set enabled bit in mask
             nativeParams.GridLabelEnabledMask |= (1u << slot);
             
-            // Pack data based on slot
+            // Shader uses bottom-left corner anchoring
+            Vector3 pos = label.WorldPosition;
+            Vector3 tangent = label.Tangent;
+            Vector3 bitangent = label.Bitangent;
+            
+            if (label.SnapToGrid)
+            {
+                // Nudge east and north to nestle into the corner without overlapping grid lines
+                pos += tangent * (label.WorldSizeX * label.PaddingLeft) + bitangent * (label.WorldSizeY * label.PaddingBottom);
+                
+                // Apply per-label rotation around the top-left corner
+                float angleRad = label.RotationDegrees * Mathf.Deg2Rad;
+                float cosA = Mathf.Cos(angleRad);
+                float sinA = Mathf.Sin(angleRad);
+                Vector3 normal = pos.normalized;
+                
+                Vector3 RotateAroundAxis(Vector3 vec, Vector3 axis, float c, float s)
+                {
+                    return vec * c + Vector3.Cross(axis, vec) * s;
+                }
+                
+                // Rotate pos around top-left corner (using original bitangent)
+                Vector3 topLeft = pos + label.Bitangent * label.WorldSizeY;
+                Vector3 toBottomLeft = pos - topLeft;
+                Vector3 vRot = RotateAroundAxis(toBottomLeft, normal, cosA, sinA);
+                pos = topLeft + vRot;
+                
+                // Rotate the frame
+                tangent = RotateAroundAxis(tangent, normal, cosA, sinA).normalized;
+                bitangent = RotateAroundAxis(bitangent, normal, cosA, sinA).normalized;
+            }
+            else
+            {
+                // Legacy center-anchored labels: shift to bottom-left
+                pos -= tangent * (label.WorldSizeX * 0.5f) + bitangent * (label.WorldSizeY * 0.5f);
+            }
+            
+            // Pack data as Vector4 (pos.xyz + sizeX, tangent.xyz + sizeY)
             switch (slot)
             {
                 case 0:
-                    nativeParams.GridLabel0_PosX = label.WorldPosition.x;
-                    nativeParams.GridLabel0_PosY = label.WorldPosition.y;
-                    nativeParams.GridLabel0_PosZ = label.WorldPosition.z;
-                    nativeParams.GridLabel0_TangentX = label.Tangent.x;
-                    nativeParams.GridLabel0_TangentY = label.Tangent.y;
-                    nativeParams.GridLabel0_TangentZ = label.Tangent.z;
-                    nativeParams.GridLabel0_SizeX = label.WorldSizeX;
-                    nativeParams.GridLabel0_SizeY = label.WorldSizeY;
+                    nativeParams.GridLabel0_PosTangentX = new Vector4(pos.x, pos.y, pos.z, label.WorldSizeX);
+                    nativeParams.GridLabel0_TangentY = new Vector4(tangent.x, tangent.y, tangent.z, label.WorldSizeY);
                     break;
                 case 1:
-                    nativeParams.GridLabel1_PosX = label.WorldPosition.x;
-                    nativeParams.GridLabel1_PosY = label.WorldPosition.y;
-                    nativeParams.GridLabel1_PosZ = label.WorldPosition.z;
-                    nativeParams.GridLabel1_TangentX = label.Tangent.x;
-                    nativeParams.GridLabel1_TangentY = label.Tangent.y;
-                    nativeParams.GridLabel1_TangentZ = label.Tangent.z;
-                    nativeParams.GridLabel1_SizeX = label.WorldSizeX;
-                    nativeParams.GridLabel1_SizeY = label.WorldSizeY;
+                    nativeParams.GridLabel1_PosTangentX = new Vector4(pos.x, pos.y, pos.z, label.WorldSizeX);
+                    nativeParams.GridLabel1_TangentY = new Vector4(tangent.x, tangent.y, tangent.z, label.WorldSizeY);
                     break;
                 case 2:
-                    nativeParams.GridLabel2_PosX = label.WorldPosition.x;
-                    nativeParams.GridLabel2_PosY = label.WorldPosition.y;
-                    nativeParams.GridLabel2_PosZ = label.WorldPosition.z;
-                    nativeParams.GridLabel2_TangentX = label.Tangent.x;
-                    nativeParams.GridLabel2_TangentY = label.Tangent.y;
-                    nativeParams.GridLabel2_TangentZ = label.Tangent.z;
-                    nativeParams.GridLabel2_SizeX = label.WorldSizeX;
-                    nativeParams.GridLabel2_SizeY = label.WorldSizeY;
+                    nativeParams.GridLabel2_PosTangentX = new Vector4(pos.x, pos.y, pos.z, label.WorldSizeX);
+                    nativeParams.GridLabel2_TangentY = new Vector4(tangent.x, tangent.y, tangent.z, label.WorldSizeY);
                     break;
                 case 3:
-                    nativeParams.GridLabel3_PosX = label.WorldPosition.x;
-                    nativeParams.GridLabel3_PosY = label.WorldPosition.y;
-                    nativeParams.GridLabel3_PosZ = label.WorldPosition.z;
-                    nativeParams.GridLabel3_TangentX = label.Tangent.x;
-                    nativeParams.GridLabel3_TangentY = label.Tangent.y;
-                    nativeParams.GridLabel3_TangentZ = label.Tangent.z;
-                    nativeParams.GridLabel3_SizeX = label.WorldSizeX;
-                    nativeParams.GridLabel3_SizeY = label.WorldSizeY;
+                    nativeParams.GridLabel3_PosTangentX = new Vector4(pos.x, pos.y, pos.z, label.WorldSizeX);
+                    nativeParams.GridLabel3_TangentY = new Vector4(tangent.x, tangent.y, tangent.z, label.WorldSizeY);
                     break;
                 case 4:
-                    nativeParams.GridLabel4_PosX = label.WorldPosition.x;
-                    nativeParams.GridLabel4_PosY = label.WorldPosition.y;
-                    nativeParams.GridLabel4_PosZ = label.WorldPosition.z;
-                    nativeParams.GridLabel4_TangentX = label.Tangent.x;
-                    nativeParams.GridLabel4_TangentY = label.Tangent.y;
-                    nativeParams.GridLabel4_TangentZ = label.Tangent.z;
-                    nativeParams.GridLabel4_SizeX = label.WorldSizeX;
-                    nativeParams.GridLabel4_SizeY = label.WorldSizeY;
+                    nativeParams.GridLabel4_PosTangentX = new Vector4(pos.x, pos.y, pos.z, label.WorldSizeX);
+                    nativeParams.GridLabel4_TangentY = new Vector4(tangent.x, tangent.y, tangent.z, label.WorldSizeY);
                     break;
                 case 5:
-                    nativeParams.GridLabel5_PosX = label.WorldPosition.x;
-                    nativeParams.GridLabel5_PosY = label.WorldPosition.y;
-                    nativeParams.GridLabel5_PosZ = label.WorldPosition.z;
-                    nativeParams.GridLabel5_TangentX = label.Tangent.x;
-                    nativeParams.GridLabel5_TangentY = label.Tangent.y;
-                    nativeParams.GridLabel5_TangentZ = label.Tangent.z;
-                    nativeParams.GridLabel5_SizeX = label.WorldSizeX;
-                    nativeParams.GridLabel5_SizeY = label.WorldSizeY;
+                    nativeParams.GridLabel5_PosTangentX = new Vector4(pos.x, pos.y, pos.z, label.WorldSizeX);
+                    nativeParams.GridLabel5_TangentY = new Vector4(tangent.x, tangent.y, tangent.z, label.WorldSizeY);
                     break;
                 case 6:
-                    nativeParams.GridLabel6_PosX = label.WorldPosition.x;
-                    nativeParams.GridLabel6_PosY = label.WorldPosition.y;
-                    nativeParams.GridLabel6_PosZ = label.WorldPosition.z;
-                    nativeParams.GridLabel6_TangentX = label.Tangent.x;
-                    nativeParams.GridLabel6_TangentY = label.Tangent.y;
-                    nativeParams.GridLabel6_TangentZ = label.Tangent.z;
-                    nativeParams.GridLabel6_SizeX = label.WorldSizeX;
-                    nativeParams.GridLabel6_SizeY = label.WorldSizeY;
+                    nativeParams.GridLabel6_PosTangentX = new Vector4(pos.x, pos.y, pos.z, label.WorldSizeX);
+                    nativeParams.GridLabel6_TangentY = new Vector4(tangent.x, tangent.y, tangent.z, label.WorldSizeY);
                     break;
                 case 7:
-                    nativeParams.GridLabel7_PosX = label.WorldPosition.x;
-                    nativeParams.GridLabel7_PosY = label.WorldPosition.y;
-                    nativeParams.GridLabel7_PosZ = label.WorldPosition.z;
-                    nativeParams.GridLabel7_TangentX = label.Tangent.x;
-                    nativeParams.GridLabel7_TangentY = label.Tangent.y;
-                    nativeParams.GridLabel7_TangentZ = label.Tangent.z;
-                    nativeParams.GridLabel7_SizeX = label.WorldSizeX;
-                    nativeParams.GridLabel7_SizeY = label.WorldSizeY;
+                    nativeParams.GridLabel7_PosTangentX = new Vector4(pos.x, pos.y, pos.z, label.WorldSizeX);
+                    nativeParams.GridLabel7_TangentY = new Vector4(tangent.x, tangent.y, tangent.z, label.WorldSizeY);
+                    break;
+            }
+            
+            // Push per-label intensity and color
+            switch (slot)
+            {
+                case 0:
+                    nativeParams.LabelIntensity0 = label.Intensity;
+                    nativeParams.LabelColor0 = label.OverrideColor == Color.clear ? 0u : PackColor(label.OverrideColor);
+                    break;
+                case 1:
+                    nativeParams.LabelIntensity1 = label.Intensity;
+                    nativeParams.LabelColor1 = label.OverrideColor == Color.clear ? 0u : PackColor(label.OverrideColor);
+                    break;
+                case 2:
+                    nativeParams.LabelIntensity2 = label.Intensity;
+                    nativeParams.LabelColor2 = label.OverrideColor == Color.clear ? 0u : PackColor(label.OverrideColor);
+                    break;
+                case 3:
+                    nativeParams.LabelIntensity3 = label.Intensity;
+                    nativeParams.LabelColor3 = label.OverrideColor == Color.clear ? 0u : PackColor(label.OverrideColor);
+                    break;
+                case 4:
+                    nativeParams.LabelIntensity4 = label.Intensity;
+                    nativeParams.LabelColor4 = label.OverrideColor == Color.clear ? 0u : PackColor(label.OverrideColor);
+                    break;
+                case 5:
+                    nativeParams.LabelIntensity5 = label.Intensity;
+                    nativeParams.LabelColor5 = label.OverrideColor == Color.clear ? 0u : PackColor(label.OverrideColor);
+                    break;
+                case 6:
+                    nativeParams.LabelIntensity6 = label.Intensity;
+                    nativeParams.LabelColor6 = label.OverrideColor == Color.clear ? 0u : PackColor(label.OverrideColor);
+                    break;
+                case 7:
+                    nativeParams.LabelIntensity7 = label.Intensity;
+                    nativeParams.LabelColor7 = label.OverrideColor == Color.clear ? 0u : PackColor(label.OverrideColor);
                     break;
             }
             
@@ -457,6 +717,13 @@ namespace CinematicShaders.Core
                     _boundTextures[slot] = texturePtr;
                     StarfieldNative.CR_SetGridLabelTexture(slot, texturePtr);
                 }
+            }
+            
+            // Debug: Log when mask changes
+            if (nativeParams.GridLabelEnabledMask != _lastEnabledMask)
+            {
+                _lastEnabledMask = nativeParams.GridLabelEnabledMask;
+                Debug.Log($"[GridLabelSystem] Pushed '{label.Text}' to slot {slot}: mask=0x{nativeParams.GridLabelEnabledMask:X}, pos=({label.WorldPosition.x:F3},{label.WorldPosition.y:F3},{label.WorldPosition.z:F3})");
             }
         }
         

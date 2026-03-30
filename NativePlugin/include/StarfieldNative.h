@@ -16,6 +16,13 @@ struct float3 {
     float3(float _x, float _y, float _z) : x(_x), y(_y), z(_z) {}
 };
 
+// 16-byte aligned float4 for HLSL constant buffer compatibility
+__declspec(align(16)) struct float4 {
+    float x, y, z, w;
+    float4() : x(0), y(0), z(0), w(0) {}
+    float4(float _x, float _y, float _z, float _w) : x(_x), y(_y), z(_z), w(_w) {}
+};
+
 // Star catalog entry - 48 bytes, 4-byte aligned for GPU StructuredBuffer
 // Layout matches C# StarDataNative and HLSL StarData exactly
 // Version 4: Added HipparcosID, DistancePc, SpectralType, and Flags
@@ -153,177 +160,220 @@ __declspec(dllexport) void CR_StarfieldSetDimming(float sunGlareDimming, float p
 __declspec(dllexport) void CR_StarfieldSetKartographerEnabled(unsigned char enabled);
 
 // Kartographer visual parameters struct (Phase 2 - 8 Label Support)
-// Layout matches HLSL exactly - 544 bytes (16 × 34)
+// Layout matches HLSL exactly - 608 bytes (16 × 38)
+// Generated from ReferenceNotes/tools/generate_struct.py
 // Do not modify without updating shader
 struct KartographerParamsNative {
-    // Base grid params (64 bytes) - offsets 0-63
-    float ResolutionX;              // offset 0
-    float ResolutionY;              // offset 4
-    float Time;                     // offset 8
-    float GridIntensity;            // offset 12
-    float GridThickness;            // offset 16
-    float ChromaticAberrationStrength;  // offset 20
-    float VignetteStrength;         // offset 24
-    float VignetteStart;            // offset 28
-    float VignetteEnd;              // offset 32
-    float PreRotationYaw;           // offset 36
-    float PreRotationPitch;         // offset 40
-    int GridSizePreset;             // offset 44
-    int GridColorIndex;             // offset 48
-    float _pad1;                    // offset 52
-    float _pad2;                    // offset 56
-    float _padAlignCamera;          // offset 60
-    
-    // Camera basis (48 bytes) - offsets 64-111
-    float CameraRightX;             // offset 64
-    float CameraRightY;             // offset 68
-    float CameraRightZ;             // offset 72
-    float _pad3;                    // offset 76
-    float CameraUpX;                // offset 80
-    float CameraUpY;                // offset 84
-    float CameraUpZ;                // offset 88
-    float _pad4;                    // offset 92
-    float CameraForwardX;           // offset 96
-    float CameraForwardY;           // offset 100
-    float CameraForwardZ;           // offset 104
-    float _pad5;                    // offset 108
-    
-    // Debug shapes (32 bytes) - offsets 112-143
-    int DebugShapesEnabled;         // offset 112
-    float _pad6;                    // offset 116
-    float _pad7;                    // offset 120
-    float _pad8;                    // offset 124
-    float DebugCircleCenterX;       // offset 128
-    float DebugCircleCenterY;       // offset 132
-    float DebugCircleRadius;        // offset 136
-    float DebugCircleThickness;     // offset 140
-    float DebugBoxTopLeftX;         // offset 144
-    float DebugBoxTopLeftY;         // offset 148
-    float DebugBoxSizeX;            // offset 152
-    float DebugBoxSizeY;            // offset 156
-    float DebugBoxThickness;        // offset 160
-    float DebugShapeIntensity;      // offset 164
-    float _pad9;                    // offset 168
-    float FocalLength;              // offset 172
-    
-    // Selection circle (32 bytes) - offsets 176-207
-    int SelectionCircleEnabled;     // offset 176
-    float SelectionStarHash;        // offset 180
-    float _padSelection2;           // offset 184
-    float _padSelection3;           // offset 188
-    float SelectionCircleCenterX;   // offset 192
-    float SelectionCircleCenterY;   // offset 196
-    float SelectionCircleT;         // offset 200
-    float SelectionCircleIntensity; // offset 204
-    float SelectionCircleThickness; // offset 208
-    float SelectionCircleRadius;    // offset 212
-    float _padSelection4;           // offset 216
-    float _padSelection5;           // offset 220
-    float _padSelection6;           // offset 224
-    float _padSelection7;           // offset 228
-    
-    // Text stub (16 bytes) - offsets 232-247
-    float TextOriginX;              // offset 232
-    float TextOriginY;              // offset 236
-    float TextAreaSizeX;            // offset 240
-    float TextAreaSizeY;            // offset 244
-    float SelectionTextT;           // offset 248
-    
-    // Grid Labels (8 labels) - offsets 252-543
-    // Bitmask for enabled labels (bit 0 = label 0, bit 1 = label 1, etc.)
-    unsigned int GridLabelEnabledMask;  // offset 252
-    float _padGridMask1;            // offset 256
-    float _padGridMask2;            // offset 260
-    float _padGridMask3;            // offset 264
-    
-    // Label 0 (32 bytes) - offsets 268-299
-    float GridLabel0_PosX;          // offset 268
-    float GridLabel0_PosY;          // offset 272
-    float GridLabel0_PosZ;          // offset 276
-    float GridLabel0_SizeX;         // offset 280
-    float GridLabel0_TangentX;      // offset 284
-    float GridLabel0_TangentY;      // offset 288
-    float GridLabel0_TangentZ;      // offset 292
-    float GridLabel0_SizeY;         // offset 296
-    
-    // Label 1 (32 bytes) - offsets 300-331
-    float GridLabel1_PosX;          // offset 300
-    float GridLabel1_PosY;          // offset 304
-    float GridLabel1_PosZ;          // offset 308
-    float GridLabel1_SizeX;         // offset 312
-    float GridLabel1_TangentX;      // offset 316
-    float GridLabel1_TangentY;      // offset 320
-    float GridLabel1_TangentZ;      // offset 324
-    float GridLabel1_SizeY;         // offset 328
-    
-    // Label 2 (32 bytes) - offsets 332-363
-    float GridLabel2_PosX;          // offset 332
-    float GridLabel2_PosY;          // offset 336
-    float GridLabel2_PosZ;          // offset 340
-    float GridLabel2_SizeX;         // offset 344
-    float GridLabel2_TangentX;      // offset 348
-    float GridLabel2_TangentY;      // offset 352
-    float GridLabel2_TangentZ;      // offset 356
-    float GridLabel2_SizeY;         // offset 360
-    
-    // Label 3 (32 bytes) - offsets 364-395
-    float GridLabel3_PosX;          // offset 364
-    float GridLabel3_PosY;          // offset 368
-    float GridLabel3_PosZ;          // offset 372
-    float GridLabel3_SizeX;         // offset 376
-    float GridLabel3_TangentX;      // offset 380
-    float GridLabel3_TangentY;      // offset 384
-    float GridLabel3_TangentZ;      // offset 388
-    float GridLabel3_SizeY;         // offset 392
-    
-    // Label 4 (32 bytes) - offsets 396-427
-    float GridLabel4_PosX;          // offset 396
-    float GridLabel4_PosY;          // offset 400
-    float GridLabel4_PosZ;          // offset 404
-    float GridLabel4_SizeX;         // offset 408
-    float GridLabel4_TangentX;      // offset 412
-    float GridLabel4_TangentY;      // offset 416
-    float GridLabel4_TangentZ;      // offset 420
-    float GridLabel4_SizeY;         // offset 424
-    
-    // Label 5 (32 bytes) - offsets 428-459
-    float GridLabel5_PosX;          // offset 428
-    float GridLabel5_PosY;          // offset 432
-    float GridLabel5_PosZ;          // offset 436
-    float GridLabel5_SizeX;         // offset 440
-    float GridLabel5_TangentX;      // offset 444
-    float GridLabel5_TangentY;      // offset 448
-    float GridLabel5_TangentZ;      // offset 452
-    float GridLabel5_SizeY;         // offset 456
-    
-    // Label 6 (32 bytes) - offsets 460-491
-    float GridLabel6_PosX;          // offset 460
-    float GridLabel6_PosY;          // offset 464
-    float GridLabel6_PosZ;          // offset 468
-    float GridLabel6_SizeX;         // offset 472
-    float GridLabel6_TangentX;      // offset 476
-    float GridLabel6_TangentY;      // offset 480
-    float GridLabel6_TangentZ;      // offset 484
-    float GridLabel6_SizeY;         // offset 488
-    
-    // Label 7 (32 bytes) - offsets 492-523
-    float GridLabel7_PosX;          // offset 492
-    float GridLabel7_PosY;          // offset 496
-    float GridLabel7_PosZ;          // offset 500
-    float GridLabel7_SizeX;         // offset 504
-    float GridLabel7_TangentX;      // offset 508
-    float GridLabel7_TangentY;      // offset 512
-    float GridLabel7_TangentZ;      // offset 516
-    float GridLabel7_SizeY;         // offset 520
-    
-    // Final padding to reach 544 bytes (16 × 34)
-    float _padEnd1;                 // offset 524
-    float _padEnd2;                 // offset 528
-    float _padEnd3;                 // offset 532
-    float _padEnd4;                 // offset 536
-    float _padEnd5;                 // offset 540
-    float _padEnd6;                 // offset 544
+    // Field offsets (bytes):
+    //     0: ResolutionX (float)
+    //     4: ResolutionY (float)
+    //     8: Time (float)
+    //    12: GridIntensity (float)
+    //    16: GridThickness (float)
+    //    20: ChromaticAberrationStrength (float)
+    //    24: VignetteStrength (float)
+    //    28: VignetteStart (float)
+    //    32: VignetteEnd (float)
+    //    36: PreRotationYaw (float)
+    //    40: PreRotationPitch (float)
+    //    44: GridSizePreset (int)
+    //    48: GridColorIndex (int)
+    //    52: _pad1 (float)
+    //    56: _pad2 (float)
+    //    60: _padAlignCamera (float)
+    //    64: CameraRightX (float)
+    //    68: CameraRightY (float)
+    //    72: CameraRightZ (float)
+    //    76: _pad3 (float)
+    //    80: CameraUpX (float)
+    //    84: CameraUpY (float)
+    //    88: CameraUpZ (float)
+    //    92: _pad4 (float)
+    //    96: CameraForwardX (float)
+    //   100: CameraForwardY (float)
+    //   104: CameraForwardZ (float)
+    //   108: _pad5 (float)
+    //   112: DebugShapesEnabled (int)
+    //   116: _pad6 (float)
+    //   120: _pad7 (float)
+    //   124: _pad8 (float)
+    //   128: DebugCircleCenterX (float)
+    //   132: DebugCircleCenterY (float)
+    //   136: DebugCircleRadius (float)
+    //   140: DebugCircleThickness (float)
+    //   144: DebugBoxTopLeftX (float)
+    //   148: DebugBoxTopLeftY (float)
+    //   152: DebugBoxSizeX (float)
+    //   156: DebugBoxSizeY (float)
+    //   160: DebugBoxThickness (float)
+    //   164: DebugShapeIntensity (float)
+    //   168: _pad9 (float)
+    //   172: FocalLength (float)
+    //   176: SelectionCircleEnabled (int)
+    //   180: SelectionStarHash (float)
+    //   184: _padSelection2 (float)
+    //   188: _padSelection3 (float)
+    //   192: SelectionCircleCenterX (float)
+    //   196: SelectionCircleCenterY (float)
+    //   200: SelectionCircleT (float)
+    //   204: SelectionCircleIntensity (float)
+    //   208: SelectionCircleThickness (float)
+    //   212: SelectionCircleRadius (float)
+    //   216: _padSelection4 (float)
+    //   220: _padSelection5 (float)
+    //   224: _padSelection6 (float)
+    //   228: _padSelection7 (float)
+    //   232: TextOriginX (float)
+    //   236: TextOriginY (float)
+    //   240: TextAreaSizeX (float)
+    //   244: TextAreaSizeY (float)
+    //   248: SelectionTextT (float)
+    //   252: GridLabelEnabledMask (uint)
+    //   256: _padGridMask1 (float)
+    //   260: _padGridMask2 (float)
+    //   264: _padGridMask3 (float)
+    //   268: _padGridMask4 (float)
+    //   272: GridLabel0_PosTangentX (float4)
+    //   288: GridLabel0_TangentY (float4)
+    //   304: GridLabel1_PosTangentX (float4)
+    //   320: GridLabel1_TangentY (float4)
+    //   336: GridLabel2_PosTangentX (float4)
+    //   352: GridLabel2_TangentY (float4)
+    //   368: GridLabel3_PosTangentX (float4)
+    //   384: GridLabel3_TangentY (float4)
+    //   400: GridLabel4_PosTangentX (float4)
+    //   416: GridLabel4_TangentY (float4)
+    //   432: GridLabel5_PosTangentX (float4)
+    //   448: GridLabel5_TangentY (float4)
+    //   464: GridLabel6_PosTangentX (float4)
+    //   480: GridLabel6_TangentY (float4)
+    //   496: GridLabel7_PosTangentX (float4)
+    //   512: GridLabel7_TangentY (float4)
+    //   528: GridLabelDebugMask (uint)
+    //   532: LabelIntensity0 (float)
+    //   536: LabelIntensity1 (float)
+    //   540: LabelIntensity2 (float)
+    //   544: LabelIntensity3 (float)
+    //   548: LabelIntensity4 (float)
+    //   552: LabelIntensity5 (float)
+    //   556: LabelIntensity6 (float)
+    //   560: LabelIntensity7 (float)
+    //   564: LabelColor0 (uint)
+    //   568: LabelColor1 (uint)
+    //   572: LabelColor2 (uint)
+    //   576: LabelColor3 (uint)
+    //   580: LabelColor4 (uint)
+    //   584: LabelColor5 (uint)
+    //   588: LabelColor6 (uint)
+    //   592: LabelColor7 (uint)
+
+    float ResolutionX;
+    float ResolutionY;
+    float Time;
+    float GridIntensity;
+    float GridThickness;
+    float ChromaticAberrationStrength;
+    float VignetteStrength;
+    float VignetteStart;
+    float VignetteEnd;
+    float PreRotationYaw;
+    float PreRotationPitch;
+    int GridSizePreset;
+    int GridColorIndex;
+    float _pad1;
+    float _pad2;
+    float _padAlignCamera;
+    float CameraRightX;
+    float CameraRightY;
+    float CameraRightZ;
+    float _pad3;
+    float CameraUpX;
+    float CameraUpY;
+    float CameraUpZ;
+    float _pad4;
+    float CameraForwardX;
+    float CameraForwardY;
+    float CameraForwardZ;
+    float _pad5;
+    int DebugShapesEnabled;
+    float _pad6;
+    float _pad7;
+    float _pad8;
+    float DebugCircleCenterX;
+    float DebugCircleCenterY;
+    float DebugCircleRadius;
+    float DebugCircleThickness;
+    float DebugBoxTopLeftX;
+    float DebugBoxTopLeftY;
+    float DebugBoxSizeX;
+    float DebugBoxSizeY;
+    float DebugBoxThickness;
+    float DebugShapeIntensity;
+    float _pad9;
+    float FocalLength;
+    int SelectionCircleEnabled;
+    float SelectionStarHash;
+    float _padSelection2;
+    float _padSelection3;
+    float SelectionCircleCenterX;
+    float SelectionCircleCenterY;
+    float SelectionCircleT;
+    float SelectionCircleIntensity;
+    float SelectionCircleThickness;
+    float SelectionCircleRadius;
+    float _padSelection4;
+    float _padSelection5;
+    float _padSelection6;
+    float _padSelection7;
+    float TextOriginX;
+    float TextOriginY;
+    float TextAreaSizeX;
+    float TextAreaSizeY;
+    float SelectionTextT;
+    uint32_t GridLabelEnabledMask;
+    float _padGridMask1;
+    float _padGridMask2;
+    float _padGridMask3;
+    float _padGridMask4;
+    float4 GridLabel0_PosTangentX;
+    float4 GridLabel0_TangentY;
+    float4 GridLabel1_PosTangentX;
+    float4 GridLabel1_TangentY;
+    float4 GridLabel2_PosTangentX;
+    float4 GridLabel2_TangentY;
+    float4 GridLabel3_PosTangentX;
+    float4 GridLabel3_TangentY;
+    float4 GridLabel4_PosTangentX;
+    float4 GridLabel4_TangentY;
+    float4 GridLabel5_PosTangentX;
+    float4 GridLabel5_TangentY;
+    float4 GridLabel6_PosTangentX;
+    float4 GridLabel6_TangentY;
+    float4 GridLabel7_PosTangentX;
+    float4 GridLabel7_TangentY;
+    uint32_t GridLabelDebugMask;
+    float LabelIntensity0;
+    float LabelIntensity1;
+    float LabelIntensity2;
+    float LabelIntensity3;
+    float LabelIntensity4;
+    float LabelIntensity5;
+    float LabelIntensity6;
+    float LabelIntensity7;
+    uint32_t LabelColor0;
+    uint32_t LabelColor1;
+    uint32_t LabelColor2;
+    uint32_t LabelColor3;
+    uint32_t LabelColor4;
+    uint32_t LabelColor5;
+    uint32_t LabelColor6;
+    uint32_t LabelColor7;
 };
+
+static_assert(sizeof(KartographerParamsNative) == 608,
+              "KartographerParamsNative size mismatch - expected 608 bytes");
+static_assert(sizeof(KartographerParamsNative) % 16 == 0,
+              "KartographerParamsNative must be 16-byte aligned for HLSL CB");
 
 // Set Kartographer visual parameters
 __declspec(dllexport) void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params);

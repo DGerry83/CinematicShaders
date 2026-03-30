@@ -307,7 +307,7 @@ namespace CinematicShaders.Core
             _currentDisplayText = "^|";  // Start with just cursor (escape sequence for U+258C)
             _textDirty = true;
             
-            Debug.Log($"[KartographerSelector] Animation started for {star.Name} (HIP {star.HipparcosID})");
+            // Animation started
         }
 
         /// <summary>
@@ -334,7 +334,7 @@ namespace CinematicShaders.Core
                 {
                     _selectionFlickerT = 1.0f;
                     _animationPhase = SelectionAnimationPhase.Box;
-                    Debug.Log("[KartographerSelector] Animation phase: Box");
+                    // Animation phase: Box
                 }
             }
 
@@ -342,7 +342,7 @@ namespace CinematicShaders.Core
             if (_animationPhase == SelectionAnimationPhase.Box)
             {
                 _animationPhase = SelectionAnimationPhase.Text;
-                Debug.Log("[KartographerSelector] Animation phase: Text");
+                // Animation phase: Text
             }
 
             // Text type-on (0.4s-1.9s = 1.5s duration)
@@ -353,7 +353,7 @@ namespace CinematicShaders.Core
                 {
                     _textTypeT = 1.0f;
                     _animationPhase = SelectionAnimationPhase.Complete;
-                    Debug.Log("[KartographerSelector] Animation phase: Complete");
+                    // Animation phase: Complete
                 }
             }
 
@@ -1002,7 +1002,7 @@ namespace CinematicShaders.Core
                     {
                         _hoveredStar = nearestStar;
                         _hoveredStarUV = nearestUV;
-                        Debug.Log($"[KartographerSelector] HOVER: {nearestStar.Name} (HIP {nearestStar.HipparcosID}), dist={nearestDist:F4}");
+                        // Hover detected
                     }
                 }
                 else if (_hoveredStar != null)
@@ -1024,7 +1024,7 @@ namespace CinematicShaders.Core
                 if (_lockedStar != null)
                 {
                     // Already locked - unlock
-                    Debug.Log($"[KartographerSelector] UNLOCKED: {_lockedStar.Name}");
+                    // Star unlocked
                     _lockedStar = null;
                     _lastLockedStarHIP = 0;  // Clear last locked star
                 }
@@ -1044,7 +1044,7 @@ namespace CinematicShaders.Core
                         _lockedStar = _hoveredStar;
                         _starHash = _lockedStar.HipparcosID * 0.123f;  // Unique hash per star
                         StartAnimationForStar(_lockedStar);
-                        Debug.Log($"[KartographerSelector] LOCKED: {_lockedStar.Name} (HIP {_lockedStar.HipparcosID})");
+                        // Star locked
                     }
                 }
             }
@@ -1246,9 +1246,6 @@ namespace CinematicShaders.Core
             // Save selection params to cache and send to native
             StarfieldNative.LastKartographerParams = kartParams;
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
-
-            // Grid Label (HUCK) params - pushed via standalone method
-            PushGridLabelParams();
         }
         
         /// <summary>
@@ -1288,15 +1285,8 @@ namespace CinematicShaders.Core
             
             // Update params with grid label data (slot 0)
             labelParams.GridLabelEnabledMask |= 1u;  // Set bit 0
-            labelParams.GridLabel0_PosX = labelPos.x;
-            labelParams.GridLabel0_PosY = labelPos.y;
-            labelParams.GridLabel0_PosZ = labelPos.z;
-            labelParams.GridLabel0_TangentX = labelTangent.x;
-            labelParams.GridLabel0_TangentY = labelTangent.y;
-            labelParams.GridLabel0_TangentZ = labelTangent.z;
-            // Bitangent calculated in shader as cross(pos, tangent)
-            labelParams.GridLabel0_SizeX = worldSizeX;
-            labelParams.GridLabel0_SizeY = worldSizeY;
+            labelParams.GridLabel0_PosTangentX = new Vector4(labelPos.x, labelPos.y, labelPos.z, worldSizeX);
+            labelParams.GridLabel0_TangentY = new Vector4(labelTangent.x, labelTangent.y, labelTangent.z, worldSizeY);
             
             StarfieldNative.LastKartographerParams = labelParams;
             StarfieldNative.CR_StarfieldSetKartographerParams(ref labelParams);
