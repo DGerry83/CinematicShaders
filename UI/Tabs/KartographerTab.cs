@@ -29,12 +29,6 @@ namespace CinematicShaders.UI.Tabs
             
             // Register for camera update callbacks from StarfieldCompositor
             StarfieldCompositor.KartographerSelectorCallback = OnCameraUpdate;
-            
-            // Auto-start tracking if a star was saved
-            if (StarfieldSettings.KartographerTrackedStarHIP != 0)
-            {
-                StartTrackingStar(StarfieldSettings.KartographerTrackedStarHIP);
-            }
         }
         
         private void OnCameraUpdate(Vector3 right, Vector3 up, Vector3 forward, float aspect, float verticalFOV)
@@ -78,6 +72,14 @@ namespace CinematicShaders.UI.Tabs
                 GUILayout.Space(10);
                 DrawVisualSettings();
             }
+            else
+            {
+                // Kartographer disabled - ensure tracking is stopped (prevents race condition)
+                if (_selector != null)
+                {
+                    StopTracking();
+                }
+            }
 
             DrawTooltip();
         }
@@ -108,31 +110,6 @@ namespace CinematicShaders.UI.Tabs
 
             GUILayout.BeginVertical(HighLogic.Skin.box);
 
-            // Star tracking dropdown
-            GUILayout.Label("Track Star:");
-            string[] starNames = { "None", "Polaris", "Sirius", "Betelgeuse", "Rigel" };
-            int[] starHIPs = { 0, 11767, 32349, 27989, 24436 };
-            int currentIndex = System.Array.IndexOf(starHIPs, StarfieldSettings.KartographerTrackedStarHIP);
-            if (currentIndex < 0) currentIndex = 0;
-            
-            int newIndex = GUILayout.SelectionGrid(currentIndex, starNames, starNames.Length, HighLogic.Skin.button);
-            if (newIndex != currentIndex)
-            {
-                StarfieldSettings.KartographerTrackedStarHIP = starHIPs[newIndex];
-                StarfieldSettings.EnablePolarisTracking = (starHIPs[newIndex] != 0);
-                StarfieldSettings.Save();
-                if (starHIPs[newIndex] != 0)
-                {
-                    StartTrackingStar(starHIPs[newIndex]);
-                }
-                else
-                {
-                    StopTracking();
-                }
-            }
-            
-            GUILayout.Space(5);
-
             // Mouse hover selection mode toggle
             bool newMouseHoverMode = GUILayout.Toggle(StarfieldSettings.KartographerMouseHoverSelect, 
                 " Mouse Hover Selection", HighLogic.Skin.toggle);
@@ -140,6 +117,13 @@ namespace CinematicShaders.UI.Tabs
             {
                 StarfieldSettings.KartographerMouseHoverSelect = newMouseHoverMode;
                 StarfieldSettings.Save();
+                
+                // Ensure selector exists and is ready when mouse hover is enabled
+                if (_selector == null && newMouseHoverMode)
+                {
+                    CreateSelectorAndLoadJson();
+                }
+                
                 if (_selector != null)
                 {
                     _selector.SetMouseHoverMode(newMouseHoverMode);
@@ -363,8 +347,11 @@ namespace CinematicShaders.UI.Tabs
             StarfieldSettings.Save();
         }
 
-        // Start tracking a specific star by HIP ID
-        private void StartTrackingStar(int hipId)
+        /// <summary>
+        /// Create the selector and load JSON catalog data
+        /// Called when mouse hover mode is enabled
+        /// </summary>
+        private void CreateSelectorAndLoadJson()
         {
             if (_selector == null)
             {
@@ -377,9 +364,7 @@ namespace CinematicShaders.UI.Tabs
             {
                 string absolutePath = Path.Combine(KSPUtil.ApplicationRootPath, catalogPath);
                 _selector.LoadJsonForCatalog(absolutePath);
-                
-                // Start tracking the specified star
-                _selector.TrackStarByHipId(hipId);
+                Debug.Log("[KartographerTab] Selector created and JSON loaded for mouse hover");
             }
             else
             {
@@ -387,9 +372,14 @@ namespace CinematicShaders.UI.Tabs
             }
         }
         
+        /// <summary>
+        /// Stop tracking and clear selector
+        /// Called when Kartographer is disabled
+        /// </summary>
         private void StopTracking()
         {
             _selector?.StopTracking();
+            _selector = null;  // Clear selector when disabled
             StarfieldSettings.KartographerTrackedStarHIP = 0;
             StarfieldSettings.EnablePolarisTracking = false;
             StarfieldSettings.Save();

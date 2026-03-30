@@ -1,4 +1,5 @@
 using CinematicShaders.Native;
+using CinematicShaders.UI;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -241,10 +242,32 @@ namespace CinematicShaders.Core
             
             // Complete phase: full text with blinking cursor at 2Hz
             // 2Hz blink = 0.25s on, 0.25s off
-            // 2Hz blink = 0.25s on, 0.25s off
             bool cursorVisible = (Time.time * 2.0f) % 2.0f < 1.0f;
             // Use ^| escape sequence - C++ will decode to U+258C LEFT HALF BLOCK
             return fullText + (cursorVisible ? "^|" : " ");
+        }
+
+        /// <summary>
+        /// Get display text for current animation phase
+        /// Returns empty during Circle phase, cursor only during Box phase,
+        /// progressive text during Text phase, full text in Complete phase
+        /// </summary>
+        private string GetTextForCurrentPhase()
+        {
+            // No text during Circle phase (box not visible yet)
+            if (_animationPhase == SelectionAnimationPhase.Circle)
+                return "";
+            
+            // Box phase: show just cursor (box visible, text starting)
+            if (_animationPhase == SelectionAnimationPhase.Box)
+                return "^|";
+            
+            // Text phase: progressively reveal with cursor
+            if (_animationPhase == SelectionAnimationPhase.Text)
+                return BuildDisplayTextWithCursor(_fullStarText, _textTypeT);
+            
+            // Complete phase: full text with blinking cursor
+            return BuildDisplayTextWithCursor(_fullStarText, 1.0f);
         }
 
         /// <summary>
@@ -281,6 +304,7 @@ namespace CinematicShaders.Core
         /// <summary>
         /// Update animation phases based on elapsed time
         /// Circle: 0-0.4s, Box: 0.4s, Text: 0.4s-1.9s, Complete: 1.9s+
+        /// Text/cursor only appears once box is visible (Text phase and beyond)
         /// </summary>
         private void UpdateAnimation()
         {
@@ -322,17 +346,14 @@ namespace CinematicShaders.Core
                     _animationPhase = SelectionAnimationPhase.Complete;
                     Debug.Log("[KartographerSelector] Animation phase: Complete");
                 }
-                
-                // Update display text with cursor
-                _currentDisplayText = BuildDisplayTextWithCursor(_fullStarText, _textTypeT);
-                _textDirty = true;
             }
 
-            // Complete phase - keep cursor blinking
-            if (_animationPhase == SelectionAnimationPhase.Complete)
+            // Update display text based on current phase (each frame for cursor blink)
+            // Circle: empty, Box: cursor only, Text: progressive, Complete: full+blink
+            string newDisplayText = GetTextForCurrentPhase();
+            if (newDisplayText != _currentDisplayText)
             {
-                // Update cursor blink each frame
-                _currentDisplayText = BuildDisplayTextWithCursor(_fullStarText, 1.0f);
+                _currentDisplayText = newDisplayText;
                 _textDirty = true;
             }
         }
@@ -692,6 +713,20 @@ namespace CinematicShaders.Core
         {
             _frameCounter++;
             
+            // Guard: Clear selection if Kartographer is disabled
+            if (!StarfieldSettings.EnableKartographer)
+            {
+                if (_lockedStar != null || _hoveredStar != null)
+                {
+                    StopTracking();
+                }
+                else
+                {
+                    PushToNative(false);
+                }
+                return;
+            }
+            
             // Validate camera basis vectors are initialized (scene change resets them)
             if (CameraForward.sqrMagnitude < 0.5f)
             {
@@ -711,11 +746,6 @@ namespace CinematicShaders.Core
             {
                 UpdateMouseHoverSelection();
             }
-            // LEGACY MODE: Use TrackedStar from debug buttons
-            else if (TrackedStar != null)
-            {
-                UpdateLegacyTracking();
-            }
             else
             {
                 PushToNative(false);
@@ -723,10 +753,26 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
+        /// Check if the mouse is currently over the mod UI window
+        /// </summary>
+        private bool IsMouseOverUI()
+        {
+            if (CinematicShadersWindow.Instance == null)
+                return false;
+            
+            // Unity Input.mousePosition is bottom-left origin, GUI is top-left origin
+            Vector2 mousePos = new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
+            return CinematicShadersWindow.Instance.WindowRect.Contains(mousePos);
+        }
+
+        /// <summary>
         /// Update mouse hover selection logic
         /// </summary>
         private void UpdateMouseHoverSelection()
         {
+            // Check if mouse is over UI (blocks new selection, but keeps locked star visible)
+            bool mouseOverUI = IsMouseOverUI();
+
             // Get mouse position in UV space
             // NOTE: Unity's Input.mousePosition.y is bottom-up, screen UV is top-down
             Vector2 mouseUV = new Vector2(
@@ -795,30 +841,33 @@ namespace CinematicShaders.Core
                 }
             }
 
-            // Handle hover state
+            // Handle hover state (blocked when mouse over UI - can't hover new stars)
+            if (!mouseOverUI)
+            {
+                if (nearestDist < HOVER_THRESHOLD && nearestStar != null)
+                {
+                    if (_hoveredStar != nearestStar)
+                    {
+                        _hoveredStar = nearestStar;
+                        _hoveredStarUV = nearestUV;
+                        Debug.Log($"[KartographerSelector] HOVER: {nearestStar.Name} (HIP {nearestStar.HipparcosID}), dist={nearestDist:F4}");
+                    }
+                }
+                else if (_hoveredStar != null)
+                {
+                    Debug.Log($"[KartographerSelector] HOVER CLEARED");
+                    _hoveredStar = null;
+                    _hoveredStarUV = new Vector2(-1, -1);
+                }
+            }
+
+            // Handle mouse input (click to lock/unlock)
             bool isMouseDown = Input.GetMouseButton(0);
             bool mouseClicked = isMouseDown && !_wasMouseDown;
             _wasMouseDown = isMouseDown;
 
-            // Event-based hover logging
-            if (nearestDist < HOVER_THRESHOLD && nearestStar != null)
-            {
-                if (_hoveredStar != nearestStar)
-                {
-                    _hoveredStar = nearestStar;
-                    _hoveredStarUV = nearestUV;
-                    Debug.Log($"[KartographerSelector] HOVER: {nearestStar.Name} (HIP {nearestStar.HipparcosID}), dist={nearestDist:F4}");
-                }
-            }
-            else if (_hoveredStar != null)
-            {
-                Debug.Log($"[KartographerSelector] HOVER CLEARED");
-                _hoveredStar = null;
-                _hoveredStarUV = new Vector2(-1, -1);
-            }
-
-            // Handle click to lock/unlock
-            if (mouseClicked)
+            // Block clicks when mouse is over UI (but still allow unlock via ESC)
+            if (mouseClicked && !mouseOverUI)
             {
                 if (_lockedStar != null)
                 {
@@ -904,50 +953,7 @@ namespace CinematicShaders.Core
             PushToNative(onScreen, isHoverOnly);
         }
 
-        /// <summary>
-        /// Legacy tracking mode for debug buttons
-        /// </summary>
-        private void UpdateLegacyTracking()
-        {
-            // Apply catalog rotation to star direction (HYG catalogs are rotated to match game coords)
-            Vector3 rotatedDir = KartographerMath.ApplyCatalogRotation(
-                TrackedStar.Direction,
-                StarfieldSettings.RotationX,
-                StarfieldSettings.RotationY,
-                StarfieldSettings.RotationZ
-            );
 
-            // Project to screen space
-            TrackedStarScreenUV = KartographerMath.WorldDirectionToScreenUV(
-                rotatedDir,
-                CameraRight,
-                CameraUp,
-                CameraForward,
-                AspectRatio,
-                VerticalFOV
-            );
-
-            // Start animation if this is a new tracked star
-            if (TrackedStar != null && _lastLockedStarHIP != TrackedStar.HipparcosID)
-            {
-                _lockedStar = TrackedStar;  // Treat as locked for animation
-                _starHash = TrackedStar.HipparcosID * 0.123f;
-                StartAnimationForStar(TrackedStar);
-            }
-
-            // Update animation phases
-            UpdateAnimation();
-
-            // Update text texture if needed
-            if (_textDirty || TrackedStar != null)
-            {
-                UpdateTextTexture();
-            }
-
-            // Push to native if on screen
-            bool onScreen = KartographerMath.IsOnScreen(TrackedStarScreenUV);
-            PushToNative(onScreen, false);  // Never hover mode for legacy
-        }
 
         /// <summary>
         /// Convert mouse UV to world direction (inverse of projection)
