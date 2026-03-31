@@ -79,6 +79,10 @@ namespace CinematicShaders.Core
                 GTAOManager.Initialize();
             if (StarfieldSettings.EnableStarfield)
                 StarfieldManager.Initialize();
+            
+            // Initialize Kartographer from saved settings (no UI required)
+            // Done here instead of OnLevelWasLoadedGUIReady to ensure DLL is loaded
+            KartographerTab.InitializeFromSettings();
         }
 
         /// <summary>
@@ -247,7 +251,7 @@ namespace CinematicShaders.Core
             if (_mainWindow == null)
             {
                 GameObject go = new GameObject("CinematicShadersWindow");
-                DontDestroyOnLoad(go);
+                // NOTE: Removed DontDestroyOnLoad - window is recreated per scene
                 _mainWindow = go.AddComponent<CinematicShadersWindow>();
                 _mainWindow.OnClose += () =>
                 {

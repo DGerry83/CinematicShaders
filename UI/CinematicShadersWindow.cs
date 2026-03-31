@@ -25,15 +25,10 @@ namespace CinematicShaders.UI
         private KartographerTab _kartographerTab;
 
         public event Action OnClose;
-        private bool wasVisibleBeforeF2 = false;
 
         void Start()
         {
             Instance = this;
-            
-            GameEvents.onHideUI.Add(OnHideUI);
-            GameEvents.onShowUI.Add(OnShowUI);
-
             InitStyles();
 
             try
@@ -168,42 +163,17 @@ namespace CinematicShaders.UI
         public void Hide()
         {
             isVisible = false;
-            wasVisibleBeforeF2 = false;
             GTAOSettings.Save();
             StarfieldSettings.Save();
             OnClose?.Invoke();
         }
 
-        private void OnHideUI()
+        void OnDestroy()
         {
             if (isVisible)
             {
-                wasVisibleBeforeF2 = true;
-                isVisible = false;
-            }
-        }
-
-        private void OnShowUI()
-        {
-            if (wasVisibleBeforeF2)
-            {
-                isVisible = true;
-                wasVisibleBeforeF2 = false;
-            }
-        }
-
-        void OnDestroy()
-        {
-            GameEvents.onHideUI.Remove(OnHideUI);
-            GameEvents.onShowUI.Remove(OnShowUI);
-
-            if (isVisible || wasVisibleBeforeF2)
-            {
                 GTAOSettings.Save();
                 StarfieldSettings.Save();
-                
-                // OnClose event handles cubemap update for normal close
-                // This is fallback for scene changes where OnClose may not fire
                 CubemapGenerationScheduler.OnUIClose();
             }
         }

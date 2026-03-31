@@ -286,12 +286,26 @@ namespace CinematicShaders.Core
             if (_textSystem == IntPtr.Zero) return;
             
             // Build list of enabled labels (max 8)
+            // Skip labels that are disabled (e.g., Tiny preset)
             _enabledLabels.Clear();
             foreach (var label in _labels.Values)
             {
                 if (!label.Enabled) continue;
                 _enabledLabels.Add(label);
                 if (_enabledLabels.Count >= MAX_LABELS) break;
+            }
+            
+            // If no labels enabled, clear native mask and exit early
+            if (_enabledLabels.Count == 0)
+            {
+                var emptyParams = StarfieldNative.LastKartographerParams;
+                if (emptyParams.GridLabelEnabledMask != 0)
+                {
+                    emptyParams.GridLabelEnabledMask = 0;
+                    StarfieldNative.LastKartographerParams = emptyParams;
+                    StarfieldNative.CR_StarfieldSetKartographerParams(ref emptyParams);
+                }
+                return;
             }
             
             // Debug: Log when enabled label count changes
@@ -309,23 +323,37 @@ namespace CinematicShaders.Core
             int currentPreset = Mathf.Clamp(StarfieldSettings.KartographerGridSize, 0, 4);
             if (currentPreset != _lastGridPreset)
             {
+                int previousPreset = _lastGridPreset;
                 _lastGridPreset = currentPreset;
+                
                 foreach (var label in _labels.Values)
                 {
                     ApplyLabelDefaults(label, currentPreset);
                     
-                    label.Text = ResolveVariant(label.Variants, label.DefaultText, currentPreset);
-                    label.InitialsText = ResolveVariant(label.InitialsVariants, label.DefaultInitialsText, currentPreset);
-                    
-                    // Always regenerate texture on preset change (font size / spacing / text may have changed)
-                    label.TextureDirty = true;
-                    
-                    if (label.SnapToGrid)
+                    // If label was disabled (e.g., Tiny preset), re-enable when switching to larger preset
+                    if (!label.Enabled && previousPreset == 4 && currentPreset < 4)
                     {
-                        label.PositionDirty = true;
+                        label.Enabled = true;
                     }
                     
-                    Debug.Log($"[GridLabelSystem] Preset changed to {currentPreset} for '{label.Id}': text='{label.Text}', font={label.FontSizePixels}, spacing={label.LineSpacing}");
+                    // Only update text/texture if label is enabled
+                    if (label.Enabled)
+                    {
+                        label.Text = ResolveVariant(label.Variants, label.DefaultText, currentPreset);
+                        label.InitialsText = ResolveVariant(label.InitialsVariants, label.DefaultInitialsText, currentPreset);
+                        label.TextureDirty = true;
+                        
+                        if (label.SnapToGrid)
+                        {
+                            label.PositionDirty = true;
+                        }
+                        
+                        Debug.Log($"[GridLabelSystem] Preset changed to {currentPreset} for '{label.Id}': text='{label.Text}', font={label.FontSizePixels}, spacing={label.LineSpacing}");
+                    }
+                    else
+                    {
+                        Debug.Log($"[GridLabelSystem] Preset changed to {currentPreset}, label '{label.Id}' disabled (Tiny grid)");
+                    }
                 }
             }
             
@@ -428,46 +456,51 @@ namespace CinematicShaders.Core
         
         /// <summary>
         /// Applies hard-coded defaults for the current grid preset.
+        /// Labels are disabled for Tiny preset (preset 4) - grid is too dense.
+        /// Final tuned values from debug session.
         /// </summary>
         private void ApplyLabelDefaults(GridLabel label, int preset)
         {
             if (label.Id != "huck") return;
+            
+            // Disable labels for Tiny preset - grid is too dense for readable labels
+            if (preset == 4)
+            {
+                label.Enabled = false;
+                return;
+            }
+            
+            // Re-enable if coming from Tiny preset
+            label.Enabled = true;
             
             switch (preset)
             {
                 case 0: // Jumbo
                     label.RotationDegrees = -2f;
                     label.PaddingLeft = 0.10f;
-                    label.PaddingBottom = 0.03f;
+                    label.PaddingBottom = 0.00f;
                     label.FontSizePixels = 18f;
-                    label.LineSpacing = 6f;
+                    label.LineSpacing = 4.5f;
                     break;
                 case 1: // Large
                     label.RotationDegrees = -2f;
-                    label.PaddingLeft = 0.10f;
-                    label.PaddingBottom = 0.03f;
-                    label.FontSizePixels = 18f;
-                    label.LineSpacing = 6f;
+                    label.PaddingLeft = 0.12f;
+                    label.PaddingBottom = 0.00f;
+                    label.FontSizePixels = 21f;
+                    label.LineSpacing = 5.3f;
                     break;
                 case 2: // Medium
                     label.RotationDegrees = -2f;
-                    label.PaddingLeft = 0.16f;
-                    label.PaddingBottom = 0.05f;
-                    label.FontSizePixels = 27f;
+                    label.PaddingLeft = 0.17f;
+                    label.PaddingBottom = 0.07f;
+                    label.FontSizePixels = 29f;
                     label.LineSpacing = 0f;
                     break;
                 case 3: // Small
                     label.RotationDegrees = -2f;
-                    label.PaddingLeft = 0.19f;
-                    label.PaddingBottom = 0.44f;
-                    label.FontSizePixels = 33f;
-                    label.LineSpacing = 0f;
-                    break;
-                case 4: // Tiny
-                    label.RotationDegrees = -2f;
-                    label.PaddingLeft = 0.17f;
-                    label.PaddingBottom = 0.05f;
-                    label.FontSizePixels = 33f;
+                    label.PaddingLeft = 0.20f;
+                    label.PaddingBottom = 0.70f;
+                    label.FontSizePixels = 36f;
                     label.LineSpacing = 0f;
                     break;
             }
@@ -593,6 +626,9 @@ namespace CinematicShaders.Core
             
             // Calculate world size based on text aspect ratio
             float aspect = boundsWidth / Mathf.Max(boundsHeight, 1f);
+            // Clamp aspect ratio to prevent extreme distortion for vertical text
+            aspect = Mathf.Clamp(aspect, 0.4f, 2.5f);
+            
             // Grid size preset: 0=Jumbo(8), 1=Large(12), 2=Medium(16), 3=Small(24), 4=Tiny(32)
             int[] gridMeridians = { 8, 12, 16, 24, 32 };
             int preset = Mathf.Clamp(StarfieldSettings.KartographerGridSize, 0, 4);

@@ -57,6 +57,7 @@ namespace CinematicShaders.Core
         public static bool EnablePolarisTracking { get; set; } = false;
         public static int KartographerTrackedStarHIP { get; set; } = 0;  // 0 = none, otherwise HIP ID
         public static bool KartographerMouseHoverSelect { get; set; } = false;  // Enable mouse hover selection
+        public static bool KartographerVesselTargetSelect { get; set; } = false;  // Show vessel target indicator
         
         // Kartographer visual parameters
         public static float KartographerGridIntensity { get; set; } = 0.002f;      // Range: 0.001-0.003
@@ -68,7 +69,13 @@ namespace CinematicShaders.Core
         public static float KartographerVignetteEnd { get; set; } = 2.2f;           // Range: 1.1-3.3
         public static float KartographerRotationYaw { get; set; } = 0.0f;           // Range: -PI to PI
         public static float KartographerRotationPitch { get; set; } = 0.0f;         // Range: -PI/2 to PI/2
-        public static int KartographerGridSize { get; set; } = 2;                   // 0=Jumbo, 1=Large, 2=Medium, 3=Small, 4=Tiny
+        // Grid size with private backing field to enforce max value of 3 (Tiny preset disabled in UI)
+        private static int _kartographerGridSize = 2;
+        public static int KartographerGridSize 
+        { 
+            get => _kartographerGridSize; 
+            set => _kartographerGridSize = Mathf.Clamp(value, 0, 3);  // Max 3 = Small (Tiny disabled)
+        }
         public static int KartographerGridColor { get; set; } = 0;                  // 0=Seafoam, 1=Amber, 2=White, 3=Green
 
         // HYG Catalog Coordinate Rotation (degrees)
@@ -226,6 +233,7 @@ namespace CinematicShaders.Core
                 EnablePolarisTracking = bool.Parse(settingsNode.GetValue("EnablePolarisTracking") ?? "false");
                 KartographerTrackedStarHIP = int.Parse(settingsNode.GetValue("KartographerTrackedStarHIP") ?? "0");
                 KartographerMouseHoverSelect = bool.Parse(settingsNode.GetValue("KartographerMouseHoverSelect") ?? "false");
+                KartographerVesselTargetSelect = bool.Parse(settingsNode.GetValue("KartographerVesselTargetSelect") ?? "false");
                 KartographerGridIntensity = float.Parse(settingsNode.GetValue("KartographerGridIntensity") ?? "0.002");
                 KartographerGridThickness = float.Parse(settingsNode.GetValue("KartographerGridThickness") ?? "0.0003");
                 // KartographerCAStrength is hard-coded, no longer loaded from config
@@ -540,6 +548,7 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("EnablePolarisTracking", EnablePolarisTracking);
                 settingsNode.AddValue("KartographerTrackedStarHIP", KartographerTrackedStarHIP);
                 settingsNode.AddValue("KartographerMouseHoverSelect", KartographerMouseHoverSelect);
+                settingsNode.AddValue("KartographerVesselTargetSelect", KartographerVesselTargetSelect);
                 settingsNode.AddValue("KartographerGridIntensity", KartographerGridIntensity);
                 settingsNode.AddValue("KartographerGridThickness", KartographerGridThickness);
                 // KartographerCAStrength is hard-coded, no longer saved to config

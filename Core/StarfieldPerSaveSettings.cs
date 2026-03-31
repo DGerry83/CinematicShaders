@@ -58,6 +58,9 @@ namespace CinematicShaders.Core
             StarfieldSettings.ActiveCatalogPath = ActiveCatalogPath;
             // StarfieldSettings.IsReadOnly = IsReadOnly;
             
+            // NOTE: Kartographer settings are NOT per-save - they persist via Settings.cfg
+            // Do NOT add them here or they will override user settings on scene change
+            
             // Mark catalog for reload since we're changing saves
             StarfieldSettings.InvalidateCatalogForReload();
 
@@ -78,6 +81,9 @@ namespace CinematicShaders.Core
             ColorSaturation = StarfieldSettings.ColorSaturation;
             ActiveCatalogPath = StarfieldSettings.ActiveCatalogPath;
             // IsReadOnly = StarfieldSettings.IsReadOnly;
+            
+            // NOTE: Kartographer settings are NOT per-save - they persist via Settings.cfg
+            // Do NOT capture them here
         }
 
         public override void OnSave(ConfigNode node)
