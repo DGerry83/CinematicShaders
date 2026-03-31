@@ -746,7 +746,8 @@ float4 PSMain(PSInput input) : SV_Target {
             coverageB = VesselTargetTextTexture.SampleLevel(TextSampler, textLocalB, 0).r;
         
         // Add text with per-channel coverage for chromatic aberration effect
-        shapeAccum += shapeColor * VesselTargetTextT * float3(coverageR, coverageG, coverageB);
+        // Text appears at full intensity - type-on animation is handled by texture content, not fade
+        shapeAccum += shapeColor * float3(coverageR, coverageG, coverageB);
         
         col += shapeAccum;
     }

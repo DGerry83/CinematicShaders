@@ -39,6 +39,13 @@ namespace CinematicShaders.Core
 
         void Start()
         {
+            // Skip initialization in MAINMENU/LOADING scenes - GameDatabase not ready, no vessel exists
+            if (HighLogic.LoadedScene == GameScenes.MAINMENU || 
+                HighLogic.LoadedScene == GameScenes.LOADING)
+            {
+                return;
+            }
+            
             GTAOSettings.Load();
             StarfieldSettings.Load();
             // If we're already in a game session, re-apply per-save settings to override
@@ -191,8 +198,11 @@ namespace CinematicShaders.Core
             // Update grid label system (HUCK, situation labels) - runs whenever Kartographer is enabled
             UpdateGridLabelSystem();
             
-            // Update situation display text/positioning - runs only when situation display is enabled
-            UpdateSituationDisplay();
+            // Update situation display only in playable scenes with a vessel
+            if (IsPlayableScene() && FlightGlobals.ActiveVessel != null)
+            {
+                UpdateSituationDisplay();
+            }
         }
         
         /// <summary>
@@ -247,6 +257,10 @@ namespace CinematicShaders.Core
         /// </summary>
         private void UpdateSituationDisplay()
         {
+            // Skip if no vessel available (game not fully loaded yet)
+            if (FlightGlobals.ActiveVessel == null)
+                return;
+            
             if (!StarfieldSettings.EnableKartographer || !StarfieldSettings.KartographerSituationDisplay)
             {
                 // Disable situation labels if display is off (HUCK remains managed by UpdateGridLabelSystem)
@@ -309,12 +323,12 @@ namespace CinematicShaders.Core
             int preset = Mathf.Clamp(StarfieldSettings.KartographerGridSize, 0, 3);
             
             // Row from top (0 = north pole)
-            // Jumbo (8 parallels): row 2 (3rd cell from top)
-            // Large (8 parallels): row 3 (4th cell from top)
-            // Medium (10 parallels): row 5 (6th cell from top)
-            // Small (15 parallels): row 5 (6th cell from top)
-            int[] targetRows = { 2, 3, 5, 5 };
-            int rowFromTop = targetRows[preset];
+            // Base position is Jumbo's row (2), slider offsets from there
+            // Slider: -2 to +2 steps, each step = 1 parallel
+            // -2 = 2 steps toward equator (down), +2 = 2 steps toward pole (up)
+            int baseRow = 2; // Jumbo position as default
+            int rowOffset = StarfieldSettings.KartographerSituationDisplayRowOffset;
+            int rowFromTop = Mathf.Clamp(baseRow - rowOffset, 0, 15); // Clamp to valid range
             
             // Get number of parallels for this preset
             int[] gridParallels = { 5, 8, 10, 15 };
@@ -354,12 +368,15 @@ namespace CinematicShaders.Core
         }
         
         /// <summary>
-        /// Sanitize text to remove non-printable characters
+        /// Sanitize text to remove non-printable characters and KSP formatting codes
         /// </summary>
         private string SanitizeText(string input)
         {
             if (string.IsNullOrEmpty(input)) return "";
-            return new string(input.Where(c => c >= 32 && c < 127).ToArray());
+            // Remove KSP formatting codes like ^N (newline), ^C (color), etc.
+            string cleaned = input.Replace("^N", "").Replace("^n", "");
+            // Keep only printable ASCII
+            return new string(cleaned.Where(c => c >= 32 && c < 127).ToArray());
         }
 
         /// <summary>

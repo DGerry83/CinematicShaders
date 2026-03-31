@@ -179,6 +179,19 @@ namespace CinematicShaders.UI.Tabs
                     StarfieldSettings.KartographerSituationDisplayRotation = newRotation;
                     StarfieldSettings.Save();
                 }
+                
+                // Row offset: -2 to +2 steps from Jumbo position (row 2)
+                // Negative = toward equator (down), Positive = toward pole (up)
+                string[] rowLabels = { "+2 (Up)", "+1", "0 (Default)", "-1", "-2 (Down)" };
+                int sliderIndex = StarfieldSettings.KartographerSituationDisplayRowOffset + 2; // Convert -2..2 to 0..4
+                GUILayout.Label($"Display Height: {rowLabels[sliderIndex]}");
+                int newSliderIndex = Mathf.RoundToInt(GUILayout.HorizontalSlider(sliderIndex, 0, 4));
+                int newRowOffset = newSliderIndex - 2; // Convert 0..4 back to -2..2
+                if (newRowOffset != StarfieldSettings.KartographerSituationDisplayRowOffset)
+                {
+                    StarfieldSettings.KartographerSituationDisplayRowOffset = newRowOffset;
+                    StarfieldSettings.Save();
+                }
             }
             
             GUILayout.Space(5);

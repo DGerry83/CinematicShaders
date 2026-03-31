@@ -148,7 +148,7 @@ namespace CinematicShaders.Core
                     return;
                 }
                 
-                Debug.Log($"[GridLabelSystem] Text system initialized with font: {FONT_NAME}");
+                // Text system initialized
             }
             catch (System.Exception ex)
             {
@@ -244,7 +244,7 @@ namespace CinematicShaders.Core
             }
             
             _labels[label.Id] = label;
-            Debug.Log($"[GridLabelSystem] Registered label: {label.Id} '{label.Text}'");
+            // Label registered
         }
         
         /// <summary>
@@ -769,15 +769,21 @@ namespace CinematicShaders.Core
             // Set enabled bit in mask
             nativeParams.GridLabelEnabledMask |= (1u << slot);
             
-            // Shader uses bottom-left corner anchoring
+            // Shader uses top-left corner anchoring (text reads top-to-bottom)
             Vector3 pos = label.WorldPosition;
             Vector3 tangent = label.Tangent;
             Vector3 bitangent = label.Bitangent;
             
             if (label.SnapToGrid)
             {
-                // Nudge east and north to nestle into the corner without overlapping grid lines
-                pos += tangent * (label.WorldSizeX * label.PaddingLeft) + bitangent * (label.WorldSizeY * label.PaddingBottom);
+                // Move to top-left corner of cell: up by WorldSizeY, then apply padding
+                // Bitangent points toward north pole, so +bitangent * WorldSizeY moves north (up)
+                Vector3 topLeft = pos + bitangent * label.WorldSizeY;
+                
+                // Apply padding: right (east) by PaddingLeft, down (south) by PaddingTop
+                // For top-left anchoring, we use PaddingTop instead of PaddingBottom
+                float paddingTop = 1.0f - label.PaddingBottom; // Invert bottom padding for top anchoring
+                pos = topLeft + tangent * (label.WorldSizeX * label.PaddingLeft) - bitangent * (label.WorldSizeY * paddingTop * 0.5f);
                 
                 // Apply per-label rotation around the top-left corner
                 float angleRad = label.RotationDegrees * Mathf.Deg2Rad;
@@ -790,19 +796,13 @@ namespace CinematicShaders.Core
                     return vec * c + Vector3.Cross(axis, vec) * s;
                 }
                 
-                // Rotate pos around top-left corner (using original bitangent)
-                Vector3 topLeft = pos + label.Bitangent * label.WorldSizeY;
-                Vector3 toBottomLeft = pos - topLeft;
-                Vector3 vRot = RotateAroundAxis(toBottomLeft, normal, cosA, sinA);
-                pos = topLeft + vRot;
-                
                 // Rotate the frame
                 tangent = RotateAroundAxis(tangent, normal, cosA, sinA).normalized;
                 bitangent = RotateAroundAxis(bitangent, normal, cosA, sinA).normalized;
             }
             else
             {
-                // Legacy center-anchored labels: shift to bottom-left
+                // Legacy center-anchored labels: shift to center
                 pos -= tangent * (label.WorldSizeX * 0.5f) + bitangent * (label.WorldSizeY * 0.5f);
             }
             
