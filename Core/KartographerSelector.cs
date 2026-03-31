@@ -1248,49 +1248,6 @@ namespace CinematicShaders.Core
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
         }
         
-        /// <summary>
-        /// Push grid label params to native - can be called independently of selection system
-        /// This allows grid labels to work without mouse hover being enabled
-        /// Uses slot 0 for backward compatibility.
-        /// </summary>
-        public void PushGridLabelParams()
-        {
-            // Get current params (used in both branches)
-            var labelParams = StarfieldNative.LastKartographerParams;
-            
-            if (!StarfieldSettings.EnableKartographer)
-            {
-                // Kartographer disabled - ensure label is off
-                if ((labelParams.GridLabelEnabledMask & 1u) != 0)
-                {
-                    labelParams.GridLabelEnabledMask &= ~1u;  // Clear bit 0
-                    StarfieldNative.LastKartographerParams = labelParams;
-                    StarfieldNative.CR_StarfieldSetKartographerParams(ref labelParams);
-                }
-                return;
-            }
-            
-            BuildGridLabelTexture();
-            
-            Vector3 labelPos, labelTangent, labelBitangent;
-            GetGridLabelTangentFrame(out labelPos, out labelTangent, out labelBitangent);
-            
-            // Calculate world-space size for the texture
-            int numLat = GetGridNumLat();
-            float phiStep = Mathf.PI / numLat;
-            float angularSize = phiStep * 0.8f; // Slightly smaller than full cell
-            
-            float worldSizeY = angularSize * 0.5f;
-            float worldSizeX = worldSizeY * 1.5f;
-            
-            // Update params with grid label data (slot 0)
-            labelParams.GridLabelEnabledMask |= 1u;  // Set bit 0
-            labelParams.GridLabel0_PosTangentX = new Vector4(labelPos.x, labelPos.y, labelPos.z, worldSizeX);
-            labelParams.GridLabel0_TangentY = new Vector4(labelTangent.x, labelTangent.y, labelTangent.z, worldSizeY);
-            
-            StarfieldNative.LastKartographerParams = labelParams;
-            StarfieldNative.CR_StarfieldSetKartographerParams(ref labelParams);
-        }
 
         /// <summary>
         /// Stop tracking and hide selection circle

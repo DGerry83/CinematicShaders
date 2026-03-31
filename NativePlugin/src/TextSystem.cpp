@@ -300,7 +300,7 @@ int TextSystem::LayoutString(const char* text, float fontSize, uint32_t color) {
     return LayoutStringEx(text, fontSize, color, 0.0f, 0.0f);
 }
 
-int TextSystem::LayoutStringEx(const char* text, float fontSize, uint32_t color, float originX, float originY) {
+int TextSystem::LayoutStringEx(const char* text, float fontSize, uint32_t color, float originX, float originY, float lineSpacing) {
     if (!m_initialized || !text) {
         return 0;
     }
@@ -321,7 +321,7 @@ int TextSystem::LayoutStringEx(const char* text, float fontSize, uint32_t color,
     
     float cursorX = originX;
     float cursorY = originY;
-    float lineHeight = (m_ascent - m_descent + m_lineGap) * m_fontScale;
+    float lineHeight = (m_ascent - m_descent + m_lineGap) * m_fontScale + lineSpacing;
     
     for (const char* p = text; *p; ++p) {
         int codepoint = static_cast<unsigned char>(*p);
@@ -658,12 +658,12 @@ int CR_TextLayout(TextSystemHandle handle, const char* text, float fontSize, uin
 }
 
 extern "C" __declspec(dllexport)
-int CR_TextLayoutEx(TextSystemHandle handle, const char* text, float fontSize, uint32_t color, float originX, float originY) {
+int CR_TextLayoutEx(TextSystemHandle handle, const char* text, float fontSize, uint32_t color, float originX, float originY, float lineSpacing) {
     if (!handle) {
         return 0;
     }
     TextSystem* ts = static_cast<TextSystem*>(handle);
-    return ts->LayoutStringEx(text, fontSize, color, originX, originY);
+    return ts->LayoutStringEx(text, fontSize, color, originX, originY, lineSpacing);
 }
 
 extern "C" __declspec(dllexport)

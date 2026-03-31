@@ -81,7 +81,8 @@ namespace CinematicShaders.Native
             float fontSize,
             uint color,
             float originX,
-            float originY);
+            float originY,
+            float lineSpacing);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_TextDispatchEx(

@@ -191,6 +191,8 @@ static struct {
     float kartographerGridLabelTangentZ[8] = {0};
     float kartographerGridLabelWorldSizeX[8] = {0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f};
     float kartographerGridLabelWorldSizeY[8] = {0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f};
+    float kartographerGridLabelIntensity[8] = {1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f};
+    uint32_t kartographerGridLabelColor[8] = {0,0,0,0,0,0,0,0};
     
     // Text rendering system resources
     ID3D11ComputeShader* textCS = nullptr;
@@ -2049,22 +2051,22 @@ static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
         
         // Debug mask and per-label visual params
         params->GridLabelDebugMask = g_StarfieldState.kartographerGridLabelDebugMask;
-        params->LabelIntensity0 = 1.0f;
-        params->LabelIntensity1 = 1.0f;
-        params->LabelIntensity2 = 1.0f;
-        params->LabelIntensity3 = 1.0f;
-        params->LabelIntensity4 = 1.0f;
-        params->LabelIntensity5 = 1.0f;
-        params->LabelIntensity6 = 1.0f;
-        params->LabelIntensity7 = 1.0f;
-        params->LabelColor0 = 0;
-        params->LabelColor1 = 0;
-        params->LabelColor2 = 0;
-        params->LabelColor3 = 0;
-        params->LabelColor4 = 0;
-        params->LabelColor5 = 0;
-        params->LabelColor6 = 0;
-        params->LabelColor7 = 0;
+        params->LabelIntensity0 = g_StarfieldState.kartographerGridLabelIntensity[0];
+        params->LabelIntensity1 = g_StarfieldState.kartographerGridLabelIntensity[1];
+        params->LabelIntensity2 = g_StarfieldState.kartographerGridLabelIntensity[2];
+        params->LabelIntensity3 = g_StarfieldState.kartographerGridLabelIntensity[3];
+        params->LabelIntensity4 = g_StarfieldState.kartographerGridLabelIntensity[4];
+        params->LabelIntensity5 = g_StarfieldState.kartographerGridLabelIntensity[5];
+        params->LabelIntensity6 = g_StarfieldState.kartographerGridLabelIntensity[6];
+        params->LabelIntensity7 = g_StarfieldState.kartographerGridLabelIntensity[7];
+        params->LabelColor0 = g_StarfieldState.kartographerGridLabelColor[0];
+        params->LabelColor1 = g_StarfieldState.kartographerGridLabelColor[1];
+        params->LabelColor2 = g_StarfieldState.kartographerGridLabelColor[2];
+        params->LabelColor3 = g_StarfieldState.kartographerGridLabelColor[3];
+        params->LabelColor4 = g_StarfieldState.kartographerGridLabelColor[4];
+        params->LabelColor5 = g_StarfieldState.kartographerGridLabelColor[5];
+        params->LabelColor6 = g_StarfieldState.kartographerGridLabelColor[6];
+        params->LabelColor7 = g_StarfieldState.kartographerGridLabelColor[7];
         
         context->Unmap(g_StarfieldState.kartographerCB, 0);
     }
@@ -2182,6 +2184,23 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
     g_StarfieldState.kartographerGridLabelTangentY[7] = params->GridLabel7_TangentY.y;
     g_StarfieldState.kartographerGridLabelTangentZ[7] = params->GridLabel7_TangentY.z;
     g_StarfieldState.kartographerGridLabelWorldSizeY[7] = params->GridLabel7_TangentY.w;
+    
+    g_StarfieldState.kartographerGridLabelIntensity[0] = params->LabelIntensity0;
+    g_StarfieldState.kartographerGridLabelIntensity[1] = params->LabelIntensity1;
+    g_StarfieldState.kartographerGridLabelIntensity[2] = params->LabelIntensity2;
+    g_StarfieldState.kartographerGridLabelIntensity[3] = params->LabelIntensity3;
+    g_StarfieldState.kartographerGridLabelIntensity[4] = params->LabelIntensity4;
+    g_StarfieldState.kartographerGridLabelIntensity[5] = params->LabelIntensity5;
+    g_StarfieldState.kartographerGridLabelIntensity[6] = params->LabelIntensity6;
+    g_StarfieldState.kartographerGridLabelIntensity[7] = params->LabelIntensity7;
+    g_StarfieldState.kartographerGridLabelColor[0] = params->LabelColor0;
+    g_StarfieldState.kartographerGridLabelColor[1] = params->LabelColor1;
+    g_StarfieldState.kartographerGridLabelColor[2] = params->LabelColor2;
+    g_StarfieldState.kartographerGridLabelColor[3] = params->LabelColor3;
+    g_StarfieldState.kartographerGridLabelColor[4] = params->LabelColor4;
+    g_StarfieldState.kartographerGridLabelColor[5] = params->LabelColor5;
+    g_StarfieldState.kartographerGridLabelColor[6] = params->LabelColor6;
+    g_StarfieldState.kartographerGridLabelColor[7] = params->LabelColor7;
 }
 
 // ============================================================================

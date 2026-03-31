@@ -140,43 +140,6 @@ namespace CinematicShaders.UI.Tabs
             }
             
             GUILayout.Space(5);
-            
-            // Grid Label HUCK toggle - optional label painted onto grid
-            bool newHUCKMode = GUILayout.Toggle(StarfieldSettings.EnableGridLabelHUCK, 
-                " Show HUCK Label", HighLogic.Skin.toggle);
-            if (newHUCKMode != StarfieldSettings.EnableGridLabelHUCK)
-            {
-                StarfieldSettings.EnableGridLabelHUCK = newHUCKMode;
-                StarfieldSettings.Save();
-                
-                // Update label system immediately
-                if (_labelSystem == null)
-                {
-                    _labelSystem = new GridLabelSystem();
-                }
-                _labelSystem.SetLabelEnabled("huck", newHUCKMode);
-                
-                Debug.Log($"[KartographerTab] HUCK label toggled: {newHUCKMode}");
-            }
-            
-            // Debug visualization toggle - shows solid color instead of texture
-            GUILayout.Space(5);
-            bool newDebugMode = GUILayout.Toggle(_labelDebugMode, 
-                " Debug Label Visualization", HighLogic.Skin.toggle);
-            if (newDebugMode != _labelDebugMode)
-            {
-                _labelDebugMode = newDebugMode;
-                uint debugMask = newDebugMode ? 1u : 0u;  // Bit 0 = label 0 (HUCK)
-                
-                var nativeParams = StarfieldNative.LastKartographerParams;
-                nativeParams.GridLabelDebugMask = debugMask;
-                StarfieldNative.LastKartographerParams = nativeParams;
-                StarfieldNative.CR_StarfieldSetKartographerParams(ref nativeParams);
-                
-                Debug.Log($"[KartographerTab] Label debug mode: {(newDebugMode ? "ON" : "OFF")} (mask: 0x{debugMask:X})");
-            }
-            
-            GUILayout.Space(5);
 
             // Grid Size: 0-4 (Jumbo, Large, Medium, Small, Tiny), default 2 (Medium)
             GUILayout.Label(new GUIContent($"Grid Size: {GetGridSizeLabel(StarfieldSettings.KartographerGridSize)}",
@@ -197,6 +160,12 @@ namespace CinematicShaders.UI.Tabs
             {
                 StarfieldSettings.KartographerGridIntensity = DisplayToIntensity(newDisplayIntensity);
                 PushKartographerParams();
+                
+                // Update HUCK label intensity to match grid intensity
+                if (_labelSystem != null)
+                {
+                    _labelSystem.SetLabelIntensity("huck", StarfieldSettings.KartographerGridIntensity / 0.002f);
+                }
             }
 
             // Grid Thickness: display 0-10, internal 0-0.0009 (default display ~3.3)
@@ -329,11 +298,11 @@ namespace CinematicShaders.UI.Tabs
                         huck.ForceTextureUpdate = true;
                     }
                     
-                    GUILayout.Label($"Baseline Offset: {huck.BaselineOffset:F2}");
-                    float newBase = GUILayout.HorizontalSlider(huck.BaselineOffset, 0.5f, 1.5f);
-                    if (!Mathf.Approximately(newBase, huck.BaselineOffset))
+                    GUILayout.Label($"Line Spacing: {huck.LineSpacing:F1}");
+                    float newSpacing = GUILayout.HorizontalSlider(huck.LineSpacing, 0f, 20f);
+                    if (!Mathf.Approximately(newSpacing, huck.LineSpacing))
                     {
-                        huck.BaselineOffset = newBase;
+                        huck.LineSpacing = newSpacing;
                         huck.ForceTextureUpdate = true;
                     }
                     
@@ -343,7 +312,7 @@ namespace CinematicShaders.UI.Tabs
                         huck.PaddingLeft = 0.12f;
                         huck.PaddingBottom = 0.12f;
                         huck.FontSizePixels = 18f;
-                        huck.BaselineOffset = 0.9f;
+                        huck.LineSpacing = 6f;
                         huck.TextureDirty = true;
                         huck.PositionDirty = true;
                     }
@@ -546,11 +515,11 @@ namespace CinematicShaders.UI.Tabs
                 _labelSystem = new GridLabelSystem();
             }
             
-            // Update HUCK label enabled state from settings
+            // Ensure HUCK label is always enabled
             var huckLabel = _labelSystem.GetLabel("huck");
-            if (huckLabel != null && huckLabel.Enabled != StarfieldSettings.EnableGridLabelHUCK)
+            if (huckLabel != null && !huckLabel.Enabled)
             {
-                _labelSystem.SetLabelEnabled("huck", StarfieldSettings.EnableGridLabelHUCK);
+                _labelSystem.SetLabelEnabled("huck", true);
             }
             
             // Update all labels

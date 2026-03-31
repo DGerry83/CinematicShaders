@@ -61,7 +61,7 @@ namespace CinematicShaders.Core
         public float RotationDegrees = 0f;   // Clockwise rotation around normal
         public float PaddingLeft = 0.12f;    // Fraction of WorldSizeX to nudge east
         public float PaddingBottom = 0.12f;  // Fraction of WorldSizeY to nudge north
-        public float BaselineOffset = 0.9f;  // Body text baseline alignment factor
+        public float LineSpacing = 0f;       // Extra pixels between lines in texture
     }
 
     /// <summary>
@@ -105,6 +105,19 @@ namespace CinematicShaders.Core
             
             InitializeTextSystem();
             RegisterBuiltInLabels();
+            
+            // Apply current grid-size defaults and resolve variants for all registered labels
+            int currentPreset = Mathf.Clamp(StarfieldSettings.KartographerGridSize, 0, 4);
+            _lastGridPreset = currentPreset;
+            foreach (var label in _labels.Values)
+            {
+                ApplyLabelDefaults(label, currentPreset);
+                label.Text = ResolveVariant(label.Variants, label.DefaultText, currentPreset);
+                label.InitialsText = ResolveVariant(label.InitialsVariants, label.DefaultInitialsText, currentPreset);
+                label.PositionDirty = true;
+                label.TextureDirty = true;
+            }
+            
             _initialized = true;
         }
         
@@ -156,14 +169,16 @@ namespace CinematicShaders.Core
                 Latitude = -75f,
                 Longitude = 0f,
                 FontSizePixels = DEFAULT_FONT_SIZE,
-                Enabled = StarfieldSettings.EnableGridLabelHUCK,
+                Enabled = true,
                 LabelType = GridLabelType.System,
                 TextureDirty = true,
                 PositionDirty = true,
                 SnapToGrid = true,
                 Variants = new Dictionary<int, string>
                 {
-                    { 1, "OLOGRAPHIC\nNIVERSAL\nELESTIAL\nARTOGRAPHER\nv0.6.28" }  // Jumbo + Large
+                    { 1, "OLOGRAPHIC\nNIVERSAL\nELESTIAL\nARTOGRAPHER\nv0.6.28" },  // Jumbo + Large
+                    { 3, "H\nU\nC\nK\nv0.6.28" },  // Medium + Small
+                    { 4, "H\nU\nC\nK" }  // Tiny: no version number
                 },
                 InitialsVariants = new Dictionary<int, string>
                 {
@@ -171,7 +186,8 @@ namespace CinematicShaders.Core
                 },
                 RotationDegrees = -2f,
                 PaddingLeft = 0.12f,
-                PaddingBottom = 0.12f
+                PaddingBottom = 0.12f,
+                LineSpacing = 6f
             });
         }
         
@@ -294,23 +310,30 @@ namespace CinematicShaders.Core
             if (currentPreset != _lastGridPreset)
             {
                 _lastGridPreset = currentPreset;
-                foreach (var label in _enabledLabels)
+                foreach (var label in _labels.Values)
                 {
-                    string resolvedText = ResolveVariant(label.Variants, label.DefaultText, currentPreset);
-                    string resolvedInitials = ResolveVariant(label.InitialsVariants, label.DefaultInitialsText, currentPreset);
+                    ApplyLabelDefaults(label, currentPreset);
                     
-                    if (resolvedText != label.Text || resolvedInitials != label.InitialsText)
-                    {
-                        label.Text = resolvedText;
-                        label.InitialsText = resolvedInitials;
-                        label.TextureDirty = true;
-                    }
+                    label.Text = ResolveVariant(label.Variants, label.DefaultText, currentPreset);
+                    label.InitialsText = ResolveVariant(label.InitialsVariants, label.DefaultInitialsText, currentPreset);
+                    
+                    // Always regenerate texture on preset change (font size / spacing / text may have changed)
+                    label.TextureDirty = true;
                     
                     if (label.SnapToGrid)
                     {
                         label.PositionDirty = true;
                     }
+                    
+                    Debug.Log($"[GridLabelSystem] Preset changed to {currentPreset} for '{label.Id}': text='{label.Text}', font={label.FontSizePixels}, spacing={label.LineSpacing}");
                 }
+            }
+            
+            // Tie HUCK label intensity to grid intensity
+            var huck = _enabledLabels.Find(l => l.Id == "huck");
+            if (huck != null)
+            {
+                huck.Intensity = StarfieldSettings.KartographerGridIntensity / 0.002f; // Normalize so default grid intensity = 1.0
             }
             
             // Update each enabled label
@@ -331,16 +354,16 @@ namespace CinematicShaders.Core
                     else
                     {
                         // Throttling: only update at most every MinUpdateInterval seconds
-                        float timeSinceLastUpdate = Time.time - label.LastUpdateTime;
+                        // Use unscaledTime so updates work when game is paused (timeScale = 0)
+                        float timeSinceLastUpdate = Time.unscaledTime - label.LastUpdateTime;
                         if (timeSinceLastUpdate < label.MinUpdateInterval)
                         {
                             shouldUpdate = false;
                         }
-                        // Also check if text actually changed
-                        else if (label.Text == label.LastText)
+                        // If TextureDirty is explicitly set, always regenerate (e.g. font size changed)
+                        else if (!label.TextureDirty && label.Text == label.LastText)
                         {
-                            // Text unchanged and enough time passed - no need to regenerate
-                            label.TextureDirty = false;
+                            // Text unchanged and no explicit dirty flag - no need to regenerate
                             shouldUpdate = false;
                         }
                     }
@@ -349,8 +372,9 @@ namespace CinematicShaders.Core
                     {
                         GenerateTexture(label);
                         label.LastText = label.Text;
-                        label.LastUpdateTime = Time.time;
+                        label.LastUpdateTime = Time.unscaledTime;
                         label.TextureDirty = false;
+                        Debug.Log($"[GridLabelSystem] Generated texture for '{label.Text}' at font={label.FontSizePixels}, size={label.WorldSizeX:F3}x{label.WorldSizeY:F3}");
                     }
                 }
                 
@@ -403,6 +427,53 @@ namespace CinematicShaders.Core
         }
         
         /// <summary>
+        /// Applies hard-coded defaults for the current grid preset.
+        /// </summary>
+        private void ApplyLabelDefaults(GridLabel label, int preset)
+        {
+            if (label.Id != "huck") return;
+            
+            switch (preset)
+            {
+                case 0: // Jumbo
+                    label.RotationDegrees = -2f;
+                    label.PaddingLeft = 0.10f;
+                    label.PaddingBottom = 0.03f;
+                    label.FontSizePixels = 18f;
+                    label.LineSpacing = 6f;
+                    break;
+                case 1: // Large
+                    label.RotationDegrees = -2f;
+                    label.PaddingLeft = 0.10f;
+                    label.PaddingBottom = 0.03f;
+                    label.FontSizePixels = 18f;
+                    label.LineSpacing = 6f;
+                    break;
+                case 2: // Medium
+                    label.RotationDegrees = -2f;
+                    label.PaddingLeft = 0.16f;
+                    label.PaddingBottom = 0.05f;
+                    label.FontSizePixels = 27f;
+                    label.LineSpacing = 0f;
+                    break;
+                case 3: // Small
+                    label.RotationDegrees = -2f;
+                    label.PaddingLeft = 0.19f;
+                    label.PaddingBottom = 0.44f;
+                    label.FontSizePixels = 33f;
+                    label.LineSpacing = 0f;
+                    break;
+                case 4: // Tiny
+                    label.RotationDegrees = -2f;
+                    label.PaddingLeft = 0.17f;
+                    label.PaddingBottom = 0.05f;
+                    label.FontSizePixels = 33f;
+                    label.LineSpacing = 0f;
+                    break;
+            }
+        }
+        
+        /// <summary>
         /// Sets per-label intensity (brightness multiplier)
         /// </summary>
         public void SetLabelIntensity(string id, float intensity)
@@ -450,15 +521,17 @@ namespace CinematicShaders.Core
                 StarfieldNative.CR_TextMeasure(_textSystem, label.InitialsText, initialsSize, out float iw, out float ih);
                 StarfieldNative.CR_TextMeasure(_textSystem, label.Text, label.FontSizePixels, out float bw, out float bh);
                 
-                // Align baselines: offset body so first baseline matches initials first baseline
-                float bodyOriginY = (initialsSize - label.FontSizePixels) * label.BaselineOffset;
+                // Align first body line with first initial
+                float bodyOriginY = initialsSize - label.FontSizePixels;
+                int bodyLineCount = label.Text.Split('\n').Length;
+                float bodyExtraHeight = (bodyLineCount - 1) * label.LineSpacing;
                 
                 boundsWidth = Mathf.Max(iw, iw + hPadding + bw);
-                boundsHeight = Mathf.Max(ih, bodyOriginY + bh);
+                boundsHeight = Mathf.Max(ih, bodyOriginY + bh + bodyExtraHeight);
                 float originY = TEXTURE_SIZE - boundsHeight - vPadding;
                 
                 // Pass 1: render initials (clears texture), aligned to bottom-left of texture
-                int g1 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.InitialsText, initialsSize, color, 0.0f, originY);
+                int g1 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.InitialsText, initialsSize, color, 0.0f, originY, 0.0f);
                 if (g1 > 0)
                 {
                     StarfieldNative.CR_TextDispatchEx(
@@ -471,7 +544,7 @@ namespace CinematicShaders.Core
                 }
                 
                 // Pass 2: render body next to initials (no clear)
-                int g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, iw + hPadding, originY + bodyOriginY);
+                int g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, iw + hPadding, originY + bodyOriginY, label.LineSpacing);
                 if (g2 > 0)
                 {
                     StarfieldNative.CR_TextDispatchEx(
@@ -487,10 +560,13 @@ namespace CinematicShaders.Core
             {
                 // Single-pass rendering, aligned to bottom-left of texture
                 float vPadding = 2.0f;
-                StarfieldNative.CR_TextMeasure(_textSystem, label.Text, label.FontSizePixels, out boundsWidth, out boundsHeight);
+                StarfieldNative.CR_TextMeasure(_textSystem, label.Text, label.FontSizePixels, out boundsWidth, out float naturalHeight);
+                int lineCount = label.Text.Split('\n').Length;
+                float extraHeight = (lineCount - 1) * label.LineSpacing;
+                boundsHeight = naturalHeight + extraHeight;
                 float originY = TEXTURE_SIZE - boundsHeight - vPadding;
                 
-                int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, 0.0f, originY);
+                int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, 0.0f, originY, label.LineSpacing);
                 
                 if (glyphCount <= 0)
                 {
