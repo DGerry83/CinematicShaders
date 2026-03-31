@@ -53,12 +53,8 @@ namespace CinematicShaders.UI.Tabs
         // Star tracking
         private KartographerSelector _selector;
         
-        // Grid label system (new 8-label support)
-        private GridLabelSystem _labelSystem;
+        // Grid label system is now managed by CinematicShadersAddon and shared with UI
         
-        // Vessel target selector (shows circle around current target)
-        private VesselTargetSelector _vesselTargetSelector;
-
         public void Draw()
         {
             if (!_initialized)
@@ -102,9 +98,6 @@ namespace CinematicShaders.UI.Tabs
             
             // Update grid labels independently of selector - runs when Kartographer is enabled
             UpdateGridLabels();
-            
-            // Update vessel target selector
-            UpdateVesselTargetSelector();
 
             DrawTooltip();
         }
@@ -165,11 +158,26 @@ namespace CinematicShaders.UI.Tabs
             {
                 StarfieldSettings.KartographerVesselTargetSelect = newVesselTarget;
                 StarfieldSettings.Save();
-                
-                // Stop tracking if disabled
-                if (!newVesselTarget && _vesselTargetSelector != null)
+                // Note: Actual selector is managed by CinematicShadersAddon which checks the setting every frame
+            }
+            
+            // Situation display toggle and rotation slider
+            bool newSituationDisplay = GUILayout.Toggle(StarfieldSettings.KartographerSituationDisplay, 
+                " Show Situation Display", HighLogic.Skin.toggle);
+            if (newSituationDisplay != StarfieldSettings.KartographerSituationDisplay)
+            {
+                StarfieldSettings.KartographerSituationDisplay = newSituationDisplay;
+                StarfieldSettings.Save();
+            }
+            
+            if (StarfieldSettings.KartographerSituationDisplay)
+            {
+                GUILayout.Label($"Display Position: {StarfieldSettings.KartographerSituationDisplayRotation:F2}");
+                float newRotation = GUILayout.HorizontalSlider(StarfieldSettings.KartographerSituationDisplayRotation, 0f, 1f);
+                if (!Mathf.Approximately(newRotation, StarfieldSettings.KartographerSituationDisplayRotation))
                 {
-                    _vesselTargetSelector.StopTracking();
+                    StarfieldSettings.KartographerSituationDisplayRotation = newRotation;
+                    StarfieldSettings.Save();
                 }
             }
             
@@ -198,9 +206,9 @@ namespace CinematicShaders.UI.Tabs
                 PushKartographerParams();
                 
                 // Update HUCK label intensity to match grid intensity
-                if (_labelSystem != null)
+                if (CinematicShadersAddon.SituationLabelSystem != null)
                 {
-                    _labelSystem.SetLabelIntensity("huck", StarfieldSettings.KartographerGridIntensity / 0.002f);
+                    CinematicShadersAddon.SituationLabelSystem.SetLabelIntensity("huck", StarfieldSettings.KartographerGridIntensity / 0.002f);
                 }
                 
                 StarfieldSettings.Save();
@@ -306,9 +314,69 @@ namespace CinematicShaders.UI.Tabs
                 DumpOrbitInfo();
             }
             
-            // Label debug tuning - uses reusable debug UI system
-            // Set GridLabelDebugUI.EnableDebugUI = false to disable for release builds
-            GridLabelDebugUI.DrawDebugSliders(_labelSystem, "huck");
+            // Situation info label debug tuning - uses Addon-managed label system
+            // Wire up debug sliders to the shared situation label system
+            if (CinematicShadersAddon.SituationLabelSystem != null)
+            {
+                // Sliders for situation_a (situation_b mirrors it)
+                var labelA = CinematicShadersAddon.SituationLabelSystem.GetLabel("situation_a");
+                if (labelA != null)
+                {
+                    GUILayout.Space(5);
+                    GUILayout.Label("<b>Situation Display Debug (A)</b>", HighLogic.Skin.label);
+                    
+                    GUILayout.Label($"Rotation: {labelA.RotationDegrees:F1}°");
+                    float newRot = GUILayout.HorizontalSlider(labelA.RotationDegrees, -10f, 10f);
+                    if (!Mathf.Approximately(newRot, labelA.RotationDegrees))
+                    {
+                        labelA.RotationDegrees = newRot;
+                        labelA.PositionDirty = true;
+                    }
+                    
+                    GUILayout.Label($"Left Padding: {labelA.PaddingLeft:F2}");
+                    float newPadL = GUILayout.HorizontalSlider(labelA.PaddingLeft, 0f, 0.7f);
+                    if (!Mathf.Approximately(newPadL, labelA.PaddingLeft))
+                    {
+                        labelA.PaddingLeft = newPadL;
+                        labelA.PositionDirty = true;
+                    }
+                    
+                    GUILayout.Label($"Bottom Padding: {labelA.PaddingBottom:F2}");
+                    float newPadB = GUILayout.HorizontalSlider(labelA.PaddingBottom, 0f, 0.7f);
+                    if (!Mathf.Approximately(newPadB, labelA.PaddingBottom))
+                    {
+                        labelA.PaddingBottom = newPadB;
+                        labelA.PositionDirty = true;
+                    }
+                    
+                    GUILayout.Label($"Font Size: {labelA.FontSizePixels:F0}");
+                    float newFont = GUILayout.HorizontalSlider(labelA.FontSizePixels, 8f, 48f);
+                    if (!Mathf.Approximately(newFont, labelA.FontSizePixels))
+                    {
+                        labelA.FontSizePixels = newFont;
+                        labelA.ForceTextureUpdate = true;
+                    }
+                    
+                    GUILayout.Label($"Line Spacing: {labelA.LineSpacing:F1}");
+                    float newSpacing = GUILayout.HorizontalSlider(labelA.LineSpacing, 0f, 20f);
+                    if (!Mathf.Approximately(newSpacing, labelA.LineSpacing))
+                    {
+                        labelA.LineSpacing = newSpacing;
+                        labelA.ForceTextureUpdate = true;
+                    }
+                    
+                    // Mirror to label B
+                    var labelB = CinematicShadersAddon.SituationLabelSystem.GetLabel("situation_b");
+                    if (labelB != null)
+                    {
+                        labelB.RotationDegrees = labelA.RotationDegrees;
+                        labelB.PaddingLeft = labelA.PaddingLeft;
+                        labelB.PaddingBottom = labelA.PaddingBottom;
+                        labelB.FontSizePixels = labelA.FontSizePixels;
+                        labelB.LineSpacing = labelA.LineSpacing;
+                    }
+                }
+            }
 
             GUILayout.EndVertical();
         }
@@ -573,55 +641,20 @@ namespace CinematicShaders.UI.Tabs
 
         /// <summary>
         /// Update grid labels - runs independently of selector when Kartographer is enabled
-        /// This handles grid-fixed labels that are always on when enabled
+        /// Grid label system is now managed entirely by CinematicShadersAddon.UpdateGridLabelSystem()
+        /// This method just ensures native state is synchronized.
         /// </summary>
         private void UpdateGridLabels()
         {
             if (!StarfieldSettings.EnableKartographer)
-            {
-                // Clear all grid labels when Kartographer disabled
-                if (_labelSystem != null)
-                {
-                    var kartParams = StarfieldNative.LastKartographerParams;
-                    kartParams.GridLabelEnabledMask = 0;
-                    StarfieldNative.LastKartographerParams = kartParams;
-                    StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
-                }
                 return;
-            }
             
-            // Initialize label system if needed (scene transition, first load)
-            if (_labelSystem == null)
+            // Ensure native state matches settings (scene transition handling)
+            if (StarfieldNative.IsLoaded)
             {
-                _labelSystem = new GridLabelSystem();
-                
-                // After creating label system, ensure native state matches settings
-                // This handles scene transitions where the grid should be on
-                if (StarfieldNative.IsLoaded)
-                {
-                    PushKartographerParams();
-                    StarfieldNative.CR_StarfieldSetKartographerEnabled(1);
-                }
+                PushKartographerParams();
+                StarfieldNative.CR_StarfieldSetKartographerEnabled(1);
             }
-            
-            // Ensure HUCK label is always enabled (except for Tiny preset)
-            var huckLabel = _labelSystem.GetLabel("huck");
-            if (huckLabel != null)
-            {
-                // Re-apply preset defaults in case preset changed during scene transition
-                int currentPreset = Mathf.Clamp(StarfieldSettings.KartographerGridSize, 0, 4);
-                if (currentPreset == 4) // Tiny
-                {
-                    _labelSystem.SetLabelEnabled("huck", false);
-                }
-                else if (!huckLabel.Enabled)
-                {
-                    _labelSystem.SetLabelEnabled("huck", true);
-                }
-            }
-            
-            // Update all labels
-            _labelSystem.Update();
         }
 
         /// <summary>
@@ -658,34 +691,6 @@ namespace CinematicShaders.UI.Tabs
         /// <summary>
         /// Update vessel target selector - draws circle around current target
         /// </summary>
-        private void UpdateVesselTargetSelector()
-        {
-            if (!StarfieldSettings.EnableKartographer || !StarfieldSettings.KartographerVesselTargetSelect)
-            {
-                if (_vesselTargetSelector != null)
-                {
-                    _vesselTargetSelector.StopTracking();
-                }
-                return;
-            }
-            
-            // Initialize selector if needed
-            if (_vesselTargetSelector == null)
-            {
-                _vesselTargetSelector = new VesselTargetSelector();
-            }
-            
-            // Update camera params from compositor
-            _vesselTargetSelector.CameraRight = StarfieldCompositor.CameraRight;
-            _vesselTargetSelector.CameraUp = StarfieldCompositor.CameraUp;
-            _vesselTargetSelector.CameraForward = StarfieldCompositor.CameraForward;
-            _vesselTargetSelector.AspectRatio = StarfieldCompositor.CameraAspect;
-            _vesselTargetSelector.VerticalFOV = StarfieldCompositor.CachedVerticalFOV;
-            
-            // Update projection
-            _vesselTargetSelector.Update();
-        }
-        
         /// <summary>
         /// Debug dump of orbit information for vessel
         /// </summary>

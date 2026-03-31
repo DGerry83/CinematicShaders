@@ -97,6 +97,9 @@ namespace CinematicShaders.Native
         public static extern void CR_SetTextTexture(IntPtr texture);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_SetVesselTargetTextTexture(IntPtr texture);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_SetGridLabelTexture(int slot, IntPtr texture);
 
         [StructLayout(LayoutKind.Sequential)]
@@ -508,6 +511,33 @@ namespace CinematicShaders.Native
             public uint LabelColor5;
             public uint LabelColor6;
             public uint LabelColor7;
+            
+            // Vessel Target Selector - separate from Star Selector (96 bytes)
+            public int VesselTargetEnabled;
+            public float VesselTargetHash;
+            public float _padVessel1;
+            public float _padVessel2;
+            public float VesselTargetCircleCenterX;
+            public float VesselTargetCircleCenterY;
+            public float VesselTargetCircleT;
+            public float VesselTargetCircleIntensity;
+            public float VesselTargetCircleThickness;
+            public float VesselTargetCircleRadius;
+            public float _padVessel3;
+            public float _padVessel4;
+            public float _padVessel5;
+            public float _padVessel6;
+            public float VesselTargetBoxTopLeftX;
+            public float VesselTargetBoxTopLeftY;
+            public float VesselTargetBoxSizeX;
+            public float VesselTargetBoxSizeY;
+            public float VesselTargetBoxThickness;
+            public float _padVessel7;
+            public float VesselTargetTextOriginX;
+            public float VesselTargetTextOriginY;
+            public float VesselTargetTextAreaSizeX;
+            public float VesselTargetTextAreaSizeY;
+            public float VesselTargetTextT;
         }
 
         // Last params cache for incremental updates

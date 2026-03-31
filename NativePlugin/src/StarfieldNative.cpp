@@ -198,8 +198,29 @@ static struct {
     ID3D11ComputeShader* textCS = nullptr;
     ID3D11Buffer* textCB = nullptr;
     ID3D11SamplerState* textSampler = nullptr;
-    ID3D11ShaderResourceView* textTextureSRV = nullptr;
-    ID3D11ShaderResourceView* gridLabelTextureSRV[8] = {};
+    ID3D11ShaderResourceView* textTextureSRV = nullptr;           // t2 - Star selector text
+    ID3D11ShaderResourceView* vesselTargetTextTextureSRV = nullptr; // t11 - Vessel target text
+    ID3D11ShaderResourceView* gridLabelTextureSRV[8] = {};        // t3-t10 - Grid labels
+    
+    // Vessel target parameters (separate from star selector)
+    int kartographerVesselTargetEnabled = 0;
+    float kartographerVesselTargetHash = 0.0f;
+    float kartographerVesselTargetCircleCenterX = 0.0f;
+    float kartographerVesselTargetCircleCenterY = 0.0f;
+    float kartographerVesselTargetCircleT = 0.0f;
+    float kartographerVesselTargetCircleIntensity = 0.002f;
+    float kartographerVesselTargetCircleThickness = 0.001f;
+    float kartographerVesselTargetCircleRadius = 0.02f;
+    float kartographerVesselTargetBoxTopLeftX = 0.0f;
+    float kartographerVesselTargetBoxTopLeftY = 0.0f;
+    float kartographerVesselTargetBoxSizeX = 0.0f;
+    float kartographerVesselTargetBoxSizeY = 0.0f;
+    float kartographerVesselTargetBoxThickness = 0.001f;
+    float kartographerVesselTargetTextOriginX = 0.0f;
+    float kartographerVesselTargetTextOriginY = 0.0f;
+    float kartographerVesselTargetTextAreaSizeX = 0.0f;
+    float kartographerVesselTargetTextAreaSizeY = 0.0f;
+    float kartographerVesselTargetTextT = 0.0f;
 } g_StarfieldState;
 
 // Constant buffer layouts (must match HLSL exactly, 16-byte aligned)
@@ -505,9 +526,36 @@ struct KartographerParams {
     uint32_t LabelColor5;
     uint32_t LabelColor6;
     uint32_t LabelColor7;
+    
+    // Vessel Target Selector - separate from Star Selector
+    int VesselTargetEnabled;
+    float VesselTargetHash;
+    float _padVessel1;
+    float _padVessel2;
+    float VesselTargetCircleCenterX;
+    float VesselTargetCircleCenterY;
+    float VesselTargetCircleT;
+    float VesselTargetCircleIntensity;
+    float VesselTargetCircleThickness;
+    float VesselTargetCircleRadius;
+    float _padVessel3;
+    float _padVessel4;
+    float _padVessel5;
+    float _padVessel6;
+    float VesselTargetBoxTopLeftX;
+    float VesselTargetBoxTopLeftY;
+    float VesselTargetBoxSizeX;
+    float VesselTargetBoxSizeY;
+    float VesselTargetBoxThickness;
+    float _padVessel7;
+    float VesselTargetTextOriginX;
+    float VesselTargetTextOriginY;
+    float VesselTargetTextAreaSizeX;
+    float VesselTargetTextAreaSizeY;
+    float VesselTargetTextT;
 };
 
-static_assert(sizeof(KartographerParams) == 608, "KartographerParams size mismatch - expected 608 bytes");
+static_assert(sizeof(KartographerParams) == 704, "KartographerParams size mismatch - expected 704 bytes");
 static_assert(sizeof(KartographerParams) % 16 == 0, "KartographerParams must be 16-byte aligned for HLSL CB");
 
 // Soft bloom constant buffer layouts (must match HLSL exactly)
@@ -1524,6 +1572,11 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
             }
         }
         
+        // Bind vessel target text texture to slot t11
+        if (g_StarfieldState.vesselTargetTextTextureSRV) {
+            context->PSSetShaderResources(11, 1, &g_StarfieldState.vesselTargetTextTextureSRV);
+        }
+        
         // RTV is still bound from main pass - no need to rebind
         
         // Draw fullscreen triangle
@@ -1809,6 +1862,11 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
             }
         }
         
+        // Bind vessel target text texture to slot t11
+        if (g_StarfieldState.vesselTargetTextTextureSRV) {
+            context->PSSetShaderResources(11, 1, &g_StarfieldState.vesselTargetTextTextureSRV);
+        }
+        
         // Draw fullscreen triangle
         context->Draw(3, 0);
         
@@ -2068,6 +2126,26 @@ static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
         params->LabelColor6 = g_StarfieldState.kartographerGridLabelColor[6];
         params->LabelColor7 = g_StarfieldState.kartographerGridLabelColor[7];
         
+        // Vessel target parameters (separate from star selector)
+        params->VesselTargetEnabled = g_StarfieldState.kartographerVesselTargetEnabled;
+        params->VesselTargetHash = g_StarfieldState.kartographerVesselTargetHash;
+        params->VesselTargetCircleCenterX = g_StarfieldState.kartographerVesselTargetCircleCenterX;
+        params->VesselTargetCircleCenterY = g_StarfieldState.kartographerVesselTargetCircleCenterY;
+        params->VesselTargetCircleT = g_StarfieldState.kartographerVesselTargetCircleT;
+        params->VesselTargetCircleIntensity = g_StarfieldState.kartographerVesselTargetCircleIntensity;
+        params->VesselTargetCircleThickness = g_StarfieldState.kartographerVesselTargetCircleThickness;
+        params->VesselTargetCircleRadius = g_StarfieldState.kartographerVesselTargetCircleRadius;
+        params->VesselTargetBoxTopLeftX = g_StarfieldState.kartographerVesselTargetBoxTopLeftX;
+        params->VesselTargetBoxTopLeftY = g_StarfieldState.kartographerVesselTargetBoxTopLeftY;
+        params->VesselTargetBoxSizeX = g_StarfieldState.kartographerVesselTargetBoxSizeX;
+        params->VesselTargetBoxSizeY = g_StarfieldState.kartographerVesselTargetBoxSizeY;
+        params->VesselTargetBoxThickness = g_StarfieldState.kartographerVesselTargetBoxThickness;
+        params->VesselTargetTextOriginX = g_StarfieldState.kartographerVesselTargetTextOriginX;
+        params->VesselTargetTextOriginY = g_StarfieldState.kartographerVesselTargetTextOriginY;
+        params->VesselTargetTextAreaSizeX = g_StarfieldState.kartographerVesselTargetTextAreaSizeX;
+        params->VesselTargetTextAreaSizeY = g_StarfieldState.kartographerVesselTargetTextAreaSizeY;
+        params->VesselTargetTextT = g_StarfieldState.kartographerVesselTargetTextT;
+        
         context->Unmap(g_StarfieldState.kartographerCB, 0);
     }
 }
@@ -2110,6 +2188,27 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
     g_StarfieldState.kartographerTextAreaSizeX = params->TextAreaSizeX;
     g_StarfieldState.kartographerTextAreaSizeY = params->TextAreaSizeY;
     g_StarfieldState.kartographerSelectionTextT = params->SelectionTextT;
+    
+    // Vessel target parameters (separate from star selector)
+    g_StarfieldState.kartographerVesselTargetEnabled = params->VesselTargetEnabled;
+    g_StarfieldState.kartographerVesselTargetHash = params->VesselTargetHash;
+    g_StarfieldState.kartographerVesselTargetCircleCenterX = params->VesselTargetCircleCenterX;
+    g_StarfieldState.kartographerVesselTargetCircleCenterY = params->VesselTargetCircleCenterY;
+    g_StarfieldState.kartographerVesselTargetCircleT = params->VesselTargetCircleT;
+    g_StarfieldState.kartographerVesselTargetCircleIntensity = params->VesselTargetCircleIntensity;
+    g_StarfieldState.kartographerVesselTargetCircleThickness = params->VesselTargetCircleThickness;
+    g_StarfieldState.kartographerVesselTargetCircleRadius = params->VesselTargetCircleRadius;
+    g_StarfieldState.kartographerVesselTargetBoxTopLeftX = params->VesselTargetBoxTopLeftX;
+    g_StarfieldState.kartographerVesselTargetBoxTopLeftY = params->VesselTargetBoxTopLeftY;
+    g_StarfieldState.kartographerVesselTargetBoxSizeX = params->VesselTargetBoxSizeX;
+    g_StarfieldState.kartographerVesselTargetBoxSizeY = params->VesselTargetBoxSizeY;
+    g_StarfieldState.kartographerVesselTargetBoxThickness = params->VesselTargetBoxThickness;
+    g_StarfieldState.kartographerVesselTargetTextOriginX = params->VesselTargetTextOriginX;
+    g_StarfieldState.kartographerVesselTargetTextOriginY = params->VesselTargetTextOriginY;
+    g_StarfieldState.kartographerVesselTargetTextAreaSizeX = params->VesselTargetTextAreaSizeX;
+    g_StarfieldState.kartographerVesselTargetTextAreaSizeY = params->VesselTargetTextAreaSizeY;
+    g_StarfieldState.kartographerVesselTargetTextT = params->VesselTargetTextT;
+    
     // Copy all 8 grid labels from params to state (extract from float4)
     g_StarfieldState.kartographerGridLabelEnabledMask = params->GridLabelEnabledMask;
     g_StarfieldState.kartographerGridLabelDebugMask = params->GridLabelDebugMask;
@@ -2491,6 +2590,27 @@ void CR_SetTextTexture(ID3D11Texture2D* texture)
         srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
         srvDesc.Texture2D.MipLevels = 1;
         g_StarfieldState.device->CreateShaderResourceView(texture, &srvDesc, &g_StarfieldState.textTextureSRV);
+    }
+}
+
+extern "C" __declspec(dllexport)
+void CR_SetVesselTargetTextTexture(ID3D11Texture2D* texture)
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
+    // Release old SRV if exists
+    if (g_StarfieldState.vesselTargetTextTextureSRV) {
+        g_StarfieldState.vesselTargetTextTextureSRV->Release();
+        g_StarfieldState.vesselTargetTextTextureSRV = nullptr;
+    }
+    
+    if (texture && g_StarfieldState.device) {
+        // Create SRV for the texture
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MipLevels = 1;
+        g_StarfieldState.device->CreateShaderResourceView(texture, &srvDesc, &g_StarfieldState.vesselTargetTextTextureSRV);
     }
 }
 

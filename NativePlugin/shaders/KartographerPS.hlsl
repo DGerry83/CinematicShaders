@@ -16,7 +16,7 @@ struct PSInput {
 };
 
 // Constant buffer - must match C++ KartographerParams struct exactly
-// Total size: 608 bytes (16 × 38)
+// Total size: 704 bytes (16 × 44)
 cbuffer KartographerCB : register(b0) {
     // Base grid params (64 bytes)
     float2 Resolution;          // offset 0
@@ -145,6 +145,33 @@ cbuffer KartographerCB : register(b0) {
     uint LabelColor5;               // offset 584
     uint LabelColor6;               // offset 588
     uint LabelColor7;               // offset 592
+    
+    // Vessel Target Selector - separate from Star Selector (96 bytes) - offsets 596-691
+    int VesselTargetEnabled;        // offset 596
+    float VesselTargetHash;         // offset 600
+    float _padVessel1;              // offset 604
+    float _padVessel2;              // offset 608
+    float VesselTargetCircleCenterX;    // offset 612
+    float VesselTargetCircleCenterY;    // offset 616
+    float VesselTargetCircleT;          // offset 620
+    float VesselTargetCircleIntensity;  // offset 624
+    float VesselTargetCircleThickness;  // offset 628
+    float VesselTargetCircleRadius;     // offset 632
+    float _padVessel3;              // offset 636
+    float _padVessel4;              // offset 640
+    float _padVessel5;              // offset 644
+    float _padVessel6;              // offset 648
+    float VesselTargetBoxTopLeftX;      // offset 652
+    float VesselTargetBoxTopLeftY;      // offset 656
+    float VesselTargetBoxSizeX;         // offset 660
+    float VesselTargetBoxSizeY;         // offset 664
+    float VesselTargetBoxThickness;     // offset 668
+    float _padVessel7;              // offset 672
+    float VesselTargetTextOriginX;      // offset 676
+    float VesselTargetTextOriginY;      // offset 680
+    float VesselTargetTextAreaSizeX;    // offset 684
+    float VesselTargetTextAreaSizeY;    // offset 688
+    float VesselTargetTextT;            // offset 692
 };
 
 // Grid colors: 0=Seafoam, 1=Amber, 2=White, 3=Green
@@ -155,9 +182,10 @@ static const float3 kGridColors[4] = {
     float3(0.25, 1.0, 0.0)   // Green
 };
 
-// Text texture (rendered by compute shader)
-Texture2D<float4> TextTexture : register(t2);
-Texture2D<float4> GridLabelTextures[8] : register(t3); // One texture per label slot
+// Text textures (rendered by compute shader)
+Texture2D<float4> TextTexture : register(t2);              // Star selector text
+Texture2D<float4> VesselTargetTextTexture : register(t11); // Vessel target text
+Texture2D<float4> GridLabelTextures[8] : register(t3);     // One texture per label slot (t3-t10)
 SamplerState TextSampler : register(s0);
 
 // Grid size presets: 0=Jumbo, 1=Large, 2=Medium, 3=Small, 4=Tiny
@@ -644,6 +672,81 @@ float4 PSMain(PSInput input) : SV_Target {
         
         // Add text with per-channel coverage for chromatic aberration effect
         shapeAccum += shapeColor * SelectionTextT * float3(coverageR, coverageG, coverageB);
+        
+        col += shapeAccum;
+    }
+    
+    // ============================================================================
+    // VESSEL TARGET SELECTOR - Separate from Star Selector
+    // ============================================================================
+    if (VesselTargetEnabled) {
+        float3 shapeColor = kGridColors[GridColorIndex];
+        float3 shapeAccum = float3(0, 0, 0);
+        
+        float2 center = float2(VesselTargetCircleCenterX, VesselTargetCircleCenterY);
+        float r = VesselTargetCircleRadius;
+        float thick = VesselTargetCircleThickness;
+        // Flicker animation: struggling fluorescent tube effect
+        float flicker = Flicker(VesselTargetCircleT, Time, VesselTargetHash);
+        
+        // --- Info box black backing (FIRST - darkens background) ---
+        float2 boxCenter = float2(VesselTargetBoxTopLeftX, VesselTargetBoxTopLeftY) + 
+                          float2(VesselTargetBoxSizeX, VesselTargetBoxSizeY) * 0.5;
+        float2 boxHalfSize = float2(VesselTargetBoxSizeX, VesselTargetBoxSizeY) * 0.5;
+        float boxCornerRad = 0.005;
+        
+        float backSdf = SDF_RoundedBox(uv, boxCenter, boxHalfSize, boxCornerRad);
+        float backMask = smoothstep(0.0, 0.003, -backSdf);
+        col = lerp(col, col * 0.05, backMask);
+        
+        // --- Selection circle glow ---
+        float2 caOffset = perp * r * 0.1;
+        float dR = SDF_Circle(uvR.xy, center + caOffset, r);
+        float dG = SDF_Circle(uvG.xy, center, r);
+        float dB = SDF_Circle(uvB.xy, center - caOffset, r);
+        
+        shapeAccum += shapeColor * VesselTargetCircleIntensity * flicker * float3(
+            1.0 / (abs(dR) + thick),
+            1.0 / (abs(dG) + thick),
+            1.0 / (abs(dB) + thick)
+        );
+        
+        // --- Info box outline ---
+        float dbR = SDF_RoundedBox(uvR.xy, boxCenter + caOffset, boxHalfSize, boxCornerRad);
+        float dbG = SDF_RoundedBox(uvG.xy, boxCenter, boxHalfSize, boxCornerRad);
+        float dbB = SDF_RoundedBox(uvB.xy, boxCenter - caOffset, boxHalfSize, boxCornerRad);
+        
+        shapeAccum += shapeColor * VesselTargetCircleIntensity * flicker * float3(
+            1.0 / (abs(dbR) + VesselTargetBoxThickness),
+            1.0 / (abs(dbG) + VesselTargetBoxThickness),
+            1.0 / (abs(dbB) + VesselTargetBoxThickness)
+        );
+        
+        // --- Text rendering (on top of darkened background) ---
+        float2 textLocalR = (uvR - float2(VesselTargetTextOriginX, VesselTargetTextOriginY)) / 
+                            float2(VesselTargetTextAreaSizeX, VesselTargetTextAreaSizeY);
+        float2 textLocalG = (uvG - float2(VesselTargetTextOriginX, VesselTargetTextOriginY)) / 
+                            float2(VesselTargetTextAreaSizeX, VesselTargetTextAreaSizeY);
+        float2 textLocalB = (uvB - float2(VesselTargetTextOriginX, VesselTargetTextOriginY)) / 
+                            float2(VesselTargetTextAreaSizeX, VesselTargetTextAreaSizeY);
+        
+        // Sample text coverage for each channel separately (chromatic aberration)
+        float coverageR = 0.0, coverageG = 0.0, coverageB = 0.0;
+        
+        if (textLocalR.x >= 0.0 && textLocalR.x <= 1.0 && 
+            textLocalR.y >= 0.0 && textLocalR.y <= 1.0)
+            coverageR = VesselTargetTextTexture.SampleLevel(TextSampler, textLocalR, 0).r;
+            
+        if (textLocalG.x >= 0.0 && textLocalG.x <= 1.0 && 
+            textLocalG.y >= 0.0 && textLocalG.y <= 1.0)
+            coverageG = VesselTargetTextTexture.SampleLevel(TextSampler, textLocalG, 0).r;
+            
+        if (textLocalB.x >= 0.0 && textLocalB.x <= 1.0 && 
+            textLocalB.y >= 0.0 && textLocalB.y <= 1.0)
+            coverageB = VesselTargetTextTexture.SampleLevel(TextSampler, textLocalB, 0).r;
+        
+        // Add text with per-channel coverage for chromatic aberration effect
+        shapeAccum += shapeColor * VesselTargetTextT * float3(coverageR, coverageG, coverageB);
         
         col += shapeAccum;
     }

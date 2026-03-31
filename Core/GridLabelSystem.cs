@@ -189,6 +189,47 @@ namespace CinematicShaders.Core
                 PaddingBottom = 0.12f,
                 LineSpacing = 6f
             });
+            
+            // Situation info display labels - dual-sided, positioned based on grid preset
+            // These are managed by CinematicShadersAddon, not the label system directly
+            // SnapToGrid = true so they align to grid cell corners at their assigned lat/lon
+            RegisterLabel(new GridLabel
+            {
+                Id = "situation_a",
+                Text = "SITUATION\nINFO\nDEBUG",
+                DefaultText = "SITUATION\nINFO\nDEBUG",
+                Latitude = 60f,  // Will be overridden based on grid preset
+                Longitude = 0f,
+                FontSizePixels = DEFAULT_FONT_SIZE,
+                Enabled = false,
+                LabelType = GridLabelType.Debug,
+                TextureDirty = true,
+                PositionDirty = true,
+                SnapToGrid = true,  // Align to grid cell at assigned lat/lon
+                RotationDegrees = 0f,
+                PaddingLeft = 0.1f,
+                PaddingBottom = 0.1f,
+                LineSpacing = 4f
+            });
+            
+            RegisterLabel(new GridLabel
+            {
+                Id = "situation_b",
+                Text = "SITUATION\nINFO\nDEBUG",
+                DefaultText = "SITUATION\nINFO\nDEBUG",
+                Latitude = 60f,  // Will be overridden based on grid preset
+                Longitude = 180f,  // Opposite side
+                FontSizePixels = DEFAULT_FONT_SIZE,
+                Enabled = false,
+                LabelType = GridLabelType.Debug,
+                TextureDirty = true,
+                PositionDirty = true,
+                SnapToGrid = true,  // Align to grid cell at assigned lat/lon
+                RotationDegrees = 0f,
+                PaddingLeft = 0.1f,
+                PaddingBottom = 0.1f,
+                LineSpacing = 4f
+            });
         }
         
         /// <summary>
@@ -652,8 +693,8 @@ namespace CinematicShaders.Core
             
             if (label.SnapToGrid)
             {
-                // Snap to bottom-left corner of the grid cell containing 0° longitude
-                // at the southernmost parallel for the current preset
+                // Snap to bottom-left corner of the grid cell containing the label's position
+                // This allows any label to align to its assigned grid cell while keeping HUCK at south pole
                 int[] gridMeridians = { 8, 12, 16, 24, 32 };
                 int[] gridParallels = { 5, 8, 10, 15, 20 };
                 int preset = Mathf.Clamp(StarfieldSettings.KartographerGridSize, 0, 4);
@@ -663,13 +704,28 @@ namespace CinematicShaders.Core
                 float thetaStep = 2.0f * Mathf.PI / numLong;
                 float phiStep = Mathf.PI / numLat;
                 
-                // Southernmost parallel (bottom of cell)
-                float phi = (numLat - 0.5f) * phiStep;
+                // Convert label's latitude to phi (polar angle from north pole)
+                float labelLatRad = label.Latitude * Mathf.Deg2Rad;
+                float labelPhi = Mathf.PI / 2.0f - labelLatRad; // 0 at north pole, π at south pole
+                
+                // Find which latitude band (cell row) the label is in
+                int latCell = Mathf.FloorToInt(labelPhi / phiStep);
+                latCell = Mathf.Clamp(latCell, 0, numLat - 1);
+                
+                // Position at southern edge of that cell (bottom of cell)
+                float phi = (latCell + 0.5f) * phiStep;
                 latRad = Mathf.PI / 2.0f - phi;
                 
-                // Western meridian of cell containing 0° longitude
-                int cellIdx = Mathf.FloorToInt(numLong / 2f - 0.5f);
-                float lon = -Mathf.PI + (cellIdx + 0.5f) * thetaStep;
+                // Convert label's longitude to theta (-π to π)
+                float labelLonRad = label.Longitude * Mathf.Deg2Rad;
+                
+                // Find which longitude band (cell column) the label is in
+                float normalizedLon = labelLonRad + Mathf.PI; // 0 to 2π
+                int lonCell = Mathf.FloorToInt(normalizedLon / thetaStep);
+                lonCell = lonCell % numLong;
+                
+                // Position at western edge of that cell
+                float lon = -Mathf.PI + (lonCell + 0.5f) * thetaStep;
                 lonRad = lon;
             }
             else

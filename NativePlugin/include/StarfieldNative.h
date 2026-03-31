@@ -159,8 +159,8 @@ __declspec(dllexport) void CR_StarfieldSetDimming(float sunGlareDimming, float p
 // Kartographer holographic grid overlay enable/disable
 __declspec(dllexport) void CR_StarfieldSetKartographerEnabled(unsigned char enabled);
 
-// Kartographer visual parameters struct (Phase 2 - 8 Label Support)
-// Layout matches HLSL exactly - 608 bytes (16 × 38)
+// Kartographer visual parameters struct (Phase 2 - 8 Label Support + Vessel Target)
+// Layout matches HLSL exactly - 704 bytes (16 × 44)
 // Generated from ReferenceNotes/tools/generate_struct.py
 // Do not modify without updating shader
 struct KartographerParamsNative {
@@ -368,10 +368,37 @@ struct KartographerParamsNative {
     uint32_t LabelColor5;
     uint32_t LabelColor6;
     uint32_t LabelColor7;
+    
+    // Vessel Target Selector - separate from Star Selector (96 bytes)
+    int VesselTargetEnabled;
+    float VesselTargetHash;
+    float _padVessel1;
+    float _padVessel2;
+    float VesselTargetCircleCenterX;
+    float VesselTargetCircleCenterY;
+    float VesselTargetCircleT;
+    float VesselTargetCircleIntensity;
+    float VesselTargetCircleThickness;
+    float VesselTargetCircleRadius;
+    float _padVessel3;
+    float _padVessel4;
+    float _padVessel5;
+    float _padVessel6;
+    float VesselTargetBoxTopLeftX;
+    float VesselTargetBoxTopLeftY;
+    float VesselTargetBoxSizeX;
+    float VesselTargetBoxSizeY;
+    float VesselTargetBoxThickness;
+    float _padVessel7;
+    float VesselTargetTextOriginX;
+    float VesselTargetTextOriginY;
+    float VesselTargetTextAreaSizeX;
+    float VesselTargetTextAreaSizeY;
+    float VesselTargetTextT;
 };
 
-static_assert(sizeof(KartographerParamsNative) == 608,
-              "KartographerParamsNative size mismatch - expected 608 bytes");
+static_assert(sizeof(KartographerParamsNative) == 704,
+              "KartographerParamsNative size mismatch - expected 704 bytes");
 static_assert(sizeof(KartographerParamsNative) % 16 == 0,
               "KartographerParamsNative must be 16-byte aligned for HLSL CB");
 

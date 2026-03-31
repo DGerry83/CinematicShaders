@@ -1,4 +1,5 @@
-﻿using CinematicShaders.Native;
+﻿using System.Linq;
+using CinematicShaders.Native;
 using CinematicShaders.Shaders.GTAO;
 using CinematicShaders.Shaders.Starfield;
 using CinematicShaders.UI;
@@ -18,6 +19,13 @@ namespace CinematicShaders.Core
         private static Texture2D _toolbarIcon;
 
         private CinematicShadersWindow _mainWindow;
+        
+        // Vessel target selector - needs frame updates independent of UI
+        private VesselTargetSelector _vesselTargetSelector;
+        
+        // Situation display label system - shared with UI for debug sliders
+        public static GridLabelSystem SituationLabelSystem { get; private set; }
+        private float _lastSituationUpdate = 0f;
 
         void Awake()
         {
@@ -151,6 +159,251 @@ namespace CinematicShaders.Core
                 Debug.Log("[CinematicShaders] Retrying GTAO initialization...");
                 GTAOManager.Initialize();
             }
+        }
+        
+        void Update()
+        {
+            // Update vessel target selector every frame (independent of UI)
+            if (StarfieldSettings.EnableKartographer && StarfieldSettings.KartographerVesselTargetSelect)
+            {
+                if (_vesselTargetSelector == null)
+                {
+                    _vesselTargetSelector = new VesselTargetSelector();
+                }
+                
+                // Update camera params from compositor
+                _vesselTargetSelector.CameraRight = StarfieldCompositor.CameraRight;
+                _vesselTargetSelector.CameraUp = StarfieldCompositor.CameraUp;
+                _vesselTargetSelector.CameraForward = StarfieldCompositor.CameraForward;
+                _vesselTargetSelector.AspectRatio = StarfieldCompositor.CameraAspect;
+                _vesselTargetSelector.VerticalFOV = StarfieldCompositor.CachedVerticalFOV;
+                
+                // Update projection
+                _vesselTargetSelector.Update();
+            }
+            else if (_vesselTargetSelector != null)
+            {
+                // Selector exists but should be disabled
+                _vesselTargetSelector.StopTracking();
+                _vesselTargetSelector = null;
+            }
+            
+            // Update grid label system (HUCK, situation labels) - runs whenever Kartographer is enabled
+            UpdateGridLabelSystem();
+            
+            // Update situation display text/positioning - runs only when situation display is enabled
+            UpdateSituationDisplay();
+        }
+        
+        /// <summary>
+        /// Updates the shared GridLabelSystem that manages HUCK and situation labels.
+        /// This runs whenever Kartographer is enabled, independent of situation display setting.
+        /// </summary>
+        private void UpdateGridLabelSystem()
+        {
+            if (!StarfieldSettings.EnableKartographer)
+            {
+                // Disable all grid labels when Kartographer is off
+                if (SituationLabelSystem != null)
+                {
+                    if (SituationLabelSystem.GetLabel("situation_a") is var a && a != null && a.Enabled)
+                        SituationLabelSystem.SetLabelEnabled("situation_a", false);
+                    if (SituationLabelSystem.GetLabel("situation_b") is var b && b != null && b.Enabled)
+                        SituationLabelSystem.SetLabelEnabled("situation_b", false);
+                    if (SituationLabelSystem.GetLabel("huck") is var h && h != null && h.Enabled)
+                        SituationLabelSystem.SetLabelEnabled("huck", false);
+                }
+                return;
+            }
+            
+            // Initialize label system if needed (shared between HUCK and situation display)
+            if (SituationLabelSystem == null)
+            {
+                SituationLabelSystem = new GridLabelSystem();
+                SituationLabelSystem.Initialize();
+            }
+            
+            // Ensure HUCK label is enabled (unless Tiny preset)
+            int currentPreset = Mathf.Clamp(StarfieldSettings.KartographerGridSize, 0, 4);
+            if (SituationLabelSystem.GetLabel("huck") is var huck && huck != null)
+            {
+                if (currentPreset == 4 && huck.Enabled) // Tiny
+                {
+                    SituationLabelSystem.SetLabelEnabled("huck", false);
+                }
+                else if (currentPreset != 4 && !huck.Enabled)
+                {
+                    SituationLabelSystem.SetLabelEnabled("huck", true);
+                }
+            }
+            
+            // Update the label system - this handles preset changes, texture generation, and native pushing
+            SituationLabelSystem.Update();
+        }
+        
+        /// <summary>
+        /// Updates situation-specific text and positioning.
+        /// Only runs when situation display is enabled, but uses the shared GridLabelSystem.
+        /// </summary>
+        private void UpdateSituationDisplay()
+        {
+            if (!StarfieldSettings.EnableKartographer || !StarfieldSettings.KartographerSituationDisplay)
+            {
+                // Disable situation labels if display is off (HUCK remains managed by UpdateGridLabelSystem)
+                if (SituationLabelSystem != null)
+                {
+                    if (SituationLabelSystem.GetLabel("situation_a") is var a && a != null && a.Enabled)
+                        SituationLabelSystem.SetLabelEnabled("situation_a", false);
+                    if (SituationLabelSystem.GetLabel("situation_b") is var b && b != null && b.Enabled)
+                        SituationLabelSystem.SetLabelEnabled("situation_b", false);
+                }
+                return;
+            }
+            
+            // Label system is guaranteed to be initialized by UpdateGridLabelSystem()
+            // Update positions based on grid preset and rotation slider
+            UpdateSituationPositions();
+            
+            // Enable the situation labels
+            var labelA = SituationLabelSystem.GetLabel("situation_a");
+            var labelB = SituationLabelSystem.GetLabel("situation_b");
+            if (labelA != null && !labelA.Enabled)
+                SituationLabelSystem.SetLabelEnabled("situation_a", true);
+            if (labelB != null && !labelB.Enabled)
+                SituationLabelSystem.SetLabelEnabled("situation_b", true);
+            
+            // Update text periodically (10 FPS)
+            float now = Time.time;
+            if (now - _lastSituationUpdate > 0.1f)
+            {
+                _lastSituationUpdate = now;
+                string text = BuildSituationText();
+                if (labelA != null)
+                {
+                    labelA.Text = text;
+                    labelA.TextureDirty = true;
+                }
+                if (labelB != null)
+                {
+                    labelB.Text = text;
+                    labelB.TextureDirty = true;
+                }
+            }
+            
+            // Note: LabelSystem.Update() is called in UpdateGridLabelSystem() which runs first
+        }
+        
+        /// <summary>
+        /// Update situation label positions based on grid preset and rotation slider
+        /// Positions are top-left of grid cell at specific row per preset
+        /// </summary>
+        private void UpdateSituationPositions()
+        {
+            if (SituationLabelSystem == null) return;
+            
+            var labelA = SituationLabelSystem.GetLabel("situation_a");
+            var labelB = SituationLabelSystem.GetLabel("situation_b");
+            if (labelA == null || labelB == null) return;
+            
+            // Get grid preset
+            int preset = Mathf.Clamp(StarfieldSettings.KartographerGridSize, 0, 3);
+            
+            // Row from top (0 = north pole)
+            // Jumbo (8 parallels): row 2 (3rd cell from top)
+            // Large (8 parallels): row 3 (4th cell from top)
+            // Medium (10 parallels): row 5 (6th cell from top)
+            // Small (15 parallels): row 5 (6th cell from top)
+            int[] targetRows = { 2, 3, 5, 5 };
+            int rowFromTop = targetRows[preset];
+            
+            // Get number of parallels for this preset
+            int[] gridParallels = { 5, 8, 10, 15 };
+            int numLat = gridParallels[preset];
+            int numLong = new int[] { 8, 12, 16, 24 }[preset];
+            
+            // Calculate latitude (from top pole)
+            float phi = (rowFromTop + 0.5f) * (Mathf.PI / numLat);
+            float latitude = 90f - (phi * Mathf.Rad2Deg); // Convert to degrees (0 at equator)
+            
+            // Get rotation from slider (0-1 maps to full 360°)
+            float rotation = StarfieldSettings.KartographerSituationDisplayRotation;
+            int baseLonCell = Mathf.RoundToInt(rotation * numLong) % numLong;
+            int oppositeLonCell = (baseLonCell + numLong / 2) % numLong;
+            
+            // Calculate longitudes
+            float thetaStep = 360f / numLong;
+            float longitudeA = -180f + (baseLonCell + 0.5f) * thetaStep;
+            float longitudeB = -180f + (oppositeLonCell + 0.5f) * thetaStep;
+            
+            // Update labels if position changed
+            if (!Mathf.Approximately(labelA.Latitude, latitude) ||
+                !Mathf.Approximately(labelA.Longitude, longitudeA))
+            {
+                labelA.Latitude = latitude;
+                labelA.Longitude = longitudeA;
+                labelA.PositionDirty = true;
+            }
+            
+            if (!Mathf.Approximately(labelB.Latitude, latitude) ||
+                !Mathf.Approximately(labelB.Longitude, longitudeB))
+            {
+                labelB.Latitude = latitude;
+                labelB.Longitude = longitudeB;
+                labelB.PositionDirty = true;
+            }
+        }
+        
+        /// <summary>
+        /// Sanitize text to remove non-printable characters
+        /// </summary>
+        private string SanitizeText(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return "";
+            return new string(input.Where(c => c >= 32 && c < 127).ToArray());
+        }
+
+        /// <summary>
+        /// Build situation info text for display
+        /// </summary>
+        private string BuildSituationText()
+        {
+            if (FlightGlobals.ActiveVessel == null)
+                return "NO VESSEL";
+            
+            var sb = new System.Text.StringBuilder();
+            
+            // SOI (no label) - sanitized
+            if (FlightGlobals.currentMainBody != null)
+                sb.Append(SanitizeText(FlightGlobals.currentMainBody.bodyDisplayName).ToUpper() + '\n');
+            
+            // Situation (no label)
+            sb.Append(FlightGlobals.ActiveVessel.situation.ToString().ToUpper() + '\n');
+            
+            // Altitude
+            double alt = FlightGlobals.ActiveVessel.altitude;
+            if (alt > 1000000)
+                sb.Append($"ALT: {alt/1000:F1} KM\n");
+            else
+                sb.Append($"ALT: {alt:F1} M\n");
+            
+            // Apoapsis/Periapsis
+            if (FlightGlobals.ActiveVessel.orbit != null)
+            {
+                double ap = FlightGlobals.ActiveVessel.orbit.ApA;
+                double pe = FlightGlobals.ActiveVessel.orbit.PeA;
+                
+                if (ap > 1000000)
+                    sb.Append($"A/P: {ap/1000:F1} KM\n");
+                else
+                    sb.Append($"A/P: {ap:F1} M\n");
+                
+                if (pe > 1000000)
+                    sb.Append($"P/E: {pe/1000:F1} KM");
+                else
+                    sb.Append($"P/E: {pe:F1} M");
+            }
+            
+            return sb.ToString();
         }
 
         void OnDestroy()

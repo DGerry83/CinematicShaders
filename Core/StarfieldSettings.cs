@@ -58,6 +58,8 @@ namespace CinematicShaders.Core
         public static int KartographerTrackedStarHIP { get; set; } = 0;  // 0 = none, otherwise HIP ID
         public static bool KartographerMouseHoverSelect { get; set; } = false;  // Enable mouse hover selection
         public static bool KartographerVesselTargetSelect { get; set; } = false;  // Show vessel target indicator
+        public static bool KartographerSituationDisplay { get; set; } = false;  // Show situation info display
+        public static float KartographerSituationDisplayRotation { get; set; } = 0.0f;  // 0-1, position of dual-sided situation display
         
         // Kartographer visual parameters
         public static float KartographerGridIntensity { get; set; } = 0.002f;      // Range: 0.001-0.003
@@ -234,6 +236,8 @@ namespace CinematicShaders.Core
                 KartographerTrackedStarHIP = int.Parse(settingsNode.GetValue("KartographerTrackedStarHIP") ?? "0");
                 KartographerMouseHoverSelect = bool.Parse(settingsNode.GetValue("KartographerMouseHoverSelect") ?? "false");
                 KartographerVesselTargetSelect = bool.Parse(settingsNode.GetValue("KartographerVesselTargetSelect") ?? "false");
+                KartographerSituationDisplay = bool.Parse(settingsNode.GetValue("KartographerSituationDisplay") ?? "false");
+                KartographerSituationDisplayRotation = float.Parse(settingsNode.GetValue("KartographerSituationDisplayRotation") ?? "0.0");
                 KartographerGridIntensity = float.Parse(settingsNode.GetValue("KartographerGridIntensity") ?? "0.002");
                 KartographerGridThickness = float.Parse(settingsNode.GetValue("KartographerGridThickness") ?? "0.0003");
                 // KartographerCAStrength is hard-coded, no longer loaded from config
@@ -549,6 +553,8 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("KartographerTrackedStarHIP", KartographerTrackedStarHIP);
                 settingsNode.AddValue("KartographerMouseHoverSelect", KartographerMouseHoverSelect);
                 settingsNode.AddValue("KartographerVesselTargetSelect", KartographerVesselTargetSelect);
+                settingsNode.AddValue("KartographerSituationDisplay", KartographerSituationDisplay);
+                settingsNode.AddValue("KartographerSituationDisplayRotation", KartographerSituationDisplayRotation);
                 settingsNode.AddValue("KartographerGridIntensity", KartographerGridIntensity);
                 settingsNode.AddValue("KartographerGridThickness", KartographerGridThickness);
                 // KartographerCAStrength is hard-coded, no longer saved to config
