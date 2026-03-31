@@ -149,6 +149,7 @@ namespace CinematicShaders.UI.Tabs
             {
                 StarfieldSettings.KartographerGridSize = newGridSize;
                 PushKartographerParams();
+                StarfieldSettings.Save();
             }
 
             // Grid Intensity: display 0-5, internal 0-0.006 (default display ~1.7)
@@ -166,6 +167,8 @@ namespace CinematicShaders.UI.Tabs
                 {
                     _labelSystem.SetLabelIntensity("huck", StarfieldSettings.KartographerGridIntensity / 0.002f);
                 }
+                
+                StarfieldSettings.Save();
             }
 
             // Grid Thickness: display 0-10, internal 0-0.0009 (default display ~3.3)
@@ -177,6 +180,7 @@ namespace CinematicShaders.UI.Tabs
             {
                 StarfieldSettings.KartographerGridThickness = DisplayToThickness(newDisplayThickness);
                 PushKartographerParams();
+                StarfieldSettings.Save();
             }
 
             // Grid Color dropdown
@@ -193,6 +197,7 @@ namespace CinematicShaders.UI.Tabs
             {
                 StarfieldSettings.KartographerVignetteStrength = newVignetteStr;
                 PushKartographerParams();
+                StarfieldSettings.Save();
             }
 
             // Vignette Start: 0.8 - 2.4, default 1.6
@@ -203,6 +208,7 @@ namespace CinematicShaders.UI.Tabs
             {
                 StarfieldSettings.KartographerVignetteStart = newVignetteStart;
                 PushKartographerParams();
+                StarfieldSettings.Save();
             }
 
             // Vignette End: 1.1 - 3.3, default 2.2
@@ -213,6 +219,7 @@ namespace CinematicShaders.UI.Tabs
             {
                 StarfieldSettings.KartographerVignetteEnd = newVignetteEnd;
                 PushKartographerParams();
+                StarfieldSettings.Save();
             }
 
             GUILayout.Space(5);
@@ -227,6 +234,7 @@ namespace CinematicShaders.UI.Tabs
             {
                 StarfieldSettings.KartographerRotationYaw = newYaw * Mathf.Deg2Rad;
                 PushKartographerParams();
+                StarfieldSettings.Save();
             }
 
             // Rotation Pitch: -90 to 90 degrees, stored as radians
@@ -238,6 +246,7 @@ namespace CinematicShaders.UI.Tabs
             {
                 StarfieldSettings.KartographerRotationPitch = newPitch * Mathf.Deg2Rad;
                 PushKartographerParams();
+                StarfieldSettings.Save();
             }
 
             // Reset button
@@ -348,6 +357,7 @@ namespace CinematicShaders.UI.Tabs
                             _currentColorIndex = i;
                             StarfieldSettings.KartographerGridColor = i;
                             PushKartographerParams();
+                            StarfieldSettings.Save();
                         }
                         _showColorDropdown = false;
                     }

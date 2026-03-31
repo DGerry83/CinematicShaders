@@ -517,21 +517,25 @@ namespace CinematicShaders.Core
                 float hPadding = 4.0f;
                 float vPadding = 2.0f;
                 
-                // Measure both parts
-                StarfieldNative.CR_TextMeasure(_textSystem, label.InitialsText, initialsSize, out float iw, out float ih);
-                StarfieldNative.CR_TextMeasure(_textSystem, label.Text, label.FontSizePixels, out float bw, out float bh);
+                // First, layout initials to get actual bounds (not advances)
+                int g1 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.InitialsText, initialsSize, color, 0.0f, TEXTURE_SIZE * 0.5f, 0.0f);
+                StarfieldNative.CR_TextGetBounds(_textSystem, out float iw, out float ih);
+                
+                // Layout body to get its bounds
+                int bodyLineCount = label.Text.Split('\n').Length;
+                float bodyExtraHeight = (bodyLineCount - 1) * label.LineSpacing;
+                int g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing);
+                StarfieldNative.CR_TextGetBounds(_textSystem, out float bw, out float bh);
                 
                 // Align first body line with first initial
                 float bodyOriginY = initialsSize - label.FontSizePixels;
-                int bodyLineCount = label.Text.Split('\n').Length;
-                float bodyExtraHeight = (bodyLineCount - 1) * label.LineSpacing;
                 
                 boundsWidth = Mathf.Max(iw, iw + hPadding + bw);
                 boundsHeight = Mathf.Max(ih, bodyOriginY + bh + bodyExtraHeight);
                 float originY = TEXTURE_SIZE - boundsHeight - vPadding;
                 
                 // Pass 1: render initials (clears texture), aligned to bottom-left of texture
-                int g1 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.InitialsText, initialsSize, color, 0.0f, originY, 0.0f);
+                g1 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.InitialsText, initialsSize, color, 0.0f, originY, 0.0f);
                 if (g1 > 0)
                 {
                     StarfieldNative.CR_TextDispatchEx(
@@ -544,7 +548,7 @@ namespace CinematicShaders.Core
                 }
                 
                 // Pass 2: render body next to initials (no clear)
-                int g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, iw + hPadding, originY + bodyOriginY, label.LineSpacing);
+                g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, iw + hPadding, originY + bodyOriginY, label.LineSpacing);
                 if (g2 > 0)
                 {
                     StarfieldNative.CR_TextDispatchEx(
@@ -560,19 +564,22 @@ namespace CinematicShaders.Core
             {
                 // Single-pass rendering, aligned to bottom-left of texture
                 float vPadding = 2.0f;
-                StarfieldNative.CR_TextMeasure(_textSystem, label.Text, label.FontSizePixels, out boundsWidth, out float naturalHeight);
-                int lineCount = label.Text.Split('\n').Length;
-                float extraHeight = (lineCount - 1) * label.LineSpacing;
-                boundsHeight = naturalHeight + extraHeight;
-                float originY = TEXTURE_SIZE - boundsHeight - vPadding;
                 
-                int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, 0.0f, originY, label.LineSpacing);
+                // Layout text at a temporary origin to get actual bounds (not advances)
+                int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing);
                 
                 if (glyphCount <= 0)
                 {
                     Debug.LogWarning($"[GridLabelSystem] Text layout failed for '{label.Text}'");
                     return;
                 }
+                
+                // Get actual rendered bounds (accounts for bitmap extents, not just advances)
+                StarfieldNative.CR_TextGetBounds(_textSystem, out boundsWidth, out boundsHeight);
+                
+                // Re-layout with correct origin for final render
+                float originY = TEXTURE_SIZE - boundsHeight - vPadding;
+                glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, 0.0f, originY, label.LineSpacing);
                 
                 // Render glyphs (clears texture)
                 StarfieldNative.CR_TextDispatchEx(

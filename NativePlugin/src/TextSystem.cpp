@@ -444,16 +444,17 @@ void TextSystem::MeasureString(const char* text, float fontSize, float& outWidth
             // Cursor glyph - use approximate advance (it's a half block)
             currentLineWidth += fontPx * 0.5f;  // Half width of a typical character
         } else {
-            // Ensure glyph is available for metrics
-            PackGlyph(codepoint);
-            auto it = m_glyphCache.find(codepoint);
-            if (it != m_glyphCache.end()) {
-                const GlyphMetric& m = it->second;
-                currentLineWidth += m.advance;
-                if (*(p + 1) && *(p + 1) != '\n') {
-                    int nextCodepoint = static_cast<unsigned char>(*(p + 1));
-                    currentLineWidth += stbtt_GetCodepointKernAdvance(m_fontInfo, codepoint, nextCodepoint) * m_fontScale;
-                }
+            // Compute metrics directly from the font at the requested scale.
+            // Do NOT use PackGlyph/m_glyphCache here — those are atlas-specific
+            // and keyed only by codepoint, so they would return stale advances
+            // when the font size changes between MeasureString and LayoutStringEx.
+            int glyphIndex = stbtt_FindGlyphIndex(m_fontInfo, codepoint);
+            int advance = 0, leftBearing = 0;
+            stbtt_GetGlyphHMetrics(m_fontInfo, glyphIndex, &advance, &leftBearing);
+            currentLineWidth += advance * m_fontScale;
+            if (*(p + 1) && *(p + 1) != '\n') {
+                int nextCodepoint = static_cast<unsigned char>(*(p + 1));
+                currentLineWidth += stbtt_GetCodepointKernAdvance(m_fontInfo, codepoint, nextCodepoint) * m_fontScale;
             }
         }
     }
