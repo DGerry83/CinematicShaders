@@ -18,6 +18,24 @@ namespace CinematicShaders.Core
     }
 
     /// <summary>
+    /// Vertical snap position within a grid cell
+    /// </summary>
+    public enum GridSnapVertical
+    {
+        Top,        // Northern edge of cell
+        Bottom      // Southern edge of cell
+    }
+
+    /// <summary>
+    /// Horizontal snap position within a grid cell
+    /// </summary>
+    public enum GridSnapHorizontal
+    {
+        Left,       // Western edge of cell
+        Right       // Eastern edge of cell
+    }
+
+    /// <summary>
     /// Data for a single grid label positioned on the holographic sphere.
     /// </summary>
     public class GridLabel
@@ -50,7 +68,14 @@ namespace CinematicShaders.Core
         public float LastUpdateTime;         // Time of last texture update
         public float MinUpdateInterval = 0.1f;  // Minimum seconds between updates (10 FPS)
         public bool ForceTextureUpdate = false; // Bypass throttling for real-time tuning
-        public bool SnapToGrid = false;         // Align to grid cell bottom-left corner
+        
+        // Grid cell snapping - specify cell coordinates and which edges to snap to
+        public bool SnapToGrid = false;         // Enable grid cell snapping
+        public int GridCellRow = 0;             // Row from north (0 = north pole area)
+        public int GridCellCol = 0;             // Column from west (0 = -180° longitude)
+        public GridSnapVertical SnapVertical = GridSnapVertical.Bottom;   // Snap to top or bottom of cell
+        public GridSnapHorizontal SnapHorizontal = GridSnapHorizontal.Left; // Snap to left or right of cell
+        
         public string InitialsText;              // Active big-first-letter text (2-pass rendering)
         public string DefaultInitialsText;       // Original fallback initials for variant resolution
         public float InitialsFontSizeMultiplier = 1.3f;  // Size multiplier for initials
@@ -174,6 +199,10 @@ namespace CinematicShaders.Core
                 TextureDirty = true,
                 PositionDirty = true,
                 SnapToGrid = true,
+                GridCellRow = -2,  // Second row from south (first row above polar cap)
+                GridCellCol = 0,   // Westernmost cell
+                SnapVertical = GridSnapVertical.Bottom,
+                SnapHorizontal = GridSnapHorizontal.Left,
                 Variants = new Dictionary<int, string>
                 {
                     { 1, "OLOGRAPHIC\nNIVERSAL\nELESTIAL\nARTOGRAPHER\nv0.6.28" },  // Jumbo + Large
@@ -205,7 +234,11 @@ namespace CinematicShaders.Core
                 LabelType = GridLabelType.Debug,
                 TextureDirty = true,
                 PositionDirty = true,
-                SnapToGrid = true,  // Align to grid cell at assigned lat/lon
+                SnapToGrid = true,
+                GridCellRow = 2,   // Will be overridden based on grid preset
+                GridCellCol = 0,   // Will be overridden based on rotation slider
+                SnapVertical = GridSnapVertical.Top,
+                SnapHorizontal = GridSnapHorizontal.Left,
                 RotationDegrees = 0f,
                 PaddingLeft = 0.1f,
                 PaddingBottom = 0.1f,
@@ -217,14 +250,18 @@ namespace CinematicShaders.Core
                 Id = "situation_b",
                 Text = "SITUATION\nINFO\nDEBUG",
                 DefaultText = "SITUATION\nINFO\nDEBUG",
-                Latitude = 60f,  // Will be overridden based on grid preset
+                Latitude = 60f,  // Will be overridden
                 Longitude = 180f,  // Opposite side
                 FontSizePixels = DEFAULT_FONT_SIZE,
                 Enabled = false,
                 LabelType = GridLabelType.Debug,
                 TextureDirty = true,
                 PositionDirty = true,
-                SnapToGrid = true,  // Align to grid cell at assigned lat/lon
+                SnapToGrid = true,
+                GridCellRow = 2,   // Will be overridden based on grid preset
+                GridCellCol = 0,   // Will be overridden (opposite side)
+                SnapVertical = GridSnapVertical.Top,
+                SnapHorizontal = GridSnapHorizontal.Left,
                 RotationDegrees = 0f,
                 PaddingLeft = 0.1f,
                 PaddingBottom = 0.1f,
@@ -693,8 +730,9 @@ namespace CinematicShaders.Core
             
             if (label.SnapToGrid)
             {
-                // Snap to bottom-left corner of the grid cell containing the label's position
-                // This allows any label to align to its assigned grid cell while keeping HUCK at south pole
+                // Grid cell snapping using explicit cell coordinates
+                // Row 0 = north, increasing toward south
+                // Col 0 = -180°, increasing eastward
                 int[] gridMeridians = { 8, 12, 16, 24, 32 };
                 int[] gridParallels = { 5, 8, 10, 15, 20 };
                 int preset = Mathf.Clamp(StarfieldSettings.KartographerGridSize, 0, 4);
@@ -704,29 +742,44 @@ namespace CinematicShaders.Core
                 float thetaStep = 2.0f * Mathf.PI / numLong;
                 float phiStep = Mathf.PI / numLat;
                 
-                // Convert label's latitude to phi (polar angle from north pole)
-                float labelLatRad = label.Latitude * Mathf.Deg2Rad;
-                float labelPhi = Mathf.PI / 2.0f - labelLatRad; // 0 at north pole, π at south pole
+                // Resolve row (handle negative values as "from south")
+                int row = label.GridCellRow;
+                if (row < 0) row = numLat + row; // e.g., -2 with 5 parallels = row 3
+                row = Mathf.Clamp(row, 0, numLat - 1);
                 
-                // Find which latitude band (cell row) the label is in
-                int latCell = Mathf.FloorToInt(labelPhi / phiStep);
-                latCell = Mathf.Clamp(latCell, 0, numLat - 1);
+                // Resolve column (wrap around)
+                int col = label.GridCellCol % numLong;
+                if (col < 0) col += numLong;
                 
-                // Position at southern edge of that cell (bottom of cell)
-                float phi = (latCell + 0.5f) * phiStep;
+                // Calculate phi (polar angle from north pole) based on vertical snap
+                // phi = 0 at north pole, phi = π at south pole
+                float phi;
+                if (label.SnapVertical == GridSnapVertical.Top)
+                {
+                    // Northern edge of cell
+                    phi = row * phiStep;
+                }
+                else // GridSnapVertical.Bottom
+                {
+                    // Southern edge of cell
+                    phi = (row + 1) * phiStep;
+                }
                 latRad = Mathf.PI / 2.0f - phi;
                 
-                // Convert label's longitude to theta (-π to π)
-                float labelLonRad = label.Longitude * Mathf.Deg2Rad;
-                
-                // Find which longitude band (cell column) the label is in
-                float normalizedLon = labelLonRad + Mathf.PI; // 0 to 2π
-                int lonCell = Mathf.FloorToInt(normalizedLon / thetaStep);
-                lonCell = lonCell % numLong;
-                
-                // Position at western edge of that cell
-                float lon = -Mathf.PI + (lonCell + 0.5f) * thetaStep;
-                lonRad = lon;
+                // Calculate theta (longitude) based on horizontal snap
+                // theta = -π at -180°, theta = π at +180°
+                float theta;
+                if (label.SnapHorizontal == GridSnapHorizontal.Left)
+                {
+                    // Western edge of cell
+                    theta = -Mathf.PI + col * thetaStep;
+                }
+                else // GridSnapHorizontal.Right
+                {
+                    // Eastern edge of cell
+                    theta = -Mathf.PI + (col + 1) * thetaStep;
+                }
+                lonRad = theta;
             }
             else
             {
@@ -751,7 +804,8 @@ namespace CinematicShaders.Core
                 StarfieldSettings.KartographerRotationPitch);
             
             // Calculate tangent frame
-            // Tangent: east/west along parallel = cross(up, position)
+            // Tangent: west along parallel (decreasing longitude) = cross(up, position)
+            // This matches the working commit 4859a82 and prevents upside-down text
             label.Tangent = Vector3.Cross(Vector3.up, label.WorldPosition).normalized;
             
             // Bitangent: toward pole = cross(position, tangent)
@@ -769,23 +823,23 @@ namespace CinematicShaders.Core
             // Set enabled bit in mask
             nativeParams.GridLabelEnabledMask |= (1u << slot);
             
-            // Shader uses top-left corner anchoring (text reads top-to-bottom)
+            // Shader uses bottom-left corner anchoring (verified in KartographerPS.hlsl)
+            // The label quad extends from the anchor point:
+            // - East (tangent direction) for width
+            // - South (negative bitangent) for height
             Vector3 pos = label.WorldPosition;
             Vector3 tangent = label.Tangent;
             Vector3 bitangent = label.Bitangent;
             
             if (label.SnapToGrid)
             {
-                // Move to top-left corner of cell: up by WorldSizeY, then apply padding
-                // Bitangent points toward north pole, so +bitangent * WorldSizeY moves north (up)
-                Vector3 topLeft = pos + bitangent * label.WorldSizeY;
+                // Nudge east and north to nestle into the corner without overlapping grid lines
+                // Tangent points west (decreasing longitude), so positive tangent moves east (right on screen)
+                // Bitangent points north (toward pole), so positive bitangent moves north (up on screen)
+                // This creates space from the bottom-left corner of the cell
+                pos += tangent * (label.WorldSizeX * label.PaddingLeft) + bitangent * (label.WorldSizeY * label.PaddingBottom);
                 
-                // Apply padding: right (east) by PaddingLeft, down (south) by PaddingTop
-                // For top-left anchoring, we use PaddingTop instead of PaddingBottom
-                float paddingTop = 1.0f - label.PaddingBottom; // Invert bottom padding for top anchoring
-                pos = topLeft + tangent * (label.WorldSizeX * label.PaddingLeft) - bitangent * (label.WorldSizeY * paddingTop * 0.5f);
-                
-                // Apply per-label rotation around the top-left corner
+                // Apply per-label rotation around the anchor corner
                 float angleRad = label.RotationDegrees * Mathf.Deg2Rad;
                 float cosA = Mathf.Cos(angleRad);
                 float sinA = Mathf.Sin(angleRad);

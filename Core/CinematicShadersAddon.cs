@@ -308,8 +308,8 @@ namespace CinematicShaders.Core
         }
         
         /// <summary>
-        /// Update situation label positions based on grid preset and rotation slider
-        /// Positions are top-left of grid cell at specific row per preset
+        /// Update situation label grid cell positions based on grid preset and rotation slider
+        /// Uses GridCellRow and GridCellCol for explicit cell positioning
         /// </summary>
         private void UpdateSituationPositions()
         {
@@ -323,46 +323,32 @@ namespace CinematicShaders.Core
             int preset = Mathf.Clamp(StarfieldSettings.KartographerGridSize, 0, 3);
             
             // Row from top (0 = north pole)
-            // Base position is Jumbo's row (2), slider offsets from there
-            // Slider: -2 to +2 steps, each step = 1 parallel
-            // -2 = 2 steps toward equator (down), +2 = 2 steps toward pole (up)
-            int baseRow = 2; // Jumbo position as default
-            int rowOffset = StarfieldSettings.KartographerSituationDisplayRowOffset;
-            int rowFromTop = Mathf.Clamp(baseRow - rowOffset, 0, 15); // Clamp to valid range
+            // Base position is row 2, slider offsets from there
+            int baseRow = 2;
+            int rowOffset = StarfieldSettings.KartographerSituationRowOffset[preset];
+            int rowFromTop = Mathf.Clamp(baseRow - rowOffset, 0, 15);
             
-            // Get number of parallels for this preset
-            int[] gridParallels = { 5, 8, 10, 15 };
-            int numLat = gridParallels[preset];
-            int numLong = new int[] { 8, 12, 16, 24 }[preset];
+            // Get grid dimensions
+            int[] gridMeridians = { 8, 12, 16, 24 };
+            int numLong = gridMeridians[preset];
             
-            // Calculate latitude (from top pole)
-            float phi = (rowFromTop + 0.5f) * (Mathf.PI / numLat);
-            float latitude = 90f - (phi * Mathf.Rad2Deg); // Convert to degrees (0 at equator)
+            // Get discrete rotation step (0 to numLong-1)
+            int rotationStep = StarfieldSettings.KartographerSituationRotationStep[preset] % numLong;
+            int oppositeStep = (rotationStep + numLong / 2) % numLong;
             
-            // Get rotation from slider (0-1 maps to full 360°)
-            float rotation = StarfieldSettings.KartographerSituationDisplayRotation;
-            int baseLonCell = Mathf.RoundToInt(rotation * numLong) % numLong;
-            int oppositeLonCell = (baseLonCell + numLong / 2) % numLong;
-            
-            // Calculate longitudes
-            float thetaStep = 360f / numLong;
-            float longitudeA = -180f + (baseLonCell + 0.5f) * thetaStep;
-            float longitudeB = -180f + (oppositeLonCell + 0.5f) * thetaStep;
-            
-            // Update labels if position changed
-            if (!Mathf.Approximately(labelA.Latitude, latitude) ||
-                !Mathf.Approximately(labelA.Longitude, longitudeA))
+            // Update label A if position changed
+            if (labelA.GridCellRow != rowFromTop || labelA.GridCellCol != rotationStep)
             {
-                labelA.Latitude = latitude;
-                labelA.Longitude = longitudeA;
+                labelA.GridCellRow = rowFromTop;
+                labelA.GridCellCol = rotationStep;
                 labelA.PositionDirty = true;
             }
             
-            if (!Mathf.Approximately(labelB.Latitude, latitude) ||
-                !Mathf.Approximately(labelB.Longitude, longitudeB))
+            // Update label B if position changed
+            if (labelB.GridCellRow != rowFromTop || labelB.GridCellCol != oppositeStep)
             {
-                labelB.Latitude = latitude;
-                labelB.Longitude = longitudeB;
+                labelB.GridCellRow = rowFromTop;
+                labelB.GridCellCol = oppositeStep;
                 labelB.PositionDirty = true;
             }
         }

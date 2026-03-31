@@ -59,8 +59,9 @@ namespace CinematicShaders.Core
         public static bool KartographerMouseHoverSelect { get; set; } = false;  // Enable mouse hover selection
         public static bool KartographerVesselTargetSelect { get; set; } = false;  // Show vessel target indicator
         public static bool KartographerSituationDisplay { get; set; } = false;  // Show situation info display
-        public static float KartographerSituationDisplayRotation { get; set; } = 0.0f;  // 0-1, position of dual-sided situation display
-        public static int KartographerSituationDisplayRowOffset { get; set; } = 0;  // -2 to +2, offset from Jumbo position (row 2)
+        // Per-grid-size settings for situation display [0=Jumbo, 1=Large, 2=Medium, 3=Small]
+        public static int[] KartographerSituationRowOffset { get; set; } = new int[4] { 0, 0, 0, 0 };  // -2 to +2 per preset
+        public static int[] KartographerSituationRotationStep { get; set; } = new int[4] { 0, 0, 0, 0 };  // 0 to numMeridians-1 per preset
         
         // Kartographer visual parameters
         public static float KartographerGridIntensity { get; set; } = 0.002f;      // Range: 0.001-0.003
@@ -238,8 +239,16 @@ namespace CinematicShaders.Core
                 KartographerMouseHoverSelect = bool.Parse(settingsNode.GetValue("KartographerMouseHoverSelect") ?? "false");
                 KartographerVesselTargetSelect = bool.Parse(settingsNode.GetValue("KartographerVesselTargetSelect") ?? "false");
                 KartographerSituationDisplay = bool.Parse(settingsNode.GetValue("KartographerSituationDisplay") ?? "false");
-                KartographerSituationDisplayRotation = float.Parse(settingsNode.GetValue("KartographerSituationDisplayRotation") ?? "0.0");
-                KartographerSituationDisplayRowOffset = int.Parse(settingsNode.GetValue("KartographerSituationDisplayRowOffset") ?? "0");
+                // Load per-grid-size arrays (format: "0,0,0,0" for 4 presets)
+                string rowOffsetStr = settingsNode.GetValue("KartographerSituationRowOffset") ?? "0,0,0,0";
+                string[] rowOffsetParts = rowOffsetStr.Split(',');
+                for (int i = 0; i < 4 && i < rowOffsetParts.Length; i++)
+                    KartographerSituationRowOffset[i] = int.Parse(rowOffsetParts[i]);
+                
+                string rotationStepStr = settingsNode.GetValue("KartographerSituationRotationStep") ?? "0,0,0,0";
+                string[] rotationStepParts = rotationStepStr.Split(',');
+                for (int i = 0; i < 4 && i < rotationStepParts.Length; i++)
+                    KartographerSituationRotationStep[i] = int.Parse(rotationStepParts[i]);
                 KartographerGridIntensity = float.Parse(settingsNode.GetValue("KartographerGridIntensity") ?? "0.002");
                 KartographerGridThickness = float.Parse(settingsNode.GetValue("KartographerGridThickness") ?? "0.0003");
                 // KartographerCAStrength is hard-coded, no longer loaded from config
@@ -556,8 +565,11 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("KartographerMouseHoverSelect", KartographerMouseHoverSelect);
                 settingsNode.AddValue("KartographerVesselTargetSelect", KartographerVesselTargetSelect);
                 settingsNode.AddValue("KartographerSituationDisplay", KartographerSituationDisplay);
-                settingsNode.AddValue("KartographerSituationDisplayRotation", KartographerSituationDisplayRotation);
-                settingsNode.AddValue("KartographerSituationDisplayRowOffset", KartographerSituationDisplayRowOffset);
+                // Save per-grid-size arrays as comma-separated values
+                settingsNode.AddValue("KartographerSituationRowOffset", 
+                    string.Join(",", KartographerSituationRowOffset));
+                settingsNode.AddValue("KartographerSituationRotationStep", 
+                    string.Join(",", KartographerSituationRotationStep));
                 settingsNode.AddValue("KartographerGridIntensity", KartographerGridIntensity);
                 settingsNode.AddValue("KartographerGridThickness", KartographerGridThickness);
                 // KartographerCAStrength is hard-coded, no longer saved to config

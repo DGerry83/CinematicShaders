@@ -172,24 +172,31 @@ namespace CinematicShaders.UI.Tabs
             
             if (StarfieldSettings.KartographerSituationDisplay)
             {
-                GUILayout.Label($"Display Position: {StarfieldSettings.KartographerSituationDisplayRotation:F2}");
-                float newRotation = GUILayout.HorizontalSlider(StarfieldSettings.KartographerSituationDisplayRotation, 0f, 1f);
-                if (!Mathf.Approximately(newRotation, StarfieldSettings.KartographerSituationDisplayRotation))
+                int gridSize = Mathf.Clamp(StarfieldSettings.KartographerGridSize, 0, 3);
+                int[] meridians = { 8, 12, 16, 24 };
+                int numSteps = meridians[gridSize];
+                
+                // Rotation: discrete steps 0 to numMeridians-1
+                int currentStep = StarfieldSettings.KartographerSituationRotationStep[gridSize];
+                GUILayout.Label($"Rotation Step: {currentStep + 1} / {numSteps}");
+                int newStep = Mathf.RoundToInt(GUILayout.HorizontalSlider(currentStep, 0, numSteps - 1));
+                if (newStep != currentStep)
                 {
-                    StarfieldSettings.KartographerSituationDisplayRotation = newRotation;
+                    StarfieldSettings.KartographerSituationRotationStep[gridSize] = newStep;
                     StarfieldSettings.Save();
                 }
                 
-                // Row offset: -2 to +2 steps from Jumbo position (row 2)
+                // Row offset: -2 to +2 steps from base position (row 2)
                 // Negative = toward equator (down), Positive = toward pole (up)
                 string[] rowLabels = { "+2 (Up)", "+1", "0 (Default)", "-1", "-2 (Down)" };
-                int sliderIndex = StarfieldSettings.KartographerSituationDisplayRowOffset + 2; // Convert -2..2 to 0..4
+                int currentOffset = StarfieldSettings.KartographerSituationRowOffset[gridSize];
+                int sliderIndex = currentOffset + 2; // Convert -2..2 to 0..4
                 GUILayout.Label($"Display Height: {rowLabels[sliderIndex]}");
                 int newSliderIndex = Mathf.RoundToInt(GUILayout.HorizontalSlider(sliderIndex, 0, 4));
                 int newRowOffset = newSliderIndex - 2; // Convert 0..4 back to -2..2
-                if (newRowOffset != StarfieldSettings.KartographerSituationDisplayRowOffset)
+                if (newRowOffset != currentOffset)
                 {
-                    StarfieldSettings.KartographerSituationDisplayRowOffset = newRowOffset;
+                    StarfieldSettings.KartographerSituationRowOffset[gridSize] = newRowOffset;
                     StarfieldSettings.Save();
                 }
             }

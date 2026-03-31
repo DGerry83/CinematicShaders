@@ -371,9 +371,9 @@ namespace CinematicShaders.Core
             int latCell = numLat / 2 + 2;
             latCell = Mathf.Min(latCell, numLat - 1);
 
-            // Rotation offset (0-1 range, maps to meridian cells)
-            float rotationOffset = StarfieldSettings.KartographerSituationDisplayRotation;
-            int lonCell1 = Mathf.RoundToInt(rotationOffset * numLong) % numLong;
+            // Rotation step (0 to numLong-1, discrete meridian alignment)
+            int rotationStep = StarfieldSettings.KartographerSituationRotationStep[preset] % numLong;
+            int lonCell1 = rotationStep;
             int lonCell2 = (lonCell1 + numLong / 2) % numLong; // Opposite side
 
             // Calculate spherical coordinates
@@ -436,10 +436,29 @@ namespace CinematicShaders.Core
 
         /// <summary>
         /// Update text texture - matches KartographerSelector implementation
+        /// Clears texture during Circle phase, renders during Box phase and later
         /// </summary>
         private void UpdateTextTexture()
         {
-            if (_textSystem == IntPtr.Zero || string.IsNullOrEmpty(_currentDisplayText)) return;
+            if (_textSystem == IntPtr.Zero) return;
+            
+            // During Circle phase: clear texture and don't render anything
+            // This prevents old text from flashing briefly when acquiring a new target
+            if (_targetAnimationPhase == TargetAnimationPhase.Circle)
+            {
+                if (_textTexture != null)
+                {
+                    RenderTexture.active = _textTexture;
+                    GL.Clear(true, true, Color.clear);
+                    RenderTexture.active = null;
+                }
+                _textWidthPixels = 0;
+                _textHeightPixels = 0;
+                return;
+            }
+            
+            // During Box phase and later: render text (even if just cursor)
+            if (string.IsNullOrEmpty(_currentDisplayText)) return;
 
             uint color = 0xFFFFFFFF; // White ARGB
             int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, _currentDisplayText, FONT_SIZE, color);
