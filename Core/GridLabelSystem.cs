@@ -671,7 +671,7 @@ namespace CinematicShaders.Core
                 {
                     case 0: // Jumbo
                         label.RotationDegrees = 0f;
-                        label.PaddingLeft = 0.05f;
+                        label.PaddingLeft = 0.09f;
                         label.PaddingBottom = 0.05f;
                         label.FontSizePixels = 20f;
                         break;

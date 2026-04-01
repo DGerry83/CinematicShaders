@@ -170,6 +170,10 @@ namespace CinematicShaders.UI.Tabs
                 StarfieldSettings.Save();
             }
             
+            // FINE-TUNING SLIDERS DISABLED - Defaults are now tuned per preset
+            // Settings remain functional for future label placement adjustment
+            // To re-enable, uncomment the block below:
+            /*
             if (StarfieldSettings.KartographerSituationDisplay)
             {
                 int gridSize = Mathf.Clamp(StarfieldSettings.KartographerGridSize, 0, 3);
@@ -186,20 +190,20 @@ namespace CinematicShaders.UI.Tabs
                     StarfieldSettings.Save();
                 }
                 
-                // Row offset: -2 to +2 steps from base position (row 2)
-                // Negative = toward equator (down), Positive = toward pole (up)
+                // Row offset: -2 to +2 steps from base position
                 string[] rowLabels = { "+2 (Up)", "+1", "0 (Default)", "-1", "-2 (Down)" };
                 int currentOffset = StarfieldSettings.KartographerSituationRowOffset[gridSize];
-                int sliderIndex = currentOffset + 2; // Convert -2..2 to 0..4
+                int sliderIndex = currentOffset + 2;
                 GUILayout.Label($"Display Height: {rowLabels[sliderIndex]}");
                 int newSliderIndex = Mathf.RoundToInt(GUILayout.HorizontalSlider(sliderIndex, 0, 4));
-                int newRowOffset = newSliderIndex - 2; // Convert 0..4 back to -2..2
+                int newRowOffset = newSliderIndex - 2;
                 if (newRowOffset != currentOffset)
                 {
                     StarfieldSettings.KartographerSituationRowOffset[gridSize] = newRowOffset;
                     StarfieldSettings.Save();
                 }
             }
+            */
             
             GUILayout.Space(5);
 
