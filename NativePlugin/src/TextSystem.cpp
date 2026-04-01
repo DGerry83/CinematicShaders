@@ -408,7 +408,6 @@ void TextSystem::MeasureString(const char* text, float fontSize, float& outWidth
     outHeight = 0.0f;
     
     if (!m_initialized || !text) {
-        LogToFile("[MeasureString] Not initialized or null text");
         return;
     }
     
@@ -423,11 +422,9 @@ void TextSystem::MeasureString(const char* text, float fontSize, float& outWidth
     float maxWidth = 0.0f;
     float currentLineWidth = 0.0f;
     int lineCount = 1;
-    int charCount = 0;
     
     for (const char* p = text; *p; ++p) {
         int codepoint = static_cast<unsigned char>(*p);
-        charCount++;
         
         // Handle escape sequence: ^| -> U+258C LEFT HALF BLOCK
         if (codepoint == '^' && *(p+1) == '|') {
@@ -441,12 +438,8 @@ void TextSystem::MeasureString(const char* text, float fontSize, float& outWidth
             lineCount++;
         } else if (codepoint == 0x258C) {
             // Cursor glyph - use approximate advance (it's a half block)
-            currentLineWidth += fontPx * 0.5f;  // Half width of a typical character
+            currentLineWidth += fontPx * 0.5f;
         } else {
-            // Compute metrics directly from the font at the requested scale.
-            // Do NOT use PackGlyph/m_glyphCache here — those are atlas-specific
-            // and keyed only by codepoint, so they would return stale advances
-            // when the font size changes between MeasureString and LayoutStringEx.
             int glyphIndex = stbtt_FindGlyphIndex(m_fontInfo, codepoint);
             int advance = 0, leftBearing = 0;
             stbtt_GetGlyphHMetrics(m_fontInfo, glyphIndex, &advance, &leftBearing);
@@ -461,9 +454,6 @@ void TextSystem::MeasureString(const char* text, float fontSize, float& outWidth
     
     outWidth = maxWidth;
     outHeight = lineCount * lineHeight;
-    
-    LogToFile("[MeasureString] '%s' font=%d chars=%d scale=%.4f -> width=%.1f", 
-              text, fontPx, charCount, m_fontScale, outWidth);
     
     // Restore old scale
     m_fontScale = oldScale;
@@ -692,7 +682,6 @@ void CR_TextMeasure(TextSystemHandle handle, const char* text, float fontSize, f
     }
     TextSystem* ts = static_cast<TextSystem*>(handle);
     ts->MeasureString(text, fontSize, *outWidth, *outHeight);
-    LogToFile("[TextMeasure] Input: '%s' font=%.1f -> width=%.1f", text ? text : "(null)", fontSize, *outWidth);
 }
 
 ID3D11ShaderResourceView* CR_TextGetAtlasSRV(TextSystemHandle handle) {

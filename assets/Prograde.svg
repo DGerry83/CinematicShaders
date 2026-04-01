@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 128 128" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;">
+    <g transform="matrix(1,0,0,1,0,-161)">
+        <g id="Prograde" transform="matrix(0.948148,0,0,1.28,-382.104,114.92)">
+            <rect x="403" y="36" width="135" height="100" style="fill:none;"/>
+            <g transform="matrix(1.22222,0,0,1.22222,-103.266,-21.9757)">
+                <g transform="matrix(6.4581e-17,0.78125,-1.05469,4.78378e-17,469.234,88.3438)">
+                    <circle cx="0" cy="0" r="22.5" style="fill:none;stroke:white;stroke-width:4.09px;"/>
+                </g>
+                <g transform="matrix(1.05469,0,0,1.17188,389.289,-105.016)">
+                    <rect x="31" y="163" width="21" height="4" style="fill:white;"/>
+                </g>
+                <g transform="matrix(1.05469,0,0,1.17188,462.062,-105.016)">
+                    <rect x="31" y="163" width="21" height="4" style="fill:white;"/>
+                </g>
+                <g transform="matrix(6.4581e-17,-0.78125,1.58203,7.17566e-17,208.41,93.8125)">
+                    <rect x="31" y="163" width="21" height="4" style="fill:white;"/>
+                </g>
+                <g transform="matrix(6.4581e-17,0.78125,-1.05469,4.78378e-17,469.445,88.3438)">
+                    <circle cx="0" cy="0" r="3" style="fill:white;"/>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

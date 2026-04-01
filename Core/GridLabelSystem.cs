@@ -704,11 +704,11 @@ namespace CinematicShaders.Core
                         label.PaddingBottom = 0.06f;
                         label.FontSizePixels = 24f;
                         break;
-                    case 3: // Small
+                    case 3: // Small - reduced font size to ensure numbers fit in texture
                         label.RotationDegrees = -0.3f;
                         label.PaddingLeft = 0.25f;
                         label.PaddingBottom = 0.12f;
-                        label.FontSizePixels = 36f;
+                        label.FontSizePixels = 34f;
                         break;
                 }
             }
@@ -805,10 +805,7 @@ namespace CinematicShaders.Core
             {
                 // Single-pass rendering with per-line overflow detection
                 float vPadding = 2.0f;
-                const float MAX_WIDTH = 230f; // 90% of 256px texture
-                
-                // Debug logging frame counter
-                bool shouldLog = (s_measureFrameCounter++ % 30 == 0) && label.Id.StartsWith("situation");
+                const float MAX_WIDTH = 250f; // Allow up to 250px (minimal margin for monospace font)
                 
                 // Build display text with per-line compression based on actual measured width
                 string[] lines = label.Text.Split('\n');
@@ -819,22 +816,15 @@ namespace CinematicShaders.Core
                 {
                     string processedLine = line;
                     
-                    // Measure this specific line using CR_TextMeasure (more accurate than layout+bounds)
+                    // Measure this specific line using CR_TextMeasure
                     StarfieldNative.CR_TextMeasure(_textSystem, line, label.FontSizePixels, out float lineWidth, out float lineHeight);
-                    
-                    if (shouldLog)
-                    {
-                        Debug.Log($"[GridLabelMeasure] '{label.Id}' line '{line.Substring(0, Mathf.Min(line.Length, 20))}' width={lineWidth:F1}px (max={MAX_WIDTH})");
-                    }
                     
                     // If line is too wide, try compressing it
                     if (lineWidth > MAX_WIDTH)
                     {
-                        if (shouldLog) Debug.Log($"[GridLabelMeasure] '{label.Id}' line OVERFLOW, attempting compression");
                         string compressed = TryCompressLine(line, MAX_WIDTH, label.FontSizePixels, color);
                         if (compressed != line)
                         {
-                            if (shouldLog) Debug.Log($"[GridLabelMeasure] '{label.Id}' compressed to '{compressed.Substring(0, Mathf.Min(compressed.Length, 20))}'");
                             processedLine = compressed;
                             anyCompressed = true;
                         }
@@ -848,11 +838,6 @@ namespace CinematicShaders.Core
                 // Final layout with compressed text
                 int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, displayText, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing);
                 StarfieldNative.CR_TextGetBounds(_textSystem, out boundsWidth, out boundsHeight);
-                
-                if (shouldLog)
-                {
-                    Debug.Log($"[GridLabelMeasure] '{label.Id}' FINAL bounds={boundsWidth:F1}x{boundsHeight:F1}px");
-                }
                 
                 // Re-layout with correct origin for final render
                 float originY = TEXTURE_SIZE - boundsHeight - vPadding;
@@ -1165,28 +1150,18 @@ namespace CinematicShaders.Core
         /// </summary>
         private string TryCompressLine(string line, float maxWidth, float fontSize, uint color)
         {
-            // Debug logging
-            bool shouldLog = (s_measureFrameCounter % 30 == 0);
-            if (shouldLog) Debug.Log($"[Compress] Input: '{line}' max={maxWidth}px");
-            
             // Try M→KM
             string compressed = ConvertLineUnit(line, 1e3, "KM");
-            if (shouldLog) Debug.Log($"[Compress] M→KM: '{compressed}' changed={compressed != line}");
-            
             if (compressed != line)
             {
                 StarfieldNative.CR_TextMeasure(_textSystem, compressed, fontSize, out float w, out float h);
-                if (shouldLog) Debug.Log($"[Compress] KM width: {w:F1}px");
                 if (w <= maxWidth) return compressed;
                 
                 // Still too wide? Try KM→MM
                 string compressed2 = ConvertLineUnit(compressed, 1e6, "MM");
-                if (shouldLog) Debug.Log($"[Compress] KM→MM: '{compressed2}' changed={compressed2 != compressed}");
-                
                 if (compressed2 != compressed)
                 {
                     StarfieldNative.CR_TextMeasure(_textSystem, compressed2, fontSize, out float w2, out float h2);
-                    if (shouldLog) Debug.Log($"[Compress] MM width: {w2:F1}px");
                     if (w2 <= maxWidth) return compressed2;
                     
                     // Still too wide? Try MM→GM
@@ -1207,7 +1182,6 @@ namespace CinematicShaders.Core
                 }
             }
             
-            if (shouldLog) Debug.Log($"[Compress] FAILED - returning original");
             return line; // Could not compress to fit
         }
         

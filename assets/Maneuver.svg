@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 128 128" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <g id="Maneuver" transform="matrix(0.948148,0,0,1.28,-382.104,-46.08)">
+        <rect x="403" y="36" width="135" height="100" style="fill:none;"/>
+        <g id="Maneuver1" serif:id="Maneuver" transform="matrix(0.916193,0,0,0.78125,361.665,57.0938)">
+            <g>
+                <g transform="matrix(1.15116,0,0,1,-70,-36)">
+                    <rect x="163.112" y="40" width="2" height="21" style="fill:white;"/>
+                </g>
+                <g transform="matrix(1.15116,0,0,1,-69.8707,-36.1123)">
+                    <rect x="142" y="37.112" width="44" height="4.888" style="fill:white;"/>
+                </g>
+            </g>
+            <g transform="matrix(-0.5,0.752305,-0.996936,-0.5,215.267,-33.9641)">
+                <g transform="matrix(1.15116,-5.55112e-17,0,1,-70,-36)">
+                    <rect x="163.112" y="40" width="2" height="21" style="fill:white;"/>
+                </g>
+                <g transform="matrix(1.15116,-5.55112e-17,0,1,-69.8707,-36.1123)">
+                    <rect x="142" y="37.187" width="44" height="4.813" style="fill:white;"/>
+                </g>
+            </g>
+            <g transform="matrix(-0.5,-0.752305,0.996936,-0.5,141.493,144.964)">
+                <g transform="matrix(1.15116,5.55112e-17,0,1,-70,-36)">
+                    <rect x="163.112" y="40" width="2" height="21" style="fill:white;"/>
+                </g>
+                <g transform="matrix(1.15116,5.55112e-17,0,1,-69.8707,-36.1123)">
+                    <rect x="142" y="37.187" width="44" height="4.813" style="fill:white;"/>
+                </g>
+            </g>
+            <g transform="matrix(7.04884e-17,1,-1.15116,6.12323e-17,118.92,37.5036)">
+                <circle cx="0" cy="0" r="3" style="fill:white;"/>
+            </g>
+        </g>
+    </g>
+</svg>
