@@ -197,10 +197,11 @@ namespace CinematicShaders.Core
             // Update animation state
             _animController.Update(Time.deltaTime);
             
-            // CRITICAL: Set text content when transitioning from Box to Text phase
+            // CRITICAL: Set text content when entering Text phase
             // This prevents text from appearing during Circle/Box phases
-            if (prevPhase == TypeOnAnimationController.Phase.Box && 
-                _animController.CurrentPhase == TypeOnAnimationController.Phase.Text)
+            // Note: Box phase transitions instantly, so we check "entered Text" not "from Box"
+            if (prevPhase < TypeOnAnimationController.Phase.Text && 
+                _animController.CurrentPhase >= TypeOnAnimationController.Phase.Text)
             {
                 string targetText = BuildTargetText(_currentTarget);
                 _animController.SetFullText(targetText);
