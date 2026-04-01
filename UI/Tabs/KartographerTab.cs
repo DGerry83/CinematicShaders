@@ -207,6 +207,11 @@ namespace CinematicShaders.UI.Tabs
             
             GUILayout.Space(5);
 
+            // Grid Color dropdown
+            DrawColorDropdown();
+
+            GUILayout.Space(5);
+
             // Grid Size: 0-3 (Jumbo, Large, Medium, Small), default 2 (Medium)
             // Note: Tiny (4) is available in code but disabled in UI - too dense for labels
             GUILayout.Label(new GUIContent($"Grid Size: {GetGridSizeLabel(StarfieldSettings.KartographerGridSize)}",
@@ -238,10 +243,11 @@ namespace CinematicShaders.UI.Tabs
                 StarfieldSettings.Save();
             }
 
-            // Grid Thickness: display 0-10, internal 0-0.0009 (default display ~3.3)
+            // Grid Softness: display 0-10, internal 0-0.0009 (default display ~3.3)
+            // Note: Higher value = softer/thicker lines, Lower = sharper/thinner
             float displayThickness = ThicknessToDisplay(StarfieldSettings.KartographerGridThickness);
-            GUILayout.Label(new GUIContent($"Grid Thickness: {displayThickness:F1}", 
-                "Thickness of the grid lines (lower = sharper)"));
+            GUILayout.Label(new GUIContent($"Grid Softness: {displayThickness:F1}", 
+                "Softness of the grid lines (higher = softer, lower = sharper)"));
             float newDisplayThickness = GUILayout.HorizontalSlider(displayThickness, 0f, 10f);
             if (!Mathf.Approximately(newDisplayThickness, displayThickness))
             {
@@ -249,9 +255,6 @@ namespace CinematicShaders.UI.Tabs
                 PushKartographerParams();
                 StarfieldSettings.Save();
             }
-
-            // Grid Color dropdown
-            DrawColorDropdown();
 
             GUILayout.Space(5);
             GUILayout.Label("<b>Vignette Settings</b>", HighLogic.Skin.label);
@@ -289,6 +292,7 @@ namespace CinematicShaders.UI.Tabs
                 StarfieldSettings.Save();
             }
 
+            /* GRID ORIENTATION SLIDERS DISABLED - Code preserved for future use
             GUILayout.Space(5);
             GUILayout.Label("<b>Grid Orientation</b>", HighLogic.Skin.label);
 
@@ -315,6 +319,7 @@ namespace CinematicShaders.UI.Tabs
                 PushKartographerParams();
                 StarfieldSettings.Save();
             }
+            */
 
             // Reset button
             GUILayout.Space(10);
@@ -323,6 +328,7 @@ namespace CinematicShaders.UI.Tabs
                 ResetToDefaults();
             }
 
+            /* DEBUG UI DISABLED - Methods preserved for future use
             // Debug buttons
             GUILayout.Space(10);
             GUILayout.Label("<b>Debug</b>", HighLogic.Skin.label);
@@ -401,6 +407,7 @@ namespace CinematicShaders.UI.Tabs
                     }
                 }
             }
+            */
 
             GUILayout.EndVertical();
         }
