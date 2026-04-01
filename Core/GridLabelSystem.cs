@@ -817,11 +817,12 @@ namespace CinematicShaders.Core
                 // Get actual rendered bounds
                 StarfieldNative.CR_TextGetBounds(_textSystem, out boundsWidth, out boundsHeight);
                 
-                // If too wide, try progressively compressing the format
+                // If too wide, try selectively compressing only lines with large values
+                // Only convert M→KM if value >= 100000 (5+ digits), KM→MM if >= 100000 KM, etc.
                 if (boundsWidth > MAX_WIDTH && label.Text.Contains(" M"))
                 {
-                    // Try KM format (divide by 1000)
-                    string compressed = CompressDistanceUnits(label.Text, 1e3, "KM");
+                    // Try KM format only for lines with values >= 100000 (5+ digits)
+                    string compressed = CompressDistanceUnits(label.Text, 1e3, "KM", 1e5);
                     if (compressed != displayText)
                     {
                         int g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, compressed, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing);
@@ -839,8 +840,8 @@ namespace CinematicShaders.Core
                 
                 if (boundsWidth > MAX_WIDTH && displayText.Contains(" KM"))
                 {
-                    // Try MM format (divide by 1,000,000)
-                    string compressed = CompressDistanceUnits(displayText, 1e6, "MM");
+                    // Try MM format only for lines with values >= 100000 KM
+                    string compressed = CompressDistanceUnits(displayText, 1e6, "MM", 1e5);
                     if (compressed != displayText)
                     {
                         int g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, compressed, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing);
@@ -1163,82 +1164,56 @@ namespace CinematicShaders.Core
         
         /// <summary>
         /// Compresses distance values in text by converting to larger units.
-        /// Looks for patterns like "12345.6 M" and converts to "12.3 KM" etc.
+        /// Only converts lines where the numeric value >= threshold.
+        /// Looks for patterns like "ALT: 12345.6 M" and converts to "12.3 KM" etc.
         /// </summary>
-        private string CompressDistanceUnits(string text, double divisor, string newUnit)
+        private string CompressDistanceUnits(string text, double divisor, string newUnit, double threshold)
         {
             var result = new System.Text.StringBuilder();
             var lines = text.Split('\n');
             
-            foreach (var line in lines)
+            for (int i = 0; i < lines.Length; i++)
             {
+                var line = lines[i];
+                bool converted = false;
+                
                 // Look for patterns like "ALT: 12345.6 M" or "A/P: 1234567.8 KM"
                 int colonIdx = line.IndexOf(':');
-                if (colonIdx > 0 && line.EndsWith(" M"))
+                if (colonIdx > 0)
                 {
                     string prefix = line.Substring(0, colonIdx + 1);
                     string numberPart = line.Substring(colonIdx + 1).Trim();
                     
-                    // Remove "M" suffix and parse
-                    if (numberPart.EndsWith(" M"))
-                    {
-                        numberPart = numberPart.Substring(0, numberPart.Length - 2).Trim();
-                        if (double.TryParse(numberPart, System.Globalization.NumberStyles.Any, 
-                            System.Globalization.CultureInfo.InvariantCulture, out double value))
-                        {
-                            double newValue = value / divisor;
-                            string formatted;
-                            if (newValue >= 100) formatted = $"{newValue:F0}";
-                            else if (newValue >= 10) formatted = $"{newValue:F1}";
-                            else formatted = $"{newValue:F2}";
-                            result.Append(prefix).Append(' ').Append(formatted).Append(' ').Append(newUnit);
-                        }
-                        else
-                        {
-                            result.Append(line);
-                        }
-                    }
-                    else
-                    {
-                        result.Append(line);
-                    }
-                }
-                else if (colonIdx > 0 && line.EndsWith(" KM") && divisor >= 1e6)
-                {
-                    // Converting KM to MM/GM/TM
-                    string prefix = line.Substring(0, colonIdx + 1);
-                    string numberPart = line.Substring(colonIdx + 1).Trim();
+                    // Check if it ends with current unit (M or KM)
+                    string currentUnit = divisor == 1e3 ? " M" : (divisor == 1e6 ? " KM" : "");
                     
-                    if (numberPart.EndsWith(" KM"))
+                    if (!string.IsNullOrEmpty(currentUnit) && numberPart.EndsWith(currentUnit))
                     {
-                        numberPart = numberPart.Substring(0, numberPart.Length - 3).Trim();
-                        if (double.TryParse(numberPart, System.Globalization.NumberStyles.Any,
+                        string numStr = numberPart.Substring(0, numberPart.Length - currentUnit.Length).Trim();
+                        if (double.TryParse(numStr, System.Globalization.NumberStyles.Any, 
                             System.Globalization.CultureInfo.InvariantCulture, out double value))
                         {
-                            // KM to M first, then divide
-                            double newValue = (value * 1000) / divisor;
-                            string formatted;
-                            if (newValue >= 100) formatted = $"{newValue:F0}";
-                            else if (newValue >= 10) formatted = $"{newValue:F1}";
-                            else formatted = $"{newValue:F2}";
-                            result.Append(prefix).Append(' ').Append(formatted).Append(' ').Append(newUnit);
+                            // Only convert if value meets threshold
+                            if (value >= threshold)
+                            {
+                                double newValue = value / divisor;
+                                string formatted;
+                                if (newValue >= 100) formatted = $"{newValue:F0}";
+                                else if (newValue >= 10) formatted = $"{newValue:F1}";
+                                else formatted = $"{newValue:F2}";
+                                result.Append(prefix).Append(' ').Append(formatted).Append(' ').Append(newUnit);
+                                converted = true;
+                            }
                         }
-                        else
-                        {
-                            result.Append(line);
-                        }
-                    }
-                    else
-                    {
-                        result.Append(line);
                     }
                 }
-                else
+                
+                if (!converted)
                 {
                     result.Append(line);
                 }
                 
-                if (line != lines[lines.Length - 1])
+                if (i < lines.Length - 1)
                     result.Append('\n');
             }
             
