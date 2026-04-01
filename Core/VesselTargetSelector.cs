@@ -271,12 +271,30 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
-        /// Sanitize text to remove non-printable characters
+        /// Sanitize text to remove non-printable characters and KSP rich text tags
         /// </summary>
         private string SanitizeText(string input)
         {
             if (string.IsNullOrEmpty(input)) return "";
-            return new string(input.Where(c => c >= 32 && c < 127).ToArray());
+            
+            // First pass: remove control characters (0-31 and 127+)
+            string clean = new string(input.Where(c => c >= 32 && c < 127).ToArray());
+            
+            // Second pass: remove KSP color tags like "^N" (caret notation for control chars)
+            // KSP uses ^ followed by a letter to encode colors in display names
+            var sb = new System.Text.StringBuilder(clean.Length);
+            for (int i = 0; i < clean.Length; i++)
+            {
+                // Skip caret+letter sequences (KSP color codes)
+                if (clean[i] == '^' && i + 1 < clean.Length && char.IsLetter(clean[i + 1]))
+                {
+                    i++; // Skip the letter too
+                    continue;
+                }
+                sb.Append(clean[i]);
+            }
+            
+            return sb.ToString().Trim();
         }
 
         /// <summary>
