@@ -1627,22 +1627,12 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
             LogToFile("[Text] No text texture SRV available (null), nothing bound to t2");
         }
         
-        // Bind grid label textures to slots t3-t14 (Phase 1: Use new slot state with isActive check)
-        static int frameCount = 0;
-        bool shouldLog = (frameCount++ % 30 == 0);
-        int activeLabelCount = 0;
+        // Bind grid label textures to slots t3-t14
         for (int i = 0; i < 12; i++) {
             const auto& slot = g_StarfieldState.gridLabelSlots[i];
             if (slot.isActive && slot.textureSRV) {
                 context->PSSetShaderResources(3 + i, 1, &slot.textureSRV);
-                activeLabelCount++;
-                if (shouldLog) {
-                    LogToFile("[KartographerRender] Binding slot %d to t%d (SRV=%p)", i, 3+i, slot.textureSRV);
-                }
             }
-        }
-        if (shouldLog) {
-            LogToFile("[KartographerRender] Total active labels: %d", activeLabelCount);
         }
         
         // Bind vessel target text texture to slot t15
@@ -2337,9 +2327,6 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
     g_StarfieldState.kartographerVesselTargetTextT = params->VesselTargetTextT;
     g_StarfieldState.kartographerAnimatedLabelIntensity = params->AnimatedLabelIntensity;
     
-    // Log enabled mask for debugging
-    LogToFile("[SetKartographerParams] GridLabelEnabledMask=0x%08X", params->GridLabelEnabledMask);
-    
     // Copy all 12 grid labels from params to state (extract from float4)
     g_StarfieldState.kartographerGridLabelEnabledMask = params->GridLabelEnabledMask;
     g_StarfieldState.kartographerGridLabelDebugMask = params->GridLabelDebugMask;
@@ -2792,7 +2779,7 @@ void CR_SetVesselTargetTextTexture(ID3D11Texture2D* texture)
 extern "C" __declspec(dllexport)
 void CR_SetGridLabelTexture(int slot, ID3D11Texture2D* texture)
 {
-    LogToFile("[GridLabel] SET_TEXTURE slot=%d, texture=%p", slot, texture);
+    // Set texture for grid label slot
     
     if (slot < 0 || slot >= 12) {
         LogToFile("[GridLabel]   -> INVALID SLOT %d", slot);
@@ -2818,15 +2805,15 @@ void CR_SetGridLabelTexture(int slot, ID3D11Texture2D* texture)
         srvDesc.Texture2D.MipLevels = 1;
         HRESULT hr = g_StarfieldState.device->CreateShaderResourceView(texture, &srvDesc, &slotState.textureSRV);
         if (FAILED(hr)) {
-            LogToFile("[GridLabel] FAILED: CreateShaderResourceView for slot %d returned 0x%08X", slot, hr);
+            // SRV creation failed
             slotState.isActive = false;
             return;
         }
         slotState.isActive = true;
-        LogToFile("[GridLabel]   -> SUCCESS slot=%d isActive=true, SRV=%p", slot, slotState.textureSRV);
+        // SRV created successfully
     } else {
         slotState.isActive = false;
-        LogToFile("[GridLabel]   -> CLEARED slot=%d (null texture or no device)", slot);
+        // Slot cleared
     }
 }
 
@@ -2837,7 +2824,7 @@ void CR_ClearGridLabelSlot(int slot)
         return;
     }
     
-    LogToFile("[GridLabel] CLEAR slot=%d", slot);
+    // Clear grid label slot
     
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     

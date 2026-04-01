@@ -87,6 +87,12 @@ namespace CinematicShaders.Core
         public float PaddingLeft = 0.12f;    // Fraction of WorldSizeX to nudge east
         public float PaddingBottom = 0.12f;  // Fraction of WorldSizeY to nudge north
         public float LineSpacing = 0f;       // Extra pixels between lines in texture
+        
+        // Fixed padding mode - uses absolute world-space offset instead of text-proportional padding
+        // This ensures consistent positioning regardless of text content changes
+        public bool UseFixedPadding = false; // When true, uses FixedPaddingLeft/Bottom as absolute offsets
+        public float FixedPaddingLeft = 0.05f;   // Absolute world-space offset east (when UseFixedPadding=true)
+        public float FixedPaddingBottom = 0.05f; // Absolute world-space offset north (when UseFixedPadding=true)
     }
 
     /// <summary>
@@ -255,7 +261,10 @@ namespace CinematicShaders.Core
                 RotationDegrees = 0f,
                 PaddingLeft = 0.1f,
                 PaddingBottom = 0.1f,
-                LineSpacing = 4f
+                LineSpacing = 4f,
+                UseFixedPadding = true,     // Fixed padding for consistent position regardless of text
+                FixedPaddingLeft = 0.05f,   // ~0.3 of default cell size (baseAngularSize ~0.15)
+                FixedPaddingBottom = 0.05f
             });
             
             RegisterLabel(new GridLabel
@@ -278,7 +287,10 @@ namespace CinematicShaders.Core
                 RotationDegrees = 0f,
                 PaddingLeft = 0.1f,
                 PaddingBottom = 0.1f,
-                LineSpacing = 4f
+                LineSpacing = 4f,
+                UseFixedPadding = true,     // Fixed padding for consistent position regardless of text
+                FixedPaddingLeft = 0.05f,   // ~0.3 of default cell size
+                FixedPaddingBottom = 0.05f
             });
         }
         
@@ -402,7 +414,7 @@ namespace CinematicShaders.Core
             
             // PHASE 3: Fixed slot management for labels 0-2, clear 3-11
             // Slots: 0=HUCK, 1=situation_a, 2=situation_b, 3-11=empty
-            Debug.Log($"[GridLabelSystem] UPDATE START - Clearing slots 3-{MAX_LABELS-1}");
+            // Clear unused slots
             for (int i = 3; i < MAX_LABELS; i++)
             {
                 StarfieldNative.CR_ClearGridLabelSlot(i);
@@ -835,7 +847,7 @@ namespace CinematicShaders.Core
             if (slot >= 0)
             {
                 StarfieldNative.CR_SetGridLabelTexture(slot, label.Texture.GetNativeTexturePtr());
-                Debug.Log($"[GridLabelSystem] SET TEXTURE for '{label.Text}' in slot {slot}, texturePtr={label.Texture.GetNativeTexturePtr()}");
+                // Texture bound to native slot
             }
         }
         
@@ -935,13 +947,13 @@ namespace CinematicShaders.Core
         {
             if (slot < 0 || slot >= MAX_LABELS) return;
             
-            Debug.Log($"[GridLabelSystem] PUSH LABEL slot={slot}, id='{label.Id}', text='{label.Text}', intensity={label.Intensity:F2}, pos=({label.WorldPosition.x:F2},{label.WorldPosition.y:F2},{label.WorldPosition.z:F2})");
+            // Push label data to native
             
             var nativeParams = StarfieldNative.LastKartographerParams;
             
             // Set enabled bit in mask
             nativeParams.GridLabelEnabledMask |= (1u << slot);
-            Debug.Log($"[GridLabelSystem]   -> Mask now = 0x{nativeParams.GridLabelEnabledMask:X4}");
+
             
             // Shader uses bottom-left corner anchoring (verified in KartographerPS.hlsl)
             // The label quad extends from the anchor point:
@@ -957,7 +969,9 @@ namespace CinematicShaders.Core
                 // Tangent points west (decreasing longitude), so positive tangent moves east (right on screen)
                 // Bitangent points north (toward pole), so positive bitangent moves north (up on screen)
                 // This creates space from the bottom-left corner of the cell
-                pos += tangent * (label.WorldSizeX * label.PaddingLeft) + bitangent * (label.WorldSizeY * label.PaddingBottom);
+                float padLeft = label.UseFixedPadding ? label.FixedPaddingLeft : label.WorldSizeX * label.PaddingLeft;
+                float padBottom = label.UseFixedPadding ? label.FixedPaddingBottom : label.WorldSizeY * label.PaddingBottom;
+                pos += tangent * padLeft + bitangent * padBottom;
                 
                 // Apply per-label rotation around the anchor corner
                 float angleRad = label.RotationDegrees * Mathf.Deg2Rad;
