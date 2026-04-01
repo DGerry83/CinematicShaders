@@ -408,6 +408,7 @@ void TextSystem::MeasureString(const char* text, float fontSize, float& outWidth
     outHeight = 0.0f;
     
     if (!m_initialized || !text) {
+        LogToFile("[MeasureString] Not initialized or null text");
         return;
     }
     
@@ -415,20 +416,18 @@ void TextSystem::MeasureString(const char* text, float fontSize, float& outWidth
     int fontPx = static_cast<int>(std::round(fontSize));
     
     // Need to ensure font is set up for metrics
-    if (fontPx != m_cachedFontPx) {
-        // Just set the scale temporarily for measurement
-        m_fontScale = stbtt_ScaleForPixelHeight(m_fontInfo, static_cast<float>(fontPx));
-    } else {
-        m_fontScale = stbtt_ScaleForPixelHeight(m_fontInfo, static_cast<float>(fontPx));
-    }
+    float oldScale = m_fontScale;
+    m_fontScale = stbtt_ScaleForPixelHeight(m_fontInfo, static_cast<float>(fontPx));
     
     float lineHeight = (m_ascent - m_descent + m_lineGap) * m_fontScale;
     float maxWidth = 0.0f;
     float currentLineWidth = 0.0f;
     int lineCount = 1;
+    int charCount = 0;
     
     for (const char* p = text; *p; ++p) {
         int codepoint = static_cast<unsigned char>(*p);
+        charCount++;
         
         // Handle escape sequence: ^| -> U+258C LEFT HALF BLOCK
         if (codepoint == '^' && *(p+1) == '|') {
@@ -462,6 +461,12 @@ void TextSystem::MeasureString(const char* text, float fontSize, float& outWidth
     
     outWidth = maxWidth;
     outHeight = lineCount * lineHeight;
+    
+    LogToFile("[MeasureString] '%s' font=%d chars=%d scale=%.4f -> width=%.1f", 
+              text, fontPx, charCount, m_fontScale, outWidth);
+    
+    // Restore old scale
+    m_fontScale = oldScale;
 }
 
 void TextSystem::ExportAtlasToFile(const char* filename) {
@@ -687,6 +692,7 @@ void CR_TextMeasure(TextSystemHandle handle, const char* text, float fontSize, f
     }
     TextSystem* ts = static_cast<TextSystem*>(handle);
     ts->MeasureString(text, fontSize, *outWidth, *outHeight);
+    LogToFile("[TextMeasure] Input: '%s' font=%.1f -> width=%.1f", text ? text : "(null)", fontSize, *outWidth);
 }
 
 ID3D11ShaderResourceView* CR_TextGetAtlasSRV(TextSystemHandle handle) {

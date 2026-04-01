@@ -819,28 +819,24 @@ namespace CinematicShaders.Core
                 {
                     string processedLine = line;
                     
-                    // Measure this specific line (use same line spacing as final render)
-                    int gc = StarfieldNative.CR_TextLayoutEx(_textSystem, line, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing);
-                    if (gc > 0)
+                    // Measure this specific line using CR_TextMeasure (more accurate than layout+bounds)
+                    StarfieldNative.CR_TextMeasure(_textSystem, line, label.FontSizePixels, out float lineWidth, out float lineHeight);
+                    
+                    if (shouldLog)
                     {
-                        StarfieldNative.CR_TextGetBounds(_textSystem, out float lineWidth, out float lineHeight);
-                        
-                        if (shouldLog)
+                        Debug.Log($"[GridLabelMeasure] '{label.Id}' line '{line.Substring(0, Mathf.Min(line.Length, 20))}' width={lineWidth:F1}px (max={MAX_WIDTH})");
+                    }
+                    
+                    // If line is too wide, try compressing it
+                    if (lineWidth > MAX_WIDTH)
+                    {
+                        if (shouldLog) Debug.Log($"[GridLabelMeasure] '{label.Id}' line OVERFLOW, attempting compression");
+                        string compressed = TryCompressLine(line, MAX_WIDTH, label.FontSizePixels, color);
+                        if (compressed != line)
                         {
-                            Debug.Log($"[GridLabelMeasure] '{label.Id}' line '{line.Substring(0, Mathf.Min(line.Length, 20))}' width={lineWidth:F1}px (max={MAX_WIDTH})");
-                        }
-                        
-                        // If line is too wide, try compressing it
-                        if (lineWidth > MAX_WIDTH)
-                        {
-                            if (shouldLog) Debug.Log($"[GridLabelMeasure] '{label.Id}' line OVERFLOW, attempting compression");
-                            string compressed = TryCompressLine(line, MAX_WIDTH, label.FontSizePixels, color);
-                            if (compressed != line)
-                            {
-                                if (shouldLog) Debug.Log($"[GridLabelMeasure] '{label.Id}' compressed to '{compressed.Substring(0, Mathf.Min(compressed.Length, 20))}'");
-                                processedLine = compressed;
-                                anyCompressed = true;
-                            }
+                            if (shouldLog) Debug.Log($"[GridLabelMeasure] '{label.Id}' compressed to '{compressed.Substring(0, Mathf.Min(compressed.Length, 20))}'");
+                            processedLine = compressed;
+                            anyCompressed = true;
                         }
                     }
                     
@@ -1169,54 +1165,49 @@ namespace CinematicShaders.Core
         /// </summary>
         private string TryCompressLine(string line, float maxWidth, float fontSize, uint color)
         {
+            // Debug logging
+            bool shouldLog = (s_measureFrameCounter % 30 == 0);
+            if (shouldLog) Debug.Log($"[Compress] Input: '{line}' max={maxWidth}px");
+            
             // Try M→KM
             string compressed = ConvertLineUnit(line, 1e3, "KM");
+            if (shouldLog) Debug.Log($"[Compress] M→KM: '{compressed}' changed={compressed != line}");
+            
             if (compressed != line)
             {
-                int gc = StarfieldNative.CR_TextLayoutEx(_textSystem, compressed, fontSize, color, 0.0f, TEXTURE_SIZE * 0.5f, 0f);
-                if (gc > 0)
-                {
-                    StarfieldNative.CR_TextGetBounds(_textSystem, out float w, out float h);
-                    if (w <= maxWidth) return compressed;
-                }
+                StarfieldNative.CR_TextMeasure(_textSystem, compressed, fontSize, out float w, out float h);
+                if (shouldLog) Debug.Log($"[Compress] KM width: {w:F1}px");
+                if (w <= maxWidth) return compressed;
                 
                 // Still too wide? Try KM→MM
                 string compressed2 = ConvertLineUnit(compressed, 1e6, "MM");
+                if (shouldLog) Debug.Log($"[Compress] KM→MM: '{compressed2}' changed={compressed2 != compressed}");
+                
                 if (compressed2 != compressed)
                 {
-                    gc = StarfieldNative.CR_TextLayoutEx(_textSystem, compressed2, fontSize, color, 0.0f, TEXTURE_SIZE * 0.5f, 0f);
-                    if (gc > 0)
-                    {
-                        StarfieldNative.CR_TextGetBounds(_textSystem, out float w2, out float h2);
-                        if (w2 <= maxWidth) return compressed2;
-                    }
+                    StarfieldNative.CR_TextMeasure(_textSystem, compressed2, fontSize, out float w2, out float h2);
+                    if (shouldLog) Debug.Log($"[Compress] MM width: {w2:F1}px");
+                    if (w2 <= maxWidth) return compressed2;
                     
                     // Still too wide? Try MM→GM
                     string compressed3 = ConvertLineUnit(compressed2, 1e9, "GM");
                     if (compressed3 != compressed2)
                     {
-                        gc = StarfieldNative.CR_TextLayoutEx(_textSystem, compressed3, fontSize, color, 0.0f, TEXTURE_SIZE * 0.5f, 0f);
-                        if (gc > 0)
-                        {
-                            StarfieldNative.CR_TextGetBounds(_textSystem, out float w3, out float h3);
-                            if (w3 <= maxWidth) return compressed3;
-                        }
+                        StarfieldNative.CR_TextMeasure(_textSystem, compressed3, fontSize, out float w3, out float h3);
+                        if (w3 <= maxWidth) return compressed3;
                         
                         // Still too wide? Try GM→TM
                         string compressed4 = ConvertLineUnit(compressed3, 1e12, "TM");
                         if (compressed4 != compressed3)
                         {
-                            gc = StarfieldNative.CR_TextLayoutEx(_textSystem, compressed4, fontSize, color, 0.0f, TEXTURE_SIZE * 0.5f, 0f);
-                            if (gc > 0)
-                            {
-                                StarfieldNative.CR_TextGetBounds(_textSystem, out float w4, out float h4);
-                                if (w4 <= maxWidth) return compressed4;
-                            }
+                            StarfieldNative.CR_TextMeasure(_textSystem, compressed4, fontSize, out float w4, out float h4);
+                            if (w4 <= maxWidth) return compressed4;
                         }
                     }
                 }
             }
             
+            if (shouldLog) Debug.Log($"[Compress] FAILED - returning original");
             return line; // Could not compress to fit
         }
         
