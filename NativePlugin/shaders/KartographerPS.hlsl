@@ -171,38 +171,38 @@ cbuffer KartographerCB : register(b0) {
     uint LabelColor10;              // offset 748
     uint LabelColor11;              // offset 752
     
-    // Vessel Target Selector - separate from Star Selector (96 bytes) - offsets 596-691
-    int VesselTargetEnabled;        // offset 596
-    float VesselTargetHash;         // offset 600
-    float _padVessel1;              // offset 604
-    float _padVessel2;              // offset 608
-    float VesselTargetCircleCenterX;    // offset 612
-    float VesselTargetCircleCenterY;    // offset 616
-    float VesselTargetCircleT;          // offset 620
-    float VesselTargetCircleIntensity;  // offset 624
-    float VesselTargetCircleThickness;  // offset 628
-    float VesselTargetCircleRadius;     // offset 632
-    float _padVessel3;              // offset 636
-    float _padVessel4;              // offset 640
-    float _padVessel5;              // offset 644
-    float _padVessel6;              // offset 648
-    float VesselTargetBoxTopLeftX;      // offset 652
-    float VesselTargetBoxTopLeftY;      // offset 656
-    float VesselTargetBoxSizeX;         // offset 660
-    float VesselTargetBoxSizeY;         // offset 664
-    float VesselTargetBoxThickness;     // offset 668
-    float _padVessel7;              // offset 672
-    float VesselTargetTextOriginX;      // offset 676
-    float VesselTargetTextOriginY;      // offset 680
-    float VesselTargetTextAreaSizeX;    // offset 684
-    float VesselTargetTextAreaSizeY;    // offset 688
-    float VesselTargetTextT;            // offset 692
+    // Vessel Target Selector - separate from Star Selector (96 bytes) - offsets 756-851
+    int VesselTargetEnabled;        // offset 756
+    float VesselTargetHash;         // offset 760
+    float _padVessel1;              // offset 764
+    float _padVessel2;              // offset 768
+    float VesselTargetCircleCenterX;    // offset 772
+    float VesselTargetCircleCenterY;    // offset 776
+    float VesselTargetCircleT;          // offset 780
+    float VesselTargetCircleIntensity;  // offset 784
+    float VesselTargetCircleThickness;  // offset 788
+    float VesselTargetCircleRadius;     // offset 792
+    float _padVessel3;              // offset 796
+    float _padVessel4;              // offset 800
+    float _padVessel5;              // offset 804
+    float _padVessel6;              // offset 808
+    float VesselTargetBoxTopLeftX;      // offset 812
+    float VesselTargetBoxTopLeftY;      // offset 816
+    float VesselTargetBoxSizeX;         // offset 820
+    float VesselTargetBoxSizeY;         // offset 824
+    float VesselTargetBoxThickness;     // offset 828
+    float _padVessel7;              // offset 832
+    float VesselTargetTextOriginX;      // offset 836
+    float VesselTargetTextOriginY;      // offset 840
+    float VesselTargetTextAreaSizeX;    // offset 844
+    float VesselTargetTextAreaSizeY;    // offset 848
+    float VesselTargetTextT;            // offset 852
     
     // Animated label intensity for type-on animation systems
-    float AnimatedLabelIntensity;       // offset 696
-    float _padAnimated1;                // offset 700
-    float _padAnimated2;                // offset 704
-    float _padAnimated3;                // offset 708
+    float AnimatedLabelIntensity;       // offset 856
+    float _padAnimated1;                // offset 860
+    float _padAnimated2;                // offset 864
+    float _padAnimated3;                // offset 868
 };
 
 // Grid colors: 0=Seafoam, 1=Amber, 2=White, 3=Green

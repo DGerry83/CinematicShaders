@@ -183,16 +183,16 @@ static struct {
     // Grid labels (8 slots) - stored as arrays for compactness
     unsigned int kartographerGridLabelEnabledMask = 0;
     unsigned int kartographerGridLabelDebugMask = 0;
-    float kartographerGridLabelPosX[8] = {0};
-    float kartographerGridLabelPosY[8] = {0};
-    float kartographerGridLabelPosZ[8] = {0,0,0,0,0,0,0,1};  // Default Z=1
-    float kartographerGridLabelTangentX[8] = {1,1,1,1,1,1,1,1};  // Default X=1
-    float kartographerGridLabelTangentY[8] = {0};
-    float kartographerGridLabelTangentZ[8] = {0};
-    float kartographerGridLabelWorldSizeX[8] = {0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f};
-    float kartographerGridLabelWorldSizeY[8] = {0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f};
-    float kartographerGridLabelIntensity[8] = {1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f};
-    uint32_t kartographerGridLabelColor[8] = {0,0,0,0,0,0,0,0};
+    float kartographerGridLabelPosX[12] = {0};
+    float kartographerGridLabelPosY[12] = {0};
+    float kartographerGridLabelPosZ[12] = {0,0,0,0,0,0,0,1,0,0,0,1};  // Default Z=1
+    float kartographerGridLabelTangentX[12] = {1,1,1,1,1,1,1,1,1,1,1,1};  // Default X=1
+    float kartographerGridLabelTangentY[12] = {0};
+    float kartographerGridLabelTangentZ[12] = {0};
+    float kartographerGridLabelWorldSizeX[12] = {0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f};
+    float kartographerGridLabelWorldSizeY[12] = {0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f};
+    float kartographerGridLabelIntensity[12] = {1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f};
+    uint32_t kartographerGridLabelColor[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
     
     // Text rendering system resources
     ID3D11ComputeShader* textCS = nullptr;
@@ -1628,11 +1628,21 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         }
         
         // Bind grid label textures to slots t3-t14 (Phase 1: Use new slot state with isActive check)
+        static int frameCount = 0;
+        bool shouldLog = (frameCount++ % 30 == 0);
+        int activeLabelCount = 0;
         for (int i = 0; i < 12; i++) {
             const auto& slot = g_StarfieldState.gridLabelSlots[i];
             if (slot.isActive && slot.textureSRV) {
                 context->PSSetShaderResources(3 + i, 1, &slot.textureSRV);
+                activeLabelCount++;
+                if (shouldLog) {
+                    LogToFile("[KartographerRender] Binding slot %d to t%d (SRV=%p)", i, 3+i, slot.textureSRV);
+                }
             }
+        }
+        if (shouldLog) {
+            LogToFile("[KartographerRender] Total active labels: %d", activeLabelCount);
         }
         
         // Bind vessel target text texture to slot t15
@@ -2171,6 +2181,50 @@ static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
             g_StarfieldState.kartographerGridLabelTangentZ[7],
             g_StarfieldState.kartographerGridLabelWorldSizeY[7]);
         
+        params->GridLabel8_PosTangentX = float4(
+            g_StarfieldState.kartographerGridLabelPosX[8],
+            g_StarfieldState.kartographerGridLabelPosY[8],
+            g_StarfieldState.kartographerGridLabelPosZ[8],
+            g_StarfieldState.kartographerGridLabelWorldSizeX[8]);
+        params->GridLabel8_TangentY = float4(
+            g_StarfieldState.kartographerGridLabelTangentX[8],
+            g_StarfieldState.kartographerGridLabelTangentY[8],
+            g_StarfieldState.kartographerGridLabelTangentZ[8],
+            g_StarfieldState.kartographerGridLabelWorldSizeY[8]);
+        
+        params->GridLabel9_PosTangentX = float4(
+            g_StarfieldState.kartographerGridLabelPosX[9],
+            g_StarfieldState.kartographerGridLabelPosY[9],
+            g_StarfieldState.kartographerGridLabelPosZ[9],
+            g_StarfieldState.kartographerGridLabelWorldSizeX[9]);
+        params->GridLabel9_TangentY = float4(
+            g_StarfieldState.kartographerGridLabelTangentX[9],
+            g_StarfieldState.kartographerGridLabelTangentY[9],
+            g_StarfieldState.kartographerGridLabelTangentZ[9],
+            g_StarfieldState.kartographerGridLabelWorldSizeY[9]);
+        
+        params->GridLabel10_PosTangentX = float4(
+            g_StarfieldState.kartographerGridLabelPosX[10],
+            g_StarfieldState.kartographerGridLabelPosY[10],
+            g_StarfieldState.kartographerGridLabelPosZ[10],
+            g_StarfieldState.kartographerGridLabelWorldSizeX[10]);
+        params->GridLabel10_TangentY = float4(
+            g_StarfieldState.kartographerGridLabelTangentX[10],
+            g_StarfieldState.kartographerGridLabelTangentY[10],
+            g_StarfieldState.kartographerGridLabelTangentZ[10],
+            g_StarfieldState.kartographerGridLabelWorldSizeY[10]);
+        
+        params->GridLabel11_PosTangentX = float4(
+            g_StarfieldState.kartographerGridLabelPosX[11],
+            g_StarfieldState.kartographerGridLabelPosY[11],
+            g_StarfieldState.kartographerGridLabelPosZ[11],
+            g_StarfieldState.kartographerGridLabelWorldSizeX[11]);
+        params->GridLabel11_TangentY = float4(
+            g_StarfieldState.kartographerGridLabelTangentX[11],
+            g_StarfieldState.kartographerGridLabelTangentY[11],
+            g_StarfieldState.kartographerGridLabelTangentZ[11],
+            g_StarfieldState.kartographerGridLabelWorldSizeY[11]);
+        
         // Debug mask and per-label visual params
         params->GridLabelDebugMask = g_StarfieldState.kartographerGridLabelDebugMask;
         params->LabelIntensity0 = g_StarfieldState.kartographerGridLabelIntensity[0];
@@ -2181,6 +2235,10 @@ static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
         params->LabelIntensity5 = g_StarfieldState.kartographerGridLabelIntensity[5];
         params->LabelIntensity6 = g_StarfieldState.kartographerGridLabelIntensity[6];
         params->LabelIntensity7 = g_StarfieldState.kartographerGridLabelIntensity[7];
+        params->LabelIntensity8 = g_StarfieldState.kartographerGridLabelIntensity[8];
+        params->LabelIntensity9 = g_StarfieldState.kartographerGridLabelIntensity[9];
+        params->LabelIntensity10 = g_StarfieldState.kartographerGridLabelIntensity[10];
+        params->LabelIntensity11 = g_StarfieldState.kartographerGridLabelIntensity[11];
         params->LabelColor0 = g_StarfieldState.kartographerGridLabelColor[0];
         params->LabelColor1 = g_StarfieldState.kartographerGridLabelColor[1];
         params->LabelColor2 = g_StarfieldState.kartographerGridLabelColor[2];
@@ -2189,6 +2247,10 @@ static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
         params->LabelColor5 = g_StarfieldState.kartographerGridLabelColor[5];
         params->LabelColor6 = g_StarfieldState.kartographerGridLabelColor[6];
         params->LabelColor7 = g_StarfieldState.kartographerGridLabelColor[7];
+        params->LabelColor8 = g_StarfieldState.kartographerGridLabelColor[8];
+        params->LabelColor9 = g_StarfieldState.kartographerGridLabelColor[9];
+        params->LabelColor10 = g_StarfieldState.kartographerGridLabelColor[10];
+        params->LabelColor11 = g_StarfieldState.kartographerGridLabelColor[11];
         
         // Vessel target parameters (separate from star selector)
         params->VesselTargetEnabled = g_StarfieldState.kartographerVesselTargetEnabled;
@@ -2275,9 +2337,10 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
     g_StarfieldState.kartographerVesselTargetTextT = params->VesselTargetTextT;
     g_StarfieldState.kartographerAnimatedLabelIntensity = params->AnimatedLabelIntensity;
     
-    // (Debug logging removed)
+    // Log enabled mask for debugging
+    LogToFile("[SetKartographerParams] GridLabelEnabledMask=0x%08X", params->GridLabelEnabledMask);
     
-    // Copy all 8 grid labels from params to state (extract from float4)
+    // Copy all 12 grid labels from params to state (extract from float4)
     g_StarfieldState.kartographerGridLabelEnabledMask = params->GridLabelEnabledMask;
     g_StarfieldState.kartographerGridLabelDebugMask = params->GridLabelDebugMask;
     g_StarfieldState.kartographerGridLabelPosX[0] = params->GridLabel0_PosTangentX.x;
@@ -2352,6 +2415,42 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
     g_StarfieldState.kartographerGridLabelTangentZ[7] = params->GridLabel7_TangentY.z;
     g_StarfieldState.kartographerGridLabelWorldSizeY[7] = params->GridLabel7_TangentY.w;
     
+    g_StarfieldState.kartographerGridLabelPosX[8] = params->GridLabel8_PosTangentX.x;
+    g_StarfieldState.kartographerGridLabelPosY[8] = params->GridLabel8_PosTangentX.y;
+    g_StarfieldState.kartographerGridLabelPosZ[8] = params->GridLabel8_PosTangentX.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeX[8] = params->GridLabel8_PosTangentX.w;
+    g_StarfieldState.kartographerGridLabelTangentX[8] = params->GridLabel8_TangentY.x;
+    g_StarfieldState.kartographerGridLabelTangentY[8] = params->GridLabel8_TangentY.y;
+    g_StarfieldState.kartographerGridLabelTangentZ[8] = params->GridLabel8_TangentY.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeY[8] = params->GridLabel8_TangentY.w;
+    
+    g_StarfieldState.kartographerGridLabelPosX[9] = params->GridLabel9_PosTangentX.x;
+    g_StarfieldState.kartographerGridLabelPosY[9] = params->GridLabel9_PosTangentX.y;
+    g_StarfieldState.kartographerGridLabelPosZ[9] = params->GridLabel9_PosTangentX.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeX[9] = params->GridLabel9_PosTangentX.w;
+    g_StarfieldState.kartographerGridLabelTangentX[9] = params->GridLabel9_TangentY.x;
+    g_StarfieldState.kartographerGridLabelTangentY[9] = params->GridLabel9_TangentY.y;
+    g_StarfieldState.kartographerGridLabelTangentZ[9] = params->GridLabel9_TangentY.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeY[9] = params->GridLabel9_TangentY.w;
+    
+    g_StarfieldState.kartographerGridLabelPosX[10] = params->GridLabel10_PosTangentX.x;
+    g_StarfieldState.kartographerGridLabelPosY[10] = params->GridLabel10_PosTangentX.y;
+    g_StarfieldState.kartographerGridLabelPosZ[10] = params->GridLabel10_PosTangentX.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeX[10] = params->GridLabel10_PosTangentX.w;
+    g_StarfieldState.kartographerGridLabelTangentX[10] = params->GridLabel10_TangentY.x;
+    g_StarfieldState.kartographerGridLabelTangentY[10] = params->GridLabel10_TangentY.y;
+    g_StarfieldState.kartographerGridLabelTangentZ[10] = params->GridLabel10_TangentY.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeY[10] = params->GridLabel10_TangentY.w;
+    
+    g_StarfieldState.kartographerGridLabelPosX[11] = params->GridLabel11_PosTangentX.x;
+    g_StarfieldState.kartographerGridLabelPosY[11] = params->GridLabel11_PosTangentX.y;
+    g_StarfieldState.kartographerGridLabelPosZ[11] = params->GridLabel11_PosTangentX.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeX[11] = params->GridLabel11_PosTangentX.w;
+    g_StarfieldState.kartographerGridLabelTangentX[11] = params->GridLabel11_TangentY.x;
+    g_StarfieldState.kartographerGridLabelTangentY[11] = params->GridLabel11_TangentY.y;
+    g_StarfieldState.kartographerGridLabelTangentZ[11] = params->GridLabel11_TangentY.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeY[11] = params->GridLabel11_TangentY.w;
+    
     g_StarfieldState.kartographerGridLabelIntensity[0] = params->LabelIntensity0;
     g_StarfieldState.kartographerGridLabelIntensity[1] = params->LabelIntensity1;
     g_StarfieldState.kartographerGridLabelIntensity[2] = params->LabelIntensity2;
@@ -2360,6 +2459,10 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
     g_StarfieldState.kartographerGridLabelIntensity[5] = params->LabelIntensity5;
     g_StarfieldState.kartographerGridLabelIntensity[6] = params->LabelIntensity6;
     g_StarfieldState.kartographerGridLabelIntensity[7] = params->LabelIntensity7;
+    g_StarfieldState.kartographerGridLabelIntensity[8] = params->LabelIntensity8;
+    g_StarfieldState.kartographerGridLabelIntensity[9] = params->LabelIntensity9;
+    g_StarfieldState.kartographerGridLabelIntensity[10] = params->LabelIntensity10;
+    g_StarfieldState.kartographerGridLabelIntensity[11] = params->LabelIntensity11;
     g_StarfieldState.kartographerGridLabelColor[0] = params->LabelColor0;
     g_StarfieldState.kartographerGridLabelColor[1] = params->LabelColor1;
     g_StarfieldState.kartographerGridLabelColor[2] = params->LabelColor2;
@@ -2368,6 +2471,10 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
     g_StarfieldState.kartographerGridLabelColor[5] = params->LabelColor5;
     g_StarfieldState.kartographerGridLabelColor[6] = params->LabelColor6;
     g_StarfieldState.kartographerGridLabelColor[7] = params->LabelColor7;
+    g_StarfieldState.kartographerGridLabelColor[8] = params->LabelColor8;
+    g_StarfieldState.kartographerGridLabelColor[9] = params->LabelColor9;
+    g_StarfieldState.kartographerGridLabelColor[10] = params->LabelColor10;
+    g_StarfieldState.kartographerGridLabelColor[11] = params->LabelColor11;
 }
 
 // ============================================================================
@@ -2685,7 +2792,10 @@ void CR_SetVesselTargetTextTexture(ID3D11Texture2D* texture)
 extern "C" __declspec(dllexport)
 void CR_SetGridLabelTexture(int slot, ID3D11Texture2D* texture)
 {
+    LogToFile("[GridLabel] SET_TEXTURE slot=%d, texture=%p", slot, texture);
+    
     if (slot < 0 || slot >= 12) {
+        LogToFile("[GridLabel]   -> INVALID SLOT %d", slot);
         return;
     }
     
@@ -2713,8 +2823,10 @@ void CR_SetGridLabelTexture(int slot, ID3D11Texture2D* texture)
             return;
         }
         slotState.isActive = true;
+        LogToFile("[GridLabel]   -> SUCCESS slot=%d isActive=true, SRV=%p", slot, slotState.textureSRV);
     } else {
         slotState.isActive = false;
+        LogToFile("[GridLabel]   -> CLEARED slot=%d (null texture or no device)", slot);
     }
 }
 
@@ -2724,6 +2836,8 @@ void CR_ClearGridLabelSlot(int slot)
     if (slot < 0 || slot >= 12) {
         return;
     }
+    
+    LogToFile("[GridLabel] CLEAR slot=%d", slot);
     
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     

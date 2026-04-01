@@ -400,8 +400,9 @@ namespace CinematicShaders.Core
             
             if (_textSystem == IntPtr.Zero) return;
             
-            // PHASE 3: Fixed slot management for labels 0-2, clear 3-7
-            // Slots: 0=HUCK, 1=situation_a, 2=situation_b, 3-7=empty
+            // PHASE 3: Fixed slot management for labels 0-2, clear 3-11
+            // Slots: 0=HUCK, 1=situation_a, 2=situation_b, 3-11=empty
+            Debug.Log($"[GridLabelSystem] UPDATE START - Clearing slots 3-{MAX_LABELS-1}");
             for (int i = 3; i < MAX_LABELS; i++)
             {
                 StarfieldNative.CR_ClearGridLabelSlot(i);
@@ -464,11 +465,12 @@ namespace CinematicShaders.Core
             if (_enabledLabels.Count != _lastEnabledCount)
             {
                 _lastEnabledCount = _enabledLabels.Count;
-                // Debug.Log($"[GridLabelSystem] Enabled labels changed: {_enabledLabels.Count} labels active");
-                // foreach (var l in _enabledLabels)
-                // {
-                //     Debug.Log($"[GridLabelSystem]  - {l.Id}: '{l.Text}' at ({l.Latitude:F1}°, {l.Longitude:F1}°)");
-                // }
+                Debug.Log($"[GridLabelSystem] ENABLED LABELS: {_enabledLabels.Count} labels active");
+                foreach (var l in _enabledLabels)
+                {
+                    int slot = GetSlotForLabelId(l.Id);
+                    Debug.Log($"[GridLabelSystem]  - Slot {slot}: '{l.Id}' = '{l.Text}'");
+                }
             }
             
             // Detect grid preset changes and resolve label variants
@@ -833,7 +835,7 @@ namespace CinematicShaders.Core
             if (slot >= 0)
             {
                 StarfieldNative.CR_SetGridLabelTexture(slot, label.Texture.GetNativeTexturePtr());
-                // Debug.Log($"[GridLabelSystem] Generated texture for '{label.Text}' in slot {slot}, size {label.WorldSizeX:F3}x{label.WorldSizeY:F3}, aspect={aspect:F2}");
+                Debug.Log($"[GridLabelSystem] SET TEXTURE for '{label.Text}' in slot {slot}, texturePtr={label.Texture.GetNativeTexturePtr()}");
             }
         }
         
@@ -933,10 +935,13 @@ namespace CinematicShaders.Core
         {
             if (slot < 0 || slot >= MAX_LABELS) return;
             
+            Debug.Log($"[GridLabelSystem] PUSH LABEL slot={slot}, id='{label.Id}', text='{label.Text}', intensity={label.Intensity:F2}, pos=({label.WorldPosition.x:F2},{label.WorldPosition.y:F2},{label.WorldPosition.z:F2})");
+            
             var nativeParams = StarfieldNative.LastKartographerParams;
             
             // Set enabled bit in mask
             nativeParams.GridLabelEnabledMask |= (1u << slot);
+            Debug.Log($"[GridLabelSystem]   -> Mask now = 0x{nativeParams.GridLabelEnabledMask:X4}");
             
             // Shader uses bottom-left corner anchoring (verified in KartographerPS.hlsl)
             // The label quad extends from the anchor point:
