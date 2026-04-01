@@ -3,18 +3,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using static CinematicShaders.Core.StarfieldSettings;  // For NavballIconStyle enum
 
 namespace CinematicShaders.Core
 {
-    /// <summary>
-    /// Icon style options for navball indicators
-    /// </summary>
-    public enum NavballIconStyle
-    {
-        SDF,    // High-quality SDF icons from SVG
-        ASCII   // Retro ASCII art style (future implementation)
-    }
-
     /// <summary>
     /// Manages the 7 orbital direction indicators (navball labels) for the Kartographer grid.
     /// 

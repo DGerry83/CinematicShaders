@@ -47,6 +47,13 @@ namespace CinematicShaders.Core
         // Bloom mode toggle: false = Classic (original 4-spike), true = Soft HDR (2-pass)
         public static bool UseSoftBloom { get; set; } = false;
         
+        // Navball icon style enum - must be defined before use
+        public enum NavballIconStyle
+        {
+            SDF,    // High-quality SDF icons from SVG
+            ASCII   // Retro ASCII art style (future implementation)
+        }
+        
         // Kartographer holographic grid overlay
         public static bool EnableKartographer { get; set; } = false;
         
@@ -62,6 +69,11 @@ namespace CinematicShaders.Core
         // Per-grid-size settings for situation display [0=Jumbo, 1=Large, 2=Medium, 3=Small]
         public static int[] KartographerSituationRowOffset { get; set; } = new int[4] { 0, 0, 0, 0 };  // -2 to +2 per preset
         public static int[] KartographerSituationRotationStep { get; set; } = new int[4] { 0, 0, 0, 0 };  // 0 to numMeridians-1 per preset
+        
+        // Navball indicators - orbital direction icons on the holographic grid
+        public static bool KartographerNavballLabels { get; set; } = false;  // Enable navball indicators
+        public static bool KartographerNavballUseColors { get; set; } = false;  // Use KSP navball colors vs grid color
+        public static NavballIconStyle KartographerNavballIconStyle { get; set; } = NavballIconStyle.SDF;  // Icon rendering style
         
         // Kartographer visual parameters
         public static float KartographerGridIntensity { get; set; } = 0.002f;      // Range: 0.001-0.003
@@ -249,6 +261,13 @@ namespace CinematicShaders.Core
                 string[] rotationStepParts = rotationStepStr.Split(',');
                 for (int i = 0; i < 4 && i < rotationStepParts.Length; i++)
                     KartographerSituationRotationStep[i] = int.Parse(rotationStepParts[i]);
+                
+                // Navball indicator settings
+                KartographerNavballLabels = bool.Parse(settingsNode.GetValue("KartographerNavballLabels") ?? "false");
+                KartographerNavballUseColors = bool.Parse(settingsNode.GetValue("KartographerNavballUseColors") ?? "false");
+                string iconStyleStr = settingsNode.GetValue("KartographerNavballIconStyle") ?? "SDF";
+                KartographerNavballIconStyle = (NavballIconStyle)Enum.Parse(typeof(NavballIconStyle), iconStyleStr);
+                
                 KartographerGridIntensity = float.Parse(settingsNode.GetValue("KartographerGridIntensity") ?? "0.002");
                 KartographerGridThickness = float.Parse(settingsNode.GetValue("KartographerGridThickness") ?? "0.0003");
                 // KartographerCAStrength is hard-coded, no longer loaded from config
@@ -570,6 +589,12 @@ namespace CinematicShaders.Core
                     string.Join(",", KartographerSituationRowOffset));
                 settingsNode.AddValue("KartographerSituationRotationStep", 
                     string.Join(",", KartographerSituationRotationStep));
+                
+                // Navball indicator settings
+                settingsNode.AddValue("KartographerNavballLabels", KartographerNavballLabels);
+                settingsNode.AddValue("KartographerNavballUseColors", KartographerNavballUseColors);
+                settingsNode.AddValue("KartographerNavballIconStyle", KartographerNavballIconStyle.ToString());
+                
                 settingsNode.AddValue("KartographerGridIntensity", KartographerGridIntensity);
                 settingsNode.AddValue("KartographerGridThickness", KartographerGridThickness);
                 // KartographerCAStrength is hard-coded, no longer saved to config
