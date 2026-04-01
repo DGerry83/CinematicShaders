@@ -541,14 +541,24 @@ namespace CinematicShaders.Core
             kartParams.VesselTargetHash = _starHash;
 
             // Text - only show after box phase with type-on animation
+            // During Circle/Box phases: zero size prevents shader from sampling texture
             float textT = 0.0f;
-            if (_targetAnimationPhase == TargetAnimationPhase.Text)
-                textT = _textTypeT;
-            else if (_targetAnimationPhase >= TargetAnimationPhase.Complete)
-                textT = 1.0f;
+            float textWidthUV = 0f;
+            float textHeightUV = 0f;
             
-            float textWidthUV = 1024f * pixelsToUv;
-            float textHeightUV = 1024f * pixelsToUv;
+            if (_targetAnimationPhase == TargetAnimationPhase.Text)
+            {
+                textT = _textTypeT;
+                textWidthUV = 1024f * pixelsToUv;
+                textHeightUV = 1024f * pixelsToUv;
+            }
+            else if (_targetAnimationPhase >= TargetAnimationPhase.Complete)
+            {
+                textT = 1.0f;
+                textWidthUV = 1024f * pixelsToUv;
+                textHeightUV = 1024f * pixelsToUv;
+            }
+            
             kartParams.VesselTargetTextOriginX = boxTopLeftX + 0.01f;
             kartParams.VesselTargetTextOriginY = boxTopLeftY + 0.01f;
             kartParams.VesselTargetTextAreaSizeX = textWidthUV;

@@ -408,6 +408,9 @@ __declspec(dllexport) void CR_StarfieldSetKartographerParams(const KartographerP
 // Set grid label texture for a specific slot (0-7)
 __declspec(dllexport) void CR_SetGridLabelTexture(int slot, ID3D11Texture2D* texture);
 
+// Clear/reset a grid label slot to empty state (safe to call anytime)
+__declspec(dllexport) void CR_ClearGridLabelSlot(int slot);
+
 // Cubemap rendering - renders starfield to all 6 cubemap faces
 // targetTextures: array of 6 D3D11 textures (one per face)
 // faceSize: resolution of each face (e.g., 1024)

@@ -221,6 +221,20 @@ static struct {
     float kartographerVesselTargetTextAreaSizeX = 0.0f;
     float kartographerVesselTargetTextAreaSizeY = 0.0f;
     float kartographerVesselTargetTextT = 0.0f;
+    
+    // Grid label slot state management (Phase 1 Refactor)
+    // Each slot tracks its own active state and SRV to prevent crashes from garbage data
+    struct GridLabelSlot {
+        ID3D11ShaderResourceView* textureSRV = nullptr;
+        bool isActive = false;
+        // Cached parameters for slot
+        float posX = 0.0f, posY = 0.0f, posZ = 1.0f;
+        float tangentX = 1.0f, tangentY = 0.0f, tangentZ = 0.0f;
+        float worldSizeX = 0.1f, worldSizeY = 0.1f;
+        float intensity = 1.0f;
+        uint32_t color = 0;
+    };
+    GridLabelSlot gridLabelSlots[8];
 } g_StarfieldState;
 
 // Constant buffer layouts (must match HLSL exactly, 16-byte aligned)
@@ -1279,6 +1293,16 @@ if (!g_StarfieldState.blendState) {
     g_StarfieldState.initialized = true;
     g_StarfieldState.cachedHDRFormat = DXGI_FORMAT_R11G11B10_FLOAT;
     
+    // Initialize all grid label slots to empty state (Phase 1 Refactor)
+    // This ensures no garbage SRV pointers exist in unused slots
+    for (int i = 0; i < 8; i++) {
+        g_StarfieldState.gridLabelSlots[i].isActive = false;
+        if (g_StarfieldState.gridLabelSlots[i].textureSRV) {
+            g_StarfieldState.gridLabelSlots[i].textureSRV->Release();
+            g_StarfieldState.gridLabelSlots[i].textureSRV = nullptr;
+        }
+    }
+    
     LogToFile("[Starfield] Resources initialized: %dx%d", width, height);
 }
 
@@ -1565,10 +1589,11 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
             LogToFile("[Text] No text texture SRV available (null), nothing bound to t2");
         }
         
-        // Bind grid label textures to slots t3-t10
+        // Bind grid label textures to slots t3-t10 (Phase 1: Use new slot state with isActive check)
         for (int i = 0; i < 8; i++) {
-            if (g_StarfieldState.gridLabelTextureSRV[i]) {
-                context->PSSetShaderResources(3 + i, 1, &g_StarfieldState.gridLabelTextureSRV[i]);
+            const auto& slot = g_StarfieldState.gridLabelSlots[i];
+            if (slot.isActive && slot.textureSRV) {
+                context->PSSetShaderResources(3 + i, 1, &slot.textureSRV);
             }
         }
         
@@ -1855,10 +1880,11 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
             context->PSSetShaderResources(2, 1, &g_StarfieldState.textTextureSRV);
         }
         
-        // Bind grid label textures to slots t3-t10
+        // Bind grid label textures to slots t3-t10 (Phase 1: Use new slot state with isActive check)
         for (int i = 0; i < 8; i++) {
-            if (g_StarfieldState.gridLabelTextureSRV[i]) {
-                context->PSSetShaderResources(3 + i, 1, &g_StarfieldState.gridLabelTextureSRV[i]);
+            const auto& slot = g_StarfieldState.gridLabelSlots[i];
+            if (slot.isActive && slot.textureSRV) {
+                context->PSSetShaderResources(3 + i, 1, &slot.textureSRV);
             }
         }
         
@@ -2623,32 +2649,55 @@ void CR_SetGridLabelTexture(int slot, ID3D11Texture2D* texture)
     
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     
-    // Cache texture pointer to avoid recreating SRV for same texture
-    static ID3D11Texture2D* cachedTexture[8] = {};
+    // Update slot state
+    auto& slotState = g_StarfieldState.gridLabelSlots[slot];
     
-    // If same texture already bound, skip
-    if (cachedTexture[slot] == texture && g_StarfieldState.gridLabelTextureSRV[slot]) {
-        return;
+    // Release old SRV if exists
+    if (slotState.textureSRV) {
+        slotState.textureSRV->Release();
+        slotState.textureSRV = nullptr;
     }
     
-    // Update cache
-    cachedTexture[slot] = texture;
-    
-    // Release old SRV for this slot if exists
-    if (g_StarfieldState.gridLabelTextureSRV[slot]) {
-        g_StarfieldState.gridLabelTextureSRV[slot]->Release();
-        g_StarfieldState.gridLabelTextureSRV[slot] = nullptr;
-    }
-    
+    // Create new SRV if texture provided
     if (texture && g_StarfieldState.device) {
         D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
         srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
         srvDesc.Texture2D.MipLevels = 1;
-        HRESULT hr = g_StarfieldState.device->CreateShaderResourceView(texture, &srvDesc, &g_StarfieldState.gridLabelTextureSRV[slot]);
+        HRESULT hr = g_StarfieldState.device->CreateShaderResourceView(texture, &srvDesc, &slotState.textureSRV);
         if (FAILED(hr)) {
-            LogToFile("[Text] FAILED: CreateShaderResourceView for grid label slot %d returned 0x%08X", slot, hr);
+            LogToFile("[GridLabel] FAILED: CreateShaderResourceView for slot %d returned 0x%08X", slot, hr);
+            slotState.isActive = false;
+            return;
         }
+        slotState.isActive = true;
+    } else {
+        slotState.isActive = false;
+    }
+}
+
+extern "C" __declspec(dllexport)
+void CR_ClearGridLabelSlot(int slot)
+{
+    if (slot < 0 || slot >= 8) {
+        return;
+    }
+    
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
+    auto& slotState = g_StarfieldState.gridLabelSlots[slot];
+    
+    // Release SRV and mark inactive
+    if (slotState.textureSRV) {
+        slotState.textureSRV->Release();
+        slotState.textureSRV = nullptr;
+    }
+    slotState.isActive = false;
+    
+    // Also clear from the legacy array for compatibility during transition
+    if (g_StarfieldState.gridLabelTextureSRV[slot]) {
+        g_StarfieldState.gridLabelTextureSRV[slot]->Release();
+        g_StarfieldState.gridLabelTextureSRV[slot] = nullptr;
     }
 }
 
