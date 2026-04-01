@@ -37,9 +37,6 @@ namespace CinematicShaders.Core
         // Text rendering optimization - only update texture when text changes (matches KartographerSelector)
         private string _lastRenderedText = null;
         private bool _textDirty = true;
-        
-        // DEBUG: Track last logged phase to reduce log spam
-        private TypeOnAnimationController.Phase _lastLoggedPhase = TypeOnAnimationController.Phase.Complete;
 
         // Situation display state
         private string _situationText = "";
@@ -523,13 +520,6 @@ namespace CinematicShaders.Core
             
             // Animated label intensity: 0 during Circle/Box (hidden), 1 during Text/Complete (visible)
             kartParams.AnimatedLabelIntensity = _animController.Intensity;
-            
-            // DEBUG: Log intensity changes (once per phase change)
-            if (_animController.CurrentPhase != _lastLoggedPhase)
-            {
-                Debug.Log($"[VesselTarget] Phase: {_animController.CurrentPhase}, Intensity: {_animController.Intensity}, DisplayText: '{_animController.DisplayText}'");
-                _lastLoggedPhase = _animController.CurrentPhase;
-            }
 
             StarfieldNative.LastKartographerParams = kartParams;
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);

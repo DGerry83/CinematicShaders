@@ -1963,7 +1963,7 @@ void CR_StarfieldSetKartographerEnabled(unsigned char enabled)
 {
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     g_StarfieldState.kartographerEnabled = (enabled != 0);
-    LogToFile("[Starfield] Kartographer %s", g_StarfieldState.kartographerEnabled ? "enabled" : "disabled");
+    // LogToFile("[Starfield] Kartographer %s", g_StarfieldState.kartographerEnabled ? "enabled" : "disabled");
 }
 
 static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
@@ -2242,15 +2242,7 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
     g_StarfieldState.kartographerVesselTargetTextT = params->VesselTargetTextT;
     g_StarfieldState.kartographerAnimatedLabelIntensity = params->AnimatedLabelIntensity;
     
-    // DEBUG: Log intensity when vessel target is enabled and intensity changes significantly
-    static float lastLoggedIntensity = -1.0f;
-    if (params->VesselTargetEnabled && 
-        (lastLoggedIntensity < 0 || fabsf(params->AnimatedLabelIntensity - lastLoggedIntensity) > 0.5f))
-    {
-        LogToFile("[Native] VesselTarget enabled=%d, Intensity=%.2f, Phase changed", 
-                  params->VesselTargetEnabled, params->AnimatedLabelIntensity);
-        lastLoggedIntensity = params->AnimatedLabelIntensity;
-    }
+    // (Debug logging removed)
     
     // Copy all 8 grid labels from params to state (extract from float4)
     g_StarfieldState.kartographerGridLabelEnabledMask = params->GridLabelEnabledMask;

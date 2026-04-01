@@ -645,8 +645,8 @@ void CR_TextShutdown(TextSystemHandle handle) {
 
 extern "C" __declspec(dllexport)
 int CR_TextLayout(TextSystemHandle handle, const char* text, float fontSize, uint32_t color) {
-    LogToFile("[Text] CR_TextLayout called: handle=%p, text='%s', fontSize=%.1f, color=0x%08X", 
-              handle, text ? text : "(null)", fontSize, color);
+    // LogToFile("[Text] CR_TextLayout called: handle=%p, text='%s', fontSize=%.1f, color=0x%08X", 
+    //           handle, text ? text : "(null)", fontSize, color);
     
     if (!handle) {
         LogToFile("[Text] CR_TextLayout FAILED: null handle");
@@ -654,7 +654,7 @@ int CR_TextLayout(TextSystemHandle handle, const char* text, float fontSize, uin
     }
     TextSystem* ts = static_cast<TextSystem*>(handle);
     int count = ts->LayoutString(text, fontSize, color);
-    LogToFile("[Text] CR_TextLayout: LayoutString returned %d glyphs", count);
+    // LogToFile("[Text] CR_TextLayout: LayoutString returned %d glyphs", count);
     return count;
 }
 

@@ -390,11 +390,11 @@ namespace CinematicShaders.Core
             if (_enabledLabels.Count != _lastEnabledCount)
             {
                 _lastEnabledCount = _enabledLabels.Count;
-                Debug.Log($"[GridLabelSystem] Enabled labels changed: {_enabledLabels.Count} labels active");
-                foreach (var l in _enabledLabels)
-                {
-                    Debug.Log($"[GridLabelSystem]  - {l.Id}: '{l.Text}' at ({l.Latitude:F1}°, {l.Longitude:F1}°)");
-                }
+                // Debug.Log($"[GridLabelSystem] Enabled labels changed: {_enabledLabels.Count} labels active");
+                // foreach (var l in _enabledLabels)
+                // {
+                //     Debug.Log($"[GridLabelSystem]  - {l.Id}: '{l.Text}' at ({l.Latitude:F1}°, {l.Longitude:F1}°)");
+                // }
             }
             
             // Detect grid preset changes and resolve label variants
@@ -948,12 +948,12 @@ namespace CinematicShaders.Core
                 }
             }
             
-            // Debug: Log when mask changes
-            if (nativeParams.GridLabelEnabledMask != _lastEnabledMask)
-            {
-                _lastEnabledMask = nativeParams.GridLabelEnabledMask;
-                Debug.Log($"[GridLabelSystem] Pushed '{label.Text}' to slot {slot}: mask=0x{nativeParams.GridLabelEnabledMask:X}, pos=({label.WorldPosition.x:F3},{label.WorldPosition.y:F3},{label.WorldPosition.z:F3})");
-            }
+            // Debug: Log when mask changes (disabled)
+            // if (nativeParams.GridLabelEnabledMask != _lastEnabledMask)
+            // {
+            //     _lastEnabledMask = nativeParams.GridLabelEnabledMask;
+            //     Debug.Log($"[GridLabelSystem] Pushed '{label.Text}' to slot {slot}: mask=0x{nativeParams.GridLabelEnabledMask:X}, pos=({label.WorldPosition.x:F3},{label.WorldPosition.y:F3},{label.WorldPosition.z:F3})");
+            // }
         }
         
         private void DisableUnusedSlots(int startSlot)
