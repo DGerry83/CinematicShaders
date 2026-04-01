@@ -831,31 +831,33 @@ namespace CinematicShaders.Core
                 
                 // Calculate phi (polar angle from north pole) based on vertical snap
                 // phi = 0 at north pole, phi = π at south pole
+                // FIXED: Offset by half a cell to place label BETWEEN grid lines (in cell corner)
                 float phi;
                 if (label.SnapVertical == GridSnapVertical.Top)
                 {
-                    // Northern edge of cell
-                    phi = row * phiStep;
+                    // Northern edge of cell: offset DOWN by half a cell to be inside cell
+                    phi = row * phiStep + phiStep * 0.5f;
                 }
                 else // GridSnapVertical.Bottom
                 {
-                    // Southern edge of cell
-                    phi = (row + 1) * phiStep;
+                    // Southern edge of cell: offset UP by half a cell to be inside cell
+                    phi = (row + 1) * phiStep - phiStep * 0.5f;
                 }
                 latRad = Mathf.PI / 2.0f - phi;
                 
                 // Calculate theta (longitude) based on horizontal snap
                 // theta = -π at -180°, theta = π at +180°
+                // FIXED: Offset by half a cell to place label BETWEEN grid lines (in cell corner)
                 float theta;
                 if (label.SnapHorizontal == GridSnapHorizontal.Left)
                 {
-                    // Western edge of cell
-                    theta = -Mathf.PI + col * thetaStep;
+                    // Western edge of cell: offset RIGHT by half a cell to be inside cell
+                    theta = -Mathf.PI + col * thetaStep + thetaStep * 0.5f;
                 }
                 else // GridSnapHorizontal.Right
                 {
-                    // Eastern edge of cell
-                    theta = -Mathf.PI + (col + 1) * thetaStep;
+                    // Eastern edge of cell: offset LEFT by half a cell to be inside cell
+                    theta = -Mathf.PI + (col + 1) * thetaStep - thetaStep * 0.5f;
                 }
                 lonRad = theta;
             }
