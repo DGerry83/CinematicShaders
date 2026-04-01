@@ -179,9 +179,10 @@ namespace CinematicShaders.Core
                 }
                 
                 // Update camera params from compositor
-                _vesselTargetSelector.CameraRight = StarfieldCompositor.CameraRight;
-                _vesselTargetSelector.CameraUp = StarfieldCompositor.CameraUp;
-                _vesselTargetSelector.CameraForward = StarfieldCompositor.CameraForward;
+                // Use SURFACE FRAME for target tracking (matches world space target positions)
+                _vesselTargetSelector.CameraRight = StarfieldCompositor.CameraRightSurface;
+                _vesselTargetSelector.CameraUp = StarfieldCompositor.CameraUpSurface;
+                _vesselTargetSelector.CameraForward = StarfieldCompositor.CameraForwardSurface;
                 _vesselTargetSelector.AspectRatio = StarfieldCompositor.CameraAspect;
                 _vesselTargetSelector.VerticalFOV = StarfieldCompositor.CachedVerticalFOV;
                 
@@ -198,10 +199,24 @@ namespace CinematicShaders.Core
             // Update grid label system (HUCK, situation labels) - runs whenever Kartographer is enabled
             UpdateGridLabelSystem();
             
-            // Update situation display only in playable scenes with a vessel
-            if (IsPlayableScene() && FlightGlobals.ActiveVessel != null)
+            // Update situation display only in playable scenes (Flight, Tracking Station, KSC)
+            // Shows "NO VESSEL" when not in a vessel (e.g., Tracking Station)
+            if (IsPlayableScene())
             {
                 UpdateSituationDisplay();
+            }
+            else
+            {
+                // Disable situation labels when not in a playable scene
+                if (SituationLabelSystem != null)
+                {
+                    var labelA = SituationLabelSystem.GetLabel("situation_a");
+                    var labelB = SituationLabelSystem.GetLabel("situation_b");
+                    if (labelA != null && labelA.Enabled)
+                        SituationLabelSystem.SetLabelEnabled("situation_a", false);
+                    if (labelB != null && labelB.Enabled)
+                        SituationLabelSystem.SetLabelEnabled("situation_b", false);
+                }
             }
         }
         
@@ -257,10 +272,6 @@ namespace CinematicShaders.Core
         /// </summary>
         private void UpdateSituationDisplay()
         {
-            // Skip if no vessel available (game not fully loaded yet)
-            if (FlightGlobals.ActiveVessel == null)
-                return;
-            
             if (!StarfieldSettings.EnableKartographer || !StarfieldSettings.KartographerSituationDisplay)
             {
                 // Disable situation labels if display is off (HUCK remains managed by UpdateGridLabelSystem)

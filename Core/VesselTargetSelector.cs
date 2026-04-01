@@ -87,7 +87,7 @@ namespace CinematicShaders.Core
                 return;
             }
 
-            // Validate camera
+            // Validate camera - use surface frame basis for target tracking
             if (CameraForward.sqrMagnitude < 0.5f)
             {
                 PushEmptyToNative();
