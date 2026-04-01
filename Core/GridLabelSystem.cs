@@ -480,7 +480,7 @@ namespace CinematicShaders.Core
                         label.LastText = label.Text;
                         label.LastUpdateTime = Time.unscaledTime;
                         label.TextureDirty = false;
-                        Debug.Log($"[GridLabelSystem] Generated texture for '{label.Text}' at font={label.FontSizePixels}, size={label.WorldSizeX:F3}x{label.WorldSizeY:F3}");
+                        // Debug.Log($"[GridLabelSystem] Generated texture for '{label.Text}' at font={label.FontSizePixels}, size={label.WorldSizeX:F3}x{label.WorldSizeY:F3}");
                     }
                 }
                 
@@ -720,7 +720,7 @@ namespace CinematicShaders.Core
             if (slot >= 0)
             {
                 StarfieldNative.CR_SetGridLabelTexture(slot, label.Texture.GetNativeTexturePtr());
-                Debug.Log($"[GridLabelSystem] Generated texture for '{label.Text}' in slot {slot}, size {label.WorldSizeX:F3}x{label.WorldSizeY:F3}, aspect={aspect:F2}");
+                // Debug.Log($"[GridLabelSystem] Generated texture for '{label.Text}' in slot {slot}, size {label.WorldSizeX:F3}x{label.WorldSizeY:F3}, aspect={aspect:F2}");
             }
         }
         

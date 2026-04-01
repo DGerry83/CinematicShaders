@@ -221,6 +221,7 @@ static struct {
     float kartographerVesselTargetTextAreaSizeX = 0.0f;
     float kartographerVesselTargetTextAreaSizeY = 0.0f;
     float kartographerVesselTargetTextT = 0.0f;
+    float kartographerAnimatedLabelIntensity = 0.0f;
     
     // Grid label slot state management (Phase 1 Refactor)
     // Each slot tracks its own active state and SRV to prevent crashes from garbage data
@@ -567,9 +568,13 @@ struct KartographerParams {
     float VesselTargetTextAreaSizeX;
     float VesselTargetTextAreaSizeY;
     float VesselTargetTextT;
+    float AnimatedLabelIntensity;
+    float _padAnimated1;
+    float _padAnimated2;
+    float _padAnimated3;
 };
 
-static_assert(sizeof(KartographerParams) == 704, "KartographerParams size mismatch - expected 704 bytes");
+static_assert(sizeof(KartographerParams) == 720, "KartographerParams size mismatch - expected 720 bytes");
 static_assert(sizeof(KartographerParams) % 16 == 0, "KartographerParams must be 16-byte aligned for HLSL CB");
 
 // Soft bloom constant buffer layouts (must match HLSL exactly)
@@ -2171,6 +2176,7 @@ static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
         params->VesselTargetTextAreaSizeX = g_StarfieldState.kartographerVesselTargetTextAreaSizeX;
         params->VesselTargetTextAreaSizeY = g_StarfieldState.kartographerVesselTargetTextAreaSizeY;
         params->VesselTargetTextT = g_StarfieldState.kartographerVesselTargetTextT;
+        params->AnimatedLabelIntensity = g_StarfieldState.kartographerAnimatedLabelIntensity;
         
         context->Unmap(g_StarfieldState.kartographerCB, 0);
     }
@@ -2234,6 +2240,17 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
     g_StarfieldState.kartographerVesselTargetTextAreaSizeX = params->VesselTargetTextAreaSizeX;
     g_StarfieldState.kartographerVesselTargetTextAreaSizeY = params->VesselTargetTextAreaSizeY;
     g_StarfieldState.kartographerVesselTargetTextT = params->VesselTargetTextT;
+    g_StarfieldState.kartographerAnimatedLabelIntensity = params->AnimatedLabelIntensity;
+    
+    // DEBUG: Log intensity when vessel target is enabled and intensity changes significantly
+    static float lastLoggedIntensity = -1.0f;
+    if (params->VesselTargetEnabled && 
+        (lastLoggedIntensity < 0 || fabsf(params->AnimatedLabelIntensity - lastLoggedIntensity) > 0.5f))
+    {
+        LogToFile("[Native] VesselTarget enabled=%d, Intensity=%.2f, Phase changed", 
+                  params->VesselTargetEnabled, params->AnimatedLabelIntensity);
+        lastLoggedIntensity = params->AnimatedLabelIntensity;
+    }
     
     // Copy all 8 grid labels from params to state (extract from float4)
     g_StarfieldState.kartographerGridLabelEnabledMask = params->GridLabelEnabledMask;
