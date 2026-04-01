@@ -540,30 +540,17 @@ namespace CinematicShaders.Core
             kartParams.VesselTargetCircleRadius = 0.02f;
             kartParams.VesselTargetHash = _starHash;
 
-            // Text - only show after box phase with type-on animation
-            // During Circle/Box phases: zero size prevents shader from sampling texture
-            float textT = 0.0f;
-            float textWidthUV = 0f;
-            float textHeightUV = 0f;
-            
-            if (_targetAnimationPhase == TargetAnimationPhase.Text)
-            {
-                textT = _textTypeT;
-                textWidthUV = 1024f * pixelsToUv;
-                textHeightUV = 1024f * pixelsToUv;
-            }
-            else if (_targetAnimationPhase >= TargetAnimationPhase.Complete)
-            {
-                textT = 1.0f;
-                textWidthUV = 1024f * pixelsToUv;
-                textHeightUV = 1024f * pixelsToUv;
-            }
+            // Text params - Match KartographerSelector: always use full texture, 
+            // type-on animation happens via progressive text content, not shader
+            float textWidthUV = 1024f * pixelsToUv;
+            float textHeightUV = 1024f * pixelsToUv;
             
             kartParams.VesselTargetTextOriginX = boxTopLeftX + 0.01f;
             kartParams.VesselTargetTextOriginY = boxTopLeftY + 0.01f;
             kartParams.VesselTargetTextAreaSizeX = textWidthUV;
             kartParams.VesselTargetTextAreaSizeY = textHeightUV;
-            kartParams.VesselTargetTextT = textT;
+            // Always 1.0f - animation happens via _currentDisplayText content changes
+            kartParams.VesselTargetTextT = 1.0f;
 
             StarfieldNative.LastKartographerParams = kartParams;
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
@@ -644,6 +631,14 @@ namespace CinematicShaders.Core
                     _fullTargetText = BuildTargetText(current);
                     _currentDisplayText = "";
                     InitializeTextSystem();
+                    
+                    // CRITICAL: Clear texture immediately to prevent 1-frame flash of old content
+                    if (_textTexture != null)
+                    {
+                        RenderTexture.active = _textTexture;
+                        GL.Clear(true, true, Color.clear);
+                        RenderTexture.active = null;
+                    }
                 }
                 else if (current == null && _currentTarget != null)
                 {
