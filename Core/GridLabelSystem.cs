@@ -264,7 +264,7 @@ namespace CinematicShaders.Core
                 LineSpacing = 4f,
                 UseFixedPadding = true,     // Fixed padding for consistent position regardless of text
                 FixedPaddingLeft = 0.05f,   // ~0.3 of default cell size (baseAngularSize ~0.15)
-                FixedPaddingBottom = 0.05f
+                FixedPaddingBottom = 0.015f // Tuned value to position correctly in grid cell
             });
             
             RegisterLabel(new GridLabel
@@ -290,7 +290,7 @@ namespace CinematicShaders.Core
                 LineSpacing = 4f,
                 UseFixedPadding = true,     // Fixed padding for consistent position regardless of text
                 FixedPaddingLeft = 0.05f,   // ~0.3 of default cell size
-                FixedPaddingBottom = 0.05f
+                FixedPaddingBottom = 0.015f // Tuned value to position correctly in grid cell
             });
         }
         

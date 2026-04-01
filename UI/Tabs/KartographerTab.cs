@@ -324,6 +324,41 @@ namespace CinematicShaders.UI.Tabs
             {
                 ResetToDefaults();
             }
+            
+            // Debug: Fixed padding tuning for situation labels
+            if (CinematicShadersAddon.SituationLabelSystem != null)
+            {
+                var labelA = CinematicShadersAddon.SituationLabelSystem.GetLabel("situation_a");
+                if (labelA != null && labelA.UseFixedPadding)
+                {
+                    GUILayout.Space(10);
+                    GUILayout.Label("<b>Debug: Fixed Padding</b>", HighLogic.Skin.label);
+                    
+                    GUILayout.Label($"Bottom Pad: {labelA.FixedPaddingBottom:F3}");
+                    float newPadB = GUILayout.HorizontalSlider(labelA.FixedPaddingBottom, 0f, 0.2f);
+                    if (!Mathf.Approximately(newPadB, labelA.FixedPaddingBottom))
+                    {
+                        labelA.FixedPaddingBottom = newPadB;
+                        labelA.PositionDirty = true;
+                        
+                        // Mirror to label B
+                        var labelB = CinematicShadersAddon.SituationLabelSystem.GetLabel("situation_b");
+                        if (labelB != null) labelB.FixedPaddingBottom = newPadB;
+                    }
+                    
+                    GUILayout.Label($"Left Pad: {labelA.FixedPaddingLeft:F3}");
+                    float newPadL = GUILayout.HorizontalSlider(labelA.FixedPaddingLeft, 0f, 0.2f);
+                    if (!Mathf.Approximately(newPadL, labelA.FixedPaddingLeft))
+                    {
+                        labelA.FixedPaddingLeft = newPadL;
+                        labelA.PositionDirty = true;
+                        
+                        // Mirror to label B
+                        var labelB = CinematicShadersAddon.SituationLabelSystem.GetLabel("situation_b");
+                        if (labelB != null) labelB.FixedPaddingLeft = newPadL;
+                    }
+                }
+            }
 
             /* DEBUG UI DISABLED - Methods preserved for future use
             // Debug buttons
