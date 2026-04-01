@@ -59,6 +59,12 @@ namespace CinematicShaders.Core
         public float CircleProgress => _currentPhase == Phase.Circle ? _circleT : 1.0f;
 
         /// <summary>
+        /// Text intensity for shader (0-1).
+        /// 0 during Circle/Box phases (hidden), 1 during Text/Complete phases (visible)
+        /// </summary>
+        public float Intensity => (_currentPhase == Phase.Circle || _currentPhase == Phase.Box) ? 0.0f : 1.0f;
+
+        /// <summary>
         /// Start a new animation from the beginning (Circle phase).
         /// Call this when acquiring a new target or selecting a new star.
         /// 

@@ -516,6 +516,9 @@ namespace CinematicShaders.Core
             kartParams.VesselTargetTextAreaSizeY = textHeightUV;
             // Always 1.0f - animation happens via progressive DisplayText content changes
             kartParams.VesselTargetTextT = 1.0f;
+            
+            // Animated label intensity: 0 during Circle/Box (hidden), 1 during Text/Complete (visible)
+            kartParams.AnimatedLabelIntensity = _animController.Intensity;
 
             StarfieldNative.LastKartographerParams = kartParams;
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);

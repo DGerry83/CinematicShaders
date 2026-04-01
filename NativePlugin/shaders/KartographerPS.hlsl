@@ -172,6 +172,12 @@ cbuffer KartographerCB : register(b0) {
     float VesselTargetTextAreaSizeX;    // offset 684
     float VesselTargetTextAreaSizeY;    // offset 688
     float VesselTargetTextT;            // offset 692
+    
+    // Animated label intensity for type-on animation systems
+    float AnimatedLabelIntensity;       // offset 696
+    float _padAnimated1;                // offset 700
+    float _padAnimated2;                // offset 704
+    float _padAnimated3;                // offset 708
 };
 
 // Grid colors: 0=Seafoam, 1=Amber, 2=White, 3=Green
@@ -746,8 +752,9 @@ float4 PSMain(PSInput input) : SV_Target {
             coverageB = VesselTargetTextTexture.SampleLevel(TextSampler, textLocalB, 0).r;
         
         // Add text with per-channel coverage for chromatic aberration effect
-        // Text appears at full intensity - type-on animation is handled by texture content, not fade
-        shapeAccum += shapeColor * float3(coverageR, coverageG, coverageB);
+        // AnimatedLabelIntensity controls visibility (0 during Circle/Box, 1 during Text/Complete)
+        float textIntensity = AnimatedLabelIntensity;
+        shapeAccum += shapeColor * float3(coverageR, coverageG, coverageB) * textIntensity;
         
         col += shapeAccum;
     }

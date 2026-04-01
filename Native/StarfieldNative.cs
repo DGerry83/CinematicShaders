@@ -538,6 +538,12 @@ namespace CinematicShaders.Native
             public float VesselTargetTextAreaSizeX;
             public float VesselTargetTextAreaSizeY;
             public float VesselTargetTextT;
+            
+            // Animated label intensity for type-on animation systems
+            public float AnimatedLabelIntensity;
+            public float _padAnimated1;
+            public float _padAnimated2;
+            public float _padAnimated3;
         }
 
         // Last params cache for incremental updates

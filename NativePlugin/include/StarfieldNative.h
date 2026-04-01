@@ -395,10 +395,17 @@ struct KartographerParamsNative {
     float VesselTargetTextAreaSizeX;
     float VesselTargetTextAreaSizeY;
     float VesselTargetTextT;
+    
+    // Generic animated label intensity (0-1) for type-on animation systems
+    // Use: Set to 0 during Circle/Box phases, fade to 1 during Text phase
+    float AnimatedLabelIntensity;
+    float _padAnimated1;
+    float _padAnimated2;
+    float _padAnimated3;
 };
 
-static_assert(sizeof(KartographerParamsNative) == 704,
-              "KartographerParamsNative size mismatch - expected 704 bytes");
+static_assert(sizeof(KartographerParamsNative) == 720,
+              "KartographerParamsNative size mismatch - expected 720 bytes");
 static_assert(sizeof(KartographerParamsNative) % 16 == 0,
               "KartographerParamsNative must be 16-byte aligned for HLSL CB");
 
