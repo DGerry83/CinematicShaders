@@ -212,7 +212,7 @@ namespace CinematicShaders.Core
                 TextureDirty = true,
                 PositionDirty = true,
                 SnapToGrid = true,
-                GridCellRow = -2,  // Second row from south (first row above polar cap)
+                GridCellRow = -1,  // First ring up from south pole cap
                 GridCellCol = 0,   // Westernmost cell
                 SnapVertical = GridSnapVertical.Bottom,
                 SnapHorizontal = GridSnapHorizontal.Left,

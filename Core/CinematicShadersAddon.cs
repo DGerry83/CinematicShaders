@@ -334,8 +334,9 @@ namespace CinematicShaders.Core
             int preset = Mathf.Clamp(StarfieldSettings.KartographerGridSize, 0, 3);
             
             // Row from top (0 = north pole)
-            // Base position is row 2, slider offsets from there
-            int baseRow = 2;
+            // Preset-specific base positions: Jumbo=2, Large=3, Medium=3, Small=5
+            int[] baseRows = { 2, 3, 3, 5 };
+            int baseRow = baseRows[preset];
             int rowOffset = StarfieldSettings.KartographerSituationRowOffset[preset];
             int rowFromTop = Mathf.Clamp(baseRow - rowOffset, 0, 15);
             
