@@ -302,8 +302,8 @@ namespace CinematicShaders.Native
         }
 
         // ============================================================================
-        // Kartographer Parameters - 8 Label Support (Phase 2)
-        // Total size: 608 bytes (16 × 38)
+        // Kartographer Parameters - 12 Label Support (Phase 2-4)
+        // Total size: 880 bytes (16 × 55)
         // Generated from ReferenceNotes/tools/generate_struct.py
         // ============================================================================
         
@@ -395,23 +395,39 @@ namespace CinematicShaders.Native
             //   480: GridLabel6_TangentY (float4)
             //   496: GridLabel7_PosTangentX (float4)
             //   512: GridLabel7_TangentY (float4)
-            //   528: GridLabelDebugMask (uint)
-            //   532: LabelIntensity0 (float)
-            //   536: LabelIntensity1 (float)
-            //   540: LabelIntensity2 (float)
-            //   544: LabelIntensity3 (float)
-            //   548: LabelIntensity4 (float)
-            //   552: LabelIntensity5 (float)
-            //   556: LabelIntensity6 (float)
-            //   560: LabelIntensity7 (float)
-            //   564: LabelColor0 (uint)
-            //   568: LabelColor1 (uint)
-            //   572: LabelColor2 (uint)
-            //   576: LabelColor3 (uint)
-            //   580: LabelColor4 (uint)
-            //   584: LabelColor5 (uint)
-            //   588: LabelColor6 (uint)
-            //   592: LabelColor7 (uint)
+            //   528: GridLabel8_PosTangentX (float4)
+            //   544: GridLabel8_TangentY (float4)
+            //   560: GridLabel9_PosTangentX (float4)
+            //   576: GridLabel9_TangentY (float4)
+            //   592: GridLabel10_PosTangentX (float4)
+            //   608: GridLabel10_TangentY (float4)
+            //   624: GridLabel11_PosTangentX (float4)
+            //   640: GridLabel11_TangentY (float4)
+            //   656: GridLabelDebugMask (uint)
+            //   660: LabelIntensity0 (float)
+            //   664: LabelIntensity1 (float)
+            //   668: LabelIntensity2 (float)
+            //   672: LabelIntensity3 (float)
+            //   676: LabelIntensity4 (float)
+            //   680: LabelIntensity5 (float)
+            //   684: LabelIntensity6 (float)
+            //   688: LabelIntensity7 (float)
+            //   692: LabelIntensity8 (float)
+            //   696: LabelIntensity9 (float)
+            //   700: LabelIntensity10 (float)
+            //   704: LabelIntensity11 (float)
+            //   708: LabelColor0 (uint)
+            //   712: LabelColor1 (uint)
+            //   716: LabelColor2 (uint)
+            //   720: LabelColor3 (uint)
+            //   724: LabelColor4 (uint)
+            //   728: LabelColor5 (uint)
+            //   732: LabelColor6 (uint)
+            //   736: LabelColor7 (uint)
+            //   740: LabelColor8 (uint)
+            //   744: LabelColor9 (uint)
+            //   748: LabelColor10 (uint)
+            //   752: LabelColor11 (uint)
 
             public float ResolutionX;
             public float ResolutionY;
@@ -497,6 +513,14 @@ namespace CinematicShaders.Native
             public Vector4 GridLabel6_TangentY;
             public Vector4 GridLabel7_PosTangentX;
             public Vector4 GridLabel7_TangentY;
+            public Vector4 GridLabel8_PosTangentX;
+            public Vector4 GridLabel8_TangentY;
+            public Vector4 GridLabel9_PosTangentX;
+            public Vector4 GridLabel9_TangentY;
+            public Vector4 GridLabel10_PosTangentX;
+            public Vector4 GridLabel10_TangentY;
+            public Vector4 GridLabel11_PosTangentX;
+            public Vector4 GridLabel11_TangentY;
             public uint GridLabelDebugMask;
             public float LabelIntensity0;
             public float LabelIntensity1;
@@ -506,6 +530,10 @@ namespace CinematicShaders.Native
             public float LabelIntensity5;
             public float LabelIntensity6;
             public float LabelIntensity7;
+            public float LabelIntensity8;
+            public float LabelIntensity9;
+            public float LabelIntensity10;
+            public float LabelIntensity11;
             public uint LabelColor0;
             public uint LabelColor1;
             public uint LabelColor2;
@@ -514,6 +542,10 @@ namespace CinematicShaders.Native
             public uint LabelColor5;
             public uint LabelColor6;
             public uint LabelColor7;
+            public uint LabelColor8;
+            public uint LabelColor9;
+            public uint LabelColor10;
+            public uint LabelColor11;
             
             // Vessel Target Selector - separate from Star Selector (96 bytes)
             public int VesselTargetEnabled;

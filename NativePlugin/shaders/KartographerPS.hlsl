@@ -16,7 +16,8 @@ struct PSInput {
 };
 
 // Constant buffer - must match C++ KartographerParams struct exactly
-// Total size: 704 bytes (16 × 44)
+// Total size: 880 bytes (16 × 55)
+// Updated for 12-label support (Phase 2-4)
 cbuffer KartographerCB : register(b0) {
     // Base grid params (64 bytes)
     float2 Resolution;          // offset 0
@@ -80,7 +81,7 @@ cbuffer KartographerCB : register(b0) {
     float2 TextAreaSize;            // offset 240
     float SelectionTextT;           // offset 248
     
-    // Grid Labels (8 labels) - offsets 252-527
+    // Grid Labels (12 labels) - offsets 252-655
     uint GridLabelEnabledMask;      // offset 252 - bit i = label i enabled
     float _padGridMask1;            // offset 256
     float _padGridMask2;            // offset 260
@@ -123,28 +124,52 @@ cbuffer KartographerCB : register(b0) {
     float4 GridLabel7_PosTangentX;
     float4 GridLabel7_TangentY;
     
-    // Debug mask and per-label visual params (80 bytes) - offsets 528-607
-    uint GridLabelDebugMask;        // offset 528 - bit mask for debug visualization
+    // Label 8 - offsets 528-559
+    float4 GridLabel8_PosTangentX;
+    float4 GridLabel8_TangentY;
     
-    // Label intensities (8 floats = 32 bytes)
-    float LabelIntensity0;          // offset 532
-    float LabelIntensity1;          // offset 536
-    float LabelIntensity2;          // offset 540
-    float LabelIntensity3;          // offset 544
-    float LabelIntensity4;          // offset 548
-    float LabelIntensity5;          // offset 552
-    float LabelIntensity6;          // offset 556
-    float LabelIntensity7;          // offset 560
+    // Label 9 - offsets 560-591
+    float4 GridLabel9_PosTangentX;
+    float4 GridLabel9_TangentY;
     
-    // Label color overrides (8 uints = 32 bytes, packed ARGB)
-    uint LabelColor0;               // offset 564
-    uint LabelColor1;               // offset 568
-    uint LabelColor2;               // offset 572
-    uint LabelColor3;               // offset 576
-    uint LabelColor4;               // offset 580
-    uint LabelColor5;               // offset 584
-    uint LabelColor6;               // offset 588
-    uint LabelColor7;               // offset 592
+    // Label 10 - offsets 592-623
+    float4 GridLabel10_PosTangentX;
+    float4 GridLabel10_TangentY;
+    
+    // Label 11 - offsets 624-655
+    float4 GridLabel11_PosTangentX;
+    float4 GridLabel11_TangentY;
+    
+    // Debug mask and per-label visual params (96 bytes) - offsets 656-751
+    uint GridLabelDebugMask;        // offset 656 - bit mask for debug visualization
+    
+    // Label intensities (12 floats = 48 bytes)
+    float LabelIntensity0;          // offset 660
+    float LabelIntensity1;          // offset 664
+    float LabelIntensity2;          // offset 668
+    float LabelIntensity3;          // offset 672
+    float LabelIntensity4;          // offset 676
+    float LabelIntensity5;          // offset 680
+    float LabelIntensity6;          // offset 684
+    float LabelIntensity7;          // offset 688
+    float LabelIntensity8;          // offset 692
+    float LabelIntensity9;          // offset 696
+    float LabelIntensity10;         // offset 700
+    float LabelIntensity11;         // offset 704
+    
+    // Label color overrides (12 uints = 48 bytes, packed ARGB)
+    uint LabelColor0;               // offset 708
+    uint LabelColor1;               // offset 712
+    uint LabelColor2;               // offset 716
+    uint LabelColor3;               // offset 720
+    uint LabelColor4;               // offset 724
+    uint LabelColor5;               // offset 728
+    uint LabelColor6;               // offset 732
+    uint LabelColor7;               // offset 736
+    uint LabelColor8;               // offset 740
+    uint LabelColor9;               // offset 744
+    uint LabelColor10;              // offset 748
+    uint LabelColor11;              // offset 752
     
     // Vessel Target Selector - separate from Star Selector (96 bytes) - offsets 596-691
     int VesselTargetEnabled;        // offset 596
@@ -190,8 +215,8 @@ static const float3 kGridColors[4] = {
 
 // Text textures (rendered by compute shader)
 Texture2D<float4> TextTexture : register(t2);              // Star selector text
-Texture2D<float4> VesselTargetTextTexture : register(t11); // Vessel target text
-Texture2D<float4> GridLabelTextures[8] : register(t3);     // One texture per label slot (t3-t10)
+Texture2D<float4> GridLabelTextures[12] : register(t3);    // One texture per label slot (t3-t14)
+Texture2D<float4> VesselTargetTextTexture : register(t15); // Vessel target text
 SamplerState TextSampler : register(s0);
 
 // Grid size presets: 0=Jumbo, 1=Large, 2=Medium, 3=Small, 4=Tiny
@@ -423,15 +448,19 @@ float3 RenderGridLabel(
         // Return bright debug color (no texture sampling)
         if (u >= 0.0 && u <= 1.0 && v >= 0.0 && v <= 1.0) {
             // Different color per label for identification
-            float3 debugColors[8] = {
-                float3(1.0, 0.0, 0.0),  // Red (label 0 - HUCK)
-                float3(0.0, 1.0, 0.0),  // Green (label 1)
-                float3(0.0, 0.0, 1.0),  // Blue (label 2)
-                float3(1.0, 1.0, 0.0),  // Yellow (label 3)
-                float3(1.0, 0.0, 1.0),  // Magenta (label 4)
-                float3(0.0, 1.0, 1.0),  // Cyan (label 5)
-                float3(1.0, 0.5, 0.0),  // Orange (label 6)
-                float3(1.0, 1.0, 1.0)   // White (label 7)
+            float3 debugColors[12] = {
+                float3(1.0, 0.0, 0.0),    // Red (label 0 - HUCK)
+                float3(0.0, 1.0, 0.0),    // Green (label 1)
+                float3(0.0, 0.0, 1.0),    // Blue (label 2)
+                float3(1.0, 1.0, 0.0),    // Yellow (label 3)
+                float3(1.0, 0.0, 1.0),    // Magenta (label 4)
+                float3(0.0, 1.0, 1.0),    // Cyan (label 5)
+                float3(1.0, 0.5, 0.0),    // Orange (label 6)
+                float3(1.0, 1.0, 1.0),    // White (label 7)
+                float3(0.5, 0.0, 1.0),    // Purple (label 8)
+                float3(0.0, 0.5, 0.0),    // Dark Green (label 9)
+                float3(0.5, 0.5, 0.0),    // Olive (label 10)
+                float3(0.0, 0.5, 0.5)     // Teal (label 11)
             };
             return debugColors[texIndex];
         }
@@ -534,6 +563,26 @@ float3 RenderGridLabel(
             labelG = GridLabelTextures[7].SampleLevel(TextSampler, saturate(uvG), 0).r;
             labelB = GridLabelTextures[7].SampleLevel(TextSampler, saturate(uvB), 0).r;
             break;
+        case 8:
+            labelR = GridLabelTextures[8].SampleLevel(TextSampler, saturate(uvR), 0).r;
+            labelG = GridLabelTextures[8].SampleLevel(TextSampler, saturate(uvG), 0).r;
+            labelB = GridLabelTextures[8].SampleLevel(TextSampler, saturate(uvB), 0).r;
+            break;
+        case 9:
+            labelR = GridLabelTextures[9].SampleLevel(TextSampler, saturate(uvR), 0).r;
+            labelG = GridLabelTextures[9].SampleLevel(TextSampler, saturate(uvG), 0).r;
+            labelB = GridLabelTextures[9].SampleLevel(TextSampler, saturate(uvB), 0).r;
+            break;
+        case 10:
+            labelR = GridLabelTextures[10].SampleLevel(TextSampler, saturate(uvR), 0).r;
+            labelG = GridLabelTextures[10].SampleLevel(TextSampler, saturate(uvG), 0).r;
+            labelB = GridLabelTextures[10].SampleLevel(TextSampler, saturate(uvB), 0).r;
+            break;
+        case 11:
+            labelR = GridLabelTextures[11].SampleLevel(TextSampler, saturate(uvR), 0).r;
+            labelG = GridLabelTextures[11].SampleLevel(TextSampler, saturate(uvG), 0).r;
+            labelB = GridLabelTextures[11].SampleLevel(TextSampler, saturate(uvB), 0).r;
+            break;
     }
     
     // Apply per-label intensity and optional color override
@@ -548,6 +597,10 @@ float3 RenderGridLabel(
         case 5: intensity = LabelIntensity5; colorOverride = LabelColor5; break;
         case 6: intensity = LabelIntensity6; colorOverride = LabelColor6; break;
         case 7: intensity = LabelIntensity7; colorOverride = LabelColor7; break;
+        case 8: intensity = LabelIntensity8; colorOverride = LabelColor8; break;
+        case 9: intensity = LabelIntensity9; colorOverride = LabelColor9; break;
+        case 10: intensity = LabelIntensity10; colorOverride = LabelColor10; break;
+        case 11: intensity = LabelIntensity11; colorOverride = LabelColor11; break;
         default: intensity = 1.0; colorOverride = 0; break;
     }
     
@@ -770,7 +823,7 @@ float4 PSMain(PSInput input) : SV_Target {
         float2 caOffsetLabel = perp * 0.02;
         
         // Process each enabled label
-        for (int i = 0; i < 8; i++) {
+        for (int i = 0; i < 12; i++) {
             if ((GridLabelEnabledMask & (1u << i)) == 0) continue;
             
             float4 posTanX, tanY;
@@ -783,6 +836,10 @@ float4 PSMain(PSInput input) : SV_Target {
                 case 5: posTanX = GridLabel5_PosTangentX; tanY = GridLabel5_TangentY; break;
                 case 6: posTanX = GridLabel6_PosTangentX; tanY = GridLabel6_TangentY; break;
                 case 7: posTanX = GridLabel7_PosTangentX; tanY = GridLabel7_TangentY; break;
+                case 8: posTanX = GridLabel8_PosTangentX; tanY = GridLabel8_TangentY; break;
+                case 9: posTanX = GridLabel9_PosTangentX; tanY = GridLabel9_TangentY; break;
+                case 10: posTanX = GridLabel10_PosTangentX; tanY = GridLabel10_TangentY; break;
+                case 11: posTanX = GridLabel11_PosTangentX; tanY = GridLabel11_TangentY; break;
             }
             
             float3 labelPos = posTanX.xyz;
