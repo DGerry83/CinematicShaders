@@ -400,31 +400,56 @@ namespace CinematicShaders.Core
             
             if (_textSystem == IntPtr.Zero) return;
             
-            // PHASE 2: HUCK-only mode with explicit slot management
-            // Clear slots 1-7 explicitly (disabled in Phase 2)
-            for (int i = 1; i < MAX_LABELS; i++)
+            // PHASE 3: Fixed slot management for labels 0-2, clear 3-7
+            // Slots: 0=HUCK, 1=situation_a, 2=situation_b, 3-7=empty
+            for (int i = 3; i < MAX_LABELS; i++)
             {
                 StarfieldNative.CR_ClearGridLabelSlot(i);
                 _boundTextures[i] = IntPtr.Zero;
             }
             
-            // Build list of enabled labels - ONLY HUCK in Phase 2
+            // Build list of enabled labels with fixed slot assignment
             _enabledLabels.Clear();
+            
+            // Slot 0: HUCK
             if (_labels.TryGetValue("huck", out var huckLabel) && huckLabel.Enabled)
             {
                 _enabledLabels.Add(huckLabel);
             }
-            
-            // PHASE 2: Situation labels (slots 1-2) are disabled for testing
-            // They will be re-enabled in Phase 3 with fixed slot assignment
-            
-            // If no labels enabled, clear slot 0, clear mask, and exit early
-            if (_enabledLabels.Count == 0)
+            else
             {
-                // PHASE 2: Clear slot 0 (HUCK) when no labels enabled
+                // Clear slot 0 if HUCK not enabled
                 StarfieldNative.CR_ClearGridLabelSlot(HUCK_SLOT);
                 _boundTextures[HUCK_SLOT] = IntPtr.Zero;
-                
+            }
+            
+            // Slot 1: situation_a
+            if (_labels.TryGetValue("situation_a", out var situationA) && situationA.Enabled)
+            {
+                _enabledLabels.Add(situationA);
+            }
+            else
+            {
+                // Clear slot 1 if situation_a not enabled
+                StarfieldNative.CR_ClearGridLabelSlot(SITUATION_A_SLOT);
+                _boundTextures[SITUATION_A_SLOT] = IntPtr.Zero;
+            }
+            
+            // Slot 2: situation_b
+            if (_labels.TryGetValue("situation_b", out var situationB) && situationB.Enabled)
+            {
+                _enabledLabels.Add(situationB);
+            }
+            else
+            {
+                // Clear slot 2 if situation_b not enabled
+                StarfieldNative.CR_ClearGridLabelSlot(SITUATION_B_SLOT);
+                _boundTextures[SITUATION_B_SLOT] = IntPtr.Zero;
+            }
+            
+            // If no labels enabled, clear mask and exit early
+            if (_enabledLabels.Count == 0)
+            {
                 var emptyParams = StarfieldNative.LastKartographerParams;
                 if (emptyParams.GridLabelEnabledMask != 0)
                 {
@@ -539,12 +564,16 @@ namespace CinematicShaders.Core
                     CalculateTangentFrame(label);
                 }
                 
-                // Push to native slot
-                PushLabelToNative(label, i);
+                // Push to native slot using fixed slot assignment
+                int fixedSlot = GetSlotForLabelId(label.Id);
+                if (fixedSlot >= 0)
+                {
+                    PushLabelToNative(label, fixedSlot);
+                }
             }
             
-            // Disable unused slots
-            DisableUnusedSlots(_enabledLabels.Count);
+            // PHASE 3: Slots 0-2 are managed individually above, slots 3-7 cleared at start of Update()
+            // DisableUnusedSlots is no longer needed with fixed slot assignment
         }
         
         /// <summary>
@@ -764,8 +793,8 @@ namespace CinematicShaders.Core
             label.WorldSizeY = baseAngularSize;
             label.WorldSizeX = label.WorldSizeY * aspect;
             
-            // Bind texture to native slot
-            int slot = _enabledLabels.IndexOf(label);
+            // Bind texture to native slot using fixed slot assignment
+            int slot = GetSlotForLabelId(label.Id);
             if (slot >= 0)
             {
                 StarfieldNative.CR_SetGridLabelTexture(slot, label.Texture.GetNativeTexturePtr());
