@@ -7,17 +7,6 @@ using UnityEngine;
 namespace CinematicShaders.Core
 {
     /// <summary>
-    /// Animation phases for target/situation UI
-    /// </summary>
-    public enum TargetAnimationPhase
-    {
-        Circle,     // 0-0.4s: Circle flickers
-        Box,        // 0.4s: Box snaps on
-        Text,       // 0.4s-1.9s: Text types on
-        Complete    // 1.9s+: Cursor blinks, dynamic updates
-    }
-
-    /// <summary>
     /// Draws selection circles and info displays for vessel targets and situation.
     /// Supports two modes:
     /// 1. Target Info: Circle + box with text (like star selector)
@@ -39,18 +28,13 @@ namespace CinematicShaders.Core
         private ITargetable _lastCheckedTarget = null;
         private int _frameCounter = 0;
 
-        // Animation state for target info
-        private TargetAnimationPhase _targetAnimationPhase = TargetAnimationPhase.Complete;
-        private float _targetAnimationT = 1.0f;
-        private float _textTypeT = 0.0f;
-        private string _fullTargetText = "";
-        private string _currentDisplayText = "";
+        // Animation controller for target info (replaces individual animation state)
+        private TypeOnAnimationController _animController = new TypeOnAnimationController();
         private float _starHash = 0f;
         private float _lastDynamicUpdate = 0f;
         private const float DYNAMIC_UPDATE_INTERVAL = 0.1f; // 10 FPS
 
         // Situation display state
-        private float _situationAnimationT = 0f;
         private string _situationText = "";
         private float _lastSituationUpdate = 0f;
 
@@ -196,77 +180,23 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
-        /// Update target info animation (circle flicker, type-on, cursor blink)
+        /// Update target info animation using TypeOnAnimationController
         /// </summary>
         private void UpdateTargetAnimation()
         {
-            if (_targetAnimationPhase == TargetAnimationPhase.Circle)
-            {
-                _targetAnimationT += Time.deltaTime / 0.4f;
-                if (_targetAnimationT >= 1.0f)
-                {
-                    _targetAnimationT = 1.0f;
-                    _targetAnimationPhase = TargetAnimationPhase.Box;
-                }
-            }
-            else if (_targetAnimationPhase == TargetAnimationPhase.Box)
-            {
-                _targetAnimationPhase = TargetAnimationPhase.Text;
-            }
-            else if (_targetAnimationPhase == TargetAnimationPhase.Text)
-            {
-                _textTypeT += Time.deltaTime / 1.5f;
-                if (_textTypeT >= 1.0f)
-                {
-                    _textTypeT = 1.0f;
-                    _targetAnimationPhase = TargetAnimationPhase.Complete;
-                }
-                UpdateDisplayText();
-            }
-            else // Complete
-            {
-                // Blink cursor at 2Hz
-                UpdateDisplayText();
+            // Update animation state
+            _animController.Update(Time.deltaTime);
 
-                // Update dynamic values at 10 FPS
+            // Update dynamic values at 10 FPS (only in Complete phase)
+            if (!_animController.IsAnimating)
+            {
                 float now = Time.time;
                 if (now - _lastDynamicUpdate > DYNAMIC_UPDATE_INTERVAL)
                 {
                     _lastDynamicUpdate = now;
-                    _fullTargetText = BuildTargetText(_currentTarget);
-                    UpdateDisplayText();
+                    string newTargetText = BuildTargetText(_currentTarget);
+                    _animController.UpdateFullText(newTargetText);
                 }
-            }
-        }
-
-        /// <summary>
-        /// Build display text with cursor for animation
-        /// Cursor only appears after box phase (matches star selector behavior)
-        /// </summary>
-        private void UpdateDisplayText()
-        {
-            if (_targetAnimationPhase == TargetAnimationPhase.Circle)
-            {
-                // Circle phase: no text, no cursor
-                _currentDisplayText = "";
-            }
-            else if (_targetAnimationPhase == TargetAnimationPhase.Box)
-            {
-                // Box phase: just cursor, no text yet
-                _currentDisplayText = "^|";
-            }
-            else if (_targetAnimationPhase == TargetAnimationPhase.Text)
-            {
-                // Text phase: progressively reveal characters with cursor
-                int visibleChars = (int)(_fullTargetText.Length * _textTypeT);
-                visibleChars = Mathf.Clamp(visibleChars, 0, _fullTargetText.Length);
-                _currentDisplayText = _fullTargetText.Substring(0, visibleChars) + "^|";
-            }
-            else // Complete
-            {
-                // Complete phase: full text with blinking cursor at 2Hz
-                bool cursorVisible = (Time.time * 2.0f) % 2.0f < 1.0f;
-                _currentDisplayText = _fullTargetText + (cursorVisible ? "^|" : " ");
             }
         }
 
@@ -453,7 +383,7 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
-        /// Update text texture - matches KartographerSelector implementation
+        /// Update text texture - uses TypeOnAnimationController for animation state
         /// Clears texture during Circle phase, renders during Box phase and later
         /// </summary>
         private void UpdateTextTexture()
@@ -462,7 +392,7 @@ namespace CinematicShaders.Core
             
             // During Circle phase: clear texture and don't render anything
             // This prevents old text from flashing briefly when acquiring a new target
-            if (_targetAnimationPhase == TargetAnimationPhase.Circle)
+            if (_animController.CurrentPhase == TypeOnAnimationController.Phase.Circle)
             {
                 if (_textTexture != null)
                 {
@@ -476,14 +406,15 @@ namespace CinematicShaders.Core
             }
             
             // During Box phase and later: render text (even if just cursor)
-            if (string.IsNullOrEmpty(_currentDisplayText)) return;
+            string displayText = _animController.DisplayText;
+            if (string.IsNullOrEmpty(displayText)) return;
 
             uint color = 0xFFFFFFFF; // White ARGB
-            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, _currentDisplayText, FONT_SIZE, color);
+            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, displayText, FONT_SIZE, color);
             if (glyphCount <= 0) return;
 
             // Get actual rendered bounds
-            StarfieldNative.CR_TextMeasure(_textSystem, _currentDisplayText, FONT_SIZE, out _, out _);
+            StarfieldNative.CR_TextMeasure(_textSystem, displayText, FONT_SIZE, out _, out _);
             StarfieldNative.CR_TextGetBounds(_textSystem, out _textWidthPixels, out _textHeightPixels);
 
             // Dispatch to texture
@@ -521,7 +452,7 @@ namespace CinematicShaders.Core
             boxWidthUV = Mathf.Max(boxWidthUV, 0.08f);
             boxHeightUV = Mathf.Max(boxHeightUV, 0.06f);
 
-            bool showBox = visible && _targetAnimationPhase >= TargetAnimationPhase.Box;
+            bool showBox = visible && _animController.CurrentPhase >= TypeOnAnimationController.Phase.Box;
 
             // Use VesselTarget* fields (separate from Star Selector)
             kartParams.VesselTargetBoxTopLeftX = boxTopLeftX;
@@ -530,11 +461,11 @@ namespace CinematicShaders.Core
             kartParams.VesselTargetBoxSizeY = showBox ? boxHeightUV : 0f;
             kartParams.VesselTargetBoxThickness = 0.001f;
 
-            // Circle
+            // Circle (using controller's circle progress for flicker)
             kartParams.VesselTargetEnabled = visible ? 1 : 0;
             kartParams.VesselTargetCircleCenterX = centerX;
             kartParams.VesselTargetCircleCenterY = centerY;
-            kartParams.VesselTargetCircleT = _targetAnimationT;
+            kartParams.VesselTargetCircleT = _animController.CircleProgress;
             kartParams.VesselTargetCircleIntensity = 0.002f;
             kartParams.VesselTargetCircleThickness = 0.001f;
             kartParams.VesselTargetCircleRadius = 0.02f;
@@ -549,7 +480,7 @@ namespace CinematicShaders.Core
             kartParams.VesselTargetTextOriginY = boxTopLeftY + 0.01f;
             kartParams.VesselTargetTextAreaSizeX = textWidthUV;
             kartParams.VesselTargetTextAreaSizeY = textHeightUV;
-            // Always 1.0f - animation happens via _currentDisplayText content changes
+            // Always 1.0f - animation happens via progressive DisplayText content changes
             kartParams.VesselTargetTextT = 1.0f;
 
             StarfieldNative.LastKartographerParams = kartParams;
@@ -624,13 +555,12 @@ namespace CinematicShaders.Core
                 {
                     // New target - reset animation
                     _currentTarget = current;
-                    _targetAnimationPhase = TargetAnimationPhase.Circle;
-                    _targetAnimationT = 0f;
-                    _textTypeT = 0f;
                     _starHash = UnityEngine.Random.value;
-                    _fullTargetText = BuildTargetText(current);
-                    _currentDisplayText = "";
                     InitializeTextSystem();
+                    
+                    // Start animation with controller
+                    string targetText = BuildTargetText(current);
+                    _animController.Start(targetText);
                     
                     // CRITICAL: Clear texture immediately to prevent 1-frame flash of old content
                     if (_textTexture != null)
