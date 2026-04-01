@@ -200,7 +200,7 @@ static struct {
     ID3D11SamplerState* textSampler = nullptr;
     ID3D11ShaderResourceView* textTextureSRV = nullptr;           // t2 - Star selector text
     ID3D11ShaderResourceView* vesselTargetTextTextureSRV = nullptr; // t11 - Vessel target text
-    ID3D11ShaderResourceView* gridLabelTextureSRV[8] = {};        // t3-t10 - Grid labels
+    ID3D11ShaderResourceView* gridLabelTextureSRV[12] = {};       // t3-t14 - Grid labels
     
     // Vessel target parameters (separate from star selector)
     int kartographerVesselTargetEnabled = 0;
@@ -235,7 +235,7 @@ static struct {
         float intensity = 1.0f;
         uint32_t color = 0;
     };
-    GridLabelSlot gridLabelSlots[8];
+    GridLabelSlot gridLabelSlots[12];
 } g_StarfieldState;
 
 // Constant buffer layouts (must match HLSL exactly, 16-byte aligned)
@@ -1300,7 +1300,7 @@ if (!g_StarfieldState.blendState) {
     
     // Initialize all grid label slots to empty state (Phase 1 Refactor)
     // This ensures no garbage SRV pointers exist in unused slots
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 12; i++) {
         g_StarfieldState.gridLabelSlots[i].isActive = false;
         if (g_StarfieldState.gridLabelSlots[i].textureSRV) {
             g_StarfieldState.gridLabelSlots[i].textureSRV->Release();
@@ -1594,15 +1594,15 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
             LogToFile("[Text] No text texture SRV available (null), nothing bound to t2");
         }
         
-        // Bind grid label textures to slots t3-t10 (Phase 1: Use new slot state with isActive check)
-        for (int i = 0; i < 8; i++) {
+        // Bind grid label textures to slots t3-t14 (Phase 1: Use new slot state with isActive check)
+        for (int i = 0; i < 12; i++) {
             const auto& slot = g_StarfieldState.gridLabelSlots[i];
             if (slot.isActive && slot.textureSRV) {
                 context->PSSetShaderResources(3 + i, 1, &slot.textureSRV);
             }
         }
         
-        // Bind vessel target text texture to slot t11
+        // Bind vessel target text texture to slot t15
         if (g_StarfieldState.vesselTargetTextTextureSRV) {
             context->PSSetShaderResources(11, 1, &g_StarfieldState.vesselTargetTextTextureSRV);
         }
@@ -1885,15 +1885,15 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
             context->PSSetShaderResources(2, 1, &g_StarfieldState.textTextureSRV);
         }
         
-        // Bind grid label textures to slots t3-t10 (Phase 1: Use new slot state with isActive check)
-        for (int i = 0; i < 8; i++) {
+        // Bind grid label textures to slots t3-t14 (Phase 1: Use new slot state with isActive check)
+        for (int i = 0; i < 12; i++) {
             const auto& slot = g_StarfieldState.gridLabelSlots[i];
             if (slot.isActive && slot.textureSRV) {
                 context->PSSetShaderResources(3 + i, 1, &slot.textureSRV);
             }
         }
         
-        // Bind vessel target text texture to slot t11
+        // Bind vessel target text texture to slot t15
         if (g_StarfieldState.vesselTargetTextTextureSRV) {
             context->PSSetShaderResources(11, 1, &g_StarfieldState.vesselTargetTextTextureSRV);
         }
@@ -2652,7 +2652,7 @@ void CR_SetVesselTargetTextTexture(ID3D11Texture2D* texture)
 extern "C" __declspec(dllexport)
 void CR_SetGridLabelTexture(int slot, ID3D11Texture2D* texture)
 {
-    if (slot < 0 || slot >= 8) {
+    if (slot < 0 || slot >= 12) {
         return;
     }
     
@@ -2688,7 +2688,7 @@ void CR_SetGridLabelTexture(int slot, ID3D11Texture2D* texture)
 extern "C" __declspec(dllexport)
 void CR_ClearGridLabelSlot(int slot)
 {
-    if (slot < 0 || slot >= 8) {
+    if (slot < 0 || slot >= 12) {
         return;
     }
     
@@ -3343,8 +3343,8 @@ void CR_StarfieldShutdown()
     if (g_StarfieldState.bloomHalfTexture) { g_StarfieldState.bloomHalfTexture->Release(); g_StarfieldState.bloomHalfTexture = nullptr; }
     if (g_StarfieldState.upscalePS) { g_StarfieldState.upscalePS->Release(); g_StarfieldState.upscalePS = nullptr; }
     
-    // Cleanup grid label textures (all 8 slots)
-    for (int i = 0; i < 8; i++) {
+    // Cleanup grid label textures (all 12 slots)
+    for (int i = 0; i < 12; i++) {
         if (g_StarfieldState.gridLabelTextureSRV[i]) {
             g_StarfieldState.gridLabelTextureSRV[i]->Release();
             g_StarfieldState.gridLabelTextureSRV[i] = nullptr;
