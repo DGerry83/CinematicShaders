@@ -131,9 +131,9 @@ namespace CinematicShaders.UI.Tabs
 
             GUILayout.BeginVertical(HighLogic.Skin.box);
 
-            // Mouse hover selection mode toggle
+            // Star catalog selection mode toggle
             bool newMouseHoverMode = GUILayout.Toggle(StarfieldSettings.KartographerMouseHoverSelect, 
-                " Mouse Hover Selection", HighLogic.Skin.toggle);
+                " Star Catalog", HighLogic.Skin.toggle);
             if (newMouseHoverMode != StarfieldSettings.KartographerMouseHoverSelect)
             {
                 StarfieldSettings.KartographerMouseHoverSelect = newMouseHoverMode;
@@ -170,10 +170,7 @@ namespace CinematicShaders.UI.Tabs
                 StarfieldSettings.Save();
             }
             
-            // FINE-TUNING SLIDERS DISABLED - Defaults are now tuned per preset
-            // Settings remain functional for future label placement adjustment
-            // To re-enable, uncomment the block below:
-            /*
+            // Situation label position adjustment (user-facing, not debug)
             if (StarfieldSettings.KartographerSituationDisplay)
             {
                 int gridSize = Mathf.Clamp(StarfieldSettings.KartographerGridSize, 0, 3);
@@ -203,7 +200,6 @@ namespace CinematicShaders.UI.Tabs
                     StarfieldSettings.Save();
                 }
             }
-            */
             
             GUILayout.Space(5);
 
