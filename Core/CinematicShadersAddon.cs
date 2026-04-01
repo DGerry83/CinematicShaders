@@ -334,8 +334,9 @@ namespace CinematicShaders.Core
             int preset = Mathf.Clamp(StarfieldSettings.KartographerGridSize, 0, 3);
             
             // Row from top (0 = north pole)
-            // Preset-specific base positions: Jumbo=2, Large=3, Medium=3, Small=5
-            int[] baseRows = { 2, 3, 3, 5 };
+            // Preset-specific base positions: Jumbo=2, Large=3, Medium=5, Small=7
+            // Medium and Small shifted +2 towards south pole for better label positioning
+            int[] baseRows = { 2, 3, 5, 7 };
             int baseRow = baseRows[preset];
             int rowOffset = StarfieldSettings.KartographerSituationRowOffset[preset];
             int rowFromTop = Mathf.Clamp(baseRow - rowOffset, 0, 15);
@@ -378,20 +379,17 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
-        /// Formats a distance in meters to the most compact readable unit (M, KM, MM, GM, TM)
-        /// Ensures the result fits within reasonable display width (~12 chars)
+        /// Formats a distance in meters to appropriate units (M, KM, MM, GM, TM)
+        /// Uses reasonable thresholds - overflow detection in GenerateTexture handles edge cases
         /// </summary>
         private string FormatDistanceSmart(double meters, string prefix)
         {
-            // Unit thresholds and labels
-            // TM = Tera-meters (10^12), GM = Giga-meters (10^9), MM = Mega-meters (10^6)
-            // KM = Kilo-meters (10^3), M = meters
+            // Convert to larger units at reasonable thresholds
+            // Texture overflow detection will compress further if needed
             
             if (meters >= 1e12)
             {
                 double tm = meters / 1e12;
-                // If TM value would be > 999, it overflows - but TM is the largest unit
-                // Format with appropriate precision
                 if (tm >= 100) return $"{prefix}{tm:F0} TM";
                 if (tm >= 10) return $"{prefix}{tm:F1} TM";
                 return $"{prefix}{tm:F2} TM";
@@ -421,7 +419,7 @@ namespace CinematicShaders.Core
                 return $"{prefix}{km:F2} KM";
             }
             
-            // Meters - for smaller values, show more precision
+            // Meters
             if (meters >= 100) return $"{prefix}{meters:F0} M";
             if (meters >= 10) return $"{prefix}{meters:F1} M";
             return $"{prefix}{meters:F2} M";

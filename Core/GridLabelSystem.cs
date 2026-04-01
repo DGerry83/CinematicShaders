@@ -800,11 +800,13 @@ namespace CinematicShaders.Core
             }
             else
             {
-                // Single-pass rendering, aligned to bottom-left of texture
+                // Single-pass rendering with overflow detection
                 float vPadding = 2.0f;
+                const float MAX_WIDTH = 230f; // 90% of 256px texture
                 
-                // Layout text at a temporary origin to get actual bounds (not advances)
-                int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing);
+                // Try original text first
+                string displayText = label.Text;
+                int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, displayText, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing);
                 
                 if (glyphCount <= 0)
                 {
@@ -812,12 +814,51 @@ namespace CinematicShaders.Core
                     return;
                 }
                 
-                // Get actual rendered bounds (accounts for bitmap extents, not just advances)
+                // Get actual rendered bounds
                 StarfieldNative.CR_TextGetBounds(_textSystem, out boundsWidth, out boundsHeight);
+                
+                // If too wide, try progressively compressing the format
+                if (boundsWidth > MAX_WIDTH && label.Text.Contains(" M"))
+                {
+                    // Try KM format (divide by 1000)
+                    string compressed = CompressDistanceUnits(label.Text, 1e3, "KM");
+                    if (compressed != displayText)
+                    {
+                        int g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, compressed, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing);
+                        float bw2, bh2;
+                        StarfieldNative.CR_TextGetBounds(_textSystem, out bw2, out bh2);
+                        if (bw2 <= MAX_WIDTH)
+                        {
+                            displayText = compressed;
+                            boundsWidth = bw2;
+                            boundsHeight = bh2;
+                            glyphCount = g2;
+                        }
+                    }
+                }
+                
+                if (boundsWidth > MAX_WIDTH && displayText.Contains(" KM"))
+                {
+                    // Try MM format (divide by 1,000,000)
+                    string compressed = CompressDistanceUnits(displayText, 1e6, "MM");
+                    if (compressed != displayText)
+                    {
+                        int g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, compressed, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing);
+                        float bw2, bh2;
+                        StarfieldNative.CR_TextGetBounds(_textSystem, out bw2, out bh2);
+                        if (bw2 <= MAX_WIDTH)
+                        {
+                            displayText = compressed;
+                            boundsWidth = bw2;
+                            boundsHeight = bh2;
+                            glyphCount = g2;
+                        }
+                    }
+                }
                 
                 // Re-layout with correct origin for final render
                 float originY = TEXTURE_SIZE - boundsHeight - vPadding;
-                glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, 0.0f, originY, label.LineSpacing);
+                glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, displayText, label.FontSizePixels, color, 0.0f, originY, label.LineSpacing);
                 
                 // Render glyphs (clears texture)
                 StarfieldNative.CR_TextDispatchEx(
@@ -1118,6 +1159,90 @@ namespace CinematicShaders.Core
                 if (label.LabelType == type)
                     yield return label;
             }
+        }
+        
+        /// <summary>
+        /// Compresses distance values in text by converting to larger units.
+        /// Looks for patterns like "12345.6 M" and converts to "12.3 KM" etc.
+        /// </summary>
+        private string CompressDistanceUnits(string text, double divisor, string newUnit)
+        {
+            var result = new System.Text.StringBuilder();
+            var lines = text.Split('\n');
+            
+            foreach (var line in lines)
+            {
+                // Look for patterns like "ALT: 12345.6 M" or "A/P: 1234567.8 KM"
+                int colonIdx = line.IndexOf(':');
+                if (colonIdx > 0 && line.EndsWith(" M"))
+                {
+                    string prefix = line.Substring(0, colonIdx + 1);
+                    string numberPart = line.Substring(colonIdx + 1).Trim();
+                    
+                    // Remove "M" suffix and parse
+                    if (numberPart.EndsWith(" M"))
+                    {
+                        numberPart = numberPart.Substring(0, numberPart.Length - 2).Trim();
+                        if (double.TryParse(numberPart, System.Globalization.NumberStyles.Any, 
+                            System.Globalization.CultureInfo.InvariantCulture, out double value))
+                        {
+                            double newValue = value / divisor;
+                            string formatted;
+                            if (newValue >= 100) formatted = $"{newValue:F0}";
+                            else if (newValue >= 10) formatted = $"{newValue:F1}";
+                            else formatted = $"{newValue:F2}";
+                            result.Append(prefix).Append(' ').Append(formatted).Append(' ').Append(newUnit);
+                        }
+                        else
+                        {
+                            result.Append(line);
+                        }
+                    }
+                    else
+                    {
+                        result.Append(line);
+                    }
+                }
+                else if (colonIdx > 0 && line.EndsWith(" KM") && divisor >= 1e6)
+                {
+                    // Converting KM to MM/GM/TM
+                    string prefix = line.Substring(0, colonIdx + 1);
+                    string numberPart = line.Substring(colonIdx + 1).Trim();
+                    
+                    if (numberPart.EndsWith(" KM"))
+                    {
+                        numberPart = numberPart.Substring(0, numberPart.Length - 3).Trim();
+                        if (double.TryParse(numberPart, System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out double value))
+                        {
+                            // KM to M first, then divide
+                            double newValue = (value * 1000) / divisor;
+                            string formatted;
+                            if (newValue >= 100) formatted = $"{newValue:F0}";
+                            else if (newValue >= 10) formatted = $"{newValue:F1}";
+                            else formatted = $"{newValue:F2}";
+                            result.Append(prefix).Append(' ').Append(formatted).Append(' ').Append(newUnit);
+                        }
+                        else
+                        {
+                            result.Append(line);
+                        }
+                    }
+                    else
+                    {
+                        result.Append(line);
+                    }
+                }
+                else
+                {
+                    result.Append(line);
+                }
+                
+                if (line != lines[lines.Length - 1])
+                    result.Append('\n');
+            }
+            
+            return result.ToString();
         }
         
         /// <summary>
