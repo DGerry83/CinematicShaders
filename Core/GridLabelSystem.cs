@@ -617,48 +617,83 @@ namespace CinematicShaders.Core
         /// </summary>
         private void ApplyLabelDefaults(GridLabel label, int preset)
         {
-            if (label.Id != "huck") return;
-            
-            // Disable labels for Tiny preset - grid is too dense for readable labels
-            if (preset == 4)
+            // HUCK label defaults
+            if (label.Id == "huck")
             {
-                label.Enabled = false;
+                // Disable labels for Tiny preset - grid is too dense for readable labels
+                if (preset == 4)
+                {
+                    label.Enabled = false;
+                    return;
+                }
+                
+                // Re-enable if coming from Tiny preset
+                label.Enabled = true;
+                
+                switch (preset)
+                {
+                    case 0: // Jumbo
+                        label.RotationDegrees = -2f;
+                        label.PaddingLeft = 0.10f;
+                        label.PaddingBottom = 0.00f;
+                        label.FontSizePixels = 18f;
+                        label.LineSpacing = 4.5f;
+                        break;
+                    case 1: // Large
+                        label.RotationDegrees = -2f;
+                        label.PaddingLeft = 0.12f;
+                        label.PaddingBottom = 0.00f;
+                        label.FontSizePixels = 21f;
+                        label.LineSpacing = 5.3f;
+                        break;
+                    case 2: // Medium
+                        label.RotationDegrees = -2f;
+                        label.PaddingLeft = 0.17f;
+                        label.PaddingBottom = 0.07f;
+                        label.FontSizePixels = 29f;
+                        label.LineSpacing = 0f;
+                        break;
+                    case 3: // Small
+                        label.RotationDegrees = -2f;
+                        label.PaddingLeft = 0.20f;
+                        label.PaddingBottom = 0.70f;
+                        label.FontSizePixels = 36f;
+                        label.LineSpacing = 0f;
+                        break;
+                }
                 return;
             }
             
-            // Re-enable if coming from Tiny preset
-            label.Enabled = true;
-            
-            switch (preset)
+            // Situation label defaults (situation_a and situation_b)
+            if (label.Id == "situation_a" || label.Id == "situation_b")
             {
-                case 0: // Jumbo
-                    label.RotationDegrees = -2f;
-                    label.PaddingLeft = 0.10f;
-                    label.PaddingBottom = 0.00f;
-                    label.FontSizePixels = 18f;
-                    label.LineSpacing = 4.5f;
-                    break;
-                case 1: // Large
-                    label.RotationDegrees = -2f;
-                    label.PaddingLeft = 0.12f;
-                    label.PaddingBottom = 0.00f;
-                    label.FontSizePixels = 21f;
-                    label.LineSpacing = 5.3f;
-                    break;
-                case 2: // Medium
-                    label.RotationDegrees = -2f;
-                    label.PaddingLeft = 0.17f;
-                    label.PaddingBottom = 0.07f;
-                    label.FontSizePixels = 29f;
-                    label.LineSpacing = 0f;
-                    break;
-                case 3: // Small
-                    label.RotationDegrees = -2f;
-                    label.PaddingLeft = 0.20f;
-                    label.PaddingBottom = 0.70f;
-                    label.FontSizePixels = 36f;
-                    label.LineSpacing = 0f;
-                    break;
+                switch (preset)
+                {
+                    case 0: // Jumbo
+                        label.RotationDegrees = 0f;
+                        label.PaddingLeft = 0.05f;
+                        label.PaddingBottom = 0.05f;
+                        label.FontSizePixels = 20f;
+                        break;
+                    case 1: // Large
+                        label.RotationDegrees = 0.4f;
+                        label.PaddingLeft = 0.13f;
+                        label.PaddingBottom = 0.08f;
+                        label.FontSizePixels = 20f;
+                        break;
+                    case 2: // Medium
+                        label.RotationDegrees = -1f;
+                        label.PaddingLeft = 0.17f;
+                        label.PaddingBottom = 0.06f;
+                        label.FontSizePixels = 24f;
+                        break;
+                    case 3: // Small
+                        label.RotationDegrees = -0.3f;
+                        label.PaddingLeft = 0.25f;
+                        label.PaddingBottom = 0.12f;
+                        label.FontSizePixels = 36f;
+                        break;
+                }
             }
         }
         
