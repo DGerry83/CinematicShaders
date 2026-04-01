@@ -379,47 +379,13 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
-        /// Formats a distance in meters to appropriate units (M, KM, MM, GM, TM)
-        /// Uses reasonable thresholds - overflow detection in GenerateTexture handles edge cases
+        /// Formats a distance in meters - always outputs meters
+        /// Texture width overflow detection in GenerateTexture handles unit escalation per-line
         /// </summary>
         private string FormatDistanceSmart(double meters, string prefix)
         {
-            // Convert to larger units at reasonable thresholds
-            // Texture overflow detection will compress further if needed
-            
-            if (meters >= 1e12)
-            {
-                double tm = meters / 1e12;
-                if (tm >= 100) return $"{prefix}{tm:F0} TM";
-                if (tm >= 10) return $"{prefix}{tm:F1} TM";
-                return $"{prefix}{tm:F2} TM";
-            }
-            
-            if (meters >= 1e9)
-            {
-                double gm = meters / 1e9;
-                if (gm >= 100) return $"{prefix}{gm:F0} GM";
-                if (gm >= 10) return $"{prefix}{gm:F1} GM";
-                return $"{prefix}{gm:F2} GM";
-            }
-            
-            if (meters >= 1e6)
-            {
-                double mm = meters / 1e6;
-                if (mm >= 100) return $"{prefix}{mm:F0} MM";
-                if (mm >= 10) return $"{prefix}{mm:F1} MM";
-                return $"{prefix}{mm:F2} MM";
-            }
-            
-            if (meters >= 1e3)
-            {
-                double km = meters / 1e3;
-                if (km >= 100) return $"{prefix}{km:F0} KM";
-                if (km >= 10) return $"{prefix}{km:F1} KM";
-                return $"{prefix}{km:F2} KM";
-            }
-            
-            // Meters
+            // Always output meters - per-line width detection in GenerateTexture will 
+            // compress individual lines to KM/MM/GM/TM if they don't fit in texture
             if (meters >= 100) return $"{prefix}{meters:F0} M";
             if (meters >= 10) return $"{prefix}{meters:F1} M";
             return $"{prefix}{meters:F2} M";

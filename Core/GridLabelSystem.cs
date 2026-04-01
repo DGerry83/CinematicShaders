@@ -126,6 +126,9 @@ namespace CinematicShaders.Core
         private const int TEXTURE_SIZE = 256;
         private const string FONT_NAME = "Ac437_Rainbow100_re_66.ttf";
         
+        // Debug frame counter for measurement logging
+        private static int s_measureFrameCounter = 0;
+        
         /// <summary>
         /// Initializes the text system and registers built-in labels.
         /// </summary>
@@ -800,61 +803,59 @@ namespace CinematicShaders.Core
             }
             else
             {
-                // Single-pass rendering with overflow detection
+                // Single-pass rendering with per-line overflow detection
                 float vPadding = 2.0f;
                 const float MAX_WIDTH = 230f; // 90% of 256px texture
                 
-                // Try original text first
-                string displayText = label.Text;
-                int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, displayText, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing);
+                // Debug logging frame counter
+                bool shouldLog = (s_measureFrameCounter++ % 30 == 0) && label.Id.StartsWith("situation");
                 
-                if (glyphCount <= 0)
+                // Build display text with per-line compression based on actual measured width
+                string[] lines = label.Text.Split('\n');
+                var processedLines = new System.Collections.Generic.List<string>();
+                bool anyCompressed = false;
+                
+                foreach (var line in lines)
                 {
-                    Debug.LogWarning($"[GridLabelSystem] Text layout failed for '{label.Text}'");
-                    return;
+                    string processedLine = line;
+                    
+                    // Measure this specific line (use same line spacing as final render)
+                    int gc = StarfieldNative.CR_TextLayoutEx(_textSystem, line, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing);
+                    if (gc > 0)
+                    {
+                        StarfieldNative.CR_TextGetBounds(_textSystem, out float lineWidth, out float lineHeight);
+                        
+                        if (shouldLog)
+                        {
+                            Debug.Log($"[GridLabelMeasure] '{label.Id}' line '{line.Substring(0, Mathf.Min(line.Length, 20))}' width={lineWidth:F1}px (max={MAX_WIDTH})");
+                        }
+                        
+                        // If line is too wide, try compressing it
+                        if (lineWidth > MAX_WIDTH)
+                        {
+                            if (shouldLog) Debug.Log($"[GridLabelMeasure] '{label.Id}' line OVERFLOW, attempting compression");
+                            string compressed = TryCompressLine(line, MAX_WIDTH, label.FontSizePixels, color);
+                            if (compressed != line)
+                            {
+                                if (shouldLog) Debug.Log($"[GridLabelMeasure] '{label.Id}' compressed to '{compressed.Substring(0, Mathf.Min(compressed.Length, 20))}'");
+                                processedLine = compressed;
+                                anyCompressed = true;
+                            }
+                        }
+                    }
+                    
+                    processedLines.Add(processedLine);
                 }
                 
-                // Get actual rendered bounds
+                string displayText = anyCompressed ? string.Join("\n", processedLines) : label.Text;
+                
+                // Final layout with compressed text
+                int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, displayText, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing);
                 StarfieldNative.CR_TextGetBounds(_textSystem, out boundsWidth, out boundsHeight);
                 
-                // If too wide, try selectively compressing only lines with large values
-                // Only convert M→KM if value >= 100000 (5+ digits), KM→MM if >= 100000 KM, etc.
-                if (boundsWidth > MAX_WIDTH && label.Text.Contains(" M"))
+                if (shouldLog)
                 {
-                    // Try KM format only for lines with values >= 100000 (5+ digits)
-                    string compressed = CompressDistanceUnits(label.Text, 1e3, "KM", 1e5);
-                    if (compressed != displayText)
-                    {
-                        int g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, compressed, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing);
-                        float bw2, bh2;
-                        StarfieldNative.CR_TextGetBounds(_textSystem, out bw2, out bh2);
-                        if (bw2 <= MAX_WIDTH)
-                        {
-                            displayText = compressed;
-                            boundsWidth = bw2;
-                            boundsHeight = bh2;
-                            glyphCount = g2;
-                        }
-                    }
-                }
-                
-                if (boundsWidth > MAX_WIDTH && displayText.Contains(" KM"))
-                {
-                    // Try MM format only for lines with values >= 100000 KM
-                    string compressed = CompressDistanceUnits(displayText, 1e6, "MM", 1e5);
-                    if (compressed != displayText)
-                    {
-                        int g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, compressed, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing);
-                        float bw2, bh2;
-                        StarfieldNative.CR_TextGetBounds(_textSystem, out bw2, out bh2);
-                        if (bw2 <= MAX_WIDTH)
-                        {
-                            displayText = compressed;
-                            boundsWidth = bw2;
-                            boundsHeight = bh2;
-                            glyphCount = g2;
-                        }
-                    }
+                    Debug.Log($"[GridLabelMeasure] '{label.Id}' FINAL bounds={boundsWidth:F1}x{boundsHeight:F1}px");
                 }
                 
                 // Re-layout with correct origin for final render
@@ -1163,61 +1164,104 @@ namespace CinematicShaders.Core
         }
         
         /// <summary>
-        /// Compresses distance values in text by converting to larger units.
-        /// Only converts lines where the numeric value >= threshold.
-        /// Looks for patterns like "ALT: 12345.6 M" and converts to "12.3 KM" etc.
+        /// Attempts to compress a single line by converting M→KM→MM→GM→TM
+        /// Tries each unit level and returns the first format that fits within maxWidth
         /// </summary>
-        private string CompressDistanceUnits(string text, double divisor, string newUnit, double threshold)
+        private string TryCompressLine(string line, float maxWidth, float fontSize, uint color)
         {
-            var result = new System.Text.StringBuilder();
-            var lines = text.Split('\n');
-            
-            for (int i = 0; i < lines.Length; i++)
+            // Try M→KM
+            string compressed = ConvertLineUnit(line, 1e3, "KM");
+            if (compressed != line)
             {
-                var line = lines[i];
-                bool converted = false;
-                
-                // Look for patterns like "ALT: 12345.6 M" or "A/P: 1234567.8 KM"
-                int colonIdx = line.IndexOf(':');
-                if (colonIdx > 0)
+                int gc = StarfieldNative.CR_TextLayoutEx(_textSystem, compressed, fontSize, color, 0.0f, TEXTURE_SIZE * 0.5f, 0f);
+                if (gc > 0)
                 {
-                    string prefix = line.Substring(0, colonIdx + 1);
-                    string numberPart = line.Substring(colonIdx + 1).Trim();
-                    
-                    // Check if it ends with current unit (M or KM)
-                    string currentUnit = divisor == 1e3 ? " M" : (divisor == 1e6 ? " KM" : "");
-                    
-                    if (!string.IsNullOrEmpty(currentUnit) && numberPart.EndsWith(currentUnit))
+                    StarfieldNative.CR_TextGetBounds(_textSystem, out float w, out float h);
+                    if (w <= maxWidth) return compressed;
+                }
+                
+                // Still too wide? Try KM→MM
+                string compressed2 = ConvertLineUnit(compressed, 1e6, "MM");
+                if (compressed2 != compressed)
+                {
+                    gc = StarfieldNative.CR_TextLayoutEx(_textSystem, compressed2, fontSize, color, 0.0f, TEXTURE_SIZE * 0.5f, 0f);
+                    if (gc > 0)
                     {
-                        string numStr = numberPart.Substring(0, numberPart.Length - currentUnit.Length).Trim();
-                        if (double.TryParse(numStr, System.Globalization.NumberStyles.Any, 
-                            System.Globalization.CultureInfo.InvariantCulture, out double value))
+                        StarfieldNative.CR_TextGetBounds(_textSystem, out float w2, out float h2);
+                        if (w2 <= maxWidth) return compressed2;
+                    }
+                    
+                    // Still too wide? Try MM→GM
+                    string compressed3 = ConvertLineUnit(compressed2, 1e9, "GM");
+                    if (compressed3 != compressed2)
+                    {
+                        gc = StarfieldNative.CR_TextLayoutEx(_textSystem, compressed3, fontSize, color, 0.0f, TEXTURE_SIZE * 0.5f, 0f);
+                        if (gc > 0)
                         {
-                            // Only convert if value meets threshold
-                            if (value >= threshold)
+                            StarfieldNative.CR_TextGetBounds(_textSystem, out float w3, out float h3);
+                            if (w3 <= maxWidth) return compressed3;
+                        }
+                        
+                        // Still too wide? Try GM→TM
+                        string compressed4 = ConvertLineUnit(compressed3, 1e12, "TM");
+                        if (compressed4 != compressed3)
+                        {
+                            gc = StarfieldNative.CR_TextLayoutEx(_textSystem, compressed4, fontSize, color, 0.0f, TEXTURE_SIZE * 0.5f, 0f);
+                            if (gc > 0)
                             {
-                                double newValue = value / divisor;
-                                string formatted;
-                                if (newValue >= 100) formatted = $"{newValue:F0}";
-                                else if (newValue >= 10) formatted = $"{newValue:F1}";
-                                else formatted = $"{newValue:F2}";
-                                result.Append(prefix).Append(' ').Append(formatted).Append(' ').Append(newUnit);
-                                converted = true;
+                                StarfieldNative.CR_TextGetBounds(_textSystem, out float w4, out float h4);
+                                if (w4 <= maxWidth) return compressed4;
                             }
                         }
                     }
                 }
-                
-                if (!converted)
-                {
-                    result.Append(line);
-                }
-                
-                if (i < lines.Length - 1)
-                    result.Append('\n');
             }
             
-            return result.ToString();
+            return line; // Could not compress to fit
+        }
+        
+        /// <summary>
+        /// Converts a single line to a larger unit if possible.
+        /// Looks for patterns like "ALT: 12345.6 M" and converts to "12.3 KM" etc.
+        /// </summary>
+        private string ConvertLineUnit(string line, double divisor, string newUnit)
+        {
+            int colonIdx = line.IndexOf(':');
+            if (colonIdx <= 0) return line;
+            
+            string prefix = line.Substring(0, colonIdx + 1);
+            string numberPart = line.Substring(colonIdx + 1).Trim();
+            
+            // Determine current unit based on divisor
+            string currentUnit = divisor == 1e3 ? " M" : 
+                                divisor == 1e6 ? " KM" : 
+                                divisor == 1e9 ? " MM" : 
+                                divisor == 1e12 ? " GM" : "";
+            
+            if (string.IsNullOrEmpty(currentUnit) || !numberPart.EndsWith(currentUnit))
+                return line;
+            
+            string numStr = numberPart.Substring(0, numberPart.Length - currentUnit.Length).Trim();
+            if (!double.TryParse(numStr, System.Globalization.NumberStyles.Any, 
+                System.Globalization.CultureInfo.InvariantCulture, out double value))
+                return line;
+            
+            // Convert to base meters first, then to target unit
+            double meters;
+            if (divisor == 1e3) meters = value; // Already in meters
+            else if (divisor == 1e6) meters = value * 1e3; // KM to M
+            else if (divisor == 1e9) meters = value * 1e6; // MM to M
+            else if (divisor == 1e12) meters = value * 1e9; // GM to M
+            else meters = value;
+            
+            double newValue = meters / divisor;
+            
+            string formatted;
+            if (newValue >= 100) formatted = $"{newValue:F0}";
+            else if (newValue >= 10) formatted = $"{newValue:F1}";
+            else formatted = $"{newValue:F2}";
+            
+            return $"{prefix} {formatted} {newUnit}";
         }
         
         /// <summary>
