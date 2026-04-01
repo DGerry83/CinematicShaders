@@ -19,6 +19,7 @@ normal_sdf.png       - Normal indicator (orbit normal)
 antinormal_sdf.png   - AntiNormal indicator (opposite normal)
 radial_in_sdf.png    - Radial In indicator (toward body center)
 radial_out_sdf.png   - Radial Out indicator (away from body center)
+maneuver_sdf.png     - Maneuver indicator (burn vector direction)
 
 Usage:
 ------
@@ -32,6 +33,7 @@ Slot Assignments:
 - Slot 6: AntiNormal
 - Slot 7: Radial In
 - Slot 8: Radial Out
+- Slot 9: Maneuver
 
 Note: These are single-channel SDF textures. The RGB channels contain
 identical distance field data for compatibility with the multi-channel
