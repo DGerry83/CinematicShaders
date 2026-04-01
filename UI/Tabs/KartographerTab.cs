@@ -188,7 +188,8 @@ namespace CinematicShaders.UI.Tabs
                 }
                 
                 // Row offset: -2 to +2 steps from base position
-                string[] rowLabels = { "+2 (Up)", "+1", "0 (Default)", "-1", "-2 (Down)" };
+                // Left side = down (toward equator), Right side = up (toward pole)
+                string[] rowLabels = { "-2 (Down)", "-1 (Down)", "0 (Default)", "+1 (Up)", "+2 (Up)" };
                 int currentOffset = StarfieldSettings.KartographerSituationRowOffset[gridSize];
                 int sliderIndex = currentOffset + 2;
                 GUILayout.Label($"Display Height: {rowLabels[sliderIndex]}");
