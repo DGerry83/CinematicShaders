@@ -97,6 +97,11 @@ namespace CinematicShaders.Core
     {
         public const int MAX_LABELS = 8;
         
+        // PHASE 2: Fixed slot assignments
+        private const int HUCK_SLOT = 0;
+        private const int SITUATION_A_SLOT = 1;  // Reserved, disabled in Phase 2
+        private const int SITUATION_B_SLOT = 2;  // Reserved, disabled in Phase 2
+        
         private Dictionary<string, GridLabel> _labels = new Dictionary<string, GridLabel>();
         private List<GridLabel> _enabledLabels = new List<GridLabel>();
         private IntPtr _textSystem = IntPtr.Zero;
@@ -126,6 +131,14 @@ namespace CinematicShaders.Core
             {
                 Debug.LogWarning("[GridLabelSystem] Native DLL not loaded, cannot initialize");
                 return;
+            }
+            
+            // PHASE 2: Initialize all slots to empty BEFORE registering labels
+            // This ensures no garbage data from previous sessions
+            for (int i = 0; i < MAX_LABELS; i++)
+            {
+                StarfieldNative.CR_ClearGridLabelSlot(i);
+                _boundTextures[i] = IntPtr.Zero;
             }
             
             InitializeTextSystem();
@@ -286,10 +299,19 @@ namespace CinematicShaders.Core
         
         /// <summary>
         /// Unregisters and cleans up a label.
+        /// PHASE 2: Clear native slot BEFORE destroying texture (prevents dangling SRV)
         /// </summary>
         public void UnregisterLabel(string id)
         {
             if (!_labels.TryGetValue(id, out var label)) return;
+            
+            // PHASE 2: Determine slot and clear native binding BEFORE destroying texture
+            int slot = GetSlotForLabelId(id);
+            if (slot >= 0)
+            {
+                StarfieldNative.CR_ClearGridLabelSlot(slot);
+                _boundTextures[slot] = IntPtr.Zero;
+            }
             
             if (label.Texture != null)
             {
@@ -299,6 +321,21 @@ namespace CinematicShaders.Core
             
             _labels.Remove(id);
             Debug.Log($"[GridLabelSystem] Unregistered label: {id}");
+        }
+        
+        /// <summary>
+        /// PHASE 2: Get fixed slot assignment for a label ID.
+        /// Returns -1 for dynamic/unmanaged labels.
+        /// </summary>
+        private int GetSlotForLabelId(string id)
+        {
+            switch (id)
+            {
+                case "huck": return HUCK_SLOT;
+                case "situation_a": return SITUATION_A_SLOT;
+                case "situation_b": return SITUATION_B_SLOT;
+                default: return -1; // Dynamic labels (SOI, etc.) - not yet managed by fixed slots
+            }
         }
         
         /// <summary>
@@ -363,19 +400,31 @@ namespace CinematicShaders.Core
             
             if (_textSystem == IntPtr.Zero) return;
             
-            // Build list of enabled labels (max 8)
-            // Skip labels that are disabled (e.g., Tiny preset)
-            _enabledLabels.Clear();
-            foreach (var label in _labels.Values)
+            // PHASE 2: HUCK-only mode with explicit slot management
+            // Clear slots 1-7 explicitly (disabled in Phase 2)
+            for (int i = 1; i < MAX_LABELS; i++)
             {
-                if (!label.Enabled) continue;
-                _enabledLabels.Add(label);
-                if (_enabledLabels.Count >= MAX_LABELS) break;
+                StarfieldNative.CR_ClearGridLabelSlot(i);
+                _boundTextures[i] = IntPtr.Zero;
             }
             
-            // If no labels enabled, clear native mask and exit early
+            // Build list of enabled labels - ONLY HUCK in Phase 2
+            _enabledLabels.Clear();
+            if (_labels.TryGetValue("huck", out var huckLabel) && huckLabel.Enabled)
+            {
+                _enabledLabels.Add(huckLabel);
+            }
+            
+            // PHASE 2: Situation labels (slots 1-2) are disabled for testing
+            // They will be re-enabled in Phase 3 with fixed slot assignment
+            
+            // If no labels enabled, clear slot 0, clear mask, and exit early
             if (_enabledLabels.Count == 0)
             {
+                // PHASE 2: Clear slot 0 (HUCK) when no labels enabled
+                StarfieldNative.CR_ClearGridLabelSlot(HUCK_SLOT);
+                _boundTextures[HUCK_SLOT] = IntPtr.Zero;
+                
                 var emptyParams = StarfieldNative.LastKartographerParams;
                 if (emptyParams.GridLabelEnabledMask != 0)
                 {
@@ -960,11 +1009,14 @@ namespace CinematicShaders.Core
         {
             var nativeParams = StarfieldNative.LastKartographerParams;
             
-            // Clear enabled bits for unused slots
+            // PHASE 2: Clear enabled bits AND native slots for unused slots
             for (int i = startSlot; i < MAX_LABELS; i++)
             {
                 nativeParams.GridLabelEnabledMask &= ~(1u << i);
                 _boundTextures[i] = IntPtr.Zero;  // Clear texture binding cache
+                
+                // PHASE 2: Explicitly clear native slot (releases SRV)
+                StarfieldNative.CR_ClearGridLabelSlot(i);
             }
             
             StarfieldNative.LastKartographerParams = nativeParams;
@@ -1023,9 +1075,18 @@ namespace CinematicShaders.Core
         
         /// <summary>
         /// Cleans up all resources.
+        /// PHASE 2: Clear all native slots BEFORE destroying textures (prevents dangling SRV)
         /// </summary>
         public void Shutdown()
         {
+            // PHASE 2: Clear all native slots FIRST to release SRV references
+            for (int i = 0; i < MAX_LABELS; i++)
+            {
+                StarfieldNative.CR_ClearGridLabelSlot(i);
+                _boundTextures[i] = IntPtr.Zero;
+            }
+            
+            // Now safe to destroy Unity textures
             foreach (var label in _labels.Values)
             {
                 if (label.Texture != null)

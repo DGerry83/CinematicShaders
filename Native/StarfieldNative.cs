@@ -101,6 +101,9 @@ namespace CinematicShaders.Native
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_SetGridLabelTexture(int slot, IntPtr texture);
+        
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_ClearGridLabelSlot(int slot);
 
         [StructLayout(LayoutKind.Sequential)]
         public struct StarfieldSettingsNative
