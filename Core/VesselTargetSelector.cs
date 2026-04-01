@@ -33,6 +33,10 @@ namespace CinematicShaders.Core
         private float _starHash = 0f;
         private float _lastDynamicUpdate = 0f;
         private const float DYNAMIC_UPDATE_INTERVAL = 0.1f; // 10 FPS
+        
+        // Text rendering optimization - only update texture when text changes (matches KartographerSelector)
+        private string _lastRenderedText = null;
+        private bool _textDirty = true;
 
         // Situation display state
         private string _situationText = "";
@@ -184,8 +188,27 @@ namespace CinematicShaders.Core
         /// </summary>
         private void UpdateTargetAnimation()
         {
+            // Track previous phase to detect transitions
+            var prevPhase = _animController.CurrentPhase;
+            
+            // Track previous text to detect changes
+            string prevText = _animController.DisplayText;
+            
             // Update animation state
             _animController.Update(Time.deltaTime);
+            
+            // CRITICAL: Set text content when transitioning from Box to Text phase
+            // This prevents text from appearing during Circle/Box phases
+            if (prevPhase == TypeOnAnimationController.Phase.Box && 
+                _animController.CurrentPhase == TypeOnAnimationController.Phase.Text)
+            {
+                string targetText = BuildTargetText(_currentTarget);
+                _animController.SetFullText(targetText);
+            }
+            
+            // Mark dirty if text changed (cursor blink, type-on progression, etc.)
+            if (_animController.DisplayText != prevText)
+                _textDirty = true;
 
             // Update dynamic values at 10 FPS (only in Complete phase)
             if (!_animController.IsAnimating)
@@ -196,6 +219,9 @@ namespace CinematicShaders.Core
                     _lastDynamicUpdate = now;
                     string newTargetText = BuildTargetText(_currentTarget);
                     _animController.UpdateFullText(newTargetText);
+                    // UpdateFullText changes DisplayText, so mark dirty
+                    if (_animController.DisplayText != prevText)
+                        _textDirty = true;
                 }
             }
         }
@@ -384,11 +410,20 @@ namespace CinematicShaders.Core
 
         /// <summary>
         /// Update text texture - uses TypeOnAnimationController for animation state
-        /// Clears texture during Circle phase, renders during Box phase and later
+        /// Only re-renders when text content changes (matches KartographerSelector pattern)
         /// </summary>
         private void UpdateTextTexture()
         {
             if (_textSystem == IntPtr.Zero) return;
+            
+            string displayText = _animController.DisplayText;
+            
+            // Skip if text hasn't changed (unless dirty flag is set)
+            if (displayText == _lastRenderedText && !_textDirty)
+                return;
+            
+            _lastRenderedText = displayText;
+            _textDirty = false;
             
             // During Circle phase: clear texture and don't render anything
             // This prevents old text from flashing briefly when acquiring a new target
@@ -406,7 +441,6 @@ namespace CinematicShaders.Core
             }
             
             // During Box phase and later: render text (even if just cursor)
-            string displayText = _animController.DisplayText;
             if (string.IsNullOrEmpty(displayText)) return;
 
             uint color = 0xFFFFFFFF; // White ARGB
@@ -558,17 +592,13 @@ namespace CinematicShaders.Core
                     _starHash = UnityEngine.Random.value;
                     InitializeTextSystem();
                     
-                    // Start animation with controller
-                    string targetText = BuildTargetText(current);
-                    _animController.Start(targetText);
+                    // Start animation WITHOUT text content
+                    // Text will be set when Box phase completes to prevent early display
+                    _animController.Start();
                     
-                    // CRITICAL: Clear texture immediately to prevent 1-frame flash of old content
-                    if (_textTexture != null)
-                    {
-                        RenderTexture.active = _textTexture;
-                        GL.Clear(true, true, Color.clear);
-                        RenderTexture.active = null;
-                    }
+                    // Reset dirty tracking for new animation
+                    _textDirty = true;
+                    _lastRenderedText = null;
                 }
                 else if (current == null && _currentTarget != null)
                 {

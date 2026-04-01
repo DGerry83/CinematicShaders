@@ -32,8 +32,9 @@ namespace CinematicShaders.Core
         private Phase _currentPhase = Phase.Complete;
         private float _circleT = 1.0f;      // 0-1 progress through Circle
         private float _textTypeT = 0.0f;    // 0-1 progress through Text
-        private string _fullText = "";      // Current full text content
+        private string _fullText = "";      // Full text content (shown in Text/Complete phases)
         private string _displayText = "";   // Current display (with cursor)
+        private bool _hasTextContent = false;  // True if SetFullText has been called with non-empty
 
         /// <summary>
         /// Current animation phase
@@ -60,14 +61,36 @@ namespace CinematicShaders.Core
         /// <summary>
         /// Start a new animation from the beginning (Circle phase).
         /// Call this when acquiring a new target or selecting a new star.
+        /// 
+        /// NOTE: For animated labels with dynamic content, call SetFullText() 
+        /// AFTER the Box phase (e.g., when Text phase starts) to prevent 
+        /// content from appearing before the box is visible.
         /// </summary>
-        public void Start(string fullText)
+        public void Start()
         {
             _currentPhase = Phase.Circle;
             _circleT = 0.0f;
             _textTypeT = 0.0f;
-            _fullText = fullText ?? "";
-            _displayText = "";  // No text during Circle phase
+            _fullText = "";
+            _displayText = "";
+            _hasTextContent = false;
+        }
+
+        /// <summary>
+        /// Set the full text content to be animated.
+        /// For target tracker: Call this when entering Text phase to prevent
+        /// text from appearing during Circle/Box phases.
+        /// </summary>
+        public void SetFullText(string text)
+        {
+            _fullText = text ?? "";
+            _hasTextContent = !string.IsNullOrEmpty(_fullText);
+            
+            // Rebuild display text immediately if in Text or Complete phase
+            if (_currentPhase == Phase.Text || _currentPhase == Phase.Complete)
+            {
+                RebuildDisplayText();
+            }
         }
 
         /// <summary>
@@ -170,16 +193,30 @@ namespace CinematicShaders.Core
                     break;
 
                 case Phase.Text:
-                    // Progressive reveal
-                    int visibleChars = (int)(_fullText.Length * _textTypeT);
-                    visibleChars = Mathf.Clamp(visibleChars, 0, _fullText.Length);
-                    _displayText = _fullText.Substring(0, visibleChars) + "^|";
+                    // Progressive reveal (only if content has been set)
+                    if (!_hasTextContent)
+                    {
+                        _displayText = "^|";  // Cursor only until content arrives
+                    }
+                    else
+                    {
+                        int visibleChars = (int)(_fullText.Length * _textTypeT);
+                        visibleChars = Mathf.Clamp(visibleChars, 0, _fullText.Length);
+                        _displayText = _fullText.Substring(0, visibleChars) + "^|";
+                    }
                     break;
 
                 case Phase.Complete:
-                    // Full text with 2Hz blinking cursor
-                    bool cursorVisible = ((Time.time * CURSOR_BLINK_HZ) % 2.0f) < 1.0f;
-                    _displayText = _fullText + (cursorVisible ? "^|" : " ");
+                    // Full text with 2Hz blinking cursor (only if content has been set)
+                    if (!_hasTextContent)
+                    {
+                        _displayText = "^|";
+                    }
+                    else
+                    {
+                        bool cursorVisible = ((Time.time * CURSOR_BLINK_HZ) % 2.0f) < 1.0f;
+                        _displayText = _fullText + (cursorVisible ? "^|" : " ");
+                    }
                     break;
             }
         }
