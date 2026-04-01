@@ -1,8 +1,10 @@
 using CinematicShaders.Core;
 using CinematicShaders.Native;
 using CinematicShaders.Shaders.Starfield;
+using System;
 using System.IO;
 using UnityEngine;
+using static CinematicShaders.Core.StarfieldSettings;
 
 namespace CinematicShaders.UI.Tabs
 {
@@ -200,6 +202,57 @@ namespace CinematicShaders.UI.Tabs
                     StarfieldSettings.KartographerSituationRowOffset[gridSize] = newRowOffset;
                     StarfieldSettings.Save();
                 }
+            }
+            
+            // Navball indicators toggle
+            bool newNavballLabels = GUILayout.Toggle(StarfieldSettings.KartographerNavballLabels,
+                " Show Navball Indicators", HighLogic.Skin.toggle);
+            if (newNavballLabels != StarfieldSettings.KartographerNavballLabels)
+            {
+                StarfieldSettings.KartographerNavballLabels = newNavballLabels;
+                StarfieldSettings.Save();
+                
+                // Enable/disable in NavballLabelManager
+                if (CinematicShadersAddon.NavballManager != null)
+                {
+                    CinematicShadersAddon.NavballManager.SetEnabled(newNavballLabels);
+                }
+            }
+            
+            // Navball options (shown when enabled)
+            if (StarfieldSettings.KartographerNavballLabels)
+            {
+                // Use navball colors toggle
+                bool newUseColors = GUILayout.Toggle(StarfieldSettings.KartographerNavballUseColors,
+                    " Use Navball Colors", HighLogic.Skin.toggle);
+                if (newUseColors != StarfieldSettings.KartographerNavballUseColors)
+                {
+                    StarfieldSettings.KartographerNavballUseColors = newUseColors;
+                    StarfieldSettings.Save();
+                    
+                    if (CinematicShadersAddon.NavballManager != null)
+                    {
+                        CinematicShadersAddon.NavballManager.SetUseNavballColors(newUseColors);
+                    }
+                }
+                
+                // Icon style dropdown
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("Icon Style:", GUILayout.Width(100));
+                string[] styleNames = { "SDF (High Quality)", "ASCII (Retro)" };
+                int currentStyle = (int)StarfieldSettings.KartographerNavballIconStyle;
+                int newStyle = GUILayout.SelectionGrid(currentStyle, styleNames, 2, HighLogic.Skin.toggle);
+                if (newStyle != currentStyle)
+                {
+                    StarfieldSettings.KartographerNavballIconStyle = (NavballIconStyle)newStyle;
+                    StarfieldSettings.Save();
+                    
+                    if (CinematicShadersAddon.NavballManager != null)
+                    {
+                        CinematicShadersAddon.NavballManager.SetIconStyle((NavballIconStyle)newStyle);
+                    }
+                }
+                GUILayout.EndHorizontal();
             }
             
             GUILayout.Space(5);

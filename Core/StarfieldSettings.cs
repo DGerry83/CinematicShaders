@@ -1,5 +1,6 @@
 ﻿using CinematicShaders.Core;
 using CinematicShaders.Native;
+using System;
 using UnityEngine;
 
 namespace CinematicShaders.Core

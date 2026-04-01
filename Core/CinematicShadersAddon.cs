@@ -25,6 +25,10 @@ namespace CinematicShaders.Core
         
         // Situation display label system - shared with UI for debug sliders
         public static GridLabelSystem SituationLabelSystem { get; private set; }
+        
+        // Navball indicator label manager - shared with UI for settings
+        public static NavballLabelManager NavballManager { get; private set; }
+        
         private float _lastSituationUpdate = 0f;
 
         void Awake()
@@ -199,6 +203,12 @@ namespace CinematicShaders.Core
             // Update grid label system (HUCK, situation labels) - runs whenever Kartographer is enabled
             UpdateGridLabelSystem();
             
+            // Update navball indicators if enabled
+            if (StarfieldSettings.EnableKartographer && NavballManager != null)
+            {
+                NavballManager.Update();
+            }
+            
             // Update situation display only in playable scenes (Flight, Tracking Station, KSC)
             // Shows "NO VESSEL" when not in a vessel (e.g., Tracking Station)
             if (IsPlayableScene())
@@ -246,6 +256,17 @@ namespace CinematicShaders.Core
             {
                 SituationLabelSystem = new GridLabelSystem();
                 SituationLabelSystem.Initialize();
+            }
+            
+            // Initialize navball label manager if needed
+            if (NavballManager == null)
+            {
+                NavballManager = new NavballLabelManager();
+                NavballManager.Initialize(SituationLabelSystem);
+                // Apply saved settings
+                NavballManager.SetEnabled(StarfieldSettings.KartographerNavballLabels);
+                NavballManager.SetUseNavballColors(StarfieldSettings.KartographerNavballUseColors);
+                NavballManager.SetIconStyle(StarfieldSettings.KartographerNavballIconStyle);
             }
             
             // Ensure HUCK label is enabled (unless Tiny preset)

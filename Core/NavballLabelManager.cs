@@ -146,9 +146,10 @@ namespace CinematicShaders.Core
 
             try
             {
-                string basePath = Path.Combine(
-                    Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
-                    "..", "PluginData", "NavballIcons");
+                // Build texture path: ../PluginData/NavballIcons/
+                // C# DLL is in Plugins/, textures are in PluginData/ at mod root level
+                string assemblyPath = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+                string basePath = Path.GetFullPath(Path.Combine(assemblyPath, "..", "PluginData", "NavballIcons"));
 
                 LoadSDFTexture(PROGRADE_ID, Path.Combine(basePath, "prograde_sdf.png"));
                 LoadSDFTexture(RETROGRADE_ID, Path.Combine(basePath, "retrograde_sdf.png"));

@@ -476,16 +476,10 @@ namespace CinematicShaders.Core
                 return;
             }
             
-            // Debug: Log when enabled label count changes
+            // Track enabled label count changes (debug logging removed per user request)
             if (_enabledLabels.Count != _lastEnabledCount)
             {
                 _lastEnabledCount = _enabledLabels.Count;
-                Debug.Log($"[GridLabelSystem] ENABLED LABELS: {_enabledLabels.Count} labels active");
-                foreach (var l in _enabledLabels)
-                {
-                    int slot = GetSlotForLabelId(l.Id);
-                    Debug.Log($"[GridLabelSystem]  - Slot {slot}: '{l.Id}' = '{l.Text}'");
-                }
             }
             
             // Detect grid preset changes and resolve label variants
