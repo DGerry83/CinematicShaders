@@ -83,6 +83,79 @@ namespace CinematicShaders.Core
         private Vector3d _lastRadialOut;
         private Vector3d? _lastManeuver;
 
+        // Texture loading
+        private static readonly string[] IconFileNames = {
+            "prograde_sdf.dds",
+            "retrograde_sdf.dds",
+            "normal_sdf.dds",
+            "antinormal_sdf.dds",
+            "radial_in_sdf.dds",
+            "radial_out_sdf.dds",
+            "maneuver_sdf.dds"
+        };
+        private const int ICON_TEXTURE_SIZE = 128;
+        private Texture2D[] _iconTextures;
+        private bool _texturesLoaded = false;
+
+        /// <summary>
+        /// Load navball icon textures from DDS files.
+        /// </summary>
+        public void LoadTextures()
+        {
+            if (_texturesLoaded) return;
+
+            try
+            {
+                // Build path to PluginData/NavballIcons
+                string basePath = Path.Combine(
+                    Path.GetDirectoryName(typeof(NavballLabelManager).Assembly.Location),
+                    "..", "..", "PluginData", "NavballIcons");
+                basePath = Path.GetFullPath(basePath);
+
+                Debug.Log($"[NavballLabelManager] Loading textures from: {basePath}");
+
+                _iconTextures = new Texture2D[ICON_COUNT];
+                bool allLoaded = true;
+
+                for (int i = 0; i < ICON_COUNT; i++)
+                {
+                    string filePath = Path.Combine(basePath, IconFileNames[i]);
+                    if (!File.Exists(filePath))
+                    {
+                        Debug.LogError($"[NavballLabelManager] Missing texture: {filePath}");
+                        allLoaded = false;
+                        continue;
+                    }
+
+                    byte[] bytes = File.ReadAllBytes(filePath);
+                    _iconTextures[i] = new Texture2D(ICON_TEXTURE_SIZE, ICON_TEXTURE_SIZE, TextureFormat.RGBA32, false);
+                    _iconTextures[i].LoadRawTextureData(bytes);
+                    _iconTextures[i].Apply(false, false);
+                }
+
+                if (!allLoaded)
+                {
+                    Debug.LogError("[NavballLabelManager] Some textures failed to load");
+                    return;
+                }
+
+                // Upload to native
+                bool success = StarfieldNative.SetNavballIconTextures(_iconTextures, ICON_TEXTURE_SIZE, ICON_TEXTURE_SIZE);
+                if (!success)
+                {
+                    Debug.LogError("[NavballLabelManager] Failed to upload textures to native");
+                    return;
+                }
+
+                _texturesLoaded = true;
+                Debug.Log("[NavballLabelManager] Textures loaded and uploaded successfully");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[NavballLabelManager] Failed to load textures: {ex.Message}");
+            }
+        }
+
         /// <summary>
         /// Initialize the navball label manager.
         /// </summary>
@@ -104,6 +177,9 @@ namespace CinematicShaders.Core
                         IsVisible = false
                     };
                 }
+
+                // Load textures
+                LoadTextures();
 
                 _initialized = true;
                 Debug.Log("[NavballLabelManager] Initialized successfully (screen-space mode)");

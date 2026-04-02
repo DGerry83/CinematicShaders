@@ -223,6 +223,23 @@ static struct {
     float kartographerVesselTargetTextT = 0.0f;
     float kartographerAnimatedLabelIntensity = 0.0f;
     
+    // Navball icon parameters (7 icons: prograde, retrograde, normal, antinormal, radial_in, radial_out, maneuver)
+    int kartographerNavballEnabledMask = 0;
+    int kartographerNavballOffscreenMode = 0;
+    float kartographerNavballIconSize = 0.05f;
+    float kartographerNavballIconThickness = 0.002f;
+    float kartographerNavballMinIntensity = 0.33f;
+    float kartographerNavballMaxAngle = 90.0f;
+    float kartographerNavballHysteresisMargin = 0.05f;
+    float kartographerNavballIconPosX[7] = {0};
+    float kartographerNavballIconPosY[7] = {0};
+    float kartographerNavballIconIntensity[7] = {0};
+    uint32_t kartographerNavballIconColor[7] = {0};
+    
+    // Navball icon texture array (MSDF textures)
+    ID3D11Texture2D* navballIconArray = nullptr;
+    ID3D11ShaderResourceView* navballIconArraySRV = nullptr;
+    
     // Grid label slot state management (Phase 1 Refactor)
     // Each slot tracks its own active state and SRV to prevent crashes from garbage data
     struct GridLabelSlot {
@@ -1365,6 +1382,11 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
             context->PSSetShaderResources(15, 1, &g_StarfieldState.vesselTargetTextTextureSRV);
         }
         
+        // Bind navball icon texture array to slot t16
+        if (g_StarfieldState.navballIconArraySRV) {
+            context->PSSetShaderResources(16, 1, &g_StarfieldState.navballIconArraySRV);
+        }
+        
         // RTV is still bound from main pass - no need to rebind
         
         // Draw fullscreen triangle
@@ -1654,6 +1676,11 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
         // Bind vessel target text texture to slot t15
         if (g_StarfieldState.vesselTargetTextTextureSRV) {
             context->PSSetShaderResources(15, 1, &g_StarfieldState.vesselTargetTextTextureSRV);
+        }
+        
+        // Bind navball icon texture array to slot t16
+        if (g_StarfieldState.navballIconArraySRV) {
+            context->PSSetShaderResources(16, 1, &g_StarfieldState.navballIconArraySRV);
         }
         
         // Draw fullscreen triangle
@@ -1988,6 +2015,58 @@ static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
         params->VesselTargetTextT = g_StarfieldState.kartographerVesselTargetTextT;
         params->AnimatedLabelIntensity = g_StarfieldState.kartographerAnimatedLabelIntensity;
         
+        // Navball icon parameters
+        params->NavballEnabledMask = g_StarfieldState.kartographerNavballEnabledMask;
+        params->NavballOffscreenMode = g_StarfieldState.kartographerNavballOffscreenMode;
+        params->NavballIconSize = g_StarfieldState.kartographerNavballIconSize;
+        params->NavballIconThickness = g_StarfieldState.kartographerNavballIconThickness;
+        params->NavballMinIntensity = g_StarfieldState.kartographerNavballMinIntensity;
+        params->NavballMaxAngle = g_StarfieldState.kartographerNavballMaxAngle;
+        params->NavballHysteresisMargin = g_StarfieldState.kartographerNavballHysteresisMargin;
+        params->_padNavball1 = 0.0f;
+        
+        // Navball icon 0: Prograde
+        params->NavballIcon0_X = g_StarfieldState.kartographerNavballIconPosX[0];
+        params->NavballIcon0_Y = g_StarfieldState.kartographerNavballIconPosY[0];
+        params->NavballIcon0_Intensity = g_StarfieldState.kartographerNavballIconIntensity[0];
+        params->NavballIcon0_Color = g_StarfieldState.kartographerNavballIconColor[0];
+        
+        // Navball icon 1: Retrograde
+        params->NavballIcon1_X = g_StarfieldState.kartographerNavballIconPosX[1];
+        params->NavballIcon1_Y = g_StarfieldState.kartographerNavballIconPosY[1];
+        params->NavballIcon1_Intensity = g_StarfieldState.kartographerNavballIconIntensity[1];
+        params->NavballIcon1_Color = g_StarfieldState.kartographerNavballIconColor[1];
+        
+        // Navball icon 2: Normal
+        params->NavballIcon2_X = g_StarfieldState.kartographerNavballIconPosX[2];
+        params->NavballIcon2_Y = g_StarfieldState.kartographerNavballIconPosY[2];
+        params->NavballIcon2_Intensity = g_StarfieldState.kartographerNavballIconIntensity[2];
+        params->NavballIcon2_Color = g_StarfieldState.kartographerNavballIconColor[2];
+        
+        // Navball icon 3: AntiNormal
+        params->NavballIcon3_X = g_StarfieldState.kartographerNavballIconPosX[3];
+        params->NavballIcon3_Y = g_StarfieldState.kartographerNavballIconPosY[3];
+        params->NavballIcon3_Intensity = g_StarfieldState.kartographerNavballIconIntensity[3];
+        params->NavballIcon3_Color = g_StarfieldState.kartographerNavballIconColor[3];
+        
+        // Navball icon 4: Radial In
+        params->NavballIcon4_X = g_StarfieldState.kartographerNavballIconPosX[4];
+        params->NavballIcon4_Y = g_StarfieldState.kartographerNavballIconPosY[4];
+        params->NavballIcon4_Intensity = g_StarfieldState.kartographerNavballIconIntensity[4];
+        params->NavballIcon4_Color = g_StarfieldState.kartographerNavballIconColor[4];
+        
+        // Navball icon 5: Radial Out
+        params->NavballIcon5_X = g_StarfieldState.kartographerNavballIconPosX[5];
+        params->NavballIcon5_Y = g_StarfieldState.kartographerNavballIconPosY[5];
+        params->NavballIcon5_Intensity = g_StarfieldState.kartographerNavballIconIntensity[5];
+        params->NavballIcon5_Color = g_StarfieldState.kartographerNavballIconColor[5];
+        
+        // Navball icon 6: Maneuver
+        params->NavballIcon6_X = g_StarfieldState.kartographerNavballIconPosX[6];
+        params->NavballIcon6_Y = g_StarfieldState.kartographerNavballIconPosY[6];
+        params->NavballIcon6_Intensity = g_StarfieldState.kartographerNavballIconIntensity[6];
+        params->NavballIcon6_Color = g_StarfieldState.kartographerNavballIconColor[6];
+        
         context->Unmap(g_StarfieldState.kartographerCB, 0);
     }
 }
@@ -2188,6 +2267,57 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
     g_StarfieldState.kartographerGridLabelColor[9] = params->LabelColor9;
     g_StarfieldState.kartographerGridLabelColor[10] = params->LabelColor10;
     g_StarfieldState.kartographerGridLabelColor[11] = params->LabelColor11;
+    
+    // Navball icon parameters
+    g_StarfieldState.kartographerNavballEnabledMask = params->NavballEnabledMask;
+    g_StarfieldState.kartographerNavballOffscreenMode = params->NavballOffscreenMode;
+    g_StarfieldState.kartographerNavballIconSize = params->NavballIconSize;
+    g_StarfieldState.kartographerNavballIconThickness = params->NavballIconThickness;
+    g_StarfieldState.kartographerNavballMinIntensity = params->NavballMinIntensity;
+    g_StarfieldState.kartographerNavballMaxAngle = params->NavballMaxAngle;
+    g_StarfieldState.kartographerNavballHysteresisMargin = params->NavballHysteresisMargin;
+    
+    // Navball icon 0: Prograde
+    g_StarfieldState.kartographerNavballIconPosX[0] = params->NavballIcon0_X;
+    g_StarfieldState.kartographerNavballIconPosY[0] = params->NavballIcon0_Y;
+    g_StarfieldState.kartographerNavballIconIntensity[0] = params->NavballIcon0_Intensity;
+    g_StarfieldState.kartographerNavballIconColor[0] = params->NavballIcon0_Color;
+    
+    // Navball icon 1: Retrograde
+    g_StarfieldState.kartographerNavballIconPosX[1] = params->NavballIcon1_X;
+    g_StarfieldState.kartographerNavballIconPosY[1] = params->NavballIcon1_Y;
+    g_StarfieldState.kartographerNavballIconIntensity[1] = params->NavballIcon1_Intensity;
+    g_StarfieldState.kartographerNavballIconColor[1] = params->NavballIcon1_Color;
+    
+    // Navball icon 2: Normal
+    g_StarfieldState.kartographerNavballIconPosX[2] = params->NavballIcon2_X;
+    g_StarfieldState.kartographerNavballIconPosY[2] = params->NavballIcon2_Y;
+    g_StarfieldState.kartographerNavballIconIntensity[2] = params->NavballIcon2_Intensity;
+    g_StarfieldState.kartographerNavballIconColor[2] = params->NavballIcon2_Color;
+    
+    // Navball icon 3: AntiNormal
+    g_StarfieldState.kartographerNavballIconPosX[3] = params->NavballIcon3_X;
+    g_StarfieldState.kartographerNavballIconPosY[3] = params->NavballIcon3_Y;
+    g_StarfieldState.kartographerNavballIconIntensity[3] = params->NavballIcon3_Intensity;
+    g_StarfieldState.kartographerNavballIconColor[3] = params->NavballIcon3_Color;
+    
+    // Navball icon 4: Radial In
+    g_StarfieldState.kartographerNavballIconPosX[4] = params->NavballIcon4_X;
+    g_StarfieldState.kartographerNavballIconPosY[4] = params->NavballIcon4_Y;
+    g_StarfieldState.kartographerNavballIconIntensity[4] = params->NavballIcon4_Intensity;
+    g_StarfieldState.kartographerNavballIconColor[4] = params->NavballIcon4_Color;
+    
+    // Navball icon 5: Radial Out
+    g_StarfieldState.kartographerNavballIconPosX[5] = params->NavballIcon5_X;
+    g_StarfieldState.kartographerNavballIconPosY[5] = params->NavballIcon5_Y;
+    g_StarfieldState.kartographerNavballIconIntensity[5] = params->NavballIcon5_Intensity;
+    g_StarfieldState.kartographerNavballIconColor[5] = params->NavballIcon5_Color;
+    
+    // Navball icon 6: Maneuver
+    g_StarfieldState.kartographerNavballIconPosX[6] = params->NavballIcon6_X;
+    g_StarfieldState.kartographerNavballIconPosY[6] = params->NavballIcon6_Y;
+    g_StarfieldState.kartographerNavballIconIntensity[6] = params->NavballIcon6_Intensity;
+    g_StarfieldState.kartographerNavballIconColor[6] = params->NavballIcon6_Color;
 }
 
 // ============================================================================
@@ -2568,6 +2698,99 @@ void CR_ClearGridLabelSlot(int slot)
         g_StarfieldState.gridLabelTextureSRV[slot]->Release();
         g_StarfieldState.gridLabelTextureSRV[slot] = nullptr;
     }
+}
+
+// ============================================================================
+// Navball Icon Texture Array (Phase 4c)
+// ============================================================================
+
+extern "C" __declspec(dllexport)
+int CR_SetNavballIconTextures(ID3D11Texture2D* sourceTextures[7], int width, int height)
+{
+    if (!g_StarfieldState.device) return -1;
+    if (!sourceTextures) return -2;
+    
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
+    // Release existing texture array and SRV
+    if (g_StarfieldState.navballIconArraySRV) {
+        g_StarfieldState.navballIconArraySRV->Release();
+        g_StarfieldState.navballIconArraySRV = nullptr;
+    }
+    if (g_StarfieldState.navballIconArray) {
+        g_StarfieldState.navballIconArray->Release();
+        g_StarfieldState.navballIconArray = nullptr;
+    }
+    
+    // Check if all source textures are valid
+    bool hasValidTextures = false;
+    for (int i = 0; i < 7; i++) {
+        if (sourceTextures[i]) {
+            hasValidTextures = true;
+            break;
+        }
+    }
+    if (!hasValidTextures) return -3;  // No valid textures provided
+    
+    // Create texture array
+    D3D11_TEXTURE2D_DESC arrayDesc = {};
+    arrayDesc.Width = width;
+    arrayDesc.Height = height;
+    arrayDesc.MipLevels = 1;
+    arrayDesc.ArraySize = 7;  // 7 navball icons
+    arrayDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;  // MSDF textures are RGBA
+    arrayDesc.SampleDesc.Count = 1;
+    arrayDesc.Usage = D3D11_USAGE_DEFAULT;
+    arrayDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    
+    HRESULT hr = g_StarfieldState.device->CreateTexture2D(&arrayDesc, nullptr, &g_StarfieldState.navballIconArray);
+    if (FAILED(hr)) {
+        LogToFile("[Navball] Failed to create texture array (0x%08X)", hr);
+        return -4;
+    }
+    
+    // Copy each source texture to the corresponding array slice
+    ID3D11DeviceContext* context = nullptr;
+    g_StarfieldState.device->GetImmediateContext(&context);
+    if (!context) {
+        g_StarfieldState.navballIconArray->Release();
+        g_StarfieldState.navballIconArray = nullptr;
+        return -5;
+    }
+    
+    for (int i = 0; i < 7; i++) {
+        if (sourceTextures[i]) {
+            context->CopySubresourceRegion(
+                g_StarfieldState.navballIconArray,
+                D3D11CalcSubresource(0, i, 1),  // Mip 0, Array slice i
+                0, 0, 0,
+                sourceTextures[i],
+                0, nullptr
+            );
+        }
+    }
+    
+    context->Release();
+    
+    // Create SRV for the texture array
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+    srvDesc.Texture2DArray.MostDetailedMip = 0;
+    srvDesc.Texture2DArray.MipLevels = 1;
+    srvDesc.Texture2DArray.FirstArraySlice = 0;
+    srvDesc.Texture2DArray.ArraySize = 7;
+    
+    hr = g_StarfieldState.device->CreateShaderResourceView(g_StarfieldState.navballIconArray, &srvDesc, &g_StarfieldState.navballIconArraySRV);
+    if (FAILED(hr)) {
+        LogToFile("[Navball] Failed to create texture array SRV (0x%08X)", hr);
+        g_StarfieldState.navballIconArray->Release();
+        g_StarfieldState.navballIconArray = nullptr;
+        return -6;
+    }
+    
+    LogToFile("[Navball] Texture array created: %dx%d x 7 slices", width, height);
+    return 0;  // Success
 }
 
 extern "C" __declspec(dllexport)

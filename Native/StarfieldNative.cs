@@ -312,5 +312,33 @@ namespace CinematicShaders.Native
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern int CR_RenderStarfieldCubemap(IntPtr[] targetTextures, int faceSize);
+
+        // ============================================================================
+        // Navball Icon Texture Array (Phase 4d)
+        // ============================================================================
+        
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CR_SetNavballIconTextures(
+            [In] IntPtr[] sourceTextures, int width, int height);
+        
+        /// <summary>
+        /// Uploads 7 navball icon textures to the GPU as a texture array.
+        /// </summary>
+        /// <param name="textures">Array of 7 Texture2D objects (must be R8G8B8A8 format)</param>
+        /// <param name="width">Texture width (must be same for all)</param>
+        /// <param name="height">Texture height (must be same for all)</param>
+        /// <returns>True if successful</returns>
+        public static bool SetNavballIconTextures(Texture2D[] textures, int width, int height)
+        {
+            if (textures == null || textures.Length != 7) return false;
+            
+            IntPtr[] nativePtrs = new IntPtr[7];
+            for (int i = 0; i < 7; i++) {
+                if (textures[i] == null) return false;
+                nativePtrs[i] = textures[i].GetNativeTexturePtr();
+            }
+            
+            return CR_SetNavballIconTextures(nativePtrs, width, height) == 0;
+        }
     }
 }

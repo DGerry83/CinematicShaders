@@ -177,6 +177,10 @@ __declspec(dllexport) void CR_SetGridLabelTexture(int slot, ID3D11Texture2D* tex
 // Clear/reset a grid label slot to empty state (safe to call anytime)
 __declspec(dllexport) void CR_ClearGridLabelSlot(int slot);
 
+// Navball icon texture array - set 7 icon textures (prograde, retrograde, normal, antinormal, radial_in, radial_out, maneuver)
+// Returns: 0 on success, negative error code on failure
+__declspec(dllexport) int CR_SetNavballIconTextures(ID3D11Texture2D* sourceTextures[7], int width, int height);
+
 // Cubemap rendering - renders starfield to all 6 cubemap faces
 // targetTextures: array of 6 D3D11 textures (one per face)
 // faceSize: resolution of each face (e.g., 1024)

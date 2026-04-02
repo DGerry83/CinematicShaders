@@ -33,7 +33,9 @@ static const float3 kGridColors[4] = {
 Texture2D<float4> TextTexture : register(t2);              // Star selector text
 Texture2D<float4> GridLabelTextures[12] : register(t3);    // One texture per label slot (t3-t14)
 Texture2D<float4> VesselTargetTextTexture : register(t15); // Vessel target text
+Texture2DArray<float4> NavballIcons : register(t16);       // Navball icon MSDF textures (7 icons)
 SamplerState TextSampler : register(s0);
+SamplerState PointSampler : register(s1);                  // Point sampler for MSDF
 
 // Grid size presets: 0=Jumbo, 1=Large, 2=Medium, 3=Small, 4=Tiny
 
@@ -141,6 +143,53 @@ float Flicker(float t, float time, float hash) {
 float SDF_RoundedBox(float2 p, float2 center, float2 halfSize, float radius) {
     float2 d = abs(p - center) - halfSize + radius;
     return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - radius;
+}
+
+// ============================================================================
+// Navball Icon Rendering (Phase 4c) - MSDF-based screen-space icons
+// ============================================================================
+
+// Median of three values (for MSDF decoding)
+float median(float r, float g, float b) {
+    return max(min(r, g), min(max(r, g), b));
+}
+
+// Render a single navball icon using MSDF texture sampling
+float3 RenderNavballIcon(int iconIndex, float2 center, float intensity, uint colorOverride,
+    float2 uv, float3 gridColor, float iconSize, float thickness)
+{
+    if (intensity <= 0.001) return float3(0, 0, 0);
+    
+    // Calculate local UV in icon space
+    float2 localUV = (uv - center) / iconSize + 0.5;
+    
+    // Discard if outside icon bounds
+    if (localUV.x < 0.0 || localUV.x > 1.0 || localUV.y < 0.0 || localUV.y > 1.0)
+        return float3(0, 0, 0);
+    
+    // Sample MSDF from texture array
+    float3 msd = NavballIcons.SampleLevel(PointSampler, float3(localUV, iconIndex), 0).rgb;
+    
+    // MSDF decoding: median of RGB channels minus 0.5
+    float sd = median(msd.r, msd.g, msd.b) - 0.5;
+    
+    // Apply thickness offset (negative = thinner, positive = thicker)
+    sd = sd - 0.5 + thickness;
+    
+    // Anti-aliased edge using fwidth
+    float edgeWidth = fwidth(sd);
+    float alpha = smoothstep(-edgeWidth, edgeWidth, sd);
+    
+    // Get color (override or use grid color)
+    float3 color = gridColor;
+    if (colorOverride != 0) {
+        float r = float((colorOverride >> 16) & 0xFF) / 255.0;
+        float g = float((colorOverride >> 8) & 0xFF) / 255.0;
+        float b = float(colorOverride & 0xFF) / 255.0;
+        color = float3(r, g, b);
+    }
+    
+    return color * alpha * intensity;
 }
 
 // Calculate grid glow for a given ray direction and preset
@@ -666,6 +715,53 @@ float4 PSMain(PSInput input) : SV_Target {
             // Render label (use green channel ray as base, with CA offset)
             col += RenderGridLabel(labelPos, labelTangent, sizeX, sizeY, i, rayG, gridColor, caOffsetLabel);
         }
+    }
+    
+    // ============================================================================
+    // NAVBALL ICONS - Screen-space orbit direction indicators (Phase 4c)
+    // ============================================================================
+    if (params.NavballEnabledMask != 0) {
+        float3 navballAccum = float3(0, 0, 0);
+        float3 gridColor = kGridColors[params.GridColorIndex];
+        
+        // Array of icon data for iteration (using float2 position fields)
+        float2 positions[7] = {
+            params.NavballIcon0,
+            params.NavballIcon1,
+            params.NavballIcon2,
+            params.NavballIcon3,
+            params.NavballIcon4,
+            params.NavballIcon5,
+            params.NavballIcon6
+        };
+        float intensities[7] = {
+            params.NavballIcon0_Intensity,
+            params.NavballIcon1_Intensity,
+            params.NavballIcon2_Intensity,
+            params.NavballIcon3_Intensity,
+            params.NavballIcon4_Intensity,
+            params.NavballIcon5_Intensity,
+            params.NavballIcon6_Intensity
+        };
+        uint colors[7] = {
+            params.NavballIcon0_Color,
+            params.NavballIcon1_Color,
+            params.NavballIcon2_Color,
+            params.NavballIcon3_Color,
+            params.NavballIcon4_Color,
+            params.NavballIcon5_Color,
+            params.NavballIcon6_Color
+        };
+        
+        // Render each enabled icon
+        for (int i = 0; i < 7; i++) {
+            if ((params.NavballEnabledMask & (1 << i)) != 0) {
+                navballAccum += RenderNavballIcon(i, positions[i], intensities[i], colors[i],
+                    uv, gridColor, params.NavballIconSize, params.NavballIconThickness);
+            }
+        }
+        
+        col += navballAccum;
     }
     
     float phase = frac(fragCoord.x / 3.0);
