@@ -31,6 +31,13 @@ namespace CinematicShaders.Core
         private int _logFrameCounter = 0;
         private float _lastLoggedBoxTopLeftX = 0f;
         private float _lastLoggedBoxTopLeftY = 0f;
+        
+        // Debug logging state
+        private int _debugFrameThrottle = 0;
+        private const int DEBUG_LOG_INTERVAL = 30; // Log every 30 frames max
+        private string _lastAnimPhase = "";
+        private bool _lastTrackingState = false;
+        private bool _lastVisibleState = false;
 
         // Animation controller for target info (replaces individual animation state)
         private TypeOnAnimationController _animController = new TypeOnAnimationController();
@@ -58,6 +65,15 @@ namespace CinematicShaders.Core
         /// Main update - called every frame by CinematicShadersAddon
         /// </summary>
         public void Update()
+        {
+            _debugFrameThrottle++;
+            bool canLog = _debugFrameThrottle >= DEBUG_LOG_INTERVAL;
+            if (canLog) _debugFrameThrottle = 0;
+            
+            UpdateInternal(canLog);
+        }
+        
+        private void UpdateInternal(bool canLog)
         {
             // Don't show in map view (would interfere with map interaction)
             if (AtmosphericScatteringData.IsMapView())
@@ -87,7 +103,7 @@ namespace CinematicShaders.Core
             }
 
             // Update target info display (screen-space, follows target)
-            UpdateTargetInfo();
+            UpdateTargetInfo(canLog);
 
             // Update situation info display (grid-fixed, dual-sided)
             UpdateSituationInfo();
@@ -96,7 +112,7 @@ namespace CinematicShaders.Core
         /// <summary>
         /// Update target info display (circle + box with type-on text)
         /// </summary>
-        private void UpdateTargetInfo()
+        private void UpdateTargetInfo(bool canLog)
         {
             _frameCounter++;
             
@@ -139,11 +155,20 @@ namespace CinematicShaders.Core
             if (visible && !_isTrackingTarget)
             {
                 _isTrackingTarget = true;
-                // Animation already reset when target was acquired
+                if (canLog) Debug.Log($"[VSL_STATE] Tracking STARTED - target now visible, UV=({_targetScreenUV.x:F4},{_targetScreenUV.y:F4})");
             }
             else if (!visible && _isTrackingTarget)
             {
                 _isTrackingTarget = false;
+                if (canLog) Debug.Log($"[VSL_STATE] Tracking PAUSED - target off screen, UV=({_targetScreenUV.x:F4},{_targetScreenUV.y:F4})");
+            }
+            
+            // Log state transitions
+            if (canLog && (_isTrackingTarget != _lastTrackingState || visible != _lastVisibleState))
+            {
+                Debug.Log($"[VSL_STATE] Frame {Time.frameCount}: Tracking={_isTrackingTarget}, Visible={visible}, UV=({_targetScreenUV.x:F4},{_targetScreenUV.y:F4}), onScreen={onScreen}, xCheck={_targetScreenUV.x >= 0}");
+                _lastTrackingState = _isTrackingTarget;
+                _lastVisibleState = visible;
             }
 
             // Update animation
@@ -194,12 +219,20 @@ namespace CinematicShaders.Core
         {
             // Track previous phase to detect transitions
             var prevPhase = _animController.CurrentPhase;
+            string prevPhaseName = prevPhase.ToString();
             
             // Track previous text to detect changes
             string prevText = _animController.DisplayText;
             
             // Update animation state
             _animController.Update(Time.deltaTime);
+            
+            // Log phase transitions (throttled)
+            if (_animController.CurrentPhase != prevPhase)
+            {
+                Debug.Log($"[VSL_ANIM] Phase transition: {prevPhaseName} -> {_animController.CurrentPhase} (CircleT={_animController.CircleProgress:F3}, Intensity={_animController.Intensity:F3})");
+                _lastAnimPhase = _animController.CurrentPhase.ToString();
+            }
             
             // CRITICAL: Set text content when entering Text phase
             // This prevents text from appearing during Circle/Box phases
@@ -208,6 +241,7 @@ namespace CinematicShaders.Core
                 _animController.CurrentPhase >= TypeOnAnimationController.Phase.Text)
             {
                 string targetText = BuildTargetText(_currentTarget);
+                Debug.Log($"[VSL_ANIM] Entering TEXT phase, setting content: '{targetText.Substring(0, Math.Min(30, targetText.Length))}...'");
                 _animController.SetFullText(targetText);
             }
             
@@ -525,7 +559,7 @@ namespace CinematicShaders.Core
             // Animated label intensity: 0 during Circle/Box (hidden), 1 during Text/Complete (visible)
             kartParams.AnimatedLabelIntensity = _animController.Intensity;
 
-            // DEBUG LOGGING - Throttled to every 30 frames or on significant change
+            // DEBUG LOGGING - Comprehensive data sent to native (throttled)
             _logFrameCounter++;
             bool valuesChanged = Mathf.Abs(boxTopLeftX - _lastLoggedBoxTopLeftX) > 0.01f || 
                                 Mathf.Abs(boxTopLeftY - _lastLoggedBoxTopLeftY) > 0.01f;
@@ -535,11 +569,14 @@ namespace CinematicShaders.Core
                 _lastLoggedBoxTopLeftX = boxTopLeftX;
                 _lastLoggedBoxTopLeftY = boxTopLeftY;
                 
-                Debug.Log($"[VesselTarget DEBUG] Frame {Time.frameCount}");
-                Debug.Log($"[VesselTarget DEBUG] Circle: ({centerX:F4}, {centerY:F4}) visible={visible}");
-                Debug.Log($"[VesselTarget DEBUG] Box: TL=({boxTopLeftX:F4}, {boxTopLeftY:F4}) Size=({boxWidthUV:F4}, {boxHeightUV:F4}) showBox={showBox}");
-                Debug.Log($"[VesselTarget DEBUG] Text: Origin=({kartParams.VesselTargetTextOriginX:F4}, {kartParams.VesselTargetTextOriginY:F4}) Area=({textWidthUV:F4}, {textHeightUV:F4})");
-                Debug.Log($"[VesselTarget DEBUG] Anim: CircleT={_animController.CircleProgress:F3} Intensity={_animController.Intensity:F3} Phase={_animController.CurrentPhase}");
+                // [VSL_NATIVE] prefix for data being sent TO native
+                Debug.Log($"[VSL_NATIVE] === Frame {Time.frameCount} ===");
+                Debug.Log($"[VSL_NATIVE] VesselTargetEnabled={kartParams.VesselTargetEnabled}, Hash={_starHash:F4}");
+                Debug.Log($"[VSL_NATIVE] Circle: Center=({centerX:F4},{centerY:F4}) T={_animController.CircleProgress:F3} Intensity={kartParams.VesselTargetCircleIntensity:F4} Radius={kartParams.VesselTargetCircleRadius:F4} Thickness={kartParams.VesselTargetCircleThickness:F4}");
+                Debug.Log($"[VSL_NATIVE] Box: Enabled={showBox} TL=({boxTopLeftX:F4},{boxTopLeftY:F4}) Size=({kartParams.VesselTargetBoxSizeX:F4},{kartParams.VesselTargetBoxSizeY:F4}) Thickness={kartParams.VesselTargetBoxThickness:F4}");
+                Debug.Log($"[VSL_NATIVE] Text: Origin=({kartParams.VesselTargetTextOriginX:F4},{kartParams.VesselTargetTextOriginY:F4}) Area=({kartParams.VesselTargetTextAreaSizeX:F4},{kartParams.VesselTargetTextAreaSizeY:F4}) T={kartParams.VesselTargetTextT:F3}");
+                Debug.Log($"[VSL_NATIVE] AnimState: Phase={_animController.CurrentPhase} Intensity={kartParams.AnimatedLabelIntensity:F3} visible={visible}");
+                Debug.Log($"[VSL_NATIVE] RAW_VALUES: centerX={centerX:F6} centerY={centerY:F6} boxW={boxWidthUV:F6} boxH={boxHeightUV:F6}");
             }
 
             StarfieldNative.LastKartographerParams = kartParams;
@@ -554,11 +591,20 @@ namespace CinematicShaders.Core
             if (!StarfieldNative.IsLoaded) return;
 
             var kartParams = StarfieldNative.LastKartographerParams;
+            
+            // Log what we're clearing (only if it was previously enabled)
+            if (kartParams.VesselTargetEnabled != 0)
+            {
+                Debug.Log($"[VSL_NATIVE] PUSHING EMPTY - Clearing VesselTarget (was enabled)");
+            }
+            
             kartParams.VesselTargetEnabled = 0;
             kartParams.VesselTargetBoxSizeX = 0f;
             kartParams.VesselTargetBoxSizeY = 0f;
             kartParams.VesselTargetTextAreaSizeX = 0f;
             kartParams.VesselTargetTextAreaSizeY = 0f;
+            kartParams.VesselTargetCircleIntensity = 0f;
+            kartParams.AnimatedLabelIntensity = 0f;
             StarfieldNative.LastKartographerParams = kartParams;
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
         }
@@ -613,6 +659,9 @@ namespace CinematicShaders.Core
                 if (current != null && current != _currentTarget)
                 {
                     // New target - reset animation
+                    string targetName = current.GetDisplayName() ?? "UNKNOWN";
+                    Debug.Log($"[VSL_TARGET] NEW TARGET ACQUIRED: '{targetName}' - Starting animation");
+                    
                     _currentTarget = current;
                     _starHash = UnityEngine.Random.value;
                     InitializeTextSystem();
@@ -628,7 +677,12 @@ namespace CinematicShaders.Core
                 else if (current == null && _currentTarget != null)
                 {
                     // Target lost
+                    Debug.Log($"[VSL_TARGET] TARGET LOST - Clearing state");
                     _currentTarget = null;
+                }
+                else
+                {
+                    Debug.Log($"[VSL_TARGET] Target change detected but no state change (current={(current?.GetDisplayName() ?? "null")}, _currentTarget={(_currentTarget?.GetDisplayName() ?? "null")})");
                 }
                 
                 _lastCheckedTarget = current;
@@ -672,6 +726,7 @@ namespace CinematicShaders.Core
         /// </summary>
         public void StopTracking()
         {
+            Debug.Log($"[VSL_TARGET] STOP TRACKING called from {System.Environment.StackTrace.Split('\n')[2].Trim()}");
             _isTrackingTarget = false;
             _currentTarget = null;
             _lastCheckedTarget = null;

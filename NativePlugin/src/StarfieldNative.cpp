@@ -1988,6 +1988,25 @@ static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
         params->VesselTargetTextT = g_StarfieldState.kartographerVesselTargetTextT;
         params->AnimatedLabelIntensity = g_StarfieldState.kartographerAnimatedLabelIntensity;
         
+        // [CPP_CB] Log what's being written to constant buffer (throttled)
+        static int cbLogThrottle = 0;
+        cbLogThrottle++;
+        if (cbLogThrottle >= 30) {
+            cbLogThrottle = 0;
+            LogToFile("[CPP_CB] === CB Update ===");
+            LogToFile("[CPP_CB] VesselTarget: Enabled=%d Hash=%.4f", params->VesselTargetEnabled, params->VesselTargetHash);
+            LogToFile("[CPP_CB] Circle: (%.4f,%.4f) T=%.3f Int=%.4f Rad=%.4f", 
+                params->VesselTargetCircleCenterX, params->VesselTargetCircleCenterY,
+                params->VesselTargetCircleT, params->VesselTargetCircleIntensity, params->VesselTargetCircleRadius);
+            LogToFile("[CPP_CB] Box: (%.4f,%.4f) Size=(%.4f,%.4f)",
+                params->VesselTargetBoxTopLeftX, params->VesselTargetBoxTopLeftY,
+                params->VesselTargetBoxSizeX, params->VesselTargetBoxSizeY);
+            LogToFile("[CPP_CB] Text: (%.4f,%.4f) Area=(%.4f,%.4f) T=%.3f",
+                params->VesselTargetTextOriginX, params->VesselTargetTextOriginY,
+                params->VesselTargetTextAreaSizeX, params->VesselTargetTextAreaSizeY, params->VesselTargetTextT);
+            LogToFile("[CPP_CB] AnimIntensity=%.3f", params->AnimatedLabelIntensity);
+        }
+        
         context->Unmap(g_StarfieldState.kartographerCB, 0);
     }
 }
@@ -1996,6 +2015,24 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
 {
     if (!params) return;
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
+    // [CPP_RECEIVE] Log VesselTarget params received from C#
+    static int receiveLogThrottle = 0;
+    receiveLogThrottle++;
+    if (receiveLogThrottle >= 30) {
+        receiveLogThrottle = 0;
+        LogToFile("[CPP_RECEIVE] VesselTargetEnabled=%d Hash=%.4f", params->VesselTargetEnabled, params->VesselTargetHash);
+        LogToFile("[CPP_RECEIVE] Circle: Center=(%.4f,%.4f) T=%.3f Intensity=%.4f", 
+            params->VesselTargetCircleCenterX, params->VesselTargetCircleCenterY,
+            params->VesselTargetCircleT, params->VesselTargetCircleIntensity);
+        LogToFile("[CPP_RECEIVE] Box: TL=(%.4f,%.4f) Size=(%.4f,%.4f) Thickness=%.4f",
+            params->VesselTargetBoxTopLeftX, params->VesselTargetBoxTopLeftY,
+            params->VesselTargetBoxSizeX, params->VesselTargetBoxSizeY, params->VesselTargetBoxThickness);
+        LogToFile("[CPP_RECEIVE] Text: Origin=(%.4f,%.4f) Area=(%.4f,%.4f) T=%.3f",
+            params->VesselTargetTextOriginX, params->VesselTargetTextOriginY,
+            params->VesselTargetTextAreaSizeX, params->VesselTargetTextAreaSizeY, params->VesselTargetTextT);
+        LogToFile("[CPP_RECEIVE] AnimLabelIntensity=%.3f", params->AnimatedLabelIntensity);
+    }
     
     g_StarfieldState.kartographerGridIntensity = params->GridIntensity;
     g_StarfieldState.kartographerGridThickness = params->GridThickness;
