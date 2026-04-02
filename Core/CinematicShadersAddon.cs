@@ -40,6 +40,9 @@ namespace CinematicShaders.Core
                 return;
             }
             Instance = this;
+            
+            ModFileLogger.Initialize();
+            ModFileLogger.Log("CinematicShadersAddon awakened");
         }
 
         void Start()
@@ -458,6 +461,9 @@ namespace CinematicShaders.Core
         void OnDestroy()
         {
             if (Instance != this) return;
+            ModFileLogger.Log("CinematicShadersAddon destroying");
+            ModFileLogger.Shutdown();
+            
             CancelInvoke(nameof(RetryInit));
 
             GameEvents.onGUIApplicationLauncherReady.Remove(OnGUIApplicationLauncherReady);
