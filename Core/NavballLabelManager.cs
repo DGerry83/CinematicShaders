@@ -97,6 +97,7 @@ namespace CinematicShaders.Core
         private const int ICON_TEXTURE_SIZE = 128;
         private Texture2D[] _iconTextures;
         private bool _texturesLoaded = false;
+        private bool _texturesUploaded = false;
 
         /// <summary>
         /// Load navball icon textures from DDS files.
@@ -138,22 +139,44 @@ namespace CinematicShaders.Core
                     return;
                 }
 
-                // Upload to native
-                int result = StarfieldNative.CR_SetNavballIconTextures(
-                    _iconTextures.Select(t => t.GetNativeTexturePtr()).ToArray(), 
-                    ICON_TEXTURE_SIZE, ICON_TEXTURE_SIZE);
-                if (result != 0)
-                {
-                    ModFileLogger.LogError($"[NavballLabelManager] Failed to upload textures to native, error code: {result}");
-                    return;
-                }
-
                 _texturesLoaded = true;
-                ModFileLogger.Log("[NavballLabelManager] Textures loaded and uploaded successfully");
+                ModFileLogger.Log("[NavballLabelManager] Textures loaded, will upload when device ready");
             }
             catch (Exception ex)
             {
                 ModFileLogger.LogError($"[NavballLabelManager] Failed to load textures: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Attempt to upload textures to native. Called from Update() when device is ready.
+        /// </summary>
+        private void TryUploadTextures()
+        {
+            try
+            {
+                int result = StarfieldNative.CR_SetNavballIconTextures(
+                    _iconTextures.Select(t => t.GetNativeTexturePtr()).ToArray(), 
+                    ICON_TEXTURE_SIZE, ICON_TEXTURE_SIZE);
+                
+                if (result == 0)
+                {
+                    _texturesUploaded = true;
+                    ModFileLogger.Log("[NavballLabelManager] Textures uploaded to native successfully");
+                }
+                else if (result == -1)
+                {
+                    // Device not ready yet, will retry next frame
+                    // No logging to avoid spam
+                }
+                else
+                {
+                    ModFileLogger.LogError($"[NavballLabelManager] Failed to upload textures to native, error code: {result}");
+                }
+            }
+            catch (Exception ex)
+            {
+                ModFileLogger.LogError($"[NavballLabelManager] Exception uploading textures: {ex.Message}");
             }
         }
 
@@ -198,6 +221,13 @@ namespace CinematicShaders.Core
         public void Update()
         {
             if (!_initialized || !_enabled) return;
+
+            // Try to upload textures if loaded but not yet uploaded
+            // (device may not have been ready during Initialize)
+            if (_texturesLoaded && !_texturesUploaded)
+            {
+                TryUploadTextures();
+            }
 
             // Only operate in Flight scene with active vessel
             if (HighLogic.LoadedScene != GameScenes.FLIGHT)
