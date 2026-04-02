@@ -33,7 +33,11 @@ cd StructToolset
 python generator.py
 ```
 
-3. **Copy-paste** the generated files from `generated/` into your source code.
+3. **Propagate** the generated files:
+   - **C++**: Copy `generated/KartographerParams_cpp.h` to `NativePlugin/include/KartographerParams_generated.h` and `#include` it.
+   - **HLSL**: Copy `generated/KartographerParams_hlsl.hlsl` to `NativePlugin/include/KartographerParams_hlsl.hlsl` and `#include` it in the shader.
+   - **C#**: Copy `generated/KartographerParams_cs.cs` to `Native/StructDefs/KartographerParams.cs`.
+4. **Validate** with `python validate.py` to ensure all consumers are in sync.
 
 ## Files
 
@@ -209,13 +213,25 @@ python generator.py --struct KartographerParams
 python generator.py --dry-run
 ```
 
+### Validate propagated files
+```bash
+python validate.py
+```
+
+**Always run `validate.py` after modifying structs** to catch copy-paste mistakes before they cause runtime alignment bugs.
+
 ## Adding a New Struct
 
 1. Edit `structs.yaml`
 2. Add struct definition with fields
 3. Run `python generator.py`
-4. Copy-paste from `generated/` to your source files
-5. Verify sizes match expected values in comments
+4. Copy the generated files to their target locations:
+   - `generated/KartographerParams_cpp.h` → `NativePlugin/include/KartographerParams_generated.h`
+   - `generated/KartographerParams_hlsl.hlsl` → `NativePlugin/include/KartographerParams_hlsl.hlsl`
+   - `generated/KartographerParams_cs.cs` → `Native/StructDefs/KartographerParams.cs`
+5. Ensure C++ and HLSL consumers use `#include` instead of inline struct definitions
+6. Run `python validate.py` to verify synchronization
+7. Verify sizes match expected values in comments
 
 ## Troubleshooting
 

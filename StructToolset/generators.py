@@ -27,9 +27,18 @@ class CPPGenerator:
         
         # HLSL-style vector types for C++
         lines.append("// HLSL-style vector types for C++")
+        lines.append("#ifndef CINEMATICSHADERS_FLOAT2_DEFINED")
+        lines.append("#define CINEMATICSHADERS_FLOAT2_DEFINED")
         lines.append("struct float2 { float x, y; };")
+        lines.append("#endif")
+        lines.append("#ifndef CINEMATICSHADERS_FLOAT3_DEFINED")
+        lines.append("#define CINEMATICSHADERS_FLOAT3_DEFINED")
         lines.append("struct float3 { float x, y, z; };")
+        lines.append("#endif")
+        lines.append("#ifndef CINEMATICSHADERS_FLOAT4_DEFINED")
+        lines.append("#define CINEMATICSHADERS_FLOAT4_DEFINED")
         lines.append("struct float4 { float x, y, z, w; };")
+        lines.append("#endif")
         lines.append("")
         
         # Struct with pragma pack

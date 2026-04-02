@@ -335,25 +335,10 @@ class CPPLayoutEngine:
     
     @staticmethod
     def _expand_field(field: LayoutField) -> List[LayoutField]:
-        """Expand a field to individual scalars for C++ interop."""
-        if field.type_name == 'float2':
-            return [
-                LayoutField(f"{field.name}_x", 'float', 4, field.offset, field.comment),
-                LayoutField(f"{field.name}_y", 'float', 4, field.offset + 4, ""),
-            ]
-        elif field.type_name == 'float3':
-            return [
-                LayoutField(f"{field.name}_x", 'float', 4, field.offset, field.comment),
-                LayoutField(f"{field.name}_y", 'float', 4, field.offset + 4, ""),
-                LayoutField(f"{field.name}_z", 'float', 4, field.offset + 8, ""),
-            ]
-        elif field.type_name == 'float4':
-            return [
-                LayoutField(f"{field.name}_x", 'float', 4, field.offset, field.comment),
-                LayoutField(f"{field.name}_y", 'float', 4, field.offset + 4, ""),
-                LayoutField(f"{field.name}_z", 'float', 4, field.offset + 8, ""),
-                LayoutField(f"{field.name}_w", 'float', 4, field.offset + 12, ""),
-            ]
+        """Preserve vector types for C++ interop (float2/float3/float4 are defined in shared header)."""
+        if field.type_name in ('float2', 'float3', 'float4'):
+            # Keep vectors as-is; the C++ header provides these struct types
+            return [field]
         elif field.type_name == 'float4x4':
             result = []
             for row in range(4):

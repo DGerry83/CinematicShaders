@@ -8,9 +8,18 @@
 #include <cstdint>
 
 // HLSL-style vector types for C++
+#ifndef CINEMATICSHADERS_FLOAT2_DEFINED
+#define CINEMATICSHADERS_FLOAT2_DEFINED
 struct float2 { float x, y; };
+#endif
+#ifndef CINEMATICSHADERS_FLOAT3_DEFINED
+#define CINEMATICSHADERS_FLOAT3_DEFINED
 struct float3 { float x, y, z; };
+#endif
+#ifndef CINEMATICSHADERS_FLOAT4_DEFINED
+#define CINEMATICSHADERS_FLOAT4_DEFINED
 struct float4 { float x, y, z, w; };
+#endif
 
 #pragma pack(push, 16)
 struct KartographerParams {
@@ -83,102 +92,30 @@ struct KartographerParams {
     //   260: _padGridMask2 (float) // Padding
     //   264: _padGridMask3 (float) // Padding
     //   268: _padGridMask4 (float) // Padding to align labels to 16 bytes
-    //   272: GridLabel0_PosTangentX_x (float) // Label 0 position + sizeX
-    //   276: GridLabel0_PosTangentX_y (float)
-    //   280: GridLabel0_PosTangentX_z (float)
-    //   284: GridLabel0_PosTangentX_w (float)
-    //   288: GridLabel0_TangentY_x (float) // Label 0 tangent + sizeY
-    //   292: GridLabel0_TangentY_y (float)
-    //   296: GridLabel0_TangentY_z (float)
-    //   300: GridLabel0_TangentY_w (float)
-    //   304: GridLabel1_PosTangentX_x (float) // Label 1 position + sizeX
-    //   308: GridLabel1_PosTangentX_y (float)
-    //   312: GridLabel1_PosTangentX_z (float)
-    //   316: GridLabel1_PosTangentX_w (float)
-    //   320: GridLabel1_TangentY_x (float) // Label 1 tangent + sizeY
-    //   324: GridLabel1_TangentY_y (float)
-    //   328: GridLabel1_TangentY_z (float)
-    //   332: GridLabel1_TangentY_w (float)
-    //   336: GridLabel2_PosTangentX_x (float) // Label 2 position + sizeX
-    //   340: GridLabel2_PosTangentX_y (float)
-    //   344: GridLabel2_PosTangentX_z (float)
-    //   348: GridLabel2_PosTangentX_w (float)
-    //   352: GridLabel2_TangentY_x (float) // Label 2 tangent + sizeY
-    //   356: GridLabel2_TangentY_y (float)
-    //   360: GridLabel2_TangentY_z (float)
-    //   364: GridLabel2_TangentY_w (float)
-    //   368: GridLabel3_PosTangentX_x (float) // Label 3 position + sizeX
-    //   372: GridLabel3_PosTangentX_y (float)
-    //   376: GridLabel3_PosTangentX_z (float)
-    //   380: GridLabel3_PosTangentX_w (float)
-    //   384: GridLabel3_TangentY_x (float) // Label 3 tangent + sizeY
-    //   388: GridLabel3_TangentY_y (float)
-    //   392: GridLabel3_TangentY_z (float)
-    //   396: GridLabel3_TangentY_w (float)
-    //   400: GridLabel4_PosTangentX_x (float) // Label 4 position + sizeX
-    //   404: GridLabel4_PosTangentX_y (float)
-    //   408: GridLabel4_PosTangentX_z (float)
-    //   412: GridLabel4_PosTangentX_w (float)
-    //   416: GridLabel4_TangentY_x (float) // Label 4 tangent + sizeY
-    //   420: GridLabel4_TangentY_y (float)
-    //   424: GridLabel4_TangentY_z (float)
-    //   428: GridLabel4_TangentY_w (float)
-    //   432: GridLabel5_PosTangentX_x (float) // Label 5 position + sizeX
-    //   436: GridLabel5_PosTangentX_y (float)
-    //   440: GridLabel5_PosTangentX_z (float)
-    //   444: GridLabel5_PosTangentX_w (float)
-    //   448: GridLabel5_TangentY_x (float) // Label 5 tangent + sizeY
-    //   452: GridLabel5_TangentY_y (float)
-    //   456: GridLabel5_TangentY_z (float)
-    //   460: GridLabel5_TangentY_w (float)
-    //   464: GridLabel6_PosTangentX_x (float) // Label 6 position + sizeX
-    //   468: GridLabel6_PosTangentX_y (float)
-    //   472: GridLabel6_PosTangentX_z (float)
-    //   476: GridLabel6_PosTangentX_w (float)
-    //   480: GridLabel6_TangentY_x (float) // Label 6 tangent + sizeY
-    //   484: GridLabel6_TangentY_y (float)
-    //   488: GridLabel6_TangentY_z (float)
-    //   492: GridLabel6_TangentY_w (float)
-    //   496: GridLabel7_PosTangentX_x (float) // Label 7 position + sizeX
-    //   500: GridLabel7_PosTangentX_y (float)
-    //   504: GridLabel7_PosTangentX_z (float)
-    //   508: GridLabel7_PosTangentX_w (float)
-    //   512: GridLabel7_TangentY_x (float) // Label 7 tangent + sizeY
-    //   516: GridLabel7_TangentY_y (float)
-    //   520: GridLabel7_TangentY_z (float)
-    //   524: GridLabel7_TangentY_w (float)
-    //   528: GridLabel8_PosTangentX_x (float) // Label 8 position + sizeX
-    //   532: GridLabel8_PosTangentX_y (float)
-    //   536: GridLabel8_PosTangentX_z (float)
-    //   540: GridLabel8_PosTangentX_w (float)
-    //   544: GridLabel8_TangentY_x (float) // Label 8 tangent + sizeY
-    //   548: GridLabel8_TangentY_y (float)
-    //   552: GridLabel8_TangentY_z (float)
-    //   556: GridLabel8_TangentY_w (float)
-    //   560: GridLabel9_PosTangentX_x (float) // Label 9 position + sizeX
-    //   564: GridLabel9_PosTangentX_y (float)
-    //   568: GridLabel9_PosTangentX_z (float)
-    //   572: GridLabel9_PosTangentX_w (float)
-    //   576: GridLabel9_TangentY_x (float) // Label 9 tangent + sizeY
-    //   580: GridLabel9_TangentY_y (float)
-    //   584: GridLabel9_TangentY_z (float)
-    //   588: GridLabel9_TangentY_w (float)
-    //   592: GridLabel10_PosTangentX_x (float) // Label 10 position + sizeX
-    //   596: GridLabel10_PosTangentX_y (float)
-    //   600: GridLabel10_PosTangentX_z (float)
-    //   604: GridLabel10_PosTangentX_w (float)
-    //   608: GridLabel10_TangentY_x (float) // Label 10 tangent + sizeY
-    //   612: GridLabel10_TangentY_y (float)
-    //   616: GridLabel10_TangentY_z (float)
-    //   620: GridLabel10_TangentY_w (float)
-    //   624: GridLabel11_PosTangentX_x (float) // Label 11 position + sizeX
-    //   628: GridLabel11_PosTangentX_y (float)
-    //   632: GridLabel11_PosTangentX_z (float)
-    //   636: GridLabel11_PosTangentX_w (float)
-    //   640: GridLabel11_TangentY_x (float) // Label 11 tangent + sizeY
-    //   644: GridLabel11_TangentY_y (float)
-    //   648: GridLabel11_TangentY_z (float)
-    //   652: GridLabel11_TangentY_w (float)
+    //   272: GridLabel0_PosTangentX (float4) // Label 0 position + sizeX
+    //   288: GridLabel0_TangentY (float4) // Label 0 tangent + sizeY
+    //   304: GridLabel1_PosTangentX (float4) // Label 1 position + sizeX
+    //   320: GridLabel1_TangentY (float4) // Label 1 tangent + sizeY
+    //   336: GridLabel2_PosTangentX (float4) // Label 2 position + sizeX
+    //   352: GridLabel2_TangentY (float4) // Label 2 tangent + sizeY
+    //   368: GridLabel3_PosTangentX (float4) // Label 3 position + sizeX
+    //   384: GridLabel3_TangentY (float4) // Label 3 tangent + sizeY
+    //   400: GridLabel4_PosTangentX (float4) // Label 4 position + sizeX
+    //   416: GridLabel4_TangentY (float4) // Label 4 tangent + sizeY
+    //   432: GridLabel5_PosTangentX (float4) // Label 5 position + sizeX
+    //   448: GridLabel5_TangentY (float4) // Label 5 tangent + sizeY
+    //   464: GridLabel6_PosTangentX (float4) // Label 6 position + sizeX
+    //   480: GridLabel6_TangentY (float4) // Label 6 tangent + sizeY
+    //   496: GridLabel7_PosTangentX (float4) // Label 7 position + sizeX
+    //   512: GridLabel7_TangentY (float4) // Label 7 tangent + sizeY
+    //   528: GridLabel8_PosTangentX (float4) // Label 8 position + sizeX
+    //   544: GridLabel8_TangentY (float4) // Label 8 tangent + sizeY
+    //   560: GridLabel9_PosTangentX (float4) // Label 9 position + sizeX
+    //   576: GridLabel9_TangentY (float4) // Label 9 tangent + sizeY
+    //   592: GridLabel10_PosTangentX (float4) // Label 10 position + sizeX
+    //   608: GridLabel10_TangentY (float4) // Label 10 tangent + sizeY
+    //   624: GridLabel11_PosTangentX (float4) // Label 11 position + sizeX
+    //   640: GridLabel11_TangentY (float4) // Label 11 tangent + sizeY
     //   656: GridLabelDebugMask (uint32_t) // Bit mask for debug visualization
     //   660: LabelIntensity0 (float) // Label 0 brightness
     //   664: LabelIntensity1 (float) // Label 1 brightness
@@ -340,102 +277,30 @@ struct KartographerParams {
     float _padGridMask2;
     float _padGridMask3;
     float _padGridMask4;
-    float GridLabel0_PosTangentX_x;
-    float GridLabel0_PosTangentX_y;
-    float GridLabel0_PosTangentX_z;
-    float GridLabel0_PosTangentX_w;
-    float GridLabel0_TangentY_x;
-    float GridLabel0_TangentY_y;
-    float GridLabel0_TangentY_z;
-    float GridLabel0_TangentY_w;
-    float GridLabel1_PosTangentX_x;
-    float GridLabel1_PosTangentX_y;
-    float GridLabel1_PosTangentX_z;
-    float GridLabel1_PosTangentX_w;
-    float GridLabel1_TangentY_x;
-    float GridLabel1_TangentY_y;
-    float GridLabel1_TangentY_z;
-    float GridLabel1_TangentY_w;
-    float GridLabel2_PosTangentX_x;
-    float GridLabel2_PosTangentX_y;
-    float GridLabel2_PosTangentX_z;
-    float GridLabel2_PosTangentX_w;
-    float GridLabel2_TangentY_x;
-    float GridLabel2_TangentY_y;
-    float GridLabel2_TangentY_z;
-    float GridLabel2_TangentY_w;
-    float GridLabel3_PosTangentX_x;
-    float GridLabel3_PosTangentX_y;
-    float GridLabel3_PosTangentX_z;
-    float GridLabel3_PosTangentX_w;
-    float GridLabel3_TangentY_x;
-    float GridLabel3_TangentY_y;
-    float GridLabel3_TangentY_z;
-    float GridLabel3_TangentY_w;
-    float GridLabel4_PosTangentX_x;
-    float GridLabel4_PosTangentX_y;
-    float GridLabel4_PosTangentX_z;
-    float GridLabel4_PosTangentX_w;
-    float GridLabel4_TangentY_x;
-    float GridLabel4_TangentY_y;
-    float GridLabel4_TangentY_z;
-    float GridLabel4_TangentY_w;
-    float GridLabel5_PosTangentX_x;
-    float GridLabel5_PosTangentX_y;
-    float GridLabel5_PosTangentX_z;
-    float GridLabel5_PosTangentX_w;
-    float GridLabel5_TangentY_x;
-    float GridLabel5_TangentY_y;
-    float GridLabel5_TangentY_z;
-    float GridLabel5_TangentY_w;
-    float GridLabel6_PosTangentX_x;
-    float GridLabel6_PosTangentX_y;
-    float GridLabel6_PosTangentX_z;
-    float GridLabel6_PosTangentX_w;
-    float GridLabel6_TangentY_x;
-    float GridLabel6_TangentY_y;
-    float GridLabel6_TangentY_z;
-    float GridLabel6_TangentY_w;
-    float GridLabel7_PosTangentX_x;
-    float GridLabel7_PosTangentX_y;
-    float GridLabel7_PosTangentX_z;
-    float GridLabel7_PosTangentX_w;
-    float GridLabel7_TangentY_x;
-    float GridLabel7_TangentY_y;
-    float GridLabel7_TangentY_z;
-    float GridLabel7_TangentY_w;
-    float GridLabel8_PosTangentX_x;
-    float GridLabel8_PosTangentX_y;
-    float GridLabel8_PosTangentX_z;
-    float GridLabel8_PosTangentX_w;
-    float GridLabel8_TangentY_x;
-    float GridLabel8_TangentY_y;
-    float GridLabel8_TangentY_z;
-    float GridLabel8_TangentY_w;
-    float GridLabel9_PosTangentX_x;
-    float GridLabel9_PosTangentX_y;
-    float GridLabel9_PosTangentX_z;
-    float GridLabel9_PosTangentX_w;
-    float GridLabel9_TangentY_x;
-    float GridLabel9_TangentY_y;
-    float GridLabel9_TangentY_z;
-    float GridLabel9_TangentY_w;
-    float GridLabel10_PosTangentX_x;
-    float GridLabel10_PosTangentX_y;
-    float GridLabel10_PosTangentX_z;
-    float GridLabel10_PosTangentX_w;
-    float GridLabel10_TangentY_x;
-    float GridLabel10_TangentY_y;
-    float GridLabel10_TangentY_z;
-    float GridLabel10_TangentY_w;
-    float GridLabel11_PosTangentX_x;
-    float GridLabel11_PosTangentX_y;
-    float GridLabel11_PosTangentX_z;
-    float GridLabel11_PosTangentX_w;
-    float GridLabel11_TangentY_x;
-    float GridLabel11_TangentY_y;
-    float GridLabel11_TangentY_z;
-    float GridLabel11_TangentY_w;
+    float4 GridLabel0_PosTangentX;
+    float4 GridLabel0_TangentY;
+    float4 GridLabel1_PosTangentX;
+    float4 GridLabel1_TangentY;
+    float4 GridLabel2_PosTangentX;
+    float4 GridLabel2_TangentY;
+    float4 GridLabel3_PosTangentX;
+    float4 GridLabel3_TangentY;
+    float4 GridLabel4_PosTangentX;
+    float4 GridLabel4_TangentY;
+    float4 GridLabel5_PosTangentX;
+    float4 GridLabel5_TangentY;
+    float4 GridLabel6_PosTangentX;
+    float4 GridLabel6_TangentY;
+    float4 GridLabel7_PosTangentX;
+    float4 GridLabel7_TangentY;
+    float4 GridLabel8_PosTangentX;
+    float4 GridLabel8_TangentY;
+    float4 GridLabel9_PosTangentX;
+    float4 GridLabel9_TangentY;
+    float4 GridLabel10_PosTangentX;
+    float4 GridLabel10_TangentY;
+    float4 GridLabel11_PosTangentX;
+    float4 GridLabel11_TangentY;
     uint32_t GridLabelDebugMask;
     float LabelIntensity0;
     float LabelIntensity1;
