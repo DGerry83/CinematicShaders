@@ -4,10 +4,36 @@ Struct Layout Engine
 ====================
 Deterministic layout calculation for C++, HLSL, and C# interop.
 
-Key Rules Implemented:
-- HLSL Constant Buffer: 16-byte rows, 4-byte scalar alignment
-- C++: #pragma pack(16) for constant buffer matching
-- C#: [StructLayout(LayoutKind.Sequential, Pack = 16)]
+This engine implements HLSL constant buffer packing rules to ensure
+identical memory layouts across all three target languages.
+
+HLSL Constant Buffer Alignment Rules:
+=====================================
+- float:   4-byte align, 4-byte size
+- int:     4-byte align, 4-byte size
+- uint:    4-byte align, 4-byte size
+- bool:    4-byte align, 4-byte size (HLSL bool is 4 bytes!)
+- float2:  8-byte align, 8-byte size  ← CRITICAL: NOT 4-byte aligned!
+- float3:  16-byte align, 12-byte size (padded to 16)
+- float4:  16-byte align, 16-byte size
+- Arrays:  Each element starts on new 16-byte row
+
+Row Boundary Rule:
+- Constant buffer is arranged as array of 16-byte rows
+- If a member would cross a 16-byte boundary, it gets pushed to next row
+
+Auto-Padding:
+- The engine automatically inserts padding fields (named _auto_padN)
+- This ensures correct alignment without manual padding in schema
+- C++ output: padding as float fields
+- C# output: padding as uint fields
+- HLSL output: no explicit padding (HLSL handles internally), offsets are correct
+
+Vector Pattern Detection:
+- Fields ending in X followed by Y (or _X followed by _Y) are detected as float2
+- This triggers 8-byte alignment requirement
+- Similarly for X,Y,Z → float3 (16-byte alignment)
+- And X,Y,Z,W → float4 (16-byte alignment)
 """
 
 from dataclasses import dataclass, field
@@ -15,14 +41,15 @@ from typing import Dict, List, Optional, Tuple
 import math
 
 # Type information: (size_in_bytes, alignment_in_bytes)
+# HLSL Constant Buffer alignment rules:
 TYPE_INFO = {
     'float':   (4, 4),
     'int':     (4, 4),
     'uint':    (4, 4),
     'bool':    (4, 4),
-    'float2':  (8, 4),   # float3 aligns by component type (4 bytes) in HLSL
-    'float3':  (12, 4),  # NOT 16-byte aligned like GLSL std140!
-    'float4':  (16, 4),
+    'float2':  (8, 8),   # float2 requires 8-byte alignment
+    'float3':  (12, 16), # float3 requires 16-byte alignment
+    'float4':  (16, 16), # float4 requires 16-byte alignment
     'float4x4': (64, 16), # 4x4 floats, 16-byte aligned
 }
 
@@ -72,23 +99,40 @@ class HLSLayoutEngine:
     Rules:
     1. Constant buffer is arranged like array of 16-byte rows
     2. Scalars (float, int, uint, bool) are 4-byte aligned
-    3. Vectors (float2, float3, float4) align by component type (4 bytes)
+    3. Vectors have specific alignment requirements:
+       - float2: 8-byte aligned
+       - float3: 16-byte aligned (padded to 16)
+       - float4: 16-byte aligned
     4. If a member would cross a 16-byte row boundary, push to next row
     5. Arrays: each element starts a new 16-byte row
-    6. Inner structs: must start at 16-byte aligned offset
     """
     
     @staticmethod
     def calculate_layout(struct_def: StructDef) -> StructLayout:
         fields = []
         offset = 0
+        pad_counter = 1
         
         for field_def in struct_def.fields:
             type_size, type_align = TYPE_INFO.get(field_def.type_name, (4, 4))
             
             if field_def.array_size > 1:
                 # Arrays in HLSL CB: each element starts new 16-byte row
-                offset = HLSLayoutEngine._align_up(offset, 16)
+                # Insert padding if needed to align to 16
+                if offset % 16 != 0:
+                    pad_size = 16 - (offset % 16)
+                    fields.append(LayoutField(
+                        name=f"_auto_pad{array_counter}",
+                        type_name=f"padding_{pad_size}b",
+                        size=pad_size,
+                        offset=offset,
+                        comment="Auto-inserted for array alignment",
+                        array_size=1,
+                        is_padding=True
+                    ))
+                    offset += pad_size
+                    pad_counter += 1
+                
                 element_size = type_size
                 
                 for i in range(field_def.array_size):
@@ -103,15 +147,47 @@ class HLSLayoutEngine:
                     ))
                 offset = offset + field_def.array_size * 16
             else:
+                # Check if this field starts a vector pattern (X followed by Y)
+                vector_align = HLSLayoutEngine._get_vector_alignment(struct_def.fields, field_def)
+                if vector_align > type_align:
+                    type_align = vector_align
+                
                 # Scalar or vector
-                # Check if this would cross a 16-byte boundary
+                # Rule 1: Check type-specific alignment requirement
+                if offset % type_align != 0:
+                    # Need padding to meet alignment
+                    pad_size = type_align - (offset % type_align)
+                    fields.append(LayoutField(
+                        name=f"_auto_pad{pad_counter}",
+                        type_name=f"padding_{pad_size}b",
+                        size=pad_size,
+                        offset=offset,
+                        comment=f"Auto-inserted for alignment",
+                        array_size=1,
+                        is_padding=True
+                    ))
+                    offset += pad_size
+                    pad_counter += 1
+                
+                # Rule 2: Check if this would cross a 16-byte row boundary
                 end_offset = offset + type_size
                 row_start = (offset // 16) * 16
                 row_end = row_start + 16
                 
                 if end_offset > row_end:
                     # Would cross row boundary, align to next row
-                    offset = HLSLayoutEngine._align_up(offset, 16)
+                    pad_size = row_end - offset
+                    fields.append(LayoutField(
+                        name=f"_auto_pad{pad_counter}",
+                        type_name=f"padding_{pad_size}b",
+                        size=pad_size,
+                        offset=offset,
+                        comment="Auto-inserted for 16-byte row alignment",
+                        array_size=1,
+                        is_padding=True
+                    ))
+                    offset = row_end
+                    pad_counter += 1
                 
                 fields.append(LayoutField(
                     name=field_def.name,
@@ -137,6 +213,37 @@ class HLSLayoutEngine:
     def _align_up(offset: int, alignment: int) -> int:
         """Align offset up to the nearest multiple of alignment."""
         return ((offset + alignment - 1) // alignment) * alignment
+    
+    @staticmethod
+    def _get_vector_alignment(fields: List[FieldDef], current_field: FieldDef) -> int:
+        """
+        Check if current field starts a vector pattern (X followed by Y).
+        Returns the alignment requirement for the vector type (8 for float2, 16 for float3).
+        Returns 0 if not a vector start.
+        """
+        if current_field.type_name != 'float':
+            return 0
+        
+        # Check for X suffix pattern
+        base_name = None
+        if current_field.name.endswith('_X'):
+            base_name = current_field.name[:-2]  # Remove '_X'
+        elif current_field.name.endswith('X') and not current_field.name.endswith('_X'):
+            base_name = current_field.name[:-1]  # Remove 'X'
+        
+        if not base_name:
+            return 0
+        
+        # Look for Y component in next field
+        current_idx = fields.index(current_field)
+        if current_idx + 1 < len(fields):
+            next_field = fields[current_idx + 1]
+            expected_y = f"{base_name}_Y" if current_field.name.endswith('_X') else f"{base_name}Y"
+            if next_field.name == expected_y and next_field.type_name == 'float':
+                # This is a float2 pattern
+                return 8
+        
+        return 0
 
 
 class CPPLayoutEngine:
@@ -146,67 +253,115 @@ class CPPLayoutEngine:
     Strategy:
     - Use #pragma pack(16) to match HLSL 16-byte row alignment
     - Expand vectors to individual scalars for interop safety
-    - Match HLSL byte offsets exactly
+    - Match HLSL byte offsets exactly (including alignment padding)
     """
     
     @staticmethod
     def calculate_layout(struct_def: StructDef) -> StructLayout:
-        fields = []
-        offset = 0
+        # C++ layout matches HLSL exactly in terms of offsets
+        # But we expand vectors to individual scalars
+        hlsl_layout = HLSLayoutEngine.calculate_layout(struct_def)
         
-        for field_def in struct_def.fields:
-            if field_def.array_size > 1:
-                fields.extend(CPPLayoutEngine._expand_array(field_def, offset))
-                # Arrays in HLSL: each element starts new 16-byte row
-                offset += field_def.array_size * 16
+        cpp_fields = []
+        for field in hlsl_layout.fields:
+            if field.is_padding:
+                # Padding field - represent as appropriate type
+                if field.size == 4:
+                    cpp_fields.append(LayoutField(
+                        name=field.name,
+                        type_name='float',
+                        size=4,
+                        offset=field.offset,
+                        comment=field.comment,
+                        array_size=1,
+                        is_padding=True
+                    ))
+                elif field.size == 8:
+                    cpp_fields.append(LayoutField(
+                        name=f"{field.name}_lo",
+                        type_name='float',
+                        size=4,
+                        offset=field.offset,
+                        comment=field.comment,
+                        array_size=1,
+                        is_padding=True
+                    ))
+                    cpp_fields.append(LayoutField(
+                        name=f"{field.name}_hi",
+                        type_name='float',
+                        size=4,
+                        offset=field.offset + 4,
+                        comment="",
+                        array_size=1,
+                        is_padding=True
+                    ))
+                elif field.size % 4 == 0:
+                    # Multiple uints
+                    for i in range(field.size // 4):
+                        cpp_fields.append(LayoutField(
+                            name=f"{field.name}_{i+1}",
+                            type_name='float',
+                            size=4,
+                            offset=field.offset + i * 4,
+                            comment=field.comment if i == 0 else "",
+                            array_size=1,
+                            is_padding=True
+                        ))
+                continue
+            
+            if field.array_size > 1:
+                # Array - expand elements
+                type_size = field.size // field.array_size
+                for i in range(field.array_size):
+                    cpp_fields.append(LayoutField(
+                        name=f"{field.name}[{i}]",
+                        type_name=field.type_name,
+                        size=type_size,
+                        offset=field.offset + i * type_size,
+                        comment=field.comment if i == 0 else "",
+                        array_size=1
+                    ))
             else:
-                expanded = CPPLayoutEngine._expand_field(field_def, offset)
-                fields.extend(expanded)
-                type_size, _ = TYPE_INFO.get(field_def.type_name, (4, 4))
-                offset += type_size
-        
-        # Match HLSL total size (16-byte aligned)
-        total_size = ((offset + 15) // 16) * 16
+                # Expand vectors to individual components
+                expanded = CPPLayoutEngine._expand_field(field)
+                cpp_fields.extend(expanded)
         
         return StructLayout(
             name=struct_def.name,
-            total_size=total_size,
+            total_size=hlsl_layout.total_size,
             alignment=struct_def.size_align,
-            fields=fields
+            fields=cpp_fields
         )
     
     @staticmethod
-    def _expand_field(field_def: FieldDef, base_offset: int) -> List[LayoutField]:
+    def _expand_field(field: LayoutField) -> List[LayoutField]:
         """Expand a field to individual scalars for C++ interop."""
-        type_size, _ = TYPE_INFO.get(field_def.type_name, (4, 4))
-        
-        if field_def.type_name == 'float2':
+        if field.type_name == 'float2':
             return [
-                LayoutField(f"{field_def.name}.x", 'float', 4, base_offset, field_def.comment),
-                LayoutField(f"{field_def.name}.y", 'float', 4, base_offset + 4, ""),
+                LayoutField(f"{field.name}_x", 'float', 4, field.offset, field.comment),
+                LayoutField(f"{field.name}_y", 'float', 4, field.offset + 4, ""),
             ]
-        elif field_def.type_name == 'float3':
+        elif field.type_name == 'float3':
             return [
-                LayoutField(f"{field_def.name}.x", 'float', 4, base_offset, field_def.comment),
-                LayoutField(f"{field_def.name}.y", 'float', 4, base_offset + 4, ""),
-                LayoutField(f"{field_def.name}.z", 'float', 4, base_offset + 8, ""),
+                LayoutField(f"{field.name}_x", 'float', 4, field.offset, field.comment),
+                LayoutField(f"{field.name}_y", 'float', 4, field.offset + 4, ""),
+                LayoutField(f"{field.name}_z", 'float', 4, field.offset + 8, ""),
             ]
-        elif field_def.type_name == 'float4':
+        elif field.type_name == 'float4':
             return [
-                LayoutField(f"{field_def.name}.x", 'float', 4, base_offset, field_def.comment),
-                LayoutField(f"{field_def.name}.y", 'float', 4, base_offset + 4, ""),
-                LayoutField(f"{field_def.name}.z", 'float', 4, base_offset + 8, ""),
-                LayoutField(f"{field_def.name}.w", 'float', 4, base_offset + 12, ""),
+                LayoutField(f"{field.name}_x", 'float', 4, field.offset, field.comment),
+                LayoutField(f"{field.name}_y", 'float', 4, field.offset + 4, ""),
+                LayoutField(f"{field.name}_z", 'float', 4, field.offset + 8, ""),
+                LayoutField(f"{field.name}_w", 'float', 4, field.offset + 12, ""),
             ]
-        elif field_def.type_name == 'float4x4':
-            # 4x4 matrix as 16 floats
+        elif field.type_name == 'float4x4':
             result = []
             for row in range(4):
                 for col in range(4):
-                    elem_offset = base_offset + (row * 4 + col) * 4
-                    comment = field_def.comment if row == 0 and col == 0 else ""
+                    elem_offset = field.offset + (row * 4 + col) * 4
+                    comment = field.comment if row == 0 and col == 0 else ""
                     result.append(LayoutField(
-                        f"{field_def.name}.m{row}{col}", 'float', 4, elem_offset, comment
+                        f"{field.name}_m{row}{col}", 'float', 4, elem_offset, comment
                     ))
             return result
         else:
@@ -216,40 +371,9 @@ class CPPLayoutEngine:
                 'int': 'int32_t',
                 'uint': 'uint32_t',
                 'bool': 'bool',
-            }.get(field_def.type_name, field_def.type_name)
+            }.get(field.type_name, field.type_name)
             
-            return [LayoutField(field_def.name, cpp_type, type_size, base_offset, field_def.comment)]
-    
-    @staticmethod
-    def _expand_array(field_def: FieldDef, base_offset: int) -> List[LayoutField]:
-        """Expand an array field to individual elements."""
-        type_size, _ = TYPE_INFO.get(field_def.type_name, (4, 4))
-        result = []
-        
-        for i in range(field_def.array_size):
-            elem_offset = base_offset + i * 16  # Each element on new 16-byte row
-            
-            if field_def.type_name == 'float4':
-                comment = field_def.comment if i == 0 else ""
-                result.append(LayoutField(
-                    f"{field_def.name}[{i}].x", 'float', 4, elem_offset, comment
-                ))
-                result.append(LayoutField(
-                    f"{field_def.name}[{i}].y", 'float', 4, elem_offset + 4, ""
-                ))
-                result.append(LayoutField(
-                    f"{field_def.name}[{i}].z", 'float', 4, elem_offset + 8, ""
-                ))
-                result.append(LayoutField(
-                    f"{field_def.name}[{i}].w", 'float', 4, elem_offset + 12, ""
-                ))
-            else:
-                comment = field_def.comment if i == 0 else ""
-                result.append(LayoutField(
-                    f"{field_def.name}[{i}]", field_def.type_name, type_size, elem_offset, comment
-                ))
-        
-        return result
+            return [LayoutField(field.name, cpp_type, field.size, field.offset, field.comment)]
 
 
 class CSLayoutEngine:
@@ -259,74 +383,112 @@ class CSLayoutEngine:
     Strategy:
     - Use [StructLayout(LayoutKind.Sequential, Pack = 16)]
     - Expand vectors to individual scalars (like C++)
-    - Can also use Vector4 when appropriate
+    - Match HLSL byte offsets exactly (including alignment padding)
     """
     
     @staticmethod
     def calculate_layout(struct_def: StructDef, use_unity_types: bool = True) -> StructLayout:
-        fields = []
-        offset = 0
+        # C# layout matches HLSL exactly in terms of offsets
+        hlsl_layout = HLSLayoutEngine.calculate_layout(struct_def)
         
-        for field_def in struct_def.fields:
-            if field_def.array_size > 1:
-                fields.extend(CSLayoutEngine._expand_array(field_def, offset, use_unity_types))
-                offset += field_def.array_size * 16
+        cs_fields = []
+        for field in hlsl_layout.fields:
+            if field.is_padding:
+                # Padding field - represent as uint
+                if field.size == 4:
+                    cs_fields.append(LayoutField(
+                        name=field.name,
+                        type_name='uint',
+                        size=4,
+                        offset=field.offset,
+                        comment=field.comment,
+                        array_size=1,
+                        is_padding=True
+                    ))
+                elif field.size % 4 == 0:
+                    # Multiple uints
+                    for i in range(field.size // 4):
+                        cs_fields.append(LayoutField(
+                            name=f"{field.name}_{i+1}",
+                            type_name='uint',
+                            size=4,
+                            offset=field.offset + i * 4,
+                            comment=field.comment if i == 0 else "",
+                            array_size=1,
+                            is_padding=True
+                        ))
+                continue
+            
+            if field.array_size > 1:
+                # Array - expand elements  
+                type_size = field.size // field.array_size
+                for i in range(field.array_size):
+                    cs_fields.append(LayoutField(
+                        name=f"{field.name}[{i}]",
+                        type_name=field.type_name,
+                        size=type_size,
+                        offset=field.offset + i * type_size,
+                        comment=field.comment if i == 0 else "",
+                        array_size=1
+                    ))
             else:
-                expanded = CSLayoutEngine._expand_field(field_def, offset, use_unity_types)
-                fields.extend(expanded)
-                type_size, _ = TYPE_INFO.get(field_def.type_name, (4, 4))
-                offset += type_size
-        
-        # Match HLSL total size
-        total_size = ((offset + 15) // 16) * 16
+                # Expand to C# representation
+                expanded = CSLayoutEngine._expand_field(field, use_unity_types)
+                cs_fields.extend(expanded)
         
         return StructLayout(
             name=struct_def.name,
-            total_size=total_size,
+            total_size=hlsl_layout.total_size,
             alignment=struct_def.size_align,
-            fields=fields
+            fields=cs_fields
         )
     
     @staticmethod
-    def _expand_field(field_def: FieldDef, base_offset: int, use_unity_types: bool) -> List[LayoutField]:
+    def _expand_field(field: LayoutField, use_unity_types: bool) -> List[LayoutField]:
         """Expand a field to C# representation."""
-        type_size, _ = TYPE_INFO.get(field_def.type_name, (4, 4))
-        
         if use_unity_types:
-            if field_def.type_name == 'float4':
-                # Use Unity Vector4 for float4
-                return [LayoutField(
-                    field_def.name, 'Vector4', 16, base_offset, field_def.comment
-                )]
+            if field.type_name == 'float4':
+                return [LayoutField(field.name, 'Vector4', 16, field.offset, field.comment)]
+            elif field.type_name == 'float2':
+                # Still expand float2 for CB interop safety
+                return [
+                    LayoutField(f"{field.name}X", 'float', 4, field.offset, field.comment),
+                    LayoutField(f"{field.name}Y", 'float', 4, field.offset + 4, ""),
+                ]
+            elif field.type_name == 'float3':
+                return [
+                    LayoutField(f"{field.name}X", 'float', 4, field.offset, field.comment),
+                    LayoutField(f"{field.name}Y", 'float', 4, field.offset + 4, ""),
+                    LayoutField(f"{field.name}Z", 'float', 4, field.offset + 8, ""),
+                ]
         
-        # Expand to individual floats for everything else
-        if field_def.type_name == 'float2':
+        # Expand to individual floats
+        if field.type_name == 'float2':
             return [
-                LayoutField(f"{field_def.name}X", 'float', 4, base_offset, field_def.comment),
-                LayoutField(f"{field_def.name}Y", 'float', 4, base_offset + 4, ""),
+                LayoutField(f"{field.name}X", 'float', 4, field.offset, field.comment),
+                LayoutField(f"{field.name}Y", 'float', 4, field.offset + 4, ""),
             ]
-        elif field_def.type_name == 'float3':
+        elif field.type_name == 'float3':
             return [
-                LayoutField(f"{field_def.name}X", 'float', 4, base_offset, field_def.comment),
-                LayoutField(f"{field_def.name}Y", 'float', 4, base_offset + 4, ""),
-                LayoutField(f"{field_def.name}Z", 'float', 4, base_offset + 8, ""),
+                LayoutField(f"{field.name}X", 'float', 4, field.offset, field.comment),
+                LayoutField(f"{field.name}Y", 'float', 4, field.offset + 4, ""),
+                LayoutField(f"{field.name}Z", 'float', 4, field.offset + 8, ""),
             ]
-        elif field_def.type_name == 'float4' and not use_unity_types:
+        elif field.type_name == 'float4' and not use_unity_types:
             return [
-                LayoutField(f"{field_def.name}X", 'float', 4, base_offset, field_def.comment),
-                LayoutField(f"{field_def.name}Y", 'float', 4, base_offset + 4, ""),
-                LayoutField(f"{field_def.name}Z", 'float', 4, base_offset + 8, ""),
-                LayoutField(f"{field_def.name}W", 'float', 4, base_offset + 12, ""),
+                LayoutField(f"{field.name}X", 'float', 4, field.offset, field.comment),
+                LayoutField(f"{field.name}Y", 'float', 4, field.offset + 4, ""),
+                LayoutField(f"{field.name}Z", 'float', 4, field.offset + 8, ""),
+                LayoutField(f"{field.name}W", 'float', 4, field.offset + 12, ""),
             ]
-        elif field_def.type_name == 'float4x4':
-            # 4x4 matrix as 16 floats
+        elif field.type_name == 'float4x4':
             result = []
             for row in range(4):
                 for col in range(4):
-                    elem_offset = base_offset + (row * 4 + col) * 4
-                    comment = field_def.comment if row == 0 and col == 0 else ""
+                    elem_offset = field.offset + (row * 4 + col) * 4
+                    comment = field.comment if row == 0 and col == 0 else ""
                     result.append(LayoutField(
-                        f"{field_def.name}_m{row}{col}", 'float', 4, elem_offset, comment
+                        f"{field.name}_m{row}{col}", 'float', 4, elem_offset, comment
                     ))
             return result
         else:
@@ -335,32 +497,10 @@ class CSLayoutEngine:
                 'float': 'float',
                 'int': 'int',
                 'uint': 'uint',
-                'bool': 'int',  # C# bool is 1 byte, use int for HLSL bool
-            }.get(field_def.type_name, field_def.type_name)
+                'bool': 'int',  # C# bool is 1 byte, use int for HLSL interop
+            }.get(field.type_name, field.type_name)
             
-            return [LayoutField(field_def.name, cs_type, type_size, base_offset, field_def.comment)]
-    
-    @staticmethod
-    def _expand_array(field_def: FieldDef, base_offset: int, use_unity_types: bool) -> List[LayoutField]:
-        """Expand an array field to C# representation."""
-        type_size, _ = TYPE_INFO.get(field_def.type_name, (4, 4))
-        result = []
-        
-        for i in range(field_def.array_size):
-            elem_offset = base_offset + i * 16
-            
-            if field_def.type_name == 'float4' and use_unity_types:
-                comment = field_def.comment if i == 0 else ""
-                result.append(LayoutField(
-                    f"{field_def.name}[{i}]", 'Vector4', 16, elem_offset, comment
-                ))
-            else:
-                comment = field_def.comment if i == 0 else ""
-                result.append(LayoutField(
-                    f"{field_def.name}{i}", field_def.type_name, type_size, elem_offset, comment
-                ))
-        
-        return result
+            return [LayoutField(field.name, cs_type, field.size, field.offset, field.comment)]
 
 
 class LayoutVerifier:
@@ -381,12 +521,5 @@ class LayoutVerifier:
         # Check alignment
         if not (hlsl.total_size % 16 == 0):
             issues.append(f"HLSL size {hlsl.total_size} is not 16-byte aligned")
-        
-        # Build offset maps for comparison
-        hlsl_offsets = {f.name: f.offset for f in hlsl.fields}
-        cpp_offsets = {f.name: f.offset for f in cpp.fields}
-        cs_offsets = {f.name: f.offset for f in cs.fields}
-        
-        # TODO: More sophisticated verification
         
         return (len(issues) == 0, issues)

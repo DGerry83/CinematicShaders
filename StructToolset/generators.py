@@ -51,14 +51,18 @@ class CPPGenerator:
             
             size_str = f"[{field.array_size}]" if field.array_size > 1 else ""
             comment = f" // {field.comment}" if field.comment else ""
-            lines.append(f"    //   {field.offset:3d}: {field.name} ({field.type_name}{size_str}){comment}")
+            pad_marker = " [PADDING]" if field.is_padding else ""
+            lines.append(f"    //   {field.offset:3d}: {field.name} ({field.type_name}{size_str}){comment}{pad_marker}")
         
         lines.append("")
         
         # Generate actual field declarations
         current_base = None
         for field in layout.fields:
-            if '.' in field.name:
+            if field.is_padding:
+                # Emit padding as float with underscore prefix
+                lines.append(f"    float {field.name}; // padding")
+            elif '.' in field.name:
                 base_name, component = field.name.split('.')
                 if base_name != current_base:
                     # Starting a new vector
@@ -119,9 +123,11 @@ class HLSLGenerator:
         lines.append(f"struct {layout.name} {{")
         lines.append("    // Field offsets (bytes):")
         
-        # Output offset comments
+        # Output offset comments (skip auto-padding - HLSL handles it internally)
         skip_until = None
         for field in layout.fields:
+            if field.is_padding:
+                continue  # HLSL handles alignment internally
             if skip_until and field.name != skip_until:
                 continue
             skip_until = None
@@ -157,6 +163,8 @@ class HLSLGenerator:
         # Output field declarations with vector coalescing
         skip_until = None
         for i, field in enumerate(layout.fields):
+            if field.is_padding:
+                continue  # HLSL handles alignment internally
             if skip_until and field.name != skip_until:
                 continue
             skip_until = None
@@ -279,15 +287,18 @@ class CSGenerator:
         # Output offset comments
         for field in layout.fields:
             comment = f" // {field.comment}" if field.comment else ""
-            lines.append(f"        //   {field.offset:3d}: {field.name} ({field.type_name}){comment}")
+            pad_marker = " [PADDING]" if field.is_padding else ""
+            lines.append(f"        //   {field.offset:3d}: {field.name} ({field.type_name}){comment}{pad_marker}")
         
         lines.append("")
         
         # Output field declarations
         for field in layout.fields:
             # Determine C# type
-            cs_type = field.type_name
-            if field.type_name == 'float4' and use_unity_types:
+            if field.is_padding:
+                # Padding fields are already uint from layout engine
+                cs_type = 'uint'
+            elif field.type_name == 'float4' and use_unity_types:
                 cs_type = 'Vector4'
             elif field.type_name == 'float2' and use_unity_types:
                 cs_type = 'Vector2'
@@ -299,28 +310,11 @@ class CSGenerator:
                 cs_type = 'int'
             elif field.type_name == 'bool':
                 cs_type = 'int'  # C# bool is 1 byte, use int for HLSL interop
+            else:
+                cs_type = field.type_name
             
-            lines.append(f"        public {cs_type} {field.name};")
-        
-        # Calculate and add final padding to ensure 16-byte total alignment
-        # C# Pack=16 aligns fields but doesn't auto-pad struct size
-        last_field_end = 0
-        if layout.fields:
-            last_field = layout.fields[-1]
-            last_field_end = last_field.offset + last_field.size
-        
-        padding_needed = layout.total_size - last_field_end
-        if padding_needed > 0:
-            lines.append("")
-            lines.append(f"        // Final padding to ensure {layout.total_size} byte total size")
-            pad_index = 1
-            remaining = padding_needed
-            while remaining > 0:
-                pad_size = min(remaining, 4)
-                pad_type = 'uint' if pad_size == 4 else 'byte'
-                lines.append(f"        public {pad_type} _padding{pad_index};")
-                remaining -= pad_size
-                pad_index += 1
+            comment = " // padding" if field.is_padding else ""
+            lines.append(f"        public {cs_type} {field.name};{comment}")
         
         lines.append("    }")
         lines.append("}")

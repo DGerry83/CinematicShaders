@@ -3,11 +3,20 @@
 # Define structs here using YAML format.
 # Run: python generator.py
 #
+# ALIGNMENT RULES (HLSL Constant Buffer):
+#   float, int, uint, bool - 4-byte align, 4-byte size
+#   float2 - 8-byte align, 8-byte size (CRITICAL: not 4-byte!)
+#   float3 - 16-byte align, 12-byte size (padded to 16)
+#   float4 - 16-byte align, 16-byte size
+#
+# The generator automatically inserts padding for alignment.
+# Vector patterns (NameX+NameY, Name_X+Name_Y) are detected and aligned correctly.
+#
 # Type Reference:
 #   float, int, uint, bool - 4 byte scalars
-#   float2 - 8 bytes (aligns to 4)
-#   float3 - 12 bytes (aligns to 4)
-#   float4 - 16 bytes (aligns to 4)
+#   float2 - 8 bytes (aligns to 8)
+#   float3 - 12 bytes (aligns to 16)
+#   float4 - 16 bytes (aligns to 16)
 #   float4x4 - 64 bytes (4x4 matrix)
 
 structs:

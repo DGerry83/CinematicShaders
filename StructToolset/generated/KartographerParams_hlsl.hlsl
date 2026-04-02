@@ -114,55 +114,55 @@ struct KartographerParams {
     //   760: VesselTargetHash (float) // Hash for flicker variation
     //   764: _padVessel1 (float) // Padding
     //   768: _padVessel2 (float) // Padding
-    //   772: VesselTargetCircleCenter (float2) // Vessel target circle X
-    //   780: VesselTargetCircleT (float) // Vessel target animation time 0-1
-    //   784: VesselTargetCircleIntensity (float) // Vessel target circle brightness
-    //   788: VesselTargetCircleThickness (float) // Vessel target circle line thickness
-    //   792: VesselTargetCircleRadius (float) // Vessel target circle radius
-    //   796: _padVessel3 (float) // Padding
-    //   800: _padVessel4 (float) // Padding
-    //   804: _padVessel5 (float) // Padding
-    //   808: _padVessel6 (float) // Padding
-    //   812: VesselTargetBoxTopLeft (float2) // Vessel target box X
-    //   820: VesselTargetBoxSize (float2) // Vessel target box width
-    //   828: VesselTargetBoxThickness (float) // Vessel target box line thickness
-    //   832: _padVessel7 (float) // Padding
-    //   836: VesselTargetTextOrigin (float2) // Vessel target text position X
-    //   844: VesselTargetTextAreaSize (float2) // Vessel target text area width
-    //   852: VesselTargetTextT (float) // Vessel target text animation time
-    //   856: AnimatedLabelIntensity (float) // Generic intensity for animated labels (0-1)
-    //   860: _padAnimated1 (float) // Padding
-    //   864: _padAnimated2 (float) // Padding
-    //   868: _padAnimated3 (float) // Padding to align to 16 bytes
-    //   872: NavballEnabledMask (int) // Bits 0-6: prograde, retrograde, normal, antinormal, radial_in, radial_out, maneuver
-    //   876: NavballOffscreenMode (int) // 0=world-space (disappear off-screen), 1=edge-clamp
-    //   880: NavballIconSize (float) // Screen-space size in NDC units
-    //   884: NavballIconThickness (float) // SDF edge thickness
-    //   888: NavballMinIntensity (float) // Minimum intensity when far off-center (default 0.33)
-    //   892: NavballMaxAngle (float) // Angle for min intensity in degrees (default 90)
-    //   896: NavballHysteresisMargin (float) // Buffer zone for edge transition (default 0.05)
-    //   900: _padNavball1 (float) // Padding to 16-byte boundary
-    //   904: NavballIcon0 (float2) // Screen X in NDC (-aspect to aspect)
-    //   912: NavballIcon0_Intensity (float) // Current intensity (0 = disabled/hidden)
-    //   916: NavballIcon0_Color (uint) // Packed ARGB color override (0 = use grid color)
-    //   920: NavballIcon1 (float2) // Screen X in NDC
-    //   928: NavballIcon1_Intensity (float) // Current intensity
-    //   932: NavballIcon1_Color (uint) // Packed ARGB color override
-    //   936: NavballIcon2 (float2) // Screen X in NDC
-    //   944: NavballIcon2_Intensity (float) // Current intensity
-    //   948: NavballIcon2_Color (uint) // Packed ARGB color override
-    //   952: NavballIcon3 (float2) // Screen X in NDC
-    //   960: NavballIcon3_Intensity (float) // Current intensity
-    //   964: NavballIcon3_Color (uint) // Packed ARGB color override
-    //   968: NavballIcon4 (float2) // Screen X in NDC
-    //   976: NavballIcon4_Intensity (float) // Current intensity
-    //   980: NavballIcon4_Color (uint) // Packed ARGB color override
-    //   984: NavballIcon5 (float2) // Screen X in NDC
-    //   992: NavballIcon5_Intensity (float) // Current intensity
-    //   996: NavballIcon5_Color (uint) // Packed ARGB color override
-    //   1000: NavballIcon6 (float2) // Screen X in NDC
-    //   1008: NavballIcon6_Intensity (float) // Current intensity (0 when no node)
-    //   1012: NavballIcon6_Color (uint) // Packed ARGB color override
+    //   776: VesselTargetCircleCenter (float2) // Vessel target circle X
+    //   784: VesselTargetCircleT (float) // Vessel target animation time 0-1
+    //   788: VesselTargetCircleIntensity (float) // Vessel target circle brightness
+    //   792: VesselTargetCircleThickness (float) // Vessel target circle line thickness
+    //   796: VesselTargetCircleRadius (float) // Vessel target circle radius
+    //   800: _padVessel3 (float) // Padding
+    //   804: _padVessel4 (float) // Padding
+    //   808: _padVessel5 (float) // Padding
+    //   812: _padVessel6 (float) // Padding
+    //   816: VesselTargetBoxTopLeft (float2) // Vessel target box X
+    //   824: VesselTargetBoxSize (float2) // Vessel target box width
+    //   832: VesselTargetBoxThickness (float) // Vessel target box line thickness
+    //   836: _padVessel7 (float) // Padding
+    //   840: VesselTargetTextOrigin (float2) // Vessel target text position X
+    //   848: VesselTargetTextAreaSize (float2) // Vessel target text area width
+    //   856: VesselTargetTextT (float) // Vessel target text animation time
+    //   860: AnimatedLabelIntensity (float) // Generic intensity for animated labels (0-1)
+    //   864: _padAnimated1 (float) // Padding
+    //   868: _padAnimated2 (float) // Padding
+    //   872: _padAnimated3 (float) // Padding to align to 16 bytes
+    //   876: NavballEnabledMask (int) // Bits 0-6: prograde, retrograde, normal, antinormal, radial_in, radial_out, maneuver
+    //   880: NavballOffscreenMode (int) // 0=world-space (disappear off-screen), 1=edge-clamp
+    //   884: NavballIconSize (float) // Screen-space size in NDC units
+    //   888: NavballIconThickness (float) // SDF edge thickness
+    //   892: NavballMinIntensity (float) // Minimum intensity when far off-center (default 0.33)
+    //   896: NavballMaxAngle (float) // Angle for min intensity in degrees (default 90)
+    //   900: NavballHysteresisMargin (float) // Buffer zone for edge transition (default 0.05)
+    //   904: _padNavball1 (float) // Padding to 16-byte boundary
+    //   912: NavballIcon0 (float2) // Screen X in NDC (-aspect to aspect)
+    //   920: NavballIcon0_Intensity (float) // Current intensity (0 = disabled/hidden)
+    //   924: NavballIcon0_Color (uint) // Packed ARGB color override (0 = use grid color)
+    //   928: NavballIcon1 (float2) // Screen X in NDC
+    //   936: NavballIcon1_Intensity (float) // Current intensity
+    //   940: NavballIcon1_Color (uint) // Packed ARGB color override
+    //   944: NavballIcon2 (float2) // Screen X in NDC
+    //   952: NavballIcon2_Intensity (float) // Current intensity
+    //   956: NavballIcon2_Color (uint) // Packed ARGB color override
+    //   960: NavballIcon3 (float2) // Screen X in NDC
+    //   968: NavballIcon3_Intensity (float) // Current intensity
+    //   972: NavballIcon3_Color (uint) // Packed ARGB color override
+    //   976: NavballIcon4 (float2) // Screen X in NDC
+    //   984: NavballIcon4_Intensity (float) // Current intensity
+    //   988: NavballIcon4_Color (uint) // Packed ARGB color override
+    //   992: NavballIcon5 (float2) // Screen X in NDC
+    //   1000: NavballIcon5_Intensity (float) // Current intensity
+    //   1004: NavballIcon5_Color (uint) // Packed ARGB color override
+    //   1008: NavballIcon6 (float2) // Screen X in NDC
+    //   1016: NavballIcon6_Intensity (float) // Current intensity (0 when no node)
+    //   1020: NavballIcon6_Color (uint) // Packed ARGB color override
 
     float2 Resolution;
     float Time;
