@@ -262,11 +262,11 @@ namespace CinematicShaders.Core
             if (NavballManager == null)
             {
                 NavballManager = new NavballLabelManager();
-                NavballManager.Initialize(SituationLabelSystem);
+                NavballManager.Initialize();
                 // Apply saved settings
                 NavballManager.SetEnabled(StarfieldSettings.KartographerNavballLabels);
                 NavballManager.SetUseNavballColors(StarfieldSettings.KartographerNavballUseColors);
-                NavballManager.SetIconStyle(StarfieldSettings.KartographerNavballIconStyle);
+                NavballManager.SetOffscreenMode(StarfieldSettings.KartographerNavballOffscreenMode);
             }
             
             // Ensure HUCK label is enabled (unless Tiny preset)

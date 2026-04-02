@@ -1,73 +1,81 @@
 using CinematicShaders.Native;
+using CinematicShaders.Native.Structs;
+using CinematicShaders.Shaders.Starfield;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
-using static CinematicShaders.Core.StarfieldSettings;  // For NavballIconStyle enum
+using static CinematicShaders.Core.StarfieldSettings;
 
 namespace CinematicShaders.Core
 {
     /// <summary>
-    /// Manages the 7 orbital direction indicators (navball labels) for the Kartographer grid.
+    /// Manages the 7 orbital direction indicators (navball icons) using screen-space projection.
     /// 
-    /// Slot Assignments (using existing 12-label system):
-    /// - Slot 3: Prograde (orbit velocity direction)
-    /// - Slot 4: Retrograde (opposite of velocity)
-    /// - Slot 5: Normal (orbit normal, perpendicular to orbital plane)
-    /// - Slot 6: AntiNormal (opposite of normal)
-    /// - Slot 7: Radial In (toward center of gravity)
-    /// - Slot 8: Radial Out (away from center of gravity)
-    /// - Slot 9: Maneuver (burn vector of active maneuver node)
+    /// Icons:
+    /// - Index 0: Prograde (orbit velocity direction)
+    /// - Index 1: Retrograde (opposite of velocity)
+    /// - Index 2: Normal (orbit normal, perpendicular to orbital plane)
+    /// - Index 3: AntiNormal (opposite of normal)
+    /// - Index 4: Radial In (toward center of gravity)
+    /// - Index 5: Radial Out (away from center of gravity)
+    /// - Index 6: Maneuver (burn vector of active maneuver node)
     /// 
-    /// Positioning: Dynamic world-space vectors (NOT grid-snapped)
+    /// Positioning: Screen-space projection via KartographerMath.WorldDirectionToScreenUV()
+    /// Rendering: Direct to native KartographerParams struct (bypassing GridLabelSystem)
     /// Updates: Every frame during flight scene
     /// </summary>
     public class NavballLabelManager
     {
-        // Slot assignments in the 12-label grid system
-        private const int PROGRADE_SLOT = 3;
-        private const int RETROGRADE_SLOT = 4;
-        private const int NORMAL_SLOT = 5;
-        private const int ANTINORMAL_SLOT = 6;
-        private const int RADIAL_IN_SLOT = 7;
-        private const int RADIAL_OUT_SLOT = 8;
-        private const int MANEUVER_SLOT = 9;
-
-        // Label IDs for registration
-        private const string PROGRADE_ID = "navball_prograde";
-        private const string RETROGRADE_ID = "navball_retrograde";
-        private const string NORMAL_ID = "navball_normal";
-        private const string ANTINORMAL_ID = "navball_antinormal";
-        private const string RADIAL_IN_ID = "navball_radial_in";
-        private const string RADIAL_OUT_ID = "navball_radial_out";
-        private const string MANEUVER_ID = "navball_maneuver";
+        // Icon indices in the native struct
+        private const int PROGRADE = 0;
+        private const int RETROGRADE = 1;
+        private const int NORMAL = 2;
+        private const int ANTINORMAL = 3;
+        private const int RADIAL_IN = 4;
+        private const int RADIAL_OUT = 5;
+        private const int MANEUVER = 6;
+        private const int ICON_COUNT = 7;
 
         /// <summary>
         /// KSP standard navball colors (RGB)
         /// </summary>
-        public static readonly Dictionary<string, Color> NavballColors = new Dictionary<string, Color>
+        public static readonly Color[] IconColors = new Color[ICON_COUNT]
         {
-            { PROGRADE_ID, new Color(0.0f, 1.0f, 0.0f) },      // Green
-            { RETROGRADE_ID, new Color(1.0f, 0.0f, 0.0f) },    // Red
-            { NORMAL_ID, new Color(0.0f, 0.5f, 1.0f) },        // Blue
-            { ANTINORMAL_ID, new Color(1.0f, 0.0f, 1.0f) },    // Magenta
-            { RADIAL_IN_ID, new Color(1.0f, 0.8f, 0.0f) },     // Yellow/Orange
-            { RADIAL_OUT_ID, new Color(1.0f, 1.0f, 1.0f) },    // White
-            { MANEUVER_ID, new Color(1.0f, 0.5f, 0.0f) }       // Orange (KSP maneuver node color)
+            new Color(0.0f, 1.0f, 0.0f),      // 0: Prograde - Green
+            new Color(1.0f, 0.0f, 0.0f),      // 1: Retrograde - Red
+            new Color(0.0f, 0.5f, 1.0f),      // 2: Normal - Blue
+            new Color(1.0f, 0.0f, 1.0f),      // 3: AntiNormal - Magenta
+            new Color(1.0f, 0.8f, 0.0f),      // 4: Radial In - Yellow/Orange
+            new Color(1.0f, 1.0f, 1.0f),      // 5: Radial Out - White
+            new Color(1.0f, 0.5f, 0.0f)       // 6: Maneuver - Orange
         };
 
-        // Grid label system reference
-        private GridLabelSystem _labelSystem;
+        public static readonly string[] IconNames = new string[ICON_COUNT]
+        {
+            "Prograde", "Retrograde", "Normal", "AntiNormal",
+            "Radial In", "Radial Out", "Maneuver"
+        };
 
         // Runtime state
         private bool _initialized = false;
         private bool _enabled = false;
         private bool _useNavballColors = false;
-        private NavballIconStyle _iconStyle = NavballIconStyle.SDF;
+        private int _offscreenMode = 0; // 0 = world-space, 1 = edge-clamp
 
-        // Texture cache
-        private Dictionary<string, RenderTexture> _sdfTextures = new Dictionary<string, RenderTexture>();
-        private bool _texturesLoaded = false;
+        // Per-icon state for hysteresis and edge-clamping
+        private class IconState
+        {
+            public string Name;
+            public Vector3d WorldDirection;
+            public Vector2 ScreenNDC;        // Calculated position (-aspect to aspect, -1 to 1)
+            public float Intensity;
+            public uint PackedColor;
+            public bool IsInEdgeMode;        // Hysteresis state
+            public bool IsVisible;
+        }
+        
+        private IconState[] _iconStates = new IconState[ICON_COUNT];
 
         // Orbit vector cache (for debugging)
         private Vector3d _lastPrograde;
@@ -76,27 +84,29 @@ namespace CinematicShaders.Core
         private Vector3d? _lastManeuver;
 
         /// <summary>
-        /// Initialize the navball label manager and register labels with the grid system.
+        /// Initialize the navball label manager.
         /// </summary>
-        public void Initialize(GridLabelSystem labelSystem)
+        public void Initialize()
         {
             if (_initialized) return;
 
-            _labelSystem = labelSystem ?? throw new ArgumentNullException(nameof(labelSystem));
-
             try
             {
-                // Register all 7 navball labels
-                RegisterNavballLabel(PROGRADE_ID, PROGRADE_SLOT, "Prograde", NavballColors[PROGRADE_ID]);
-                RegisterNavballLabel(RETROGRADE_ID, RETROGRADE_SLOT, "Retrograde", NavballColors[RETROGRADE_ID]);
-                RegisterNavballLabel(NORMAL_ID, NORMAL_SLOT, "Normal", NavballColors[NORMAL_ID]);
-                RegisterNavballLabel(ANTINORMAL_ID, ANTINORMAL_SLOT, "AntiNormal", NavballColors[ANTINORMAL_ID]);
-                RegisterNavballLabel(RADIAL_IN_ID, RADIAL_IN_SLOT, "Radial In", NavballColors[RADIAL_IN_ID]);
-                RegisterNavballLabel(RADIAL_OUT_ID, RADIAL_OUT_SLOT, "Radial Out", NavballColors[RADIAL_OUT_ID]);
-                RegisterNavballLabel(MANEUVER_ID, MANEUVER_SLOT, "Maneuver", NavballColors[MANEUVER_ID]);
+                // Initialize icon states
+                for (int i = 0; i < ICON_COUNT; i++)
+                {
+                    _iconStates[i] = new IconState
+                    {
+                        Name = IconNames[i],
+                        PackedColor = PackColor(IconColors[i]),
+                        Intensity = 0f,
+                        IsInEdgeMode = false,
+                        IsVisible = false
+                    };
+                }
 
                 _initialized = true;
-                Debug.Log("[NavballLabelManager] Initialized successfully");
+                Debug.Log("[NavballLabelManager] Initialized successfully (screen-space mode)");
             }
             catch (Exception ex)
             {
@@ -105,137 +115,8 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
-        /// Register a single navball label with the grid system.
-        /// </summary>
-        private void RegisterNavballLabel(string id, int slot, string displayName, Color defaultColor)
-        {
-            // Unregister if already exists (for reinitialization)
-            var existing = _labelSystem.GetLabel(id);
-            if (existing != null)
-            {
-                _labelSystem.UnregisterLabel(id);
-            }
-
-            var label = new GridLabel
-            {
-                Id = id,
-                Text = displayName,  // Used for identification, not displayed
-                DefaultText = displayName,
-                FontSizePixels = 18f,
-                Enabled = false,  // Disabled until explicitly enabled
-                LabelType = GridLabelType.OrbitInfo,
-                TextureDirty = true,
-                PositionDirty = true,
-                WorldSizeX = 0.08f,  // Base size, will be adjusted
-                WorldSizeY = 0.08f,
-                Intensity = 1.0f,
-                OverrideColor = Color.clear,  // Use grid color by default
-                SnapToGrid = false  // CRITICAL: Dynamic positioning, NOT grid-snapped
-            };
-
-            _labelSystem.RegisterLabel(label);
-            Debug.Log($"[NavballLabelManager] Registered label '{id}' in slot {slot}");
-        }
-
-        /// <summary>
-        /// Load SDF textures from the NavballIcons folder.
-        /// </summary>
-        private void LoadTextures()
-        {
-            if (_texturesLoaded) return;
-
-            try
-            {
-                // Build texture path: ../PluginData/NavballIcons/
-                // C# DLL is in Plugins/, textures are in PluginData/ at mod root level
-                string assemblyPath = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-                string basePath = Path.GetFullPath(Path.Combine(assemblyPath, "..", "PluginData", "NavballIcons"));
-
-                LoadSDFTexture(PROGRADE_ID, Path.Combine(basePath, "prograde_sdf.png"));
-                LoadSDFTexture(RETROGRADE_ID, Path.Combine(basePath, "retrograde_sdf.png"));
-                LoadSDFTexture(NORMAL_ID, Path.Combine(basePath, "normal_sdf.png"));
-                LoadSDFTexture(ANTINORMAL_ID, Path.Combine(basePath, "antinormal_sdf.png"));
-                LoadSDFTexture(RADIAL_IN_ID, Path.Combine(basePath, "radial_in_sdf.png"));
-                LoadSDFTexture(RADIAL_OUT_ID, Path.Combine(basePath, "radial_out_sdf.png"));
-                LoadSDFTexture(MANEUVER_ID, Path.Combine(basePath, "maneuver_sdf.png"));
-
-                _texturesLoaded = true;
-                Debug.Log("[NavballLabelManager] All SDF textures loaded successfully");
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"[NavballLabelManager] Failed to load textures: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Load a single SDF texture and bind it to the native plugin.
-        /// </summary>
-        private void LoadSDFTexture(string labelId, string filePath)
-        {
-            if (!File.Exists(filePath))
-            {
-                Debug.LogError($"[NavballLabelManager] Texture not found: {filePath}");
-                return;
-            }
-
-            try
-            {
-                byte[] fileData = File.ReadAllBytes(filePath);
-
-                // Load as Texture2D (MSDF textures are RGB, but we treat them as coverage)
-                Texture2D tex = new Texture2D(2, 2, TextureFormat.RGB24, false);
-                tex.LoadImage(fileData);
-
-                // Create RenderTexture for native plugin (must be ARGB32 for compatibility)
-                RenderTexture rt = new RenderTexture(tex.width, tex.height, 0, RenderTextureFormat.ARGB32);
-                rt.enableRandomWrite = true;
-                rt.Create();
-
-                // Copy data
-                Graphics.Blit(tex, rt);
-
-                // Cache and bind
-                _sdfTextures[labelId] = rt;
-
-                // Bind to appropriate slot
-                int slot = GetSlotForLabelId(labelId);
-                if (slot >= 0)
-                {
-                    StarfieldNative.CR_SetGridLabelTexture(slot, rt.GetNativeTexturePtr());
-                }
-
-                UnityEngine.Object.Destroy(tex);  // Clean up temporary texture
-
-                Debug.Log($"[NavballLabelManager] Loaded texture for '{labelId}' ({filePath})");
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"[NavballLabelManager] Failed to load texture for '{labelId}': {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Get the slot number for a label ID.
-        /// </summary>
-        private int GetSlotForLabelId(string id)
-        {
-            switch (id)
-            {
-                case PROGRADE_ID: return PROGRADE_SLOT;
-                case RETROGRADE_ID: return RETROGRADE_SLOT;
-                case NORMAL_ID: return NORMAL_SLOT;
-                case ANTINORMAL_ID: return ANTINORMAL_SLOT;
-                case RADIAL_IN_ID: return RADIAL_IN_SLOT;
-                case RADIAL_OUT_ID: return RADIAL_OUT_SLOT;
-                case MANEUVER_ID: return MANEUVER_SLOT;
-                default: return -1;
-            }
-        }
-
-        /// <summary>
         /// Main update loop - call every frame when enabled.
-        /// Calculates orbit vectors and updates label positions.
+        /// Calculates orbit vectors and updates native struct params.
         /// </summary>
         public void Update()
         {
@@ -244,28 +125,34 @@ namespace CinematicShaders.Core
             // Only operate in Flight scene with active vessel
             if (HighLogic.LoadedScene != GameScenes.FLIGHT)
             {
-                SetLabelsEnabled(false);
+                DisableAllIcons();
                 return;
             }
 
             if (FlightGlobals.ActiveVessel?.orbit == null)
             {
-                SetLabelsEnabled(false);
+                DisableAllIcons();
                 return;
             }
 
-            // Load textures on first enabled frame
-            if (!_texturesLoaded)
+            // Get camera basis from StarfieldCompositor
+            Vector3 right = StarfieldCompositor.CameraRightSurface;
+            Vector3 up = StarfieldCompositor.CameraUpSurface;
+            Vector3 forward = StarfieldCompositor.CameraForwardSurface;
+            float aspect = StarfieldCompositor.CameraAspect;
+            float vfov = StarfieldCompositor.CachedVerticalFOV;
+
+            if (aspect <= 0 || vfov <= 0)
             {
-                LoadTextures();
+                // Camera not ready
+                return;
             }
 
             // Calculate orbit vectors
             Orbit orbit = FlightGlobals.ActiveVessel.orbit;
-            Vector3d pos = orbit.pos;      // Position relative to body
-            Vector3d vel = orbit.vel;      // Velocity vector
+            Vector3d pos = orbit.pos;
+            Vector3d vel = orbit.vel;
 
-            // Calculate 6 orbital directions
             Vector3d prograde = vel.normalized;
             Vector3d retrograde = -prograde;
             Vector3d normal = Vector3d.Cross(pos, vel).normalized;
@@ -273,93 +160,240 @@ namespace CinematicShaders.Core
             Vector3d radialOut = pos.normalized;
             Vector3d radialIn = -radialOut;
 
-            // Get maneuver node direction (if active maneuver node exists)
-            Vector3d? maneuverDirection = GetManeuverNodeDirection();
-
             // Cache for debugging
             _lastPrograde = prograde;
             _lastNormal = normal;
             _lastRadialOut = radialOut;
 
-            // Update label positions
-            UpdateLabelPosition(PROGRADE_ID, prograde);
-            UpdateLabelPosition(RETROGRADE_ID, retrograde);
-            UpdateLabelPosition(NORMAL_ID, normal);
-            UpdateLabelPosition(ANTINORMAL_ID, antinormal);
-            UpdateLabelPosition(RADIAL_IN_ID, radialIn);
-            UpdateLabelPosition(RADIAL_OUT_ID, radialOut);
-            
-            // Update maneuver node position (only if maneuver node exists)
+            // Get maneuver node direction
+            Vector3d? maneuverDirection = GetManeuverNodeDirection();
+
+            // Update each icon
+            UpdateIcon(PROGRADE, prograde, right, up, forward, aspect, vfov);
+            UpdateIcon(RETROGRADE, retrograde, right, up, forward, aspect, vfov);
+            UpdateIcon(NORMAL, normal, right, up, forward, aspect, vfov);
+            UpdateIcon(ANTINORMAL, antinormal, right, up, forward, aspect, vfov);
+            UpdateIcon(RADIAL_IN, radialIn, right, up, forward, aspect, vfov);
+            UpdateIcon(RADIAL_OUT, radialOut, right, up, forward, aspect, vfov);
+
+            // Maneuver icon - only show if node exists
             if (maneuverDirection.HasValue)
             {
-                UpdateLabelPosition(MANEUVER_ID, maneuverDirection.Value);
-                SetLabelEnabled(MANEUVER_ID, true);
+                UpdateIcon(MANEUVER, maneuverDirection.Value, right, up, forward, aspect, vfov);
+                _iconStates[MANEUVER].IsVisible = true;
             }
             else
             {
-                SetLabelEnabled(MANEUVER_ID, false);
+                _iconStates[MANEUVER].Intensity = 0f;
+                _iconStates[MANEUVER].IsVisible = false;
             }
 
-            // Ensure labels are enabled
-            SetLabelsEnabled(true);
+            // Push to native
+            UpdateNativeParams();
         }
 
         /// <summary>
-        /// Update the world position and tangent frame for a label.
+        /// Update a single icon's position and intensity.
         /// </summary>
-        private void UpdateLabelPosition(string id, Vector3d direction)
+        private void UpdateIcon(int index, Vector3d worldDir,
+            Vector3 right, Vector3 up, Vector3 forward, float aspect, float vfov)
         {
-            var label = _labelSystem.GetLabel(id);
-            if (label == null) return;
+            var state = _iconStates[index];
+            state.WorldDirection = worldDir;
 
-            // Convert to Unity Vector3
-            Vector3 dir = new Vector3((float)direction.x, (float)direction.y, (float)direction.z);
+            // Project to screen UV [0,1]
+            Vector2 uv = KartographerMath.WorldDirectionToScreenUV(
+                (Vector3)worldDir, right, up, forward, aspect, vfov);
 
-            // Direction is already on unit sphere (normalized)
-            label.WorldPosition = dir;
+            // Hysteresis settings
+            float margin = StarfieldSettings.KartographerNavballHysteresisMargin > 0 
+                ? StarfieldSettings.KartographerNavballHysteresisMargin 
+                : 0.05f;
+            _offscreenMode = StarfieldSettings.KartographerNavballOffscreenMode;
 
-            // Calculate tangent frame
-            // Tangent: perpendicular to position, pointing "east" (roughly)
-            label.Tangent = Vector3.Cross(Vector3.up, label.WorldPosition).normalized;
+            // Determine off-screen status
+            bool isOffScreen = (uv.x < 0 || uv.x > 1 || uv.y < 0 || uv.y > 1);
+            bool isInSafeZone = (uv.x >= margin && uv.x <= (1 - margin) && 
+                                uv.y >= margin && uv.y <= (1 - margin));
 
-            // Bitangent: perpendicular to both position and tangent (pointing toward pole)
-            label.Bitangent = Vector3.Cross(label.WorldPosition, label.Tangent).normalized;
-
-            // Handle degenerate case at poles
-            if (label.Tangent.sqrMagnitude < 0.001f)
+            // Hysteresis logic
+            if (_offscreenMode == 1) // Edge-clamp mode
             {
-                label.Tangent = Vector3.right;
-                label.Bitangent = Vector3.Cross(label.WorldPosition, label.Tangent).normalized;
+                if (state.IsInEdgeMode && isInSafeZone)
+                {
+                    state.IsInEdgeMode = false;
+                }
+                else if (!state.IsInEdgeMode && isOffScreen)
+                {
+                    state.IsInEdgeMode = true;
+                }
             }
-
-            label.PositionDirty = true;
-        }
-
-        /// <summary>
-        /// Enable or disable all navball labels.
-        /// </summary>
-        private void SetLabelsEnabled(bool enabled)
-        {
-            SetLabelEnabled(PROGRADE_ID, enabled);
-            SetLabelEnabled(RETROGRADE_ID, enabled);
-            SetLabelEnabled(NORMAL_ID, enabled);
-            SetLabelEnabled(ANTINORMAL_ID, enabled);
-            SetLabelEnabled(RADIAL_IN_ID, enabled);
-            SetLabelEnabled(RADIAL_OUT_ID, enabled);
-            // Note: Maneuver label is managed separately based on node existence
-        }
-
-        /// <summary>
-        /// Enable or disable a single label.
-        /// </summary>
-        private void SetLabelEnabled(string id, bool enabled)
-        {
-            var label = _labelSystem.GetLabel(id);
-            if (label != null && label.Enabled != enabled)
+            else // World-space mode (disappear off-screen)
             {
-                label.Enabled = enabled;
-                _labelSystem.SetLabelEnabled(id, enabled);
+                state.IsInEdgeMode = false;
+                if (isOffScreen)
+                {
+                    state.Intensity = 0f;
+                    state.IsVisible = false;
+                    return;
+                }
             }
+
+            // Calculate final position
+            if (state.IsInEdgeMode)
+            {
+                state.ScreenNDC = CalculateEdgePosition(uv, aspect);
+            }
+            else
+            {
+                state.ScreenNDC = new Vector2((uv.x - 0.5f) * 2 * aspect, (uv.y - 0.5f) * 2);
+            }
+
+            // Calculate intensity based on angle from camera forward
+            float angle = Vector3.Angle((Vector3)worldDir, forward);
+            float maxAngle = StarfieldSettings.KartographerNavballMaxAngle > 0 
+                ? StarfieldSettings.KartographerNavballMaxAngle 
+                : 90f;
+            float minIntensity = StarfieldSettings.KartographerNavballMinIntensity > 0 
+                ? StarfieldSettings.KartographerNavballMinIntensity 
+                : 0.33f;
+
+            float t = Mathf.Clamp01(angle / maxAngle);
+            state.Intensity = Mathf.Lerp(1.0f, minIntensity, t);
+            state.IsVisible = state.Intensity > 0.001f;
+        }
+
+        /// <summary>
+        /// Calculate edge-clamped position for off-screen icons.
+        /// </summary>
+        private Vector2 CalculateEdgePosition(Vector2 uv, float aspect)
+        {
+            Vector2 center = new Vector2(0.5f, 0.5f);
+            Vector2 dir = (uv - center).normalized;
+
+            // Calculate intersection with each screen edge
+            float tX = (dir.x > 0) ? (1.0f - center.x) / dir.x : (0 - center.x) / dir.x;
+            float tY = (dir.y > 0) ? (1.0f - center.y) / dir.y : (0 - center.y) / dir.y;
+            
+            // Use the smaller positive t (closest edge in ray direction)
+            float t = Mathf.Min(Mathf.Abs(tX), Mathf.Abs(tY));
+            
+            Vector2 edgeUV = center + dir * t;
+            
+            // Clamp to valid range and convert to NDC
+            edgeUV = Vector2.Max(Vector2.zero, Vector2.Min(Vector2.one, edgeUV));
+            return new Vector2((edgeUV.x - 0.5f) * 2 * aspect, (edgeUV.y - 0.5f) * 2);
+        }
+
+        /// <summary>
+        /// Push all icon data to the native KartographerParams struct.
+        /// </summary>
+        private void UpdateNativeParams()
+        {
+            var kartParams = StarfieldNative.LastKartographerParams;
+
+            // Build enabled mask
+            int mask = 0;
+            for (int i = 0; i < ICON_COUNT; i++)
+            {
+                if (_iconStates[i].IsVisible && _iconStates[i].Intensity > 0.001f)
+                {
+                    mask |= (1 << i);
+                }
+            }
+            kartParams.NavballEnabledMask = mask;
+            kartParams.NavballOffscreenMode = _offscreenMode;
+            kartParams.NavballIconSize = StarfieldSettings.KartographerNavballIconSize > 0 
+                ? StarfieldSettings.KartographerNavballIconSize 
+                : 0.05f;
+            kartParams.NavballIconThickness = StarfieldSettings.KartographerNavballIconThickness > 0 
+                ? StarfieldSettings.KartographerNavballIconThickness 
+                : 0.002f;
+            kartParams.NavballMinIntensity = StarfieldSettings.KartographerNavballMinIntensity > 0 
+                ? StarfieldSettings.KartographerNavballMinIntensity 
+                : 0.33f;
+            kartParams.NavballMaxAngle = StarfieldSettings.KartographerNavballMaxAngle > 0 
+                ? StarfieldSettings.KartographerNavballMaxAngle 
+                : 90f;
+            kartParams.NavballHysteresisMargin = StarfieldSettings.KartographerNavballHysteresisMargin > 0 
+                ? StarfieldSettings.KartographerNavballHysteresisMargin 
+                : 0.05f;
+
+            // Set per-icon data
+            SetIconParams(ref kartParams, 0, _iconStates[0]);
+            SetIconParams(ref kartParams, 1, _iconStates[1]);
+            SetIconParams(ref kartParams, 2, _iconStates[2]);
+            SetIconParams(ref kartParams, 3, _iconStates[3]);
+            SetIconParams(ref kartParams, 4, _iconStates[4]);
+            SetIconParams(ref kartParams, 5, _iconStates[5]);
+            SetIconParams(ref kartParams, 6, _iconStates[6]);
+
+            StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
+        }
+
+        private void SetIconParams(ref KartographerParamsNative kartParams, int index, IconState state)
+        {
+            // Pack color (or use 0 for grid color)
+            uint color = _useNavballColors ? state.PackedColor : 0u;
+
+            switch (index)
+            {
+                case 0: // Prograde
+                    kartParams.NavballIcon0_X = state.ScreenNDC.x;
+                    kartParams.NavballIcon0_Y = state.ScreenNDC.y;
+                    kartParams.NavballIcon0_Intensity = state.Intensity;
+                    kartParams.NavballIcon0_Color = color;
+                    break;
+                case 1: // Retrograde
+                    kartParams.NavballIcon1_X = state.ScreenNDC.x;
+                    kartParams.NavballIcon1_Y = state.ScreenNDC.y;
+                    kartParams.NavballIcon1_Intensity = state.Intensity;
+                    kartParams.NavballIcon1_Color = color;
+                    break;
+                case 2: // Normal
+                    kartParams.NavballIcon2_X = state.ScreenNDC.x;
+                    kartParams.NavballIcon2_Y = state.ScreenNDC.y;
+                    kartParams.NavballIcon2_Intensity = state.Intensity;
+                    kartParams.NavballIcon2_Color = color;
+                    break;
+                case 3: // AntiNormal
+                    kartParams.NavballIcon3_X = state.ScreenNDC.x;
+                    kartParams.NavballIcon3_Y = state.ScreenNDC.y;
+                    kartParams.NavballIcon3_Intensity = state.Intensity;
+                    kartParams.NavballIcon3_Color = color;
+                    break;
+                case 4: // Radial In
+                    kartParams.NavballIcon4_X = state.ScreenNDC.x;
+                    kartParams.NavballIcon4_Y = state.ScreenNDC.y;
+                    kartParams.NavballIcon4_Intensity = state.Intensity;
+                    kartParams.NavballIcon4_Color = color;
+                    break;
+                case 5: // Radial Out
+                    kartParams.NavballIcon5_X = state.ScreenNDC.x;
+                    kartParams.NavballIcon5_Y = state.ScreenNDC.y;
+                    kartParams.NavballIcon5_Intensity = state.Intensity;
+                    kartParams.NavballIcon5_Color = color;
+                    break;
+                case 6: // Maneuver
+                    kartParams.NavballIcon6_X = state.ScreenNDC.x;
+                    kartParams.NavballIcon6_Y = state.ScreenNDC.y;
+                    kartParams.NavballIcon6_Intensity = state.Intensity;
+                    kartParams.NavballIcon6_Color = color;
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Disable all icons (set intensity to 0).
+        /// </summary>
+        private void DisableAllIcons()
+        {
+            for (int i = 0; i < ICON_COUNT; i++)
+            {
+                _iconStates[i].Intensity = 0f;
+                _iconStates[i].IsVisible = false;
+            }
+            UpdateNativeParams();
         }
 
         /// <summary>
@@ -373,8 +407,7 @@ namespace CinematicShaders.Core
 
             if (!enabled)
             {
-                // Hide all labels when disabled
-                SetLabelsEnabled(false);
+                DisableAllIcons();
                 Debug.Log("[NavballLabelManager] Disabled");
             }
             else
@@ -396,17 +429,6 @@ namespace CinematicShaders.Core
             if (_useNavballColors == useNavballColors) return;
 
             _useNavballColors = useNavballColors;
-
-            // Update color overrides for all labels
-            foreach (var kvp in NavballColors)
-            {
-                var label = _labelSystem.GetLabel(kvp.Key);
-                if (label != null)
-                {
-                    label.OverrideColor = useNavballColors ? kvp.Value : Color.clear;
-                }
-            }
-
             Debug.Log($"[NavballLabelManager] Using {(useNavballColors ? "navball" : "grid")} colors");
         }
 
@@ -416,51 +438,35 @@ namespace CinematicShaders.Core
         public bool IsUsingNavballColors => _useNavballColors;
 
         /// <summary>
-        /// Set the icon style (SDF or ASCII).
-        /// Note: ASCII style is future work; currently only SDF is supported.
+        /// Set the off-screen behavior mode.
         /// </summary>
-        public void SetIconStyle(NavballIconStyle style)
+        public void SetOffscreenMode(int mode)
         {
-            if (_iconStyle == style) return;
-
-            _iconStyle = style;
-
-            // Future: Reload textures based on style
-            if (style == NavballIconStyle.ASCII)
-            {
-                Debug.LogWarning("[NavballLabelManager] ASCII style not yet implemented, using SDF");
-                _iconStyle = NavballIconStyle.SDF;
-            }
-
-            Debug.Log($"[NavballLabelManager] Icon style set to {_iconStyle}");
+            if (_offscreenMode == mode) return;
+            _offscreenMode = mode;
+            Debug.Log($"[NavballLabelManager] Offscreen mode: {(mode == 0 ? "world-space" : "edge-clamp")}");
         }
 
         /// <summary>
-        /// Get the current icon style.
+        /// Set the icon style (SDF or ASCII).
+        /// Note: Kept for API compatibility, but SDF is always used now.
         /// </summary>
-        public NavballIconStyle IconStyle => _iconStyle;
+        public void SetIconStyle(NavballIconStyle style)
+        {
+            // Kept for backward compatibility with UI
+            // The new screen-space system only uses SDF
+            Debug.Log($"[NavballLabelManager] Icon style set to {style} (note: screen-space uses SDF)");
+        }
 
         /// <summary>
-        /// Clean up resources when the manager is destroyed.
+        /// Pack a Unity Color into uint ARGB format for GPU.
         /// </summary>
-        public void Shutdown()
+        private uint PackColor(Color c)
         {
-            // Disable all labels
-            SetLabelsEnabled(false);
-
-            // Clean up textures
-            foreach (var kvp in _sdfTextures)
-            {
-                if (kvp.Value != null)
-                {
-                    UnityEngine.Object.Destroy(kvp.Value);
-                }
-            }
-            _sdfTextures.Clear();
-            _texturesLoaded = false;
-
-            _initialized = false;
-            Debug.Log("[NavballLabelManager] Shutdown complete");
+            return ((uint)(c.a * 255) << 24) |
+                   ((uint)(c.r * 255) << 16) |
+                   ((uint)(c.g * 255) << 8) |
+                   ((uint)(c.b * 255));
         }
 
         /// <summary>
@@ -471,7 +477,6 @@ namespace CinematicShaders.Core
         {
             try
             {
-                // Check if vessel has an active maneuver node
                 if (FlightGlobals.ActiveVessel?.patchedConicSolver?.maneuverNodes == null)
                     return null;
 
@@ -479,13 +484,10 @@ namespace CinematicShaders.Core
                 if (nodes.Count == 0)
                     return null;
 
-                // Get the first (next) maneuver node
                 var node = nodes[0];
                 if (node?.patch == null)
                     return null;
 
-                // Get the burn vector from the maneuver node
-                // The deltaV vector is in the node's orbit reference frame
                 Vector3d burnVector = node.GetBurnVector(node.patch);
                 
                 if (burnVector.sqrMagnitude < 0.0001)
@@ -497,7 +499,6 @@ namespace CinematicShaders.Core
             }
             catch (Exception ex)
             {
-                // Silently handle errors - maneuver node may not be valid
                 Debug.LogWarning($"[NavballLabelManager] Failed to get maneuver direction: {ex.Message}");
                 return null;
             }
@@ -512,15 +513,21 @@ namespace CinematicShaders.Core
             sb.AppendLine("=== NavballLabelManager Debug ===");
             sb.AppendLine($"Initialized: {_initialized}");
             sb.AppendLine($"Enabled: {_enabled}");
-            sb.AppendLine($"Textures Loaded: {_texturesLoaded}");
+            sb.AppendLine($"Offscreen Mode: {(_offscreenMode == 0 ? "world-space" : "edge-clamp")}");
             sb.AppendLine($"Use Navball Colors: {_useNavballColors}");
-            sb.AppendLine($"Icon Style: {_iconStyle}");
             sb.AppendLine();
             sb.AppendLine("Last Orbit Vectors:");
             sb.AppendLine($"  Prograde: {_lastPrograde}");
             sb.AppendLine($"  Normal: {_lastNormal}");
             sb.AppendLine($"  Radial Out: {_lastRadialOut}");
             sb.AppendLine($"  Maneuver: {_lastManeuver}");
+            sb.AppendLine();
+            sb.AppendLine("Icon States:");
+            for (int i = 0; i < ICON_COUNT; i++)
+            {
+                var s = _iconStates[i];
+                sb.AppendLine($"  {i}: {s.Name} - Visible:{s.IsVisible} Intensity:{s.Intensity:F3} EdgeMode:{s.IsInEdgeMode}");
+            }
             return sb.ToString();
         }
     }

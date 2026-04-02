@@ -76,6 +76,14 @@ namespace CinematicShaders.Core
         public static bool KartographerNavballUseColors { get; set; } = false;  // Use KSP navball colors vs grid color
         public static NavballIconStyle KartographerNavballIconStyle { get; set; } = NavballIconStyle.SDF;  // Icon rendering style
         
+        // Navball screen-space rendering settings
+        public static int KartographerNavballOffscreenMode { get; set; } = 0;  // 0=world-space (disappear), 1=edge-clamp
+        public static float KartographerNavballIconSize { get; set; } = 0.05f;  // Screen-space size in NDC units
+        public static float KartographerNavballIconThickness { get; set; } = 0.002f;  // SDF edge thickness
+        public static float KartographerNavballMinIntensity { get; set; } = 0.33f;  // Minimum brightness when far off-center
+        public static float KartographerNavballMaxAngle { get; set; } = 90f;  // Angle for min intensity (degrees)
+        public static float KartographerNavballHysteresisMargin { get; set; } = 0.05f;  // Buffer zone for edge transition
+        
         // Kartographer visual parameters
         public static float KartographerGridIntensity { get; set; } = 0.002f;      // Range: 0.001-0.003
         public static float KartographerGridThickness { get; set; } = 0.0003f;      // Range: 0.00015-0.00045
@@ -268,6 +276,14 @@ namespace CinematicShaders.Core
                 KartographerNavballUseColors = bool.Parse(settingsNode.GetValue("KartographerNavballUseColors") ?? "false");
                 string iconStyleStr = settingsNode.GetValue("KartographerNavballIconStyle") ?? "SDF";
                 KartographerNavballIconStyle = (NavballIconStyle)Enum.Parse(typeof(NavballIconStyle), iconStyleStr);
+                
+                // Navball screen-space rendering settings
+                KartographerNavballOffscreenMode = int.Parse(settingsNode.GetValue("KartographerNavballOffscreenMode") ?? "0");
+                KartographerNavballIconSize = float.Parse(settingsNode.GetValue("KartographerNavballIconSize") ?? "0.05");
+                KartographerNavballIconThickness = float.Parse(settingsNode.GetValue("KartographerNavballIconThickness") ?? "0.002");
+                KartographerNavballMinIntensity = float.Parse(settingsNode.GetValue("KartographerNavballMinIntensity") ?? "0.33");
+                KartographerNavballMaxAngle = float.Parse(settingsNode.GetValue("KartographerNavballMaxAngle") ?? "90");
+                KartographerNavballHysteresisMargin = float.Parse(settingsNode.GetValue("KartographerNavballHysteresisMargin") ?? "0.05");
                 
                 KartographerGridIntensity = float.Parse(settingsNode.GetValue("KartographerGridIntensity") ?? "0.002");
                 KartographerGridThickness = float.Parse(settingsNode.GetValue("KartographerGridThickness") ?? "0.0003");
@@ -595,6 +611,14 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("KartographerNavballLabels", KartographerNavballLabels);
                 settingsNode.AddValue("KartographerNavballUseColors", KartographerNavballUseColors);
                 settingsNode.AddValue("KartographerNavballIconStyle", KartographerNavballIconStyle.ToString());
+                
+                // Navball screen-space rendering settings
+                settingsNode.AddValue("KartographerNavballOffscreenMode", KartographerNavballOffscreenMode);
+                settingsNode.AddValue("KartographerNavballIconSize", KartographerNavballIconSize);
+                settingsNode.AddValue("KartographerNavballIconThickness", KartographerNavballIconThickness);
+                settingsNode.AddValue("KartographerNavballMinIntensity", KartographerNavballMinIntensity);
+                settingsNode.AddValue("KartographerNavballMaxAngle", KartographerNavballMaxAngle);
+                settingsNode.AddValue("KartographerNavballHysteresisMargin", KartographerNavballHysteresisMargin);
                 
                 settingsNode.AddValue("KartographerGridIntensity", KartographerGridIntensity);
                 settingsNode.AddValue("KartographerGridThickness", KartographerGridThickness);
