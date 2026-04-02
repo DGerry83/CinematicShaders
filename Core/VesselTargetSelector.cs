@@ -28,6 +28,9 @@ namespace CinematicShaders.Core
         private ITargetable _currentTarget = null;
         private ITargetable _lastCheckedTarget = null;
         private int _frameCounter = 0;
+        private int _logFrameCounter = 0;
+        private float _lastLoggedBoxTopLeftX = 0f;
+        private float _lastLoggedBoxTopLeftY = 0f;
 
         // Animation controller for target info (replaces individual animation state)
         private TypeOnAnimationController _animController = new TypeOnAnimationController();
@@ -521,6 +524,23 @@ namespace CinematicShaders.Core
             
             // Animated label intensity: 0 during Circle/Box (hidden), 1 during Text/Complete (visible)
             kartParams.AnimatedLabelIntensity = _animController.Intensity;
+
+            // DEBUG LOGGING - Throttled to every 30 frames or on significant change
+            _logFrameCounter++;
+            bool valuesChanged = Mathf.Abs(boxTopLeftX - _lastLoggedBoxTopLeftX) > 0.01f || 
+                                Mathf.Abs(boxTopLeftY - _lastLoggedBoxTopLeftY) > 0.01f;
+            if (_logFrameCounter >= 30 || valuesChanged)
+            {
+                _logFrameCounter = 0;
+                _lastLoggedBoxTopLeftX = boxTopLeftX;
+                _lastLoggedBoxTopLeftY = boxTopLeftY;
+                
+                Debug.Log($"[VesselTarget DEBUG] Frame {Time.frameCount}");
+                Debug.Log($"[VesselTarget DEBUG] Circle: ({centerX:F4}, {centerY:F4}) visible={visible}");
+                Debug.Log($"[VesselTarget DEBUG] Box: TL=({boxTopLeftX:F4}, {boxTopLeftY:F4}) Size=({boxWidthUV:F4}, {boxHeightUV:F4}) showBox={showBox}");
+                Debug.Log($"[VesselTarget DEBUG] Text: Origin=({kartParams.VesselTargetTextOriginX:F4}, {kartParams.VesselTargetTextOriginY:F4}) Area=({textWidthUV:F4}, {textHeightUV:F4})");
+                Debug.Log($"[VesselTarget DEBUG] Anim: CircleT={_animController.CircleProgress:F3} Intensity={_animController.Intensity:F3} Phase={_animController.CurrentPhase}");
+            }
 
             StarfieldNative.LastKartographerParams = kartParams;
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);

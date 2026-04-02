@@ -2271,6 +2271,37 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
 {
     if (!params) return;
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
+    // DEBUG LOGGING - Throttled
+    static int logCounter = 0;
+    static float lastBoxX = 0.0f, lastBoxY = 0.0f;
+    bool vesselEnabled = params->VesselTargetEnabled != 0;
+    bool valuesChanged = vesselEnabled && (
+        std::abs(params->VesselTargetBoxTopLeftX - lastBoxX) > 0.01f ||
+        std::abs(params->VesselTargetBoxTopLeftY - lastBoxY) > 0.01f);
+    
+    if (++logCounter >= 300 || valuesChanged)  // Log every ~5 seconds or on change
+    {
+        logCounter = 0;
+        lastBoxX = params->VesselTargetBoxTopLeftX;
+        lastBoxY = params->VesselTargetBoxTopLeftY;
+        
+        if (vesselEnabled)
+        {
+            printf("[Native DEBUG] VesselTarget ENABLED\n");
+            printf("[Native DEBUG]   Circle: (%.4f, %.4f) T=%.3f\n", 
+                   params->VesselTargetCircleCenterX, params->VesselTargetCircleCenterY,
+                   params->VesselTargetCircleT);
+            printf("[Native DEBUG]   Box: TL=(%.4f, %.4f) Size=(%.4f, %.4f)\n",
+                   params->VesselTargetBoxTopLeftX, params->VesselTargetBoxTopLeftY,
+                   params->VesselTargetBoxSizeX, params->VesselTargetBoxSizeY);
+            printf("[Native DEBUG]   Text: Origin=(%.4f, %.4f) Area=(%.4f, %.4f) T=%.3f\n",
+                   params->VesselTargetTextOriginX, params->VesselTargetTextOriginY,
+                   params->VesselTargetTextAreaSizeX, params->VesselTargetTextAreaSizeY,
+                   params->VesselTargetTextT);
+        }
+    }
+    
     g_StarfieldState.kartographerGridIntensity = params->GridIntensity;
     g_StarfieldState.kartographerGridThickness = params->GridThickness;
     g_StarfieldState.kartographerCAStrength = params->ChromaticAberrationStrength;

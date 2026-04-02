@@ -302,6 +302,26 @@ class CSGenerator:
             
             lines.append(f"        public {cs_type} {field.name};")
         
+        # Calculate and add final padding to ensure 16-byte total alignment
+        # C# Pack=16 aligns fields but doesn't auto-pad struct size
+        last_field_end = 0
+        if layout.fields:
+            last_field = layout.fields[-1]
+            last_field_end = last_field.offset + last_field.size
+        
+        padding_needed = layout.total_size - last_field_end
+        if padding_needed > 0:
+            lines.append("")
+            lines.append(f"        // Final padding to ensure {layout.total_size} byte total size")
+            pad_index = 1
+            remaining = padding_needed
+            while remaining > 0:
+                pad_size = min(remaining, 4)
+                pad_type = 'uint' if pad_size == 4 else 'byte'
+                lines.append(f"        public {pad_type} _padding{pad_index};")
+                remaining -= pad_size
+                pad_index += 1
+        
         lines.append("    }")
         lines.append("}")
         lines.append("")

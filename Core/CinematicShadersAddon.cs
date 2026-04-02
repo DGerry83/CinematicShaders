@@ -1,5 +1,6 @@
 ﻿using System.Linq;
 using CinematicShaders.Native;
+using CinematicShaders.Native.Structs;
 using CinematicShaders.Shaders.GTAO;
 using CinematicShaders.Shaders.Starfield;
 using CinematicShaders.UI;
@@ -52,6 +53,15 @@ namespace CinematicShaders.Core
             
             GTAOSettings.Load();
             StarfieldSettings.Load();
+            
+            // DEBUG: Verify struct size matches expected 1024 bytes
+            int structSize = System.Runtime.InteropServices.Marshal.SizeOf<KartographerParamsNative>();
+            Debug.Log($"[StructCheck] KartographerParamsNative size: {structSize} bytes (expected 1024)");
+            if (structSize != 1024)
+            {
+                Debug.LogError($"[StructCheck] SIZE MISMATCH! Struct is {structSize} bytes, expected 1024. Native/shader alignment issues likely!");
+            }
+            
             // If we're already in a game session, re-apply per-save settings to override
             // the global settings we just loaded. This happens on scene changes within
             // the same save (e.g., Flight -> Tracking Station -> Flight).

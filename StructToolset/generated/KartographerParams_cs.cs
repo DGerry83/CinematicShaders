@@ -379,6 +379,10 @@ namespace CinematicShaders.Native.Structs
         public float NavballIcon6_Y;
         public float NavballIcon6_Intensity;
         public uint NavballIcon6_Color;
+
+        // Final padding to ensure 1024 byte total size
+        public uint _padding1;
+        public uint _padding2;
     }
 }
 
