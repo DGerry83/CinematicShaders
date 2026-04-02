@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using CinematicShaders.Native;
+using CinematicShaders.Native.Structs;
 using CinematicShaders.Shaders.Starfield;
 using UnityEngine;
 
@@ -542,7 +543,7 @@ namespace CinematicShaders.Core
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
         }
 
-        private void CopyGridParams(ref StarfieldNative.KartographerParamsNative kartParams, float focalLength)
+        private void CopyGridParams(ref KartographerParamsNative kartParams, float focalLength)
         {
             kartParams.GridIntensity = StarfieldSettings.KartographerGridIntensity;
             kartParams.GridThickness = StarfieldSettings.KartographerGridThickness;
