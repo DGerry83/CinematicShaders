@@ -106,11 +106,9 @@ namespace CinematicShaders.Core
 
             try
             {
-                // Build path to PluginData/NavballIcons
-                string basePath = Path.Combine(
-                    Path.GetDirectoryName(typeof(NavballLabelManager).Assembly.Location),
-                    "..", "..", "PluginData", "NavballIcons");
-                basePath = Path.GetFullPath(basePath);
+                // Build path to GameData/CinematicShaders/PluginData/NavballIcons
+                // Following the same pattern as StarCatalogManager
+                string basePath = Path.Combine(KSPUtil.ApplicationRootPath, "GameData", "CinematicShaders", "PluginData", "NavballIcons");
 
                 Debug.Log($"[NavballLabelManager] Loading textures from: {basePath}");
 
