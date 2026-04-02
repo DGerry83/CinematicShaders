@@ -2707,8 +2707,16 @@ void CR_ClearGridLabelSlot(int slot)
 extern "C" __declspec(dllexport)
 int CR_SetNavballIconTextures(ID3D11Texture2D* sourceTextures[7], int width, int height)
 {
-    if (!g_StarfieldState.device) return -1;
-    if (!sourceTextures) return -2;
+    LogToFile("[Navball] CR_SetNavballIconTextures called: width=%d, height=%d", width, height);
+    
+    if (!g_StarfieldState.device) {
+        LogToFile("[Navball] Error: Device not ready");
+        return -1;
+    }
+    if (!sourceTextures) {
+        LogToFile("[Navball] Error: sourceTextures is null");
+        return -2;
+    }
     
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     
@@ -2727,10 +2735,15 @@ int CR_SetNavballIconTextures(ID3D11Texture2D* sourceTextures[7], int width, int
     for (int i = 0; i < 7; i++) {
         if (sourceTextures[i]) {
             hasValidTextures = true;
-            break;
+            LogToFile("[Navball] Texture %d: valid ptr=%p", i, sourceTextures[i]);
+        } else {
+            LogToFile("[Navball] Texture %d: NULL", i);
         }
     }
-    if (!hasValidTextures) return -3;  // No valid textures provided
+    if (!hasValidTextures) {
+        LogToFile("[Navball] Error: No valid textures provided");
+        return -3;  // No valid textures provided
+    }
     
     // Create texture array
     D3D11_TEXTURE2D_DESC arrayDesc = {};
@@ -2743,21 +2756,25 @@ int CR_SetNavballIconTextures(ID3D11Texture2D* sourceTextures[7], int width, int
     arrayDesc.Usage = D3D11_USAGE_DEFAULT;
     arrayDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
     
+    LogToFile("[Navball] Creating texture array: %dx%d x 7", width, height);
     HRESULT hr = g_StarfieldState.device->CreateTexture2D(&arrayDesc, nullptr, &g_StarfieldState.navballIconArray);
     if (FAILED(hr)) {
         LogToFile("[Navball] Failed to create texture array (0x%08X)", hr);
         return -4;
     }
+    LogToFile("[Navball] Texture array created successfully");
     
     // Copy each source texture to the corresponding array slice
     ID3D11DeviceContext* context = nullptr;
     g_StarfieldState.device->GetImmediateContext(&context);
     if (!context) {
+        LogToFile("[Navball] Error: Failed to get immediate context");
         g_StarfieldState.navballIconArray->Release();
         g_StarfieldState.navballIconArray = nullptr;
         return -5;
     }
     
+    LogToFile("[Navball] Copying textures to array...");
     for (int i = 0; i < 7; i++) {
         if (sourceTextures[i]) {
             context->CopySubresourceRegion(
@@ -2771,6 +2788,7 @@ int CR_SetNavballIconTextures(ID3D11Texture2D* sourceTextures[7], int width, int
     }
     
     context->Release();
+    LogToFile("[Navball] Textures copied, creating SRV...");
     
     // Create SRV for the texture array
     D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};

@@ -4,6 +4,7 @@ using CinematicShaders.Shaders.Starfield;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEngine;
 using static CinematicShaders.Core.StarfieldSettings;
 
@@ -110,7 +111,7 @@ namespace CinematicShaders.Core
                 // Following the same pattern as StarCatalogManager
                 string basePath = Path.Combine(KSPUtil.ApplicationRootPath, "GameData", "CinematicShaders", "PluginData", "NavballIcons");
 
-                Debug.Log($"[NavballLabelManager] Loading textures from: {basePath}");
+                ModFileLogger.Log($"[NavballLabelManager] Loading textures from: {basePath}");
 
                 _iconTextures = new Texture2D[ICON_COUNT];
                 bool allLoaded = true;
@@ -120,7 +121,7 @@ namespace CinematicShaders.Core
                     string filePath = Path.Combine(basePath, IconFileNames[i]);
                     if (!File.Exists(filePath))
                     {
-                        Debug.LogError($"[NavballLabelManager] Missing texture: {filePath}");
+                        ModFileLogger.LogError($"[NavballLabelManager] Missing texture: {filePath}");
                         allLoaded = false;
                         continue;
                     }
@@ -133,24 +134,26 @@ namespace CinematicShaders.Core
 
                 if (!allLoaded)
                 {
-                    Debug.LogError("[NavballLabelManager] Some textures failed to load");
+                    ModFileLogger.LogError("[NavballLabelManager] Some textures failed to load");
                     return;
                 }
 
                 // Upload to native
-                bool success = StarfieldNative.SetNavballIconTextures(_iconTextures, ICON_TEXTURE_SIZE, ICON_TEXTURE_SIZE);
-                if (!success)
+                int result = StarfieldNative.CR_SetNavballIconTextures(
+                    _iconTextures.Select(t => t.GetNativeTexturePtr()).ToArray(), 
+                    ICON_TEXTURE_SIZE, ICON_TEXTURE_SIZE);
+                if (result != 0)
                 {
-                    Debug.LogError("[NavballLabelManager] Failed to upload textures to native");
+                    ModFileLogger.LogError($"[NavballLabelManager] Failed to upload textures to native, error code: {result}");
                     return;
                 }
 
                 _texturesLoaded = true;
-                Debug.Log("[NavballLabelManager] Textures loaded and uploaded successfully");
+                ModFileLogger.Log("[NavballLabelManager] Textures loaded and uploaded successfully");
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[NavballLabelManager] Failed to load textures: {ex.Message}");
+                ModFileLogger.LogError($"[NavballLabelManager] Failed to load textures: {ex.Message}");
             }
         }
 
