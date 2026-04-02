@@ -564,12 +564,6 @@ float4 PSMain(PSInput input) : SV_Target {
         // Flicker animation: struggling fluorescent tube effect
         float flicker = Flicker(params.VesselTargetCircleT, params.Time, params.VesselTargetHash);
         
-        // DEBUG: Force visible if enabled but flicker is zero (indicates animation not progressing)
-        // Remove this after fixing the root cause
-        if (flicker < 0.001 && params.VesselTargetCircleT > 0.001) {
-            flicker = 1.0; // Force visible if we should be animating but flicker failed
-        }
-        
         // --- Info box black backing (FIRST - darkens background) ---
         float2 boxCenter = float2(params.VesselTargetBoxTopLeft.x, params.VesselTargetBoxTopLeft.y) + 
                           float2(params.VesselTargetBoxSize.x, params.VesselTargetBoxSize.y) * 0.5;
