@@ -579,6 +579,59 @@ namespace CinematicShaders.Native
             public float _padAnimated1;
             public float _padAnimated2;
             public float _padAnimated3;
+            
+            // Navball Indicators - Screen-space orbit direction icons
+            // System control
+            public int NavballEnabledMask;
+            public int NavballOffscreenMode;
+            public float NavballIconSize;
+            public float NavballIconThickness;
+            public float NavballMinIntensity;
+            public float NavballMaxAngle;
+            public float NavballHysteresisMargin;
+            public float _padNavball1;
+            
+            // Icon 0: Prograde
+            public float NavballIcon0_X;
+            public float NavballIcon0_Y;
+            public float NavballIcon0_Intensity;
+            public uint NavballIcon0_Color;
+            
+            // Icon 1: Retrograde
+            public float NavballIcon1_X;
+            public float NavballIcon1_Y;
+            public float NavballIcon1_Intensity;
+            public uint NavballIcon1_Color;
+            
+            // Icon 2: Normal
+            public float NavballIcon2_X;
+            public float NavballIcon2_Y;
+            public float NavballIcon2_Intensity;
+            public uint NavballIcon2_Color;
+            
+            // Icon 3: AntiNormal
+            public float NavballIcon3_X;
+            public float NavballIcon3_Y;
+            public float NavballIcon3_Intensity;
+            public uint NavballIcon3_Color;
+            
+            // Icon 4: Radial In
+            public float NavballIcon4_X;
+            public float NavballIcon4_Y;
+            public float NavballIcon4_Intensity;
+            public uint NavballIcon4_Color;
+            
+            // Icon 5: Radial Out
+            public float NavballIcon5_X;
+            public float NavballIcon5_Y;
+            public float NavballIcon5_Intensity;
+            public uint NavballIcon5_Color;
+            
+            // Icon 6: Maneuver
+            public float NavballIcon6_X;
+            public float NavballIcon6_Y;
+            public float NavballIcon6_Intensity;
+            public uint NavballIcon6_Color;
         }
 
         // Last params cache for incremental updates
