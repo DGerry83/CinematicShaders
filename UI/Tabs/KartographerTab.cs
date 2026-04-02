@@ -236,12 +236,11 @@ namespace CinematicShaders.UI.Tabs
                     }
                 }
                 
-                // Icon style dropdown
-                GUILayout.BeginHorizontal();
-                GUILayout.Label("Icon Style:", GUILayout.Width(100));
+                // Icon style selection - vertical layout to prevent overlapping
+                GUILayout.Label("Icon Style:");
                 string[] styleNames = { "SDF (High Quality)", "ASCII (Retro)" };
                 int currentStyle = (int)StarfieldSettings.KartographerNavballIconStyle;
-                int newStyle = GUILayout.SelectionGrid(currentStyle, styleNames, 2, HighLogic.Skin.toggle);
+                int newStyle = GUILayout.SelectionGrid(currentStyle, styleNames, 1, HighLogic.Skin.toggle);
                 if (newStyle != currentStyle)
                 {
                     StarfieldSettings.KartographerNavballIconStyle = (NavballIconStyle)newStyle;
@@ -252,7 +251,18 @@ namespace CinematicShaders.UI.Tabs
                         CinematicShadersAddon.NavballManager.SetIconStyle((NavballIconStyle)newStyle);
                     }
                 }
-                GUILayout.EndHorizontal();
+                
+                GUILayout.Space(4);
+                
+                // Icon thickness slider
+                GUILayout.Label(new GUIContent($"Icon Thickness: {StarfieldSettings.KartographerNavballIconThickness:F2}", 
+                    "Adjust SDF line thickness (0 = default, positive = thicker, negative = thinner)"));
+                float newThickness = GUILayout.HorizontalSlider(StarfieldSettings.KartographerNavballIconThickness, -0.1f, 0.1f);
+                if (!Mathf.Approximately(newThickness, StarfieldSettings.KartographerNavballIconThickness))
+                {
+                    StarfieldSettings.KartographerNavballIconThickness = newThickness;
+                    StarfieldSettings.Save();
+                }
             }
             
             GUILayout.Space(5);

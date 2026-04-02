@@ -228,7 +228,7 @@ static struct {
     int kartographerNavballEnabledMask = 0;
     int kartographerNavballOffscreenMode = 0;
     float kartographerNavballIconSize = 0.05f;
-    float kartographerNavballIconThickness = 0.002f;
+    float kartographerNavballIconThickness = 0.0f;  // 0 = default thickness, positive = thicker, negative = thinner
     float kartographerNavballMinIntensity = 0.33f;
     float kartographerNavballMaxAngle = 90.0f;
     float kartographerNavballHysteresisMargin = 0.05f;

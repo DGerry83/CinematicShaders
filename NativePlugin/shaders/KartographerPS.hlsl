@@ -170,11 +170,13 @@ float3 RenderNavballIcon(int iconIndex, float2 center, float intensity, uint col
     // Sample MSDF from texture array
     float3 msd = NavballIcons.SampleLevel(PointSampler, float3(localUV, iconIndex), 0).rgb;
     
-    // MSDF decoding: median of RGB channels minus 0.5
+    // MSDF decoding: median of RGB channels minus 0.5 gives signed distance
+    // where 0 = edge, positive = inside, negative = outside
     float sd = median(msd.r, msd.g, msd.b) - 0.5;
     
-    // Apply thickness offset (negative = thinner, positive = thicker)
-    sd = sd - 0.5 + thickness;
+    // Apply thickness offset (negative = thinner lines, positive = thicker lines)
+    // thickness range: -0.1 to +0.1 is reasonable, 0 = default
+    sd = sd + thickness;
     
     // Anti-aliased edge using fwidth
     float edgeWidth = fwidth(sd);

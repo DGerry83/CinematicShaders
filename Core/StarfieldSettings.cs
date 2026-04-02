@@ -79,7 +79,7 @@ namespace CinematicShaders.Core
         // Navball screen-space rendering settings
         public static int KartographerNavballOffscreenMode { get; set; } = 0;  // 0=world-space (disappear), 1=edge-clamp
         public static float KartographerNavballIconSize { get; set; } = 0.05f;  // Screen-space size in NDC units
-        public static float KartographerNavballIconThickness { get; set; } = 0.002f;  // SDF edge thickness
+        public static float KartographerNavballIconThickness { get; set; } = 0.0f;  // SDF line thickness (0 = default, positive = thicker)
         public static float KartographerNavballMinIntensity { get; set; } = 0.33f;  // Minimum brightness when far off-center
         public static float KartographerNavballMaxAngle { get; set; } = 90f;  // Angle for min intensity (degrees)
         public static float KartographerNavballHysteresisMargin { get; set; } = 0.05f;  // Buffer zone for edge transition
@@ -280,7 +280,7 @@ namespace CinematicShaders.Core
                 // Navball screen-space rendering settings
                 KartographerNavballOffscreenMode = int.Parse(settingsNode.GetValue("KartographerNavballOffscreenMode") ?? "0");
                 KartographerNavballIconSize = float.Parse(settingsNode.GetValue("KartographerNavballIconSize") ?? "0.05");
-                KartographerNavballIconThickness = float.Parse(settingsNode.GetValue("KartographerNavballIconThickness") ?? "0.002");
+                KartographerNavballIconThickness = float.Parse(settingsNode.GetValue("KartographerNavballIconThickness") ?? "0.0");
                 KartographerNavballMinIntensity = float.Parse(settingsNode.GetValue("KartographerNavballMinIntensity") ?? "0.33");
                 KartographerNavballMaxAngle = float.Parse(settingsNode.GetValue("KartographerNavballMaxAngle") ?? "90");
                 KartographerNavballHysteresisMargin = float.Parse(settingsNode.GetValue("KartographerNavballHysteresisMargin") ?? "0.05");
