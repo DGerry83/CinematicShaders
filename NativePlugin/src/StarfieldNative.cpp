@@ -33,6 +33,7 @@ static struct {
     
     // States
     ID3D11SamplerState* linearSampler = nullptr;
+    ID3D11SamplerState* pointSampler = nullptr;     // Point sampler for MSDF textures (navball icons)
     ID3D11DepthStencilState* depthState = nullptr;  // Depth test: draw if depth < epsilon (sky)
     ID3D11BlendState* blendState = nullptr;
     ID3D11RasterizerState* rasterState = nullptr;
@@ -950,6 +951,16 @@ static void EnsureStarfieldResources(ID3D11Device* device, int width, int height
         device->CreateSamplerState(&sampDesc, &g_StarfieldState.linearSampler);
     }
     
+    // Point sampler for MSDF textures (navball icons) - must use CLAMP to avoid wrapping artifacts
+    if (!g_StarfieldState.pointSampler) {
+        D3D11_SAMPLER_DESC pointDesc = {};
+        pointDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+        pointDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;  // CRITICAL: Prevents wrap-around artifacts
+        pointDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+        pointDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+        device->CreateSamplerState(&pointDesc, &g_StarfieldState.pointSampler);
+    }
+    
     // Depth stencil state: Disabled - we handle masking in pixel shader via normal alpha
     if (!g_StarfieldState.depthState) {
         D3D11_DEPTH_STENCIL_DESC dsDesc = {};
@@ -1387,6 +1398,10 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
             context->PSSetShaderResources(16, 1, &g_StarfieldState.navballIconArraySRV);
         }
         
+        // Bind samplers: s0 = linear (for text/grid), s1 = point (for MSDF navball icons)
+        ID3D11SamplerState* samplers[2] = {g_StarfieldState.linearSampler, g_StarfieldState.pointSampler};
+        context->PSSetSamplers(0, 2, samplers);
+        
         // RTV is still bound from main pass - no need to rebind
         
         // Draw fullscreen triangle
@@ -1682,6 +1697,10 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
         if (g_StarfieldState.navballIconArraySRV) {
             context->PSSetShaderResources(16, 1, &g_StarfieldState.navballIconArraySRV);
         }
+        
+        // Bind samplers: s0 = linear (for text/grid), s1 = point (for MSDF navball icons)
+        ID3D11SamplerState* samplers[2] = {g_StarfieldState.linearSampler, g_StarfieldState.pointSampler};
+        context->PSSetSamplers(0, 2, samplers);
         
         // Draw fullscreen triangle
         context->Draw(3, 0);
@@ -3411,6 +3430,7 @@ void CR_StarfieldShutdown()
     if (g_StarfieldState.pass2VS) { g_StarfieldState.pass2VS->Release(); g_StarfieldState.pass2VS = nullptr; }
     if (g_StarfieldState.pass2PS) { g_StarfieldState.pass2PS->Release(); g_StarfieldState.pass2PS = nullptr; }
     if (g_StarfieldState.linearSampler) { g_StarfieldState.linearSampler->Release(); g_StarfieldState.linearSampler = nullptr; }
+    if (g_StarfieldState.pointSampler) { g_StarfieldState.pointSampler->Release(); g_StarfieldState.pointSampler = nullptr; }
     if (g_StarfieldState.depthState) { g_StarfieldState.depthState->Release(); g_StarfieldState.depthState = nullptr; }
     if (g_StarfieldState.blendState) { g_StarfieldState.blendState->Release(); g_StarfieldState.blendState = nullptr; }
     if (g_StarfieldState.rasterState) { g_StarfieldState.rasterState->Release(); g_StarfieldState.rasterState = nullptr; }
