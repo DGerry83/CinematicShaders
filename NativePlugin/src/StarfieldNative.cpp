@@ -2263,6 +2263,20 @@ static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
         params->VesselTargetTextT = g_StarfieldState.kartographerVesselTargetTextT;
         params->AnimatedLabelIntensity = g_StarfieldState.kartographerAnimatedLabelIntensity;
         
+        // DEBUG: Log what's being written to CB (throttled)
+        static int cbLogCounter = 0;
+        if (++cbLogCounter >= 300 && params->VesselTargetEnabled)
+        {
+            cbLogCounter = 0;
+            LogToFile("[CB WRITE] VesselTarget Enabled=%d", params->VesselTargetEnabled);
+            LogToFile("[CB WRITE]   Circle: (%.4f, %.4f)", params->VesselTargetCircleCenterX, params->VesselTargetCircleCenterY);
+            LogToFile("[CB WRITE]   Box: TL=(%.4f, %.4f) Size=(%.4f, %.4f)", 
+                      params->VesselTargetBoxTopLeftX, params->VesselTargetBoxTopLeftY,
+                      params->VesselTargetBoxSizeX, params->VesselTargetBoxSizeY);
+            LogToFile("[CB WRITE]   Text: Origin=(%.4f, %.4f)", params->VesselTargetTextOriginX, params->VesselTargetTextOriginY);
+            LogToFile("[CB WRITE]   Intensity: %.3f", params->AnimatedLabelIntensity);
+        }
+        
         context->Unmap(g_StarfieldState.kartographerCB, 0);
     }
 }
@@ -2272,7 +2286,7 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
     if (!params) return;
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     
-    // DEBUG LOGGING - Throttled
+    // DEBUG LOGGING - Throttled and using LogToFile
     static int logCounter = 0;
     static float lastBoxX = 0.0f, lastBoxY = 0.0f;
     bool vesselEnabled = params->VesselTargetEnabled != 0;
@@ -2288,17 +2302,18 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
         
         if (vesselEnabled)
         {
-            printf("[Native DEBUG] VesselTarget ENABLED\n");
-            printf("[Native DEBUG]   Circle: (%.4f, %.4f) T=%.3f\n", 
+            LogToFile("[VesselTarget NATIVE] ENABLED");
+            LogToFile("[VesselTarget NATIVE]   Circle: (%.4f, %.4f) T=%.3f", 
                    params->VesselTargetCircleCenterX, params->VesselTargetCircleCenterY,
                    params->VesselTargetCircleT);
-            printf("[Native DEBUG]   Box: TL=(%.4f, %.4f) Size=(%.4f, %.4f)\n",
+            LogToFile("[VesselTarget NATIVE]   Box: TL=(%.4f, %.4f) Size=(%.4f, %.4f)",
                    params->VesselTargetBoxTopLeftX, params->VesselTargetBoxTopLeftY,
                    params->VesselTargetBoxSizeX, params->VesselTargetBoxSizeY);
-            printf("[Native DEBUG]   Text: Origin=(%.4f, %.4f) Area=(%.4f, %.4f) T=%.3f\n",
+            LogToFile("[VesselTarget NATIVE]   Text: Origin=(%.4f, %.4f) Area=(%.4f, %.4f) T=%.3f",
                    params->VesselTargetTextOriginX, params->VesselTargetTextOriginY,
                    params->VesselTargetTextAreaSizeX, params->VesselTargetTextAreaSizeY,
                    params->VesselTargetTextT);
+            LogToFile("[VesselTarget NATIVE]   Intensity: %.3f", params->AnimatedLabelIntensity);
         }
     }
     
