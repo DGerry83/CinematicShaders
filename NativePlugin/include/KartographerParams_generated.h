@@ -83,126 +83,102 @@ struct KartographerParams {
     //   260: _padGridMask2 (float) // Padding
     //   264: _padGridMask3 (float) // Padding
     //   268: _padGridMask4 (float) // Padding to align labels to 16 bytes
-
-    //   272: GridLabel0_PosTangentX.x (float) // Label 0 position + sizeX
-    //   276: GridLabel0_PosTangentX.y (float)
-    //   280: GridLabel0_PosTangentX.z (float)
-    //   284: GridLabel0_PosTangentX.w (float)
-
-    //   288: GridLabel0_TangentY.x (float) // Label 0 tangent + sizeY
-    //   292: GridLabel0_TangentY.y (float)
-    //   296: GridLabel0_TangentY.z (float)
-    //   300: GridLabel0_TangentY.w (float)
-
-    //   304: GridLabel1_PosTangentX.x (float) // Label 1 position + sizeX
-    //   308: GridLabel1_PosTangentX.y (float)
-    //   312: GridLabel1_PosTangentX.z (float)
-    //   316: GridLabel1_PosTangentX.w (float)
-
-    //   320: GridLabel1_TangentY.x (float) // Label 1 tangent + sizeY
-    //   324: GridLabel1_TangentY.y (float)
-    //   328: GridLabel1_TangentY.z (float)
-    //   332: GridLabel1_TangentY.w (float)
-
-    //   336: GridLabel2_PosTangentX.x (float) // Label 2 position + sizeX
-    //   340: GridLabel2_PosTangentX.y (float)
-    //   344: GridLabel2_PosTangentX.z (float)
-    //   348: GridLabel2_PosTangentX.w (float)
-
-    //   352: GridLabel2_TangentY.x (float) // Label 2 tangent + sizeY
-    //   356: GridLabel2_TangentY.y (float)
-    //   360: GridLabel2_TangentY.z (float)
-    //   364: GridLabel2_TangentY.w (float)
-
-    //   368: GridLabel3_PosTangentX.x (float) // Label 3 position + sizeX
-    //   372: GridLabel3_PosTangentX.y (float)
-    //   376: GridLabel3_PosTangentX.z (float)
-    //   380: GridLabel3_PosTangentX.w (float)
-
-    //   384: GridLabel3_TangentY.x (float) // Label 3 tangent + sizeY
-    //   388: GridLabel3_TangentY.y (float)
-    //   392: GridLabel3_TangentY.z (float)
-    //   396: GridLabel3_TangentY.w (float)
-
-    //   400: GridLabel4_PosTangentX.x (float) // Label 4 position + sizeX
-    //   404: GridLabel4_PosTangentX.y (float)
-    //   408: GridLabel4_PosTangentX.z (float)
-    //   412: GridLabel4_PosTangentX.w (float)
-
-    //   416: GridLabel4_TangentY.x (float) // Label 4 tangent + sizeY
-    //   420: GridLabel4_TangentY.y (float)
-    //   424: GridLabel4_TangentY.z (float)
-    //   428: GridLabel4_TangentY.w (float)
-
-    //   432: GridLabel5_PosTangentX.x (float) // Label 5 position + sizeX
-    //   436: GridLabel5_PosTangentX.y (float)
-    //   440: GridLabel5_PosTangentX.z (float)
-    //   444: GridLabel5_PosTangentX.w (float)
-
-    //   448: GridLabel5_TangentY.x (float) // Label 5 tangent + sizeY
-    //   452: GridLabel5_TangentY.y (float)
-    //   456: GridLabel5_TangentY.z (float)
-    //   460: GridLabel5_TangentY.w (float)
-
-    //   464: GridLabel6_PosTangentX.x (float) // Label 6 position + sizeX
-    //   468: GridLabel6_PosTangentX.y (float)
-    //   472: GridLabel6_PosTangentX.z (float)
-    //   476: GridLabel6_PosTangentX.w (float)
-
-    //   480: GridLabel6_TangentY.x (float) // Label 6 tangent + sizeY
-    //   484: GridLabel6_TangentY.y (float)
-    //   488: GridLabel6_TangentY.z (float)
-    //   492: GridLabel6_TangentY.w (float)
-
-    //   496: GridLabel7_PosTangentX.x (float) // Label 7 position + sizeX
-    //   500: GridLabel7_PosTangentX.y (float)
-    //   504: GridLabel7_PosTangentX.z (float)
-    //   508: GridLabel7_PosTangentX.w (float)
-
-    //   512: GridLabel7_TangentY.x (float) // Label 7 tangent + sizeY
-    //   516: GridLabel7_TangentY.y (float)
-    //   520: GridLabel7_TangentY.z (float)
-    //   524: GridLabel7_TangentY.w (float)
-
-    //   528: GridLabel8_PosTangentX.x (float) // Label 8 position + sizeX
-    //   532: GridLabel8_PosTangentX.y (float)
-    //   536: GridLabel8_PosTangentX.z (float)
-    //   540: GridLabel8_PosTangentX.w (float)
-
-    //   544: GridLabel8_TangentY.x (float) // Label 8 tangent + sizeY
-    //   548: GridLabel8_TangentY.y (float)
-    //   552: GridLabel8_TangentY.z (float)
-    //   556: GridLabel8_TangentY.w (float)
-
-    //   560: GridLabel9_PosTangentX.x (float) // Label 9 position + sizeX
-    //   564: GridLabel9_PosTangentX.y (float)
-    //   568: GridLabel9_PosTangentX.z (float)
-    //   572: GridLabel9_PosTangentX.w (float)
-
-    //   576: GridLabel9_TangentY.x (float) // Label 9 tangent + sizeY
-    //   580: GridLabel9_TangentY.y (float)
-    //   584: GridLabel9_TangentY.z (float)
-    //   588: GridLabel9_TangentY.w (float)
-
-    //   592: GridLabel10_PosTangentX.x (float) // Label 10 position + sizeX
-    //   596: GridLabel10_PosTangentX.y (float)
-    //   600: GridLabel10_PosTangentX.z (float)
-    //   604: GridLabel10_PosTangentX.w (float)
-
-    //   608: GridLabel10_TangentY.x (float) // Label 10 tangent + sizeY
-    //   612: GridLabel10_TangentY.y (float)
-    //   616: GridLabel10_TangentY.z (float)
-    //   620: GridLabel10_TangentY.w (float)
-
-    //   624: GridLabel11_PosTangentX.x (float) // Label 11 position + sizeX
-    //   628: GridLabel11_PosTangentX.y (float)
-    //   632: GridLabel11_PosTangentX.z (float)
-    //   636: GridLabel11_PosTangentX.w (float)
-
-    //   640: GridLabel11_TangentY.x (float) // Label 11 tangent + sizeY
-    //   644: GridLabel11_TangentY.y (float)
-    //   648: GridLabel11_TangentY.z (float)
-    //   652: GridLabel11_TangentY.w (float)
+    //   272: GridLabel0_PosTangentX_x (float) // Label 0 position + sizeX
+    //   276: GridLabel0_PosTangentX_y (float)
+    //   280: GridLabel0_PosTangentX_z (float)
+    //   284: GridLabel0_PosTangentX_w (float)
+    //   288: GridLabel0_TangentY_x (float) // Label 0 tangent + sizeY
+    //   292: GridLabel0_TangentY_y (float)
+    //   296: GridLabel0_TangentY_z (float)
+    //   300: GridLabel0_TangentY_w (float)
+    //   304: GridLabel1_PosTangentX_x (float) // Label 1 position + sizeX
+    //   308: GridLabel1_PosTangentX_y (float)
+    //   312: GridLabel1_PosTangentX_z (float)
+    //   316: GridLabel1_PosTangentX_w (float)
+    //   320: GridLabel1_TangentY_x (float) // Label 1 tangent + sizeY
+    //   324: GridLabel1_TangentY_y (float)
+    //   328: GridLabel1_TangentY_z (float)
+    //   332: GridLabel1_TangentY_w (float)
+    //   336: GridLabel2_PosTangentX_x (float) // Label 2 position + sizeX
+    //   340: GridLabel2_PosTangentX_y (float)
+    //   344: GridLabel2_PosTangentX_z (float)
+    //   348: GridLabel2_PosTangentX_w (float)
+    //   352: GridLabel2_TangentY_x (float) // Label 2 tangent + sizeY
+    //   356: GridLabel2_TangentY_y (float)
+    //   360: GridLabel2_TangentY_z (float)
+    //   364: GridLabel2_TangentY_w (float)
+    //   368: GridLabel3_PosTangentX_x (float) // Label 3 position + sizeX
+    //   372: GridLabel3_PosTangentX_y (float)
+    //   376: GridLabel3_PosTangentX_z (float)
+    //   380: GridLabel3_PosTangentX_w (float)
+    //   384: GridLabel3_TangentY_x (float) // Label 3 tangent + sizeY
+    //   388: GridLabel3_TangentY_y (float)
+    //   392: GridLabel3_TangentY_z (float)
+    //   396: GridLabel3_TangentY_w (float)
+    //   400: GridLabel4_PosTangentX_x (float) // Label 4 position + sizeX
+    //   404: GridLabel4_PosTangentX_y (float)
+    //   408: GridLabel4_PosTangentX_z (float)
+    //   412: GridLabel4_PosTangentX_w (float)
+    //   416: GridLabel4_TangentY_x (float) // Label 4 tangent + sizeY
+    //   420: GridLabel4_TangentY_y (float)
+    //   424: GridLabel4_TangentY_z (float)
+    //   428: GridLabel4_TangentY_w (float)
+    //   432: GridLabel5_PosTangentX_x (float) // Label 5 position + sizeX
+    //   436: GridLabel5_PosTangentX_y (float)
+    //   440: GridLabel5_PosTangentX_z (float)
+    //   444: GridLabel5_PosTangentX_w (float)
+    //   448: GridLabel5_TangentY_x (float) // Label 5 tangent + sizeY
+    //   452: GridLabel5_TangentY_y (float)
+    //   456: GridLabel5_TangentY_z (float)
+    //   460: GridLabel5_TangentY_w (float)
+    //   464: GridLabel6_PosTangentX_x (float) // Label 6 position + sizeX
+    //   468: GridLabel6_PosTangentX_y (float)
+    //   472: GridLabel6_PosTangentX_z (float)
+    //   476: GridLabel6_PosTangentX_w (float)
+    //   480: GridLabel6_TangentY_x (float) // Label 6 tangent + sizeY
+    //   484: GridLabel6_TangentY_y (float)
+    //   488: GridLabel6_TangentY_z (float)
+    //   492: GridLabel6_TangentY_w (float)
+    //   496: GridLabel7_PosTangentX_x (float) // Label 7 position + sizeX
+    //   500: GridLabel7_PosTangentX_y (float)
+    //   504: GridLabel7_PosTangentX_z (float)
+    //   508: GridLabel7_PosTangentX_w (float)
+    //   512: GridLabel7_TangentY_x (float) // Label 7 tangent + sizeY
+    //   516: GridLabel7_TangentY_y (float)
+    //   520: GridLabel7_TangentY_z (float)
+    //   524: GridLabel7_TangentY_w (float)
+    //   528: GridLabel8_PosTangentX_x (float) // Label 8 position + sizeX
+    //   532: GridLabel8_PosTangentX_y (float)
+    //   536: GridLabel8_PosTangentX_z (float)
+    //   540: GridLabel8_PosTangentX_w (float)
+    //   544: GridLabel8_TangentY_x (float) // Label 8 tangent + sizeY
+    //   548: GridLabel8_TangentY_y (float)
+    //   552: GridLabel8_TangentY_z (float)
+    //   556: GridLabel8_TangentY_w (float)
+    //   560: GridLabel9_PosTangentX_x (float) // Label 9 position + sizeX
+    //   564: GridLabel9_PosTangentX_y (float)
+    //   568: GridLabel9_PosTangentX_z (float)
+    //   572: GridLabel9_PosTangentX_w (float)
+    //   576: GridLabel9_TangentY_x (float) // Label 9 tangent + sizeY
+    //   580: GridLabel9_TangentY_y (float)
+    //   584: GridLabel9_TangentY_z (float)
+    //   588: GridLabel9_TangentY_w (float)
+    //   592: GridLabel10_PosTangentX_x (float) // Label 10 position + sizeX
+    //   596: GridLabel10_PosTangentX_y (float)
+    //   600: GridLabel10_PosTangentX_z (float)
+    //   604: GridLabel10_PosTangentX_w (float)
+    //   608: GridLabel10_TangentY_x (float) // Label 10 tangent + sizeY
+    //   612: GridLabel10_TangentY_y (float)
+    //   616: GridLabel10_TangentY_z (float)
+    //   620: GridLabel10_TangentY_w (float)
+    //   624: GridLabel11_PosTangentX_x (float) // Label 11 position + sizeX
+    //   628: GridLabel11_PosTangentX_y (float)
+    //   632: GridLabel11_PosTangentX_z (float)
+    //   636: GridLabel11_PosTangentX_w (float)
+    //   640: GridLabel11_TangentY_x (float) // Label 11 tangent + sizeY
+    //   644: GridLabel11_TangentY_y (float)
+    //   648: GridLabel11_TangentY_z (float)
+    //   652: GridLabel11_TangentY_w (float)
     //   656: GridLabelDebugMask (uint32_t) // Bit mask for debug visualization
     //   660: LabelIntensity0 (float) // Label 0 brightness
     //   664: LabelIntensity1 (float) // Label 1 brightness
@@ -232,67 +208,69 @@ struct KartographerParams {
     //   760: VesselTargetHash (float) // Hash for flicker variation
     //   764: _padVessel1 (float) // Padding
     //   768: _padVessel2 (float) // Padding
-    //   772: VesselTargetCircleCenterX (float) // Vessel target circle X
-    //   776: VesselTargetCircleCenterY (float) // Vessel target circle Y
-    //   780: VesselTargetCircleT (float) // Vessel target animation time 0-1
-    //   784: VesselTargetCircleIntensity (float) // Vessel target circle brightness
-    //   788: VesselTargetCircleThickness (float) // Vessel target circle line thickness
-    //   792: VesselTargetCircleRadius (float) // Vessel target circle radius
-    //   796: _padVessel3 (float) // Padding
-    //   800: _padVessel4 (float) // Padding
-    //   804: _padVessel5 (float) // Padding
-    //   808: _padVessel6 (float) // Padding
-    //   812: VesselTargetBoxTopLeftX (float) // Vessel target box X
-    //   816: VesselTargetBoxTopLeftY (float) // Vessel target box Y
-    //   820: VesselTargetBoxSizeX (float) // Vessel target box width
-    //   824: VesselTargetBoxSizeY (float) // Vessel target box height
-    //   828: VesselTargetBoxThickness (float) // Vessel target box line thickness
-    //   832: _padVessel7 (float) // Padding
-    //   836: VesselTargetTextOriginX (float) // Vessel target text position X
-    //   840: VesselTargetTextOriginY (float) // Vessel target text position Y
-    //   844: VesselTargetTextAreaSizeX (float) // Vessel target text area width
-    //   848: VesselTargetTextAreaSizeY (float) // Vessel target text area height
-    //   852: VesselTargetTextT (float) // Vessel target text animation time
-    //   856: AnimatedLabelIntensity (float) // Generic intensity for animated labels (0-1)
-    //   860: _padAnimated1 (float) // Padding
-    //   864: _padAnimated2 (float) // Padding
-    //   868: _padAnimated3 (float) // Padding to align to 16 bytes
-    //   872: NavballEnabledMask (int32_t) // Bits 0-6: prograde, retrograde, normal, antinormal, radial_in, radial_out, maneuver
-    //   876: NavballOffscreenMode (int32_t) // 0=world-space (disappear off-screen), 1=edge-clamp
-    //   880: NavballIconSize (float) // Screen-space size in NDC units
-    //   884: NavballIconThickness (float) // SDF edge thickness
-    //   888: NavballMinIntensity (float) // Minimum intensity when far off-center (default 0.33)
-    //   892: NavballMaxAngle (float) // Angle for min intensity in degrees (default 90)
-    //   896: NavballHysteresisMargin (float) // Buffer zone for edge transition (default 0.05)
-    //   900: _padNavball1 (float) // Padding to 16-byte boundary
-    //   904: NavballIcon0_X (float) // Screen X in NDC (-aspect to aspect)
-    //   908: NavballIcon0_Y (float) // Screen Y in NDC (-1 to 1)
-    //   912: NavballIcon0_Intensity (float) // Current intensity (0 = disabled/hidden)
-    //   916: NavballIcon0_Color (uint32_t) // Packed ARGB color override (0 = use grid color)
-    //   920: NavballIcon1_X (float) // Screen X in NDC
-    //   924: NavballIcon1_Y (float) // Screen Y in NDC
-    //   928: NavballIcon1_Intensity (float) // Current intensity
-    //   932: NavballIcon1_Color (uint32_t) // Packed ARGB color override
-    //   936: NavballIcon2_X (float) // Screen X in NDC
-    //   940: NavballIcon2_Y (float) // Screen Y in NDC
-    //   944: NavballIcon2_Intensity (float) // Current intensity
-    //   948: NavballIcon2_Color (uint32_t) // Packed ARGB color override
-    //   952: NavballIcon3_X (float) // Screen X in NDC
-    //   956: NavballIcon3_Y (float) // Screen Y in NDC
-    //   960: NavballIcon3_Intensity (float) // Current intensity
-    //   964: NavballIcon3_Color (uint32_t) // Packed ARGB color override
-    //   968: NavballIcon4_X (float) // Screen X in NDC
-    //   972: NavballIcon4_Y (float) // Screen Y in NDC
-    //   976: NavballIcon4_Intensity (float) // Current intensity
-    //   980: NavballIcon4_Color (uint32_t) // Packed ARGB color override
-    //   984: NavballIcon5_X (float) // Screen X in NDC
-    //   988: NavballIcon5_Y (float) // Screen Y in NDC
-    //   992: NavballIcon5_Intensity (float) // Current intensity
-    //   996: NavballIcon5_Color (uint32_t) // Packed ARGB color override
-    //   1000: NavballIcon6_X (float) // Screen X in NDC
-    //   1004: NavballIcon6_Y (float) // Screen Y in NDC
-    //   1008: NavballIcon6_Intensity (float) // Current intensity (0 when no node)
-    //   1012: NavballIcon6_Color (uint32_t) // Packed ARGB color override
+    //   772: _auto_pad1 (float) // Auto-inserted for alignment [PADDING]
+    //   776: VesselTargetCircleCenterX (float) // Vessel target circle X
+    //   780: VesselTargetCircleCenterY (float) // Vessel target circle Y
+    //   784: VesselTargetCircleT (float) // Vessel target animation time 0-1
+    //   788: VesselTargetCircleIntensity (float) // Vessel target circle brightness
+    //   792: VesselTargetCircleThickness (float) // Vessel target circle line thickness
+    //   796: VesselTargetCircleRadius (float) // Vessel target circle radius
+    //   800: _padVessel3 (float) // Padding
+    //   804: _padVessel4 (float) // Padding
+    //   808: _padVessel5 (float) // Padding
+    //   812: _padVessel6 (float) // Padding
+    //   816: VesselTargetBoxTopLeftX (float) // Vessel target box X
+    //   820: VesselTargetBoxTopLeftY (float) // Vessel target box Y
+    //   824: VesselTargetBoxSizeX (float) // Vessel target box width
+    //   828: VesselTargetBoxSizeY (float) // Vessel target box height
+    //   832: VesselTargetBoxThickness (float) // Vessel target box line thickness
+    //   836: _padVessel7 (float) // Padding
+    //   840: VesselTargetTextOriginX (float) // Vessel target text position X
+    //   844: VesselTargetTextOriginY (float) // Vessel target text position Y
+    //   848: VesselTargetTextAreaSizeX (float) // Vessel target text area width
+    //   852: VesselTargetTextAreaSizeY (float) // Vessel target text area height
+    //   856: VesselTargetTextT (float) // Vessel target text animation time
+    //   860: AnimatedLabelIntensity (float) // Generic intensity for animated labels (0-1)
+    //   864: _padAnimated1 (float) // Padding
+    //   868: _padAnimated2 (float) // Padding
+    //   872: _padAnimated3 (float) // Padding to align to 16 bytes
+    //   876: NavballEnabledMask (int32_t) // Bits 0-6: prograde, retrograde, normal, antinormal, radial_in, radial_out, maneuver
+    //   880: NavballOffscreenMode (int32_t) // 0=world-space (disappear off-screen), 1=edge-clamp
+    //   884: NavballIconSize (float) // Screen-space size in NDC units
+    //   888: NavballIconThickness (float) // SDF edge thickness
+    //   892: NavballMinIntensity (float) // Minimum intensity when far off-center (default 0.33)
+    //   896: NavballMaxAngle (float) // Angle for min intensity in degrees (default 90)
+    //   900: NavballHysteresisMargin (float) // Buffer zone for edge transition (default 0.05)
+    //   904: _padNavball1 (float) // Padding to 16-byte boundary
+    //   908: _auto_pad2 (float) // Auto-inserted for alignment [PADDING]
+    //   912: NavballIcon0_X (float) // Screen X in NDC (-aspect to aspect)
+    //   916: NavballIcon0_Y (float) // Screen Y in NDC (-1 to 1)
+    //   920: NavballIcon0_Intensity (float) // Current intensity (0 = disabled/hidden)
+    //   924: NavballIcon0_Color (uint32_t) // Packed ARGB color override (0 = use grid color)
+    //   928: NavballIcon1_X (float) // Screen X in NDC
+    //   932: NavballIcon1_Y (float) // Screen Y in NDC
+    //   936: NavballIcon1_Intensity (float) // Current intensity
+    //   940: NavballIcon1_Color (uint32_t) // Packed ARGB color override
+    //   944: NavballIcon2_X (float) // Screen X in NDC
+    //   948: NavballIcon2_Y (float) // Screen Y in NDC
+    //   952: NavballIcon2_Intensity (float) // Current intensity
+    //   956: NavballIcon2_Color (uint32_t) // Packed ARGB color override
+    //   960: NavballIcon3_X (float) // Screen X in NDC
+    //   964: NavballIcon3_Y (float) // Screen Y in NDC
+    //   968: NavballIcon3_Intensity (float) // Current intensity
+    //   972: NavballIcon3_Color (uint32_t) // Packed ARGB color override
+    //   976: NavballIcon4_X (float) // Screen X in NDC
+    //   980: NavballIcon4_Y (float) // Screen Y in NDC
+    //   984: NavballIcon4_Intensity (float) // Current intensity
+    //   988: NavballIcon4_Color (uint32_t) // Packed ARGB color override
+    //   992: NavballIcon5_X (float) // Screen X in NDC
+    //   996: NavballIcon5_Y (float) // Screen Y in NDC
+    //   1000: NavballIcon5_Intensity (float) // Current intensity
+    //   1004: NavballIcon5_Color (uint32_t) // Packed ARGB color override
+    //   1008: NavballIcon6_X (float) // Screen X in NDC
+    //   1012: NavballIcon6_Y (float) // Screen Y in NDC
+    //   1016: NavballIcon6_Intensity (float) // Current intensity (0 when no node)
+    //   1020: NavballIcon6_Color (uint32_t) // Packed ARGB color override
 
     float ResolutionX;
     float ResolutionY;
@@ -487,6 +465,7 @@ struct KartographerParams {
     float VesselTargetHash;
     float _padVessel1;
     float _padVessel2;
+    float _auto_pad1; // padding
     float VesselTargetCircleCenterX;
     float VesselTargetCircleCenterY;
     float VesselTargetCircleT;
@@ -520,6 +499,7 @@ struct KartographerParams {
     float NavballMaxAngle;
     float NavballHysteresisMargin;
     float _padNavball1;
+    float _auto_pad2; // padding
     float NavballIcon0_X;
     float NavballIcon0_Y;
     float NavballIcon0_Intensity;

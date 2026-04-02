@@ -2263,20 +2263,6 @@ static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
         params->VesselTargetTextT = g_StarfieldState.kartographerVesselTargetTextT;
         params->AnimatedLabelIntensity = g_StarfieldState.kartographerAnimatedLabelIntensity;
         
-        // DEBUG: Log what's being written to CB (throttled)
-        static int cbLogCounter = 0;
-        if (++cbLogCounter >= 300 && params->VesselTargetEnabled)
-        {
-            cbLogCounter = 0;
-            LogToFile("[CB WRITE] VesselTarget Enabled=%d", params->VesselTargetEnabled);
-            LogToFile("[CB WRITE]   Circle: (%.4f, %.4f)", params->VesselTargetCircleCenterX, params->VesselTargetCircleCenterY);
-            LogToFile("[CB WRITE]   Box: TL=(%.4f, %.4f) Size=(%.4f, %.4f)", 
-                      params->VesselTargetBoxTopLeftX, params->VesselTargetBoxTopLeftY,
-                      params->VesselTargetBoxSizeX, params->VesselTargetBoxSizeY);
-            LogToFile("[CB WRITE]   Text: Origin=(%.4f, %.4f)", params->VesselTargetTextOriginX, params->VesselTargetTextOriginY);
-            LogToFile("[CB WRITE]   Intensity: %.3f", params->AnimatedLabelIntensity);
-        }
-        
         context->Unmap(g_StarfieldState.kartographerCB, 0);
     }
 }
@@ -2285,37 +2271,6 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
 {
     if (!params) return;
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
-    
-    // DEBUG LOGGING - Throttled and using LogToFile
-    static int logCounter = 0;
-    static float lastBoxX = 0.0f, lastBoxY = 0.0f;
-    bool vesselEnabled = params->VesselTargetEnabled != 0;
-    bool valuesChanged = vesselEnabled && (
-        std::abs(params->VesselTargetBoxTopLeftX - lastBoxX) > 0.01f ||
-        std::abs(params->VesselTargetBoxTopLeftY - lastBoxY) > 0.01f);
-    
-    if (++logCounter >= 300 || valuesChanged)  // Log every ~5 seconds or on change
-    {
-        logCounter = 0;
-        lastBoxX = params->VesselTargetBoxTopLeftX;
-        lastBoxY = params->VesselTargetBoxTopLeftY;
-        
-        if (vesselEnabled)
-        {
-            LogToFile("[VesselTarget NATIVE] ENABLED");
-            LogToFile("[VesselTarget NATIVE]   Circle: (%.4f, %.4f) T=%.3f", 
-                   params->VesselTargetCircleCenterX, params->VesselTargetCircleCenterY,
-                   params->VesselTargetCircleT);
-            LogToFile("[VesselTarget NATIVE]   Box: TL=(%.4f, %.4f) Size=(%.4f, %.4f)",
-                   params->VesselTargetBoxTopLeftX, params->VesselTargetBoxTopLeftY,
-                   params->VesselTargetBoxSizeX, params->VesselTargetBoxSizeY);
-            LogToFile("[VesselTarget NATIVE]   Text: Origin=(%.4f, %.4f) Area=(%.4f, %.4f) T=%.3f",
-                   params->VesselTargetTextOriginX, params->VesselTargetTextOriginY,
-                   params->VesselTargetTextAreaSizeX, params->VesselTargetTextAreaSizeY,
-                   params->VesselTargetTextT);
-            LogToFile("[VesselTarget NATIVE]   Intensity: %.3f", params->AnimatedLabelIntensity);
-        }
-    }
     
     g_StarfieldState.kartographerGridIntensity = params->GridIntensity;
     g_StarfieldState.kartographerGridThickness = params->GridThickness;
