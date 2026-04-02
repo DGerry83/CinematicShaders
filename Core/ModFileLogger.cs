@@ -25,7 +25,8 @@ namespace CinematicShaders.Core
                 
                 LogFilePath = Path.Combine(modDirectory, "CinematicShadersDebug.log");
 
-                LogWriter = new StreamWriter(LogFilePath, append: true);
+                // Overwrite existing log file to prevent unbounded growth across sessions
+                LogWriter = new StreamWriter(LogFilePath, append: false);
                 LogWriter.AutoFlush = true;
                 
                 IsInitialized = true;
