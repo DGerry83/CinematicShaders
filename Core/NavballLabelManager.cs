@@ -256,17 +256,25 @@ namespace CinematicShaders.Core
             }
 
             // Calculate orbit vectors and transform to surface frame
-            // orbit.pos/vel are in inertial frame, camera basis is in surface frame
+            // orbit.pos/vel are in AliceWorld (inertial) - Y and Z are flipped vs Unity World.
+            // First flip Y/Z to Unity World axes, then rotate from inertial to surface frame.
             Orbit orbit = FlightGlobals.ActiveVessel.orbit;
-            QuaternionD surfaceRotation = Planetarium.Rotation;
-            Vector3d pos = surfaceRotation * orbit.pos;
-            Vector3d vel = surfaceRotation * orbit.vel;
+            Vector3d posWorld = new Vector3d(orbit.pos.x, orbit.pos.z, orbit.pos.y);
+            Vector3d velWorld = new Vector3d(orbit.vel.x, orbit.vel.z, orbit.vel.y);
+            Vector3d pos = Planetarium.Rotation * posWorld;
+            Vector3d vel = Planetarium.Rotation * velWorld;
+
+            // Use fixed celestial up axis (transformed to surface frame) for consistent orbital plane reference
+            // This matches KSP's navball and NavHud behavior, preventing drift in eccentric orbits
+            Vector3d upAxisSurface = (Planetarium.Rotation * FlightGlobals.upAxis).normalized;
 
             Vector3d prograde = vel.normalized;
             Vector3d retrograde = -prograde;
-            Vector3d normal = Vector3d.Cross(pos, vel).normalized;
+            // Normal is perpendicular to velocity and celestial up (fixed reference)
+            Vector3d normal = Vector3d.Cross(upAxisSurface, vel).normalized;
             Vector3d antinormal = -normal;
-            Vector3d radialOut = pos.normalized;
+            // Radial out is perpendicular to velocity and normal (points away from body center)
+            Vector3d radialOut = Vector3d.Cross(vel, normal).normalized;
             Vector3d radialIn = -radialOut;
 
             // Cache for debugging
@@ -597,8 +605,8 @@ namespace CinematicShaders.Core
                 if (node?.patch == null)
                     return null;
 
-                QuaternionD surfaceRotation = Planetarium.Rotation;
-                Vector3d burnVector = surfaceRotation * node.GetBurnVector(node.patch);
+                // GetBurnVector returns the burn vector in rotating world (surface) space.
+                Vector3d burnVector = node.GetBurnVector(node.patch);
                 
                 if (burnVector.sqrMagnitude < 0.0001)
                     return null;
