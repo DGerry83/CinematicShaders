@@ -240,6 +240,7 @@ static struct {
     // Navball icon texture array (MSDF textures)
     ID3D11Texture2D* navballIconArray = nullptr;
     ID3D11ShaderResourceView* navballIconArraySRV = nullptr;
+    bool navballTexturesInvalidated = false;  // Set to true when textures are released, false when re-uploaded
     
     // Grid label slot state management (Phase 1 Refactor)
     // Each slot tracks its own active state and SRV to prevent crashes from garbage data
@@ -2826,7 +2827,10 @@ int CR_SetNavballIconTextures(ID3D11Texture2D* sourceTextures[7], int width, int
         return -6;
     }
     
-    LogToFile("[Navball] Texture array created: %dx%d x 7 slices", width, height);
+    // Clear the invalidated flag since textures are now uploaded
+    g_StarfieldState.navballTexturesInvalidated = false;
+    
+    LogToFile("[Navball] Texture array created: %dx%d x 7 slices, invalidated flag cleared", width, height);
     return 0;  // Success
 }
 
@@ -3510,16 +3514,26 @@ void CR_StarfieldInvalidateResources()
     if (g_StarfieldState.navballIconArraySRV) { 
         g_StarfieldState.navballIconArraySRV->Release(); 
         g_StarfieldState.navballIconArraySRV = nullptr; 
+        g_StarfieldState.navballTexturesInvalidated = true;
     }
     if (g_StarfieldState.navballIconArray) { 
         g_StarfieldState.navballIconArray->Release(); 
         g_StarfieldState.navballIconArray = nullptr; 
+        g_StarfieldState.navballTexturesInvalidated = true;
     }
     
     // Reset initialized flag so resources get recreated
     g_StarfieldState.initialized = false;
     
-    LogToFile("[Starfield] Resources invalidated for recreation");
+    LogToFile("[Starfield] Resources invalidated for recreation (navballTexturesInvalidated=%s)", 
+        g_StarfieldState.navballTexturesInvalidated ? "true" : "false");
+}
+
+extern "C" __declspec(dllexport)
+byte CR_NavballTexturesNeedReupload()
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    return g_StarfieldState.navballTexturesInvalidated ? 1 : 0;
 }
 
 // ============================================================================

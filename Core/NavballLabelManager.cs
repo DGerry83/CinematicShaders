@@ -155,6 +155,8 @@ namespace CinematicShaders.Core
         {
             try
             {
+                ModFileLogger.Log($"[NavballLabelManager] TryUploadTextures called - _texturesLoaded={_texturesLoaded}, _texturesUploaded={_texturesUploaded}");
+                
                 int result = StarfieldNative.CR_SetNavballIconTextures(
                     _iconTextures.Select(t => t.GetNativeTexturePtr()).ToArray(), 
                     ICON_TEXTURE_SIZE, ICON_TEXTURE_SIZE);
@@ -167,7 +169,7 @@ namespace CinematicShaders.Core
                 else if (result == -1)
                 {
                     // Device not ready yet, will retry next frame
-                    // No logging to avoid spam
+                    ModFileLogger.Log("[NavballLabelManager] TryUploadTextures - device not ready, will retry");
                 }
                 else
                 {
@@ -220,18 +222,30 @@ namespace CinematicShaders.Core
         /// </summary>
         public void Update()
         {
-            if (!_initialized || !_enabled) return;
+            if (!_initialized || !_enabled) 
+            {
+                // ModFileLogger.Log($"[NavballLabelManager] Update early exit - _initialized={_initialized}, _enabled={_enabled}");
+                return;
+            }
 
             // Try to upload textures if loaded but not yet uploaded
             // (device may not have been ready during Initialize)
+            // Also check if native textures were invalidated and need re-upload
             if (_texturesLoaded && !_texturesUploaded)
             {
+                TryUploadTextures();
+            }
+            else if (_texturesLoaded && _texturesUploaded && StarfieldNative.CR_NavballTexturesNeedReupload() != 0)
+            {
+                ModFileLogger.Log("[NavballLabelManager] Detected textures invalidated, resetting _texturesUploaded flag");
+                _texturesUploaded = false;
                 TryUploadTextures();
             }
 
             // Only operate in Flight scene with active vessel
             if (HighLogic.LoadedScene != GameScenes.FLIGHT)
             {
+                ModFileLogger.Log("[NavballLabelManager] Update - not in FLIGHT scene, disabling icons");
                 DisableAllIcons();
                 return;
             }
@@ -445,6 +459,8 @@ namespace CinematicShaders.Core
             SetIconParams(ref kartParams, 5, _iconStates[5]);
             SetIconParams(ref kartParams, 6, _iconStates[6]);
 
+            ModFileLogger.Log($"[NavballLabelManager] UpdateNativeParams - mask={mask}, icon0=({_iconStates[0].ScreenNDC.x:F3},{_iconStates[0].ScreenNDC.y:F3}) I={_iconStates[0].Intensity:F3}, icon1=({_iconStates[1].ScreenNDC.x:F3},{_iconStates[1].ScreenNDC.y:F3}) I={_iconStates[1].Intensity:F3}, icon6 visible={_iconStates[6].IsVisible}");
+
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
         }
 
@@ -525,11 +541,11 @@ namespace CinematicShaders.Core
             if (!enabled)
             {
                 DisableAllIcons();
-                Debug.Log("[NavballLabelManager] Disabled");
+                ModFileLogger.Log("[NavballLabelManager] SetEnabled(false) - Disabled, icons cleared");
             }
             else
             {
-                Debug.Log("[NavballLabelManager] Enabled");
+                ModFileLogger.Log("[NavballLabelManager] SetEnabled(true) - Enabled, _initialized=" + _initialized + ", _texturesUploaded=" + _texturesUploaded);
             }
         }
 

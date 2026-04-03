@@ -381,6 +381,8 @@ namespace CinematicShaders.Core
 
             var kartParams = StarfieldNative.LastKartographerParams;
             
+            ModFileLogger.Log($"[StarfieldSettings] PushSettingsToNative - BEFORE preservation: NavballEnabledMask={kartParams.NavballEnabledMask}, Icon0_I={kartParams.NavballIcon0_Intensity:F3}");
+            
             // Preserve navball-related fields before modifying grid settings
             int preservedNavballEnabledMask = kartParams.NavballEnabledMask;
             int preservedNavballOffscreenMode = kartParams.NavballOffscreenMode;
@@ -454,6 +456,8 @@ namespace CinematicShaders.Core
             kartParams.NavballIcon6_X = preservedIcon6_X; kartParams.NavballIcon6_Y = preservedIcon6_Y;
             kartParams.NavballIcon6_Intensity = preservedIcon6_Intensity;
             kartParams.NavballIcon6_Color = preservedIcon6_Color;
+            
+            ModFileLogger.Log($"[StarfieldSettings] PushSettingsToNative - AFTER restoration: NavballEnabledMask={kartParams.NavballEnabledMask}, Icon0_I={kartParams.NavballIcon0_Intensity:F3}");
             
             StarfieldNative.LastKartographerParams = kartParams;
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);

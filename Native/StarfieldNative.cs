@@ -246,6 +246,9 @@ namespace CinematicShaders.Native
         public static extern void CR_StarfieldInvalidateResources();
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern byte CR_NavballTexturesNeedReupload();
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_StarfieldSetDimming(float sunGlareDimming, float planetaryDimming);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
