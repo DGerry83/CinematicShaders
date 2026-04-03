@@ -374,12 +374,45 @@ namespace CinematicShaders.Core
 
             StarfieldNative.CR_StarfieldSetSettings(ref nativeSettings);
             
-            // Push Kartographer parameters (merge with cached state so we don't stomp selection UI)
+            // Push Kartographer parameters (merge with cached state so we don't stomp selection UI or navball)
             float focalLength = Shaders.Starfield.StarfieldCompositor.CachedVerticalFOV > 0.001f
                 ? 1.0f / Mathf.Tan(Shaders.Starfield.StarfieldCompositor.CachedVerticalFOV * 0.5f)
                 : 1.732f;
 
             var kartParams = StarfieldNative.LastKartographerParams;
+            
+            // Preserve navball-related fields before modifying grid settings
+            int preservedNavballEnabledMask = kartParams.NavballEnabledMask;
+            int preservedNavballOffscreenMode = kartParams.NavballOffscreenMode;
+            float preservedNavballIconSize = kartParams.NavballIconSize;
+            float preservedNavballIconThickness = kartParams.NavballIconThickness;
+            float preservedNavballMinIntensity = kartParams.NavballMinIntensity;
+            float preservedNavballMaxAngle = kartParams.NavballMaxAngle;
+            float preservedNavballHysteresisMargin = kartParams.NavballHysteresisMargin;
+            // Preserve all 7 icon positions, intensities, and colors
+            float preservedIcon0_X = kartParams.NavballIcon0_X, preservedIcon0_Y = kartParams.NavballIcon0_Y;
+            float preservedIcon0_Intensity = kartParams.NavballIcon0_Intensity;
+            uint preservedIcon0_Color = kartParams.NavballIcon0_Color;
+            float preservedIcon1_X = kartParams.NavballIcon1_X, preservedIcon1_Y = kartParams.NavballIcon1_Y;
+            float preservedIcon1_Intensity = kartParams.NavballIcon1_Intensity;
+            uint preservedIcon1_Color = kartParams.NavballIcon1_Color;
+            float preservedIcon2_X = kartParams.NavballIcon2_X, preservedIcon2_Y = kartParams.NavballIcon2_Y;
+            float preservedIcon2_Intensity = kartParams.NavballIcon2_Intensity;
+            uint preservedIcon2_Color = kartParams.NavballIcon2_Color;
+            float preservedIcon3_X = kartParams.NavballIcon3_X, preservedIcon3_Y = kartParams.NavballIcon3_Y;
+            float preservedIcon3_Intensity = kartParams.NavballIcon3_Intensity;
+            uint preservedIcon3_Color = kartParams.NavballIcon3_Color;
+            float preservedIcon4_X = kartParams.NavballIcon4_X, preservedIcon4_Y = kartParams.NavballIcon4_Y;
+            float preservedIcon4_Intensity = kartParams.NavballIcon4_Intensity;
+            uint preservedIcon4_Color = kartParams.NavballIcon4_Color;
+            float preservedIcon5_X = kartParams.NavballIcon5_X, preservedIcon5_Y = kartParams.NavballIcon5_Y;
+            float preservedIcon5_Intensity = kartParams.NavballIcon5_Intensity;
+            uint preservedIcon5_Color = kartParams.NavballIcon5_Color;
+            float preservedIcon6_X = kartParams.NavballIcon6_X, preservedIcon6_Y = kartParams.NavballIcon6_Y;
+            float preservedIcon6_Intensity = kartParams.NavballIcon6_Intensity;
+            uint preservedIcon6_Color = kartParams.NavballIcon6_Color;
+            
+            // Modify grid-related fields
             kartParams.GridIntensity = KartographerGridIntensity;
             kartParams.GridThickness = KartographerGridThickness;
             kartParams.ChromaticAberrationStrength = KartographerCAStrength;
@@ -391,6 +424,37 @@ namespace CinematicShaders.Core
             kartParams.GridSizePreset = KartographerGridSize;
             kartParams.GridColorIndex = KartographerGridColor;
             kartParams.FocalLength = focalLength;
+            
+            // Restore navball-related fields
+            kartParams.NavballEnabledMask = preservedNavballEnabledMask;
+            kartParams.NavballOffscreenMode = preservedNavballOffscreenMode;
+            kartParams.NavballIconSize = preservedNavballIconSize;
+            kartParams.NavballIconThickness = preservedNavballIconThickness;
+            kartParams.NavballMinIntensity = preservedNavballMinIntensity;
+            kartParams.NavballMaxAngle = preservedNavballMaxAngle;
+            kartParams.NavballHysteresisMargin = preservedNavballHysteresisMargin;
+            kartParams.NavballIcon0_X = preservedIcon0_X; kartParams.NavballIcon0_Y = preservedIcon0_Y;
+            kartParams.NavballIcon0_Intensity = preservedIcon0_Intensity;
+            kartParams.NavballIcon0_Color = preservedIcon0_Color;
+            kartParams.NavballIcon1_X = preservedIcon1_X; kartParams.NavballIcon1_Y = preservedIcon1_Y;
+            kartParams.NavballIcon1_Intensity = preservedIcon1_Intensity;
+            kartParams.NavballIcon1_Color = preservedIcon1_Color;
+            kartParams.NavballIcon2_X = preservedIcon2_X; kartParams.NavballIcon2_Y = preservedIcon2_Y;
+            kartParams.NavballIcon2_Intensity = preservedIcon2_Intensity;
+            kartParams.NavballIcon2_Color = preservedIcon2_Color;
+            kartParams.NavballIcon3_X = preservedIcon3_X; kartParams.NavballIcon3_Y = preservedIcon3_Y;
+            kartParams.NavballIcon3_Intensity = preservedIcon3_Intensity;
+            kartParams.NavballIcon3_Color = preservedIcon3_Color;
+            kartParams.NavballIcon4_X = preservedIcon4_X; kartParams.NavballIcon4_Y = preservedIcon4_Y;
+            kartParams.NavballIcon4_Intensity = preservedIcon4_Intensity;
+            kartParams.NavballIcon4_Color = preservedIcon4_Color;
+            kartParams.NavballIcon5_X = preservedIcon5_X; kartParams.NavballIcon5_Y = preservedIcon5_Y;
+            kartParams.NavballIcon5_Intensity = preservedIcon5_Intensity;
+            kartParams.NavballIcon5_Color = preservedIcon5_Color;
+            kartParams.NavballIcon6_X = preservedIcon6_X; kartParams.NavballIcon6_Y = preservedIcon6_Y;
+            kartParams.NavballIcon6_Intensity = preservedIcon6_Intensity;
+            kartParams.NavballIcon6_Color = preservedIcon6_Color;
+            
             StarfieldNative.LastKartographerParams = kartParams;
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
 

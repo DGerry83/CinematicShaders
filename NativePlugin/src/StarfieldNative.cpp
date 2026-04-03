@@ -3506,6 +3506,16 @@ void CR_StarfieldInvalidateResources()
     if (g_StarfieldState.hdrUAV) { g_StarfieldState.hdrUAV->Release(); g_StarfieldState.hdrUAV = nullptr; }
     if (g_StarfieldState.hdrTexture) { g_StarfieldState.hdrTexture->Release(); g_StarfieldState.hdrTexture = nullptr; }
     
+    // Release navball icon textures so they get re-uploaded
+    if (g_StarfieldState.navballIconArraySRV) { 
+        g_StarfieldState.navballIconArraySRV->Release(); 
+        g_StarfieldState.navballIconArraySRV = nullptr; 
+    }
+    if (g_StarfieldState.navballIconArray) { 
+        g_StarfieldState.navballIconArray->Release(); 
+        g_StarfieldState.navballIconArray = nullptr; 
+    }
+    
     // Reset initialized flag so resources get recreated
     g_StarfieldState.initialized = false;
     
