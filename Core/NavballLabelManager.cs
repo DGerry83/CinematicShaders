@@ -128,9 +128,10 @@ namespace CinematicShaders.Core
                     }
 
                     byte[] bytes = File.ReadAllBytes(filePath);
-                    _iconTextures[i] = new Texture2D(ICON_TEXTURE_SIZE, ICON_TEXTURE_SIZE, TextureFormat.RGBA32, false);
-                    _iconTextures[i].LoadRawTextureData(bytes);
-                    _iconTextures[i].Apply(false, false);
+                    // Use LoadImage() to properly parse DDS format (handles header automatically)
+                    // Initial size is arbitrary - LoadImage will resize to match texture dimensions
+                    _iconTextures[i] = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                    _iconTextures[i].LoadImage(bytes);
                 }
 
                 if (!allLoaded)
