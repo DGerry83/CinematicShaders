@@ -255,7 +255,7 @@ namespace CinematicShaders.Core
                 return;
             }
 
-            // Calculate orbit vectors
+            // Calculate orbit vectors (in world space / surface frame)
             Orbit orbit = FlightGlobals.ActiveVessel.orbit;
             Vector3d pos = orbit.pos;
             Vector3d vel = orbit.vel;
@@ -266,6 +266,16 @@ namespace CinematicShaders.Core
             Vector3d antinormal = -normal;
             Vector3d radialOut = pos.normalized;
             Vector3d radialIn = -radialOut;
+            
+            // Transform to inertial frame to match shader camera basis
+            // The shader uses inertial-frame camera (counter-rotated for fixed stars)
+            QuaternionD inverseRotation = QuaternionD.Inverse(Planetarium.Rotation);
+            prograde = inverseRotation * prograde;
+            retrograde = inverseRotation * retrograde;
+            normal = inverseRotation * normal;
+            antinormal = inverseRotation * antinormal;
+            radialOut = inverseRotation * radialOut;
+            radialIn = inverseRotation * radialIn;
 
             // Cache for debugging
             _lastPrograde = prograde;
