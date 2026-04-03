@@ -255,14 +255,10 @@ namespace CinematicShaders.Core
                 return;
             }
 
-            // Calculate orbit vectors and transform to surface frame
-            // orbit.pos/vel are in AliceWorld (inertial) - Y and Z are flipped vs Unity World.
-            // First flip Y/Z to Unity World axes, then rotate from inertial to surface frame.
-            Orbit orbit = FlightGlobals.ActiveVessel.orbit;
-            Vector3d posWorld = new Vector3d(orbit.pos.x, orbit.pos.z, orbit.pos.y);
-            Vector3d velWorld = new Vector3d(orbit.vel.x, orbit.vel.z, orbit.vel.y);
-            Vector3d pos = Planetarium.Rotation * posWorld;
-            Vector3d vel = Planetarium.Rotation * velWorld;
+            // Calculate orbit vectors using KSP's built-in world-space properties
+            // (already in surface frame, matching the working approach in VesselTargetSelector)
+            Vector3d pos = FlightGlobals.ActiveVessel.GetWorldPos3D();
+            Vector3d vel = FlightGlobals.ActiveVessel.obt_velocity;
 
             // Use fixed celestial up axis (transformed to surface frame) for consistent orbital plane reference
             // This matches KSP's navball and NavHud behavior, preventing drift in eccentric orbits
@@ -275,7 +271,7 @@ namespace CinematicShaders.Core
             Vector3d antinormal = -normal;
             // Radial out points away from body center (perpendicular to prograde in orbital plane)
             // Cross(normal, prograde) rotates 90° from prograde toward radial
-            Vector3d radialOut = Vector3d.Cross(prograde, normal).normalized;
+            Vector3d radialOut = Vector3d.Cross(normal, prograde).normalized;
             // Ensure radial points away from body center (flip if needed based on position)
             if (Vector3d.Dot(radialOut, pos) < 0)
                 radialOut = -radialOut;
