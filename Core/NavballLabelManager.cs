@@ -255,11 +255,12 @@ namespace CinematicShaders.Core
                 return;
             }
 
-            // Calculate orbit vectors in surface frame to match camera basis
-            // (CameraRightSurface/Up/Forward are in surface frame, not inertial)
+            // Calculate orbit vectors and transform to surface frame
+            // orbit.pos/vel are in inertial frame, camera basis is in surface frame
             Orbit orbit = FlightGlobals.ActiveVessel.orbit;
-            Vector3d pos = orbit.pos;
-            Vector3d vel = orbit.vel;
+            QuaternionD inverseRotation = QuaternionD.Inverse(Planetarium.Rotation);
+            Vector3d pos = inverseRotation * orbit.pos;
+            Vector3d vel = inverseRotation * orbit.vel;
 
             Vector3d prograde = vel.normalized;
             Vector3d retrograde = -prograde;
@@ -596,7 +597,8 @@ namespace CinematicShaders.Core
                 if (node?.patch == null)
                     return null;
 
-                Vector3d burnVector = node.GetBurnVector(node.patch);
+                QuaternionD inverseRotation = QuaternionD.Inverse(Planetarium.Rotation);
+                Vector3d burnVector = inverseRotation * node.GetBurnVector(node.patch);
                 
                 if (burnVector.sqrMagnitude < 0.0001)
                     return null;
