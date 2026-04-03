@@ -638,5 +638,69 @@ namespace CinematicShaders.Core
             }
             return sb.ToString();
         }
+
+        /// <summary>
+        /// Dump comprehensive debug information to the custom log file.
+        /// Called from UI debug button.
+        /// </summary>
+        public void DumpDebugInfo(Vector3? targetTrackerPos = null)
+        {
+            if (!_initialized)
+            {
+                ModFileLogger.Log("[Navball Debug] Manager not initialized");
+                return;
+            }
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("========== NAVBALL DEBUG DUMP ==========");
+            sb.AppendLine($"Timestamp: {System.DateTime.Now:HH:mm:ss.fff}");
+            sb.AppendLine();
+
+            // Ship pointing vector (camera forward in surface frame)
+            Vector3 shipForward = StarfieldCompositor.CameraForwardSurface;
+            sb.AppendLine("SHIP POINTING (Camera Forward - Surface Frame):");
+            sb.AppendLine($"  X: {shipForward.x:F6}, Y: {shipForward.y:F6}, Z: {shipForward.z:F6}");
+            sb.AppendLine();
+
+            // Camera basis
+            sb.AppendLine("CAMERA BASIS (Surface Frame):");
+            sb.AppendLine($"  Right:   X: {StarfieldCompositor.CameraRightSurface.x:F6}, Y: {StarfieldCompositor.CameraRightSurface.y:F6}, Z: {StarfieldCompositor.CameraRightSurface.z:F6}");
+            sb.AppendLine($"  Up:      X: {StarfieldCompositor.CameraUpSurface.x:F6}, Y: {StarfieldCompositor.CameraUpSurface.y:F6}, Z: {StarfieldCompositor.CameraUpSurface.z:F6}");
+            sb.AppendLine($"  Forward: X: {StarfieldCompositor.CameraForwardSurface.x:F6}, Y: {StarfieldCompositor.CameraForwardSurface.y:F6}, Z: {StarfieldCompositor.CameraForwardSurface.z:F6}");
+            sb.AppendLine($"  Aspect: {StarfieldCompositor.CameraAspect:F4}, VFOV: {StarfieldCompositor.CachedVerticalFOV:F4}");
+            sb.AppendLine();
+
+            // Navball icon positions
+            sb.AppendLine("NAVBALL ICON POSITIONS (Screen NDC - x:-aspect to aspect, y:-1 to 1):");
+            for (int i = 0; i < ICON_COUNT; i++)
+            {
+                var s = _iconStates[i];
+                sb.AppendLine($"  [{i}] {s.Name}: X: {s.ScreenNDC.x:F4}, Y: {s.ScreenNDC.y:F4}, Intensity: {s.Intensity:F3}, Visible: {s.IsVisible}");
+            }
+            sb.AppendLine();
+
+            // Raw orbit vectors (world directions)
+            sb.AppendLine("RAW ORBIT VECTORS (World Space):");
+            sb.AppendLine($"  Prograde:    X: {_lastPrograde.x:F6}, Y: {_lastPrograde.y:F6}, Z: {_lastPrograde.z:F6}");
+            sb.AppendLine($"  Normal:      X: {_lastNormal.x:F6}, Y: {_lastNormal.y:F6}, Z: {_lastNormal.z:F6}");
+            sb.AppendLine($"  Radial Out:  X: {_lastRadialOut.x:F6}, Y: {_lastRadialOut.y:F6}, Z: {_lastRadialOut.z:F6}");
+            if (_lastManeuver.HasValue)
+                sb.AppendLine($"  Maneuver:    X: {_lastManeuver.Value.x:F6}, Y: {_lastManeuver.Value.y:F6}, Z: {_lastManeuver.Value.z:F6}");
+            sb.AppendLine();
+
+            // Target tracker position (if available)
+            if (targetTrackerPos.HasValue)
+            {
+                sb.AppendLine("TARGET TRACKER POSITION (for reference - known working):");
+                sb.AppendLine($"  X: {targetTrackerPos.Value.x:F4}, Y: {targetTrackerPos.Value.y:F4}");
+            }
+            else
+            {
+                sb.AppendLine("TARGET TRACKER: Not available (no target set)");
+            }
+
+            sb.AppendLine("========== END DEBUG DUMP ==========");
+            ModFileLogger.Log(sb.ToString());
+        }
     }
 }

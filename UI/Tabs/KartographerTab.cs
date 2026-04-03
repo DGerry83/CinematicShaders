@@ -263,6 +263,15 @@ namespace CinematicShaders.UI.Tabs
                     StarfieldSettings.KartographerNavballIconThickness = newThickness;
                     StarfieldSettings.Save();
                 }
+                
+                GUILayout.Space(4);
+                
+                // Debug dump button
+                if (GUILayout.Button("Dump Debug Info", HighLogic.Skin.button))
+                {
+                    Vector2? targetPos = CinematicShadersAddon.Instance?.GetTargetTrackerScreenPos();
+                    CinematicShadersAddon.NavballManager?.DumpDebugInfo(targetPos);
+                }
             }
             
             GUILayout.Space(5);

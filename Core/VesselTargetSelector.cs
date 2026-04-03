@@ -25,6 +25,18 @@ namespace CinematicShaders.Core
         // Target tracking state
         private bool _isTrackingTarget = false;
         private Vector2 _targetScreenUV = new Vector2(-1, -1);
+        
+        /// <summary>
+        /// Current target screen position in UV coordinates (0-1 range).
+        /// (-1, -1) if target is not visible or not set.
+        /// </summary>
+        public Vector2 TargetScreenUV => _isTrackingTarget ? _targetScreenUV : new Vector2(-1, -1);
+        
+        /// <summary>
+        /// True if currently tracking a target that is visible on screen.
+        /// </summary>
+        public bool IsTrackingTarget => _isTrackingTarget;
+        
         private ITargetable _currentTarget = null;
         private ITargetable _lastCheckedTarget = null;
         private int _frameCounter = 0;

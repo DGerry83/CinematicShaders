@@ -580,5 +580,25 @@ namespace CinematicShaders.Core
                 _mainWindow.Hide();
             }
         }
+
+        /// <summary>
+        /// Get the current target tracker screen position for debug purposes.
+        /// Returns (-1, -1) if no target is set or not visible.
+        /// </summary>
+        public Vector2? GetTargetTrackerScreenPos()
+        {
+            if (_vesselTargetSelector == null || !_vesselTargetSelector.IsTrackingTarget)
+                return null;
+            
+            Vector2 uv = _vesselTargetSelector.TargetScreenUV;
+            if (uv.x < 0 || uv.y < 0)
+                return null;
+            
+            // Convert UV to NDC (matching what the shader uses)
+            float aspect = StarfieldCompositor.CameraAspect;
+            float ndcX = (uv.x - 0.5f) * 2.0f * aspect;
+            float ndcY = (uv.y - 0.5f) * 2.0f;
+            return new Vector2(ndcX, ndcY);
+        }
     }
 }
