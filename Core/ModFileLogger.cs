@@ -45,7 +45,6 @@ namespace CinematicShaders.Core
             lock (WriteLock)
             {
                 WriteToFile("INFO", message);
-                UnityEngine.Debug.Log($"[CinematicShadersFile] {message}");
             }
         }
 
@@ -56,7 +55,6 @@ namespace CinematicShaders.Core
             lock (WriteLock)
             {
                 WriteToFile("WARN", message);
-                UnityEngine.Debug.LogWarning($"[CinematicShadersFile] {message}");
             }
         }
 
@@ -67,7 +65,6 @@ namespace CinematicShaders.Core
             lock (WriteLock)
             {
                 WriteToFile("ERROR", message);
-                UnityEngine.Debug.LogError($"[CinematicShadersFile] {message}");
             }
         }
 
