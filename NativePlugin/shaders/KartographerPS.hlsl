@@ -162,6 +162,7 @@ float3 RenderNavballIcon(int iconIndex, float2 center, float intensity, uint col
     
     // Calculate local UV in icon space
     float2 localUV = (uv - center) / iconSize + 0.5;
+    localUV.y = 1.0 - localUV.y;  // Flip Y to match Unity's texture coordinate system
     
     // Discard if outside icon bounds
     if (localUV.x < 0.0 || localUV.x > 1.0 || localUV.y < 0.0 || localUV.y > 1.0)

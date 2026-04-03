@@ -39,17 +39,17 @@ namespace CinematicShaders.Core
         private const int ICON_COUNT = 7;
 
         /// <summary>
-        /// KSP standard navball colors (RGB)
+        /// Navball icon colors (RGB) - Custom palette
         /// </summary>
         public static readonly Color[] IconColors = new Color[ICON_COUNT]
         {
-            new Color(0.0f, 1.0f, 0.0f),      // 0: Prograde - Green
-            new Color(1.0f, 0.0f, 0.0f),      // 1: Retrograde - Red
-            new Color(0.0f, 0.5f, 1.0f),      // 2: Normal - Blue
-            new Color(1.0f, 0.0f, 1.0f),      // 3: AntiNormal - Magenta
-            new Color(1.0f, 0.8f, 0.0f),      // 4: Radial In - Yellow/Orange
-            new Color(1.0f, 1.0f, 1.0f),      // 5: Radial Out - White
-            new Color(1.0f, 0.5f, 0.0f)       // 6: Maneuver - Orange
+            new Color(184f/255f, 192f/255f, 141f/255f),  // 0: Prograde - Sage green
+            new Color(184f/255f, 192f/255f, 141f/255f),  // 1: Retrograde - Sage green
+            new Color(182f/255f, 123f/255f, 182f/255f),  // 2: Normal - Purple
+            new Color(182f/255f, 123f/255f, 182f/255f),  // 3: AntiNormal - Purple
+            new Color(123f/255f, 182f/255f, 182f/255f),  // 4: Radial In - Cyan
+            new Color(123f/255f, 182f/255f, 182f/255f),  // 5: Radial Out - Cyan
+            new Color(122f/255f, 134f/255f, 181f/255f)   // 6: Maneuver - Steel blue
         };
 
         public static readonly string[] IconNames = new string[ICON_COUNT]

@@ -238,7 +238,7 @@ namespace CinematicShaders.UI.Tabs
                 
                 // Icon style selection - vertical layout to prevent overlapping
                 GUILayout.Label("Icon Style:");
-                string[] styleNames = { "SDF (High Quality)", "ASCII (Retro)" };
+                string[] styleNames = { "KSP", "Retro" };
                 int currentStyle = (int)StarfieldSettings.KartographerNavballIconStyle;
                 int newStyle = GUILayout.SelectionGrid(currentStyle, styleNames, 1, HighLogic.Skin.toggle);
                 if (newStyle != currentStyle)
@@ -256,22 +256,14 @@ namespace CinematicShaders.UI.Tabs
                 
                 // Icon thickness slider
                 GUILayout.Label(new GUIContent($"Icon Thickness: {StarfieldSettings.KartographerNavballIconThickness:F2}", 
-                    "Adjust SDF line thickness (0 = default, positive = thicker, negative = thinner)"));
-                float newThickness = GUILayout.HorizontalSlider(StarfieldSettings.KartographerNavballIconThickness, -0.1f, 0.1f);
+                    "Adjust SDF line thickness (0 = default, 1 = thickest)"));
+                float newThickness = GUILayout.HorizontalSlider(StarfieldSettings.KartographerNavballIconThickness, 0f, 1f);
                 if (!Mathf.Approximately(newThickness, StarfieldSettings.KartographerNavballIconThickness))
                 {
                     StarfieldSettings.KartographerNavballIconThickness = newThickness;
                     StarfieldSettings.Save();
                 }
                 
-                GUILayout.Space(4);
-                
-                // Debug dump button
-                if (GUILayout.Button("Dump Debug Info", HighLogic.Skin.button))
-                {
-                    Vector2? targetPos = CinematicShadersAddon.Instance?.GetTargetTrackerScreenPos();
-                    CinematicShadersAddon.NavballManager?.DumpDebugInfo(targetPos);
-                }
             }
             
             GUILayout.Space(5);
