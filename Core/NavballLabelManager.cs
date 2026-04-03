@@ -275,7 +275,7 @@ namespace CinematicShaders.Core
             Vector3d antinormal = -normal;
             // Radial out points away from body center (perpendicular to prograde in orbital plane)
             // Cross(normal, prograde) rotates 90° from prograde toward radial
-            Vector3d radialOut = Vector3d.Cross(normal, prograde).normalized;
+            Vector3d radialOut = Vector3d.Cross(prograde, normal).normalized;
             // Ensure radial points away from body center (flip if needed based on position)
             if (Vector3d.Dot(radialOut, pos) < 0)
                 radialOut = -radialOut;
