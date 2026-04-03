@@ -461,6 +461,7 @@ namespace CinematicShaders.Core
 
             ModFileLogger.Log($"[NavballLabelManager] UpdateNativeParams - mask={mask}, icon0=({_iconStates[0].ScreenNDC.x:F3},{_iconStates[0].ScreenNDC.y:F3}) I={_iconStates[0].Intensity:F3}, icon1=({_iconStates[1].ScreenNDC.x:F3},{_iconStates[1].ScreenNDC.y:F3}) I={_iconStates[1].Intensity:F3}, icon6 visible={_iconStates[6].IsVisible}");
 
+            StarfieldNative.LastKartographerParams = kartParams;
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
         }
 
