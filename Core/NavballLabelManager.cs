@@ -255,11 +255,11 @@ namespace CinematicShaders.Core
                 return;
             }
 
-            // Calculate orbit vectors (in world space / surface frame)
-            // These are in the same frame as the camera (surface frame) so no transformation needed
+            // Calculate orbit vectors (inertial frame) and transform to surface frame
+            // to match the camera basis used for screen-space projection
             Orbit orbit = FlightGlobals.ActiveVessel.orbit;
-            Vector3d pos = orbit.pos;
-            Vector3d vel = orbit.vel;
+            Vector3d pos = Planetarium.Rotation * orbit.pos;
+            Vector3d vel = Planetarium.Rotation * orbit.vel;
 
             Vector3d prograde = vel.normalized;
             Vector3d retrograde = -prograde;
@@ -273,7 +273,7 @@ namespace CinematicShaders.Core
             _lastNormal = normal;
             _lastRadialOut = radialOut;
 
-            // Get maneuver node direction
+            // Get maneuver node direction (also inertial frame, needs rotation)
             Vector3d? maneuverDirection = GetManeuverNodeDirection();
 
             // Update each icon
@@ -596,7 +596,7 @@ namespace CinematicShaders.Core
                 if (node?.patch == null)
                     return null;
 
-                Vector3d burnVector = node.GetBurnVector(node.patch);
+                Vector3d burnVector = Planetarium.Rotation * node.GetBurnVector(node.patch);
                 
                 if (burnVector.sqrMagnitude < 0.0001)
                     return null;
