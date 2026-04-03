@@ -240,6 +240,8 @@ static struct {
     // Navball icon texture array (MSDF textures)
     ID3D11Texture2D* navballIconArray = nullptr;
     ID3D11ShaderResourceView* navballIconArraySRV = nullptr;
+    ID3D11ShaderResourceView* pointingIconSRV = nullptr;
+    ID3D11ShaderResourceView* maneuverTextSRV = nullptr;
     bool navballTexturesInvalidated = false;  // Set to true when textures are released, false when re-uploaded
     
     // Grid label slot state management (Phase 1 Refactor)
@@ -1399,6 +1401,15 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
             context->PSSetShaderResources(16, 1, &g_StarfieldState.navballIconArraySRV);
         }
         
+        // Bind pointing icon texture to slot t17
+        if (g_StarfieldState.pointingIconSRV) {
+            context->PSSetShaderResources(17, 1, &g_StarfieldState.pointingIconSRV);
+        }
+        // Bind maneuver text texture to slot t18
+        if (g_StarfieldState.maneuverTextSRV) {
+            context->PSSetShaderResources(18, 1, &g_StarfieldState.maneuverTextSRV);
+        }
+        
         // Bind samplers: s0 = linear (for text/grid), s1 = point (for MSDF navball icons)
         ID3D11SamplerState* samplers[2] = {g_StarfieldState.linearSampler, g_StarfieldState.pointSampler};
         context->PSSetSamplers(0, 2, samplers);
@@ -1697,6 +1708,15 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
         // Bind navball icon texture array to slot t16
         if (g_StarfieldState.navballIconArraySRV) {
             context->PSSetShaderResources(16, 1, &g_StarfieldState.navballIconArraySRV);
+        }
+        
+        // Bind pointing icon texture to slot t17
+        if (g_StarfieldState.pointingIconSRV) {
+            context->PSSetShaderResources(17, 1, &g_StarfieldState.pointingIconSRV);
+        }
+        // Bind maneuver text texture to slot t18
+        if (g_StarfieldState.maneuverTextSRV) {
+            context->PSSetShaderResources(18, 1, &g_StarfieldState.maneuverTextSRV);
         }
         
         // Bind samplers: s0 = linear (for text/grid), s1 = point (for MSDF navball icons)
@@ -2835,6 +2855,60 @@ int CR_SetNavballIconTextures(ID3D11Texture2D* sourceTextures[7], int width, int
 }
 
 extern "C" __declspec(dllexport)
+int CR_SetPointingIconTexture(ID3D11Texture2D* sourceTexture)
+{
+    LogToFile("[Navball] CR_SetPointingIconTexture called");
+    if (!g_StarfieldState.device) {
+        LogToFile("[Navball] Error: Device not ready");
+        return -1;
+    }
+    if (!sourceTexture) {
+        LogToFile("[Navball] Warning: null pointing icon texture");
+        return -2;
+    }
+    if (g_StarfieldState.pointingIconSRV) {
+        g_StarfieldState.pointingIconSRV->Release();
+        g_StarfieldState.pointingIconSRV = nullptr;
+    }
+    D3D11_TEXTURE2D_DESC desc = {};
+    sourceTexture->GetDesc(&desc);
+    HRESULT hr = g_StarfieldState.device->CreateShaderResourceView(sourceTexture, nullptr, &g_StarfieldState.pointingIconSRV);
+    if (FAILED(hr)) {
+        LogToFile("[Navball] Failed to create pointing icon SRV (0x%08X)", hr);
+        return -3;
+    }
+    LogToFile("[Navball] Pointing icon texture uploaded: %dx%d", desc.Width, desc.Height);
+    return 0;
+}
+
+extern "C" __declspec(dllexport)
+int CR_SetManeuverTextTexture(ID3D11Texture2D* sourceTexture)
+{
+    LogToFile("[Navball] CR_SetManeuverTextTexture called");
+    if (!g_StarfieldState.device) {
+        LogToFile("[Navball] Error: Device not ready");
+        return -1;
+    }
+    if (!sourceTexture) {
+        LogToFile("[Navball] Warning: null maneuver text texture");
+        return -2;
+    }
+    if (g_StarfieldState.maneuverTextSRV) {
+        g_StarfieldState.maneuverTextSRV->Release();
+        g_StarfieldState.maneuverTextSRV = nullptr;
+    }
+    D3D11_TEXTURE2D_DESC desc = {};
+    sourceTexture->GetDesc(&desc);
+    HRESULT hr = g_StarfieldState.device->CreateShaderResourceView(sourceTexture, nullptr, &g_StarfieldState.maneuverTextSRV);
+    if (FAILED(hr)) {
+        LogToFile("[Navball] Failed to create maneuver text SRV (0x%08X)", hr);
+        return -3;
+    }
+    LogToFile("[Navball] Maneuver text texture uploaded: %dx%d", desc.Width, desc.Height);
+    return 0;
+}
+
+extern "C" __declspec(dllexport)
 void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
 {
     // Copy generation parameters to locals (brief lock)
@@ -3476,6 +3550,9 @@ void CR_StarfieldShutdown()
         }
     }
     
+    if (g_StarfieldState.pointingIconSRV) { g_StarfieldState.pointingIconSRV->Release(); g_StarfieldState.pointingIconSRV = nullptr; }
+    if (g_StarfieldState.maneuverTextSRV) { g_StarfieldState.maneuverTextSRV->Release(); g_StarfieldState.maneuverTextSRV = nullptr; }
+    
     if (g_StarfieldState.device) { g_StarfieldState.device->Release(); g_StarfieldState.device = nullptr; }
     
     g_StarfieldState.cachedHDRFormat = DXGI_FORMAT_UNKNOWN;
@@ -3520,6 +3597,14 @@ void CR_StarfieldInvalidateResources()
         g_StarfieldState.navballIconArray->Release(); 
         g_StarfieldState.navballIconArray = nullptr; 
         g_StarfieldState.navballTexturesInvalidated = true;
+    }
+    if (g_StarfieldState.pointingIconSRV) { 
+        g_StarfieldState.pointingIconSRV->Release(); 
+        g_StarfieldState.pointingIconSRV = nullptr; 
+    }
+    if (g_StarfieldState.maneuverTextSRV) { 
+        g_StarfieldState.maneuverTextSRV->Release(); 
+        g_StarfieldState.maneuverTextSRV = nullptr; 
     }
     
     // Reset initialized flag so resources get recreated

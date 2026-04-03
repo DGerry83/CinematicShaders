@@ -775,3 +775,55 @@ structs:
       - name: NavballIcon6_Color
         type: uint
         comment: Packed ARGB color override
+
+      # === Pointing Vector Icon (32 bytes) ===
+      - name: PointingIconEnabled
+        type: int
+        comment: Show pointing vector icon
+      - name: _padPointing1
+        type: float
+        comment: Manual padding before PosX/PosY pair
+      - name: PointingIconPosX
+        type: float
+        comment: Screen X in NDC
+      - name: PointingIconPosY
+        type: float
+        comment: Screen Y in NDC
+      - name: PointingIconRotation
+        type: float
+        comment: Roll angle in radians
+      - name: PointingIconIntensity
+        type: float
+        comment: Current intensity
+      - name: PointingIconSize
+        type: float
+        comment: Icon size in NDC
+      - name: PointingIconColor
+        type: uint
+        comment: Packed ARGB color override
+
+      # === Maneuver Node Text (32 bytes) ===
+      - name: ManeuverTextEnabled
+        type: int
+        comment: Show maneuver text overlay
+      - name: _padManeuverText1
+        type: float
+        comment: Manual padding before OriginX/OriginY pair
+      - name: ManeuverTextOriginX
+        type: float
+        comment: Text origin X in NDC
+      - name: ManeuverTextOriginY
+        type: float
+        comment: Text origin Y in NDC
+      - name: ManeuverTextWidth
+        type: float
+        comment: Text quad width in NDC
+      - name: ManeuverTextHeight
+        type: float
+        comment: Text quad height in NDC
+      - name: ManeuverTextIntensity
+        type: float
+        comment: Text brightness
+      - name: _padManeuverText2
+        type: float
+        comment: Padding to 16-byte boundary

@@ -83,6 +83,9 @@ namespace CinematicShaders.Core
         public static float KartographerNavballMinIntensity { get; set; } = 0.33f;  // Minimum brightness when far off-center
         public static float KartographerNavballMaxAngle { get; set; } = 90f;  // Angle for min intensity (degrees)
         public static float KartographerNavballHysteresisMargin { get; set; } = 0.05f;  // Buffer zone for edge transition
+        public static float KartographerPointingIconSize { get; set; } = 0.05f;
+        public static float KartographerManeuverTextOffset { get; set; } = 0.08f;
+        public static float KartographerManeuverTextScale { get; set; } = 1.0f;
         
         // Kartographer visual parameters
         public static float KartographerGridIntensity { get; set; } = 0.002f;      // Range: 0.001-0.003
@@ -284,6 +287,9 @@ namespace CinematicShaders.Core
                 KartographerNavballMinIntensity = float.Parse(settingsNode.GetValue("KartographerNavballMinIntensity") ?? "0.33");
                 KartographerNavballMaxAngle = float.Parse(settingsNode.GetValue("KartographerNavballMaxAngle") ?? "90");
                 KartographerNavballHysteresisMargin = float.Parse(settingsNode.GetValue("KartographerNavballHysteresisMargin") ?? "0.05");
+                KartographerPointingIconSize = float.Parse(settingsNode.GetValue("KartographerPointingIconSize") ?? "0.05");
+                KartographerManeuverTextOffset = float.Parse(settingsNode.GetValue("KartographerManeuverTextOffset") ?? "0.08");
+                KartographerManeuverTextScale = float.Parse(settingsNode.GetValue("KartographerManeuverTextScale") ?? "1.0");
                 
                 KartographerGridIntensity = float.Parse(settingsNode.GetValue("KartographerGridIntensity") ?? "0.002");
                 KartographerGridThickness = float.Parse(settingsNode.GetValue("KartographerGridThickness") ?? "0.0003");
@@ -414,6 +420,21 @@ namespace CinematicShaders.Core
             float preservedIcon6_Intensity = kartParams.NavballIcon6_Intensity;
             uint preservedIcon6_Color = kartParams.NavballIcon6_Color;
             
+            // Preserve pointing icon and maneuver text fields
+            int preservedPointingEnabled = kartParams.PointingIconEnabled;
+            float preservedPointingPosX = kartParams.PointingIconPosX;
+            float preservedPointingPosY = kartParams.PointingIconPosY;
+            float preservedPointingRotation = kartParams.PointingIconRotation;
+            float preservedPointingIntensity = kartParams.PointingIconIntensity;
+            float preservedPointingSize = kartParams.PointingIconSize;
+            uint preservedPointingColor = kartParams.PointingIconColor;
+            int preservedManeuverEnabled = kartParams.ManeuverTextEnabled;
+            float preservedManeuverOriginX = kartParams.ManeuverTextOriginX;
+            float preservedManeuverOriginY = kartParams.ManeuverTextOriginY;
+            float preservedManeuverWidth = kartParams.ManeuverTextWidth;
+            float preservedManeuverHeight = kartParams.ManeuverTextHeight;
+            float preservedManeuverIntensity = kartParams.ManeuverTextIntensity;
+            
             // Modify grid-related fields
             kartParams.GridIntensity = KartographerGridIntensity;
             kartParams.GridThickness = KartographerGridThickness;
@@ -456,6 +477,19 @@ namespace CinematicShaders.Core
             kartParams.NavballIcon6_X = preservedIcon6_X; kartParams.NavballIcon6_Y = preservedIcon6_Y;
             kartParams.NavballIcon6_Intensity = preservedIcon6_Intensity;
             kartParams.NavballIcon6_Color = preservedIcon6_Color;
+            kartParams.PointingIconEnabled = preservedPointingEnabled;
+            kartParams.PointingIconPosX = preservedPointingPosX;
+            kartParams.PointingIconPosY = preservedPointingPosY;
+            kartParams.PointingIconRotation = preservedPointingRotation;
+            kartParams.PointingIconIntensity = preservedPointingIntensity;
+            kartParams.PointingIconSize = preservedPointingSize;
+            kartParams.PointingIconColor = preservedPointingColor;
+            kartParams.ManeuverTextEnabled = preservedManeuverEnabled;
+            kartParams.ManeuverTextOriginX = preservedManeuverOriginX;
+            kartParams.ManeuverTextOriginY = preservedManeuverOriginY;
+            kartParams.ManeuverTextWidth = preservedManeuverWidth;
+            kartParams.ManeuverTextHeight = preservedManeuverHeight;
+            kartParams.ManeuverTextIntensity = preservedManeuverIntensity;
             
             ModFileLogger.Log($"[StarfieldSettings] PushSettingsToNative - AFTER restoration: NavballEnabledMask={kartParams.NavballEnabledMask}, Icon0_I={kartParams.NavballIcon0_Intensity:F3}");
             
@@ -687,6 +721,9 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("KartographerNavballMinIntensity", KartographerNavballMinIntensity);
                 settingsNode.AddValue("KartographerNavballMaxAngle", KartographerNavballMaxAngle);
                 settingsNode.AddValue("KartographerNavballHysteresisMargin", KartographerNavballHysteresisMargin);
+                settingsNode.AddValue("KartographerPointingIconSize", KartographerPointingIconSize);
+                settingsNode.AddValue("KartographerManeuverTextOffset", KartographerManeuverTextOffset);
+                settingsNode.AddValue("KartographerManeuverTextScale", KartographerManeuverTextScale);
                 
                 settingsNode.AddValue("KartographerGridIntensity", KartographerGridIntensity);
                 settingsNode.AddValue("KartographerGridThickness", KartographerGridThickness);

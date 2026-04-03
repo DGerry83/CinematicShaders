@@ -33,7 +33,9 @@ static const float3 kGridColors[4] = {
 Texture2D<float4> TextTexture : register(t2);              // Star selector text
 Texture2D<float4> GridLabelTextures[12] : register(t3);    // One texture per label slot (t3-t14)
 Texture2D<float4> VesselTargetTextTexture : register(t15); // Vessel target text
-Texture2DArray<float4> NavballIcons : register(t16);       // Navball icon MSDF textures (7 icons)
+Texture2DArray<float4> NavballIcons : register(t16);
+Texture2D<float4> PointingIcon : register(t17);
+Texture2D<float4> ManeuverTextTexture : register(t18);       // Navball icon MSDF textures (7 icons)
 SamplerState TextSampler : register(s0);
 SamplerState PointSampler : register(s1);                  // Point sampler for MSDF
 
@@ -485,6 +487,73 @@ float3 RenderGridLabel(
 }
 
 // ============================================================================
+// Pointing Icon Rendering (Heading Indicator)
+// ============================================================================
+
+float3 RenderPointingIcon(float2 center, float rotation, float intensity, uint colorOverride,
+    float2 uv, float3 gridColor, float iconSize)
+{
+    if (intensity <= 0.001) return float3(0, 0, 0);
+    
+    // Hardcoded 2:1 aspect - width is 2x height
+    float2 iconSizeWithAspect = float2(iconSize * 2.0, iconSize);
+    
+    // Calculate local UV in icon space
+    float2 localUV = (uv - center) / iconSizeWithAspect + 0.5;
+    localUV.y = 1.0 - localUV.y;  // Flip Y to match Unity texture coordinates
+    
+    // Discard if outside icon bounds
+    if (localUV.x < 0.0 || localUV.x > 1.0 || localUV.y < 0.0 || localUV.y > 1.0)
+        return float3(0, 0, 0);
+    
+    // Apply rotation around center
+    float2 centered = localUV - 0.5;
+    float cosA = cos(rotation);
+    float sinA = sin(rotation);
+    float2 rotated;
+    rotated.x = centered.x * cosA - centered.y * sinA;
+    rotated.y = centered.x * sinA + centered.y * cosA;
+    localUV = rotated + 0.5;
+    
+    // Sample MSDF texture
+    float3 msd = PointingIcon.SampleLevel(PointSampler, localUV, 0).rgb;
+    
+    // MSDF decoding
+    float sd = median(msd.r, msd.g, msd.b) - 0.5;
+    float edgeWidth = fwidth(sd);
+    float alpha = smoothstep(-edgeWidth, edgeWidth, sd);
+    
+    // Get color
+    float3 color = gridColor;
+    if (colorOverride != 0) {
+        float r = float((colorOverride >> 16) & 0xFF) / 255.0;
+        float g = float((colorOverride >> 8) & 0xFF) / 255.0;
+        float b = float(colorOverride & 0xFF) / 255.0;
+        color = float3(r, g, b);
+    }
+    
+    return color * alpha * intensity;
+}
+
+// ============================================================================
+// Maneuver Text Rendering
+// ============================================================================
+
+float3 RenderManeuverText(float2 origin, float2 size, float intensity, float2 uv, float3 gridColor)
+{
+    if (intensity <= 0.001) return float3(0, 0, 0);
+    
+    float2 localUV = (uv - origin) / size;
+    localUV.y = 1.0 - localUV.y;  // Flip Y
+    
+    if (localUV.x < 0.0 || localUV.x > 1.0 || localUV.y < 0.0 || localUV.y > 1.0)
+        return float3(0, 0, 0);
+    
+    float coverage = ManeuverTextTexture.SampleLevel(TextSampler, localUV, 0).r;
+    return gridColor * coverage * intensity;
+}
+
+// ============================================================================
 // Main Pixel Shader
 // ============================================================================
 
@@ -765,6 +834,26 @@ float4 PSMain(PSInput input) : SV_Target {
         }
         
         col += navballAccum;
+    }
+    
+    // ============================================================================
+    // POINTING ICON (Heading Indicator)
+    // ============================================================================
+    if (params.PointingIconEnabled && params.PointingIconIntensity > 0.001) {
+        float3 gridColor = kGridColors[params.GridColorIndex];
+        float2 center = params.PointingIconPos;
+        col += RenderPointingIcon(center, params.PointingIconRotation, params.PointingIconIntensity,
+            params.PointingIconColor, uv, gridColor, params.PointingIconSize);
+    }
+    
+    // ============================================================================
+    // MANEUVER TEXT OVERLAY
+    // ============================================================================
+    if (params.ManeuverTextEnabled && params.ManeuverTextIntensity > 0.001) {
+        float3 gridColor = kGridColors[params.GridColorIndex];
+        float2 origin = params.ManeuverTextOrigin;
+        float2 size = float2(params.ManeuverTextWidth, params.ManeuverTextHeight);
+        col += RenderManeuverText(origin, size, params.ManeuverTextIntensity, uv, gridColor);
     }
     
     float phase = frac(fragCoord.x / 3.0);

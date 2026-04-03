@@ -388,6 +388,14 @@ namespace CinematicShaders.Core
             _labels.TryGetValue(id, out var label);
             return label;
         }
+
+        /// <summary>
+        /// Gets the native text system pointer for external text rendering.
+        /// </summary>
+        public IntPtr GetTextSystem()
+        {
+            return _textSystem;
+        }
         
         /// <summary>
         /// Updates label position (lat/lon). Useful for dynamic labels like SOI.

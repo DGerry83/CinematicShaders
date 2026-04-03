@@ -278,6 +278,41 @@ namespace CinematicShaders.UI.Tabs
                     StarfieldSettings.Save();
                 }
                 
+                GUILayout.Space(4);
+                
+                // Pointing icon size slider (display 1-5, maps to 0.05-0.15)
+                float pointingDisplaySize = (StarfieldSettings.KartographerPointingIconSize - 0.05f) * 40f + 1f;
+                GUILayout.Label($"Pointing Icon Size: {pointingDisplaySize:F1}");
+                float newPointingDisplaySize = GUILayout.HorizontalSlider(pointingDisplaySize, 1f, 5f);
+                float newPointingSize = 0.05f + (newPointingDisplaySize - 1f) * 0.025f;
+                if (!Mathf.Approximately(newPointingSize, StarfieldSettings.KartographerPointingIconSize))
+                {
+                    StarfieldSettings.KartographerPointingIconSize = newPointingSize;
+                    StarfieldSettings.Save();
+                }
+                
+                GUILayout.Space(4);
+                
+                // Maneuver text offset slider (0.02-0.15)
+                GUILayout.Label($"Maneuver Text Offset: {StarfieldSettings.KartographerManeuverTextOffset:F2}");
+                float newManeuverOffset = GUILayout.HorizontalSlider(StarfieldSettings.KartographerManeuverTextOffset, 0.02f, 0.15f);
+                if (!Mathf.Approximately(newManeuverOffset, StarfieldSettings.KartographerManeuverTextOffset))
+                {
+                    StarfieldSettings.KartographerManeuverTextOffset = newManeuverOffset;
+                    StarfieldSettings.Save();
+                }
+                
+                GUILayout.Space(4);
+                
+                // Maneuver text scale slider (0.5-2.0)
+                GUILayout.Label($"Maneuver Text Scale: {StarfieldSettings.KartographerManeuverTextScale:F2}");
+                float newManeuverScale = GUILayout.HorizontalSlider(StarfieldSettings.KartographerManeuverTextScale, 0.5f, 2.0f);
+                if (!Mathf.Approximately(newManeuverScale, StarfieldSettings.KartographerManeuverTextScale))
+                {
+                    StarfieldSettings.KartographerManeuverTextScale = newManeuverScale;
+                    StarfieldSettings.Save();
+                }
+                
             }
             
             GUILayout.Space(5);

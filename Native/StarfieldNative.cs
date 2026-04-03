@@ -323,6 +323,12 @@ namespace CinematicShaders.Native
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern int CR_SetNavballIconTextures(
             [In] IntPtr[] sourceTextures, int width, int height);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CR_SetPointingIconTexture(IntPtr texture);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CR_SetManeuverTextTexture(IntPtr texture);
         
         /// <summary>
         /// Uploads 7 navball icon textures to the GPU as a texture array.

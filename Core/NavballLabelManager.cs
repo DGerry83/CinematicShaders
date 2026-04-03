@@ -99,6 +99,28 @@ namespace CinematicShaders.Core
         private bool _texturesLoaded = false;
         private bool _texturesUploaded = false;
 
+        // Pointing icon texture
+        private const string HEADING_ICON_FILE = "heading_sdf.png";
+        private Texture2D _pointingIconTexture;
+        private bool _pointingTextureLoaded = false;
+        private bool _pointingTextureUploaded = false;
+
+        // Maneuver text overlay
+        private const int MANEUVER_TEXT_WIDTH = 256;
+        private const int MANEUVER_TEXT_HEIGHT = 128;
+        private const float MANEUVER_FONT_SIZE = 18f;
+        private RenderTexture _maneuverTextTexture;
+        private bool _maneuverTextVisible = false;
+        private Vector2 _maneuverTextPos;
+        private bool _maneuverTextTextureUploaded = false;
+        private bool _maneuverTextDirty = true;
+
+        // Pointing icon runtime state
+        private Vector2 _pointingNDC;
+        private float _pointingIntensity;
+        private float _pointingRollAngle;
+        private bool _pointingVisible;
+
         /// <summary>
         /// Load navball icon textures from PNG files.
         /// </summary>
@@ -131,6 +153,20 @@ namespace CinematicShaders.Core
                     // LoadImage() properly handles PNG format
                     _iconTextures[i] = new Texture2D(2, 2, TextureFormat.RGBA32, false);
                     _iconTextures[i].LoadImage(bytes);
+                }
+
+                // Load pointing icon texture
+                string pointingPath = Path.Combine(basePath, HEADING_ICON_FILE);
+                if (File.Exists(pointingPath))
+                {
+                    byte[] ptBytes = File.ReadAllBytes(pointingPath);
+                    _pointingIconTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                    _pointingIconTexture.LoadImage(ptBytes);
+                    _pointingTextureLoaded = true;
+                }
+                else
+                {
+                    ModFileLogger.LogError($"[NavballLabelManager] Missing pointing texture: {pointingPath}");
                 }
 
                 if (!allLoaded)
@@ -175,6 +211,36 @@ namespace CinematicShaders.Core
                 {
                     ModFileLogger.LogError($"[NavballLabelManager] Failed to upload textures to native, error code: {result}");
                 }
+
+                // Upload pointing icon texture
+                if (_pointingTextureLoaded && !_pointingTextureUploaded && _pointingIconTexture != null)
+                {
+                    int ptResult = StarfieldNative.CR_SetPointingIconTexture(_pointingIconTexture.GetNativeTexturePtr());
+                    if (ptResult == 0)
+                    {
+                        _pointingTextureUploaded = true;
+                        ModFileLogger.Log("[NavballLabelManager] Pointing icon texture uploaded successfully");
+                    }
+                    else if (ptResult != -1)
+                    {
+                        ModFileLogger.LogError($"[NavballLabelManager] Failed to upload pointing icon, error code: {ptResult}");
+                    }
+                }
+
+                // Upload maneuver text texture
+                if (_maneuverTextTexture != null && !_maneuverTextTextureUploaded)
+                {
+                    int mtResult = StarfieldNative.CR_SetManeuverTextTexture(_maneuverTextTexture.GetNativeTexturePtr());
+                    if (mtResult == 0)
+                    {
+                        _maneuverTextTextureUploaded = true;
+                        ModFileLogger.Log("[NavballLabelManager] Maneuver text texture uploaded successfully");
+                    }
+                    else if (mtResult != -1)
+                    {
+                        ModFileLogger.LogError($"[NavballLabelManager] Failed to upload maneuver text texture, error code: {mtResult}");
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -207,6 +273,10 @@ namespace CinematicShaders.Core
                 // Load textures
                 LoadTextures();
 
+                // Create maneuver text render texture
+                _maneuverTextTexture = new RenderTexture(MANEUVER_TEXT_WIDTH, MANEUVER_TEXT_HEIGHT, 0, RenderTextureFormat.ARGB32);
+                _maneuverTextTexture.Create();
+
                 _initialized = true;
                 Debug.Log("[NavballLabelManager] Initialized successfully (screen-space mode)");
             }
@@ -214,6 +284,43 @@ namespace CinematicShaders.Core
             {
                 Debug.LogError($"[NavballLabelManager] Initialization failed: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Ensure the maneuver text render texture exists.
+        /// </summary>
+        private void EnsureManeuverTextTexture()
+        {
+            if (_maneuverTextTexture == null)
+            {
+                _maneuverTextTexture = new RenderTexture(MANEUVER_TEXT_WIDTH, MANEUVER_TEXT_HEIGHT, 0, RenderTextureFormat.ARGB32);
+                _maneuverTextTexture.Create();
+            }
+        }
+
+        /// <summary>
+        /// Renders maneuver node text to the overlay texture and uploads it to native.
+        /// </summary>
+        private void RenderManeuverText(string text)
+        {
+            EnsureManeuverTextTexture();
+            IntPtr textSystem = CinematicShadersAddon.SituationLabelSystem?.GetTextSystem() ?? IntPtr.Zero;
+            if (textSystem == IntPtr.Zero) return;
+
+            uint white = 0xFFFFFFFF;
+            int glyphCount = StarfieldNative.CR_TextLayoutEx(
+                textSystem, text, MANEUVER_FONT_SIZE, white, 0f, 0f, 0f);
+
+            StarfieldNative.CR_TextDispatchEx(
+                textSystem,
+                _maneuverTextTexture.GetNativeTexturePtr(),
+                glyphCount,
+                MANEUVER_TEXT_WIDTH,
+                MANEUVER_TEXT_HEIGHT,
+                1);
+
+            StarfieldNative.CR_SetManeuverTextTexture(_maneuverTextTexture.GetNativeTexturePtr());
+            _maneuverTextDirty = false;
         }
 
         /// <summary>
@@ -237,8 +344,10 @@ namespace CinematicShaders.Core
             }
             else if (_texturesLoaded && _texturesUploaded && StarfieldNative.CR_NavballTexturesNeedReupload() != 0)
             {
-                ModFileLogger.Log("[NavballLabelManager] Detected textures invalidated, resetting _texturesUploaded flag");
+                ModFileLogger.Log("[NavballLabelManager] Detected textures invalidated, resetting upload flags");
                 _texturesUploaded = false;
+                _pointingTextureUploaded = false;
+                _maneuverTextTextureUploaded = false;
                 TryUploadTextures();
             }
 
@@ -317,6 +426,57 @@ namespace CinematicShaders.Core
             {
                 _iconStates[MANEUVER].Intensity = 0f;
                 _iconStates[MANEUVER].IsVisible = false;
+            }
+
+            // Pointing vector icon (vessel heading)
+            Vector2 pointingNDC = Vector2.zero;
+            float pointingIntensity = 0f;
+            float rollAngle = 0f;
+            bool pointingVisible = false;
+            if (FlightGlobals.ActiveVessel != null)
+            {
+                Vector3 vesselForward = FlightGlobals.ActiveVessel.transform.up;
+                Vector2 ptUV = KartographerMath.WorldDirectionToScreenUV(vesselForward, right, up, forward, aspect, vfov);
+                float ptAngle = Vector3.Angle(vesselForward, forward);
+                pointingVisible = ptAngle <= 90f && ptUV.x >= 0 && ptUV.x <= 1 && ptUV.y >= 0 && ptUV.y <= 1;
+                if (pointingVisible)
+                {
+                    pointingNDC = new Vector2((ptUV.x - 0.5f) * 2 * aspect, (ptUV.y - 0.5f) * 2);
+                    Vector3 vesselUp = FlightGlobals.ActiveVessel.transform.forward;
+                    Vector3 projectedUp = Vector3.ProjectOnPlane(vesselUp, forward).normalized;
+                    rollAngle = Vector3.SignedAngle(up, projectedUp, forward) * Mathf.Deg2Rad;
+                    pointingIntensity = 1.0f;
+                }
+            }
+            _pointingNDC = pointingNDC;
+            _pointingIntensity = pointingIntensity;
+            _pointingRollAngle = rollAngle;
+            _pointingVisible = pointingVisible;
+
+            // Maneuver text overlay
+            if (_iconStates[MANEUVER].IsVisible &&
+                FlightGlobals.ActiveVessel?.patchedConicSolver?.maneuverNodes != null &&
+                FlightGlobals.ActiveVessel.patchedConicSolver.maneuverNodes.Count > 0)
+            {
+                _maneuverTextVisible = true;
+                float textOffsetY = StarfieldSettings.KartographerManeuverTextOffset > 0 ? StarfieldSettings.KartographerManeuverTextOffset : 0.08f;
+                _maneuverTextPos = new Vector2(_iconStates[MANEUVER].ScreenNDC.x, _iconStates[MANEUVER].ScreenNDC.y + textOffsetY);
+
+                var node = FlightGlobals.ActiveVessel.patchedConicSolver.maneuverNodes[0];
+                double timeToNode = node.UT - Planetarium.GetUniversalTime();
+                double totalDV = node.DeltaV.magnitude;
+                float remainingDV = (float)node.GetBurnVector(node.patch).magnitude;
+
+                string timeStr = FormatTimeShort(timeToNode);
+                string dvBar = BuildDVBar(remainingDV, (float)totalDV);
+                string smartDV = FormatDV(remainingDV);
+                string text = $"{timeStr}\n{dvBar} {smartDV}";
+
+                RenderManeuverText(text);
+            }
+            else
+            {
+                _maneuverTextVisible = false;
             }
 
             // Push to native
@@ -458,6 +618,25 @@ namespace CinematicShaders.Core
             SetIconParams(ref kartParams, 4, _iconStates[4]);
             SetIconParams(ref kartParams, 5, _iconStates[5]);
             SetIconParams(ref kartParams, 6, _iconStates[6]);
+
+            // Pointing icon params
+            kartParams.PointingIconEnabled = _pointingVisible ? 1 : 0;
+            kartParams.PointingIconPosX = _pointingNDC.x;
+            kartParams.PointingIconPosY = _pointingNDC.y;
+            kartParams.PointingIconRotation = _pointingRollAngle;
+            kartParams.PointingIconIntensity = _pointingIntensity;
+            kartParams.PointingIconSize = StarfieldSettings.KartographerPointingIconSize > 0 ? StarfieldSettings.KartographerPointingIconSize : 0.05f;
+            kartParams.PointingIconColor = _useNavballColors ? PackColor(Color.white) : 0u;
+
+            // Maneuver text params
+            float pixelsToNdc = 2.0f / Screen.height;
+            float scale = StarfieldSettings.KartographerManeuverTextScale > 0 ? StarfieldSettings.KartographerManeuverTextScale : 1.0f;
+            kartParams.ManeuverTextEnabled = _maneuverTextVisible ? 1 : 0;
+            kartParams.ManeuverTextOriginX = _maneuverTextPos.x;
+            kartParams.ManeuverTextOriginY = _maneuverTextPos.y;
+            kartParams.ManeuverTextWidth = MANEUVER_TEXT_WIDTH * pixelsToNdc * scale;
+            kartParams.ManeuverTextHeight = MANEUVER_TEXT_HEIGHT * pixelsToNdc * scale;
+            kartParams.ManeuverTextIntensity = _maneuverTextVisible ? 1.0f : 0f;
 
             ModFileLogger.Log($"[NavballLabelManager] UpdateNativeParams - mask={mask}, icon0=({_iconStates[0].ScreenNDC.x:F3},{_iconStates[0].ScreenNDC.y:F3}) I={_iconStates[0].Intensity:F3}, icon1=({_iconStates[1].ScreenNDC.x:F3},{_iconStates[1].ScreenNDC.y:F3}) I={_iconStates[1].Intensity:F3}, icon6 visible={_iconStates[6].IsVisible}");
 
@@ -601,6 +780,58 @@ namespace CinematicShaders.Core
                    ((uint)(c.r * 255) << 16) |
                    ((uint)(c.g * 255) << 8) |
                    ((uint)(c.b * 255));
+        }
+
+        /// <summary>
+        /// Formats a time value in seconds to a short T- / T+ string.
+        /// </summary>
+        private string FormatTimeShort(double seconds)
+        {
+            bool negative = seconds < 0;
+            seconds = Math.Abs(seconds);
+            int hours = (int)(seconds / 3600);
+            int minutes = (int)((seconds % 3600) / 60);
+            int secs = (int)(seconds % 60);
+            string prefix = negative ? "T+ " : "T- ";
+            if (hours > 0) return $"{prefix}{hours}:{minutes:D2}:{secs:D2}";
+            else return $"{prefix}{minutes:D2}:{secs:D2}";
+        }
+
+        /// <summary>
+        /// Builds a 10-segment dV bar using block characters.
+        /// </summary>
+        private string BuildDVBar(float remainingDV, float totalDV)
+        {
+            if (totalDV <= 0.0001f) return "[          ]";
+            float pct = Mathf.Clamp01(remainingDV / totalDV);
+            float filled = pct * 10f;
+            int fullBlocks = Mathf.FloorToInt(filled);
+            float remainder = filled - fullBlocks;
+            char currentBlock = ' ';
+            if (remainder >= 0.75f) currentBlock = '▓';
+            else if (remainder >= 0.50f) currentBlock = '▒';
+            else if (remainder >= 0.25f) currentBlock = '░';
+            else if (remainder > 0.001f) currentBlock = '█';
+            var sb = new System.Text.StringBuilder();
+            sb.Append('█', fullBlocks);
+            if (fullBlocks < 10)
+                sb.Append(currentBlock);
+            sb.Append(' ', 10 - fullBlocks - 1);
+            return $"[{sb}]";
+        }
+
+        /// <summary>
+        /// Formats total delta-V for display.
+        /// </summary>
+        private string FormatDV(double dv)
+        {
+            float fv = (float)dv;
+            if (fv >= 1e15f) return $"{fv/1e15f:F2} Tm/s";
+            if (fv >= 1e12f) return $"{fv/1e12f:F2} Gm/s";
+            if (fv >= 1e9f)  return $"{fv/1e9f:F2} Mm/s";
+            if (fv >= 1e6f)  return $"{fv/1e6f:F2} km/s";
+            if (fv >= 1000f) return $"{fv/1000f:F2} km/s";
+            return $"{fv:F1} m/s";
         }
 
         /// <summary>
