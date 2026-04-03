@@ -237,6 +237,23 @@ static struct {
     float kartographerNavballIconIntensity[7] = {0};
     uint32_t kartographerNavballIconColor[7] = {0};
     
+    // Pointing icon (heading indicator)
+    int kartographerPointingIconEnabled = 0;
+    float kartographerPointingIconPosX = 0.0f;
+    float kartographerPointingIconPosY = 0.0f;
+    float kartographerPointingIconRotation = 0.0f;
+    float kartographerPointingIconIntensity = 0.0f;
+    float kartographerPointingIconSize = 0.05f;
+    uint32_t kartographerPointingIconColor = 0;
+    
+    // Maneuver text overlay
+    int kartographerManeuverTextEnabled = 0;
+    float kartographerManeuverTextOriginX = 0.0f;
+    float kartographerManeuverTextOriginY = 0.0f;
+    float kartographerManeuverTextWidth = 0.0f;
+    float kartographerManeuverTextHeight = 0.0f;
+    float kartographerManeuverTextIntensity = 0.0f;
+    
     // Navball icon texture array (MSDF textures)
     ID3D11Texture2D* navballIconArray = nullptr;
     ID3D11ShaderResourceView* navballIconArraySRV = nullptr;
@@ -2107,6 +2124,23 @@ static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
         params->NavballIcon6_Intensity = g_StarfieldState.kartographerNavballIconIntensity[6];
         params->NavballIcon6_Color = g_StarfieldState.kartographerNavballIconColor[6];
         
+        // Pointing icon
+        params->PointingIconEnabled = g_StarfieldState.kartographerPointingIconEnabled;
+        params->PointingIconPosX = g_StarfieldState.kartographerPointingIconPosX;
+        params->PointingIconPosY = g_StarfieldState.kartographerPointingIconPosY;
+        params->PointingIconRotation = g_StarfieldState.kartographerPointingIconRotation;
+        params->PointingIconIntensity = g_StarfieldState.kartographerPointingIconIntensity;
+        params->PointingIconSize = g_StarfieldState.kartographerPointingIconSize;
+        params->PointingIconColor = g_StarfieldState.kartographerPointingIconColor;
+        
+        // Maneuver text
+        params->ManeuverTextEnabled = g_StarfieldState.kartographerManeuverTextEnabled;
+        params->ManeuverTextOriginX = g_StarfieldState.kartographerManeuverTextOriginX;
+        params->ManeuverTextOriginY = g_StarfieldState.kartographerManeuverTextOriginY;
+        params->ManeuverTextWidth = g_StarfieldState.kartographerManeuverTextWidth;
+        params->ManeuverTextHeight = g_StarfieldState.kartographerManeuverTextHeight;
+        params->ManeuverTextIntensity = g_StarfieldState.kartographerManeuverTextIntensity;
+        
         context->Unmap(g_StarfieldState.kartographerCB, 0);
     }
 }
@@ -2358,6 +2392,23 @@ void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
     g_StarfieldState.kartographerNavballIconPosY[6] = params->NavballIcon6_Y;
     g_StarfieldState.kartographerNavballIconIntensity[6] = params->NavballIcon6_Intensity;
     g_StarfieldState.kartographerNavballIconColor[6] = params->NavballIcon6_Color;
+    
+    // Pointing icon
+    g_StarfieldState.kartographerPointingIconEnabled = params->PointingIconEnabled;
+    g_StarfieldState.kartographerPointingIconPosX = params->PointingIconPosX;
+    g_StarfieldState.kartographerPointingIconPosY = params->PointingIconPosY;
+    g_StarfieldState.kartographerPointingIconRotation = params->PointingIconRotation;
+    g_StarfieldState.kartographerPointingIconIntensity = params->PointingIconIntensity;
+    g_StarfieldState.kartographerPointingIconSize = params->PointingIconSize;
+    g_StarfieldState.kartographerPointingIconColor = params->PointingIconColor;
+    
+    // Maneuver text
+    g_StarfieldState.kartographerManeuverTextEnabled = params->ManeuverTextEnabled;
+    g_StarfieldState.kartographerManeuverTextOriginX = params->ManeuverTextOriginX;
+    g_StarfieldState.kartographerManeuverTextOriginY = params->ManeuverTextOriginY;
+    g_StarfieldState.kartographerManeuverTextWidth = params->ManeuverTextWidth;
+    g_StarfieldState.kartographerManeuverTextHeight = params->ManeuverTextHeight;
+    g_StarfieldState.kartographerManeuverTextIntensity = params->ManeuverTextIntensity;
 }
 
 // ============================================================================

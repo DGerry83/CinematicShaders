@@ -465,7 +465,7 @@ namespace CinematicShaders.Core
                 var node = FlightGlobals.ActiveVessel.patchedConicSolver.maneuverNodes[0];
                 double timeToNode = node.UT - Planetarium.GetUniversalTime();
                 double totalDV = node.DeltaV.magnitude;
-                float remainingDV = (float)node.GetBurnVector(node.patch).magnitude;
+                float remainingDV = Mathf.Clamp((float)node.GetBurnVector(node.patch).magnitude, 0f, (float)totalDV);
 
                 string timeStr = FormatTimeShort(timeToNode);
                 string dvBar = BuildDVBar(remainingDV, (float)totalDV);
@@ -638,8 +638,6 @@ namespace CinematicShaders.Core
             kartParams.ManeuverTextHeight = MANEUVER_TEXT_HEIGHT * pixelsToNdc * scale;
             kartParams.ManeuverTextIntensity = _maneuverTextVisible ? 1.0f : 0f;
 
-            ModFileLogger.Log($"[NavballLabelManager] UpdateNativeParams - mask={mask}, icon0=({_iconStates[0].ScreenNDC.x:F3},{_iconStates[0].ScreenNDC.y:F3}) I={_iconStates[0].Intensity:F3}, icon1=({_iconStates[1].ScreenNDC.x:F3},{_iconStates[1].ScreenNDC.y:F3}) I={_iconStates[1].Intensity:F3}, icon6 visible={_iconStates[6].IsVisible}");
-
             StarfieldNative.LastKartographerParams = kartParams;
             StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
         }
@@ -706,6 +704,11 @@ namespace CinematicShaders.Core
                 _iconStates[i].Intensity = 0f;
                 _iconStates[i].IsVisible = false;
             }
+            _pointingVisible = false;
+            _pointingIntensity = 0f;
+            _pointingNDC = Vector2.zero;
+            _pointingRollAngle = 0f;
+            _maneuverTextVisible = false;
             UpdateNativeParams();
         }
 
@@ -816,7 +819,8 @@ namespace CinematicShaders.Core
             sb.Append('█', fullBlocks);
             if (fullBlocks < 10)
                 sb.Append(currentBlock);
-            sb.Append(' ', 10 - fullBlocks - 1);
+            int spaces = Mathf.Max(0, 10 - fullBlocks - 1);
+            sb.Append(' ', spaces);
             return $"[{sb}]";
         }
 
