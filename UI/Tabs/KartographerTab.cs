@@ -254,10 +254,11 @@ namespace CinematicShaders.UI.Tabs
                 
                 GUILayout.Space(4);
                 
-                // Icon thickness slider
-                GUILayout.Label(new GUIContent($"Icon Thickness: {StarfieldSettings.KartographerNavballIconThickness:F2}", 
-                    "Adjust SDF line thickness (0 = default, 1 = thickest)"));
-                float newThickness = GUILayout.HorizontalSlider(StarfieldSettings.KartographerNavballIconThickness, 0f, 1f);
+                // Icon thickness slider (display 1-5, maps to 0.1-0.49)
+                float navballDisplayThickness = StarfieldSettings.KartographerNavballIconThickness * 10f;
+                GUILayout.Label($"Icon Thickness: {navballDisplayThickness:F1}");
+                float newNavballDisplayThickness = GUILayout.HorizontalSlider(navballDisplayThickness, 1f, 5f);
+                float newThickness = Mathf.Min(newNavballDisplayThickness / 10f, 0.49f);
                 if (!Mathf.Approximately(newThickness, StarfieldSettings.KartographerNavballIconThickness))
                 {
                     StarfieldSettings.KartographerNavballIconThickness = newThickness;
@@ -266,10 +267,11 @@ namespace CinematicShaders.UI.Tabs
                 
                 GUILayout.Space(4);
                 
-                // Icon size slider
-                GUILayout.Label(new GUIContent($"Icon Size: {StarfieldSettings.KartographerNavballIconSize:F3}", 
-                    "Adjust icon size (0.05 = default, 0.15 = largest)"));
-                float newSize = GUILayout.HorizontalSlider(StarfieldSettings.KartographerNavballIconSize, 0.05f, 0.15f);
+                // Icon size slider (display 1-5, maps to 0.05-0.15)
+                float navballDisplaySize = (StarfieldSettings.KartographerNavballIconSize - 0.05f) * 40f + 1f;
+                GUILayout.Label($"Icon Size: {navballDisplaySize:F1}");
+                float newNavballDisplaySize = GUILayout.HorizontalSlider(navballDisplaySize, 1f, 5f);
+                float newSize = 0.05f + (newNavballDisplaySize - 1f) * 0.025f;
                 if (!Mathf.Approximately(newSize, StarfieldSettings.KartographerNavballIconSize))
                 {
                     StarfieldSettings.KartographerNavballIconSize = newSize;

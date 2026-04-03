@@ -43,13 +43,13 @@ namespace CinematicShaders.Core
         /// </summary>
         public static readonly Color[] IconColors = new Color[ICON_COUNT]
         {
-            new Color(184f/255f, 192f/255f, 141f/255f),  // 0: Prograde - Sage green
-            new Color(184f/255f, 192f/255f, 141f/255f),  // 1: Retrograde - Sage green
+            new Color(184f/255f, 220f/255f, 141f/255f),  // 0: Prograde - Sage green (greener)
+            new Color(184f/255f, 220f/255f, 141f/255f),  // 1: Retrograde - Sage green (greener)
             new Color(182f/255f, 123f/255f, 182f/255f),  // 2: Normal - Purple
             new Color(182f/255f, 123f/255f, 182f/255f),  // 3: AntiNormal - Purple
-            new Color(123f/255f, 182f/255f, 182f/255f),  // 4: Radial In - Cyan
-            new Color(123f/255f, 182f/255f, 182f/255f),  // 5: Radial Out - Cyan
-            new Color(122f/255f, 134f/255f, 181f/255f)   // 6: Maneuver - Steel blue
+            new Color(120f/255f, 210f/255f, 210f/255f),  // 4: Radial In - Brighter cyan
+            new Color(120f/255f, 210f/255f, 210f/255f),  // 5: Radial Out - Brighter cyan
+            new Color(122f/255f, 134f/255f, 210f/255f)   // 6: Maneuver - Brighter blue
         };
 
         public static readonly string[] IconNames = new string[ICON_COUNT]
