@@ -271,12 +271,11 @@ namespace CinematicShaders.Core
             Vector3d prograde = vel.normalized;
             Vector3d retrograde = -prograde;
             // Normal is perpendicular to velocity and celestial up (fixed reference)
-            // Note: Cross(vel, up) not Cross(up, vel) - order matters for right-hand rule
-            Vector3d normal = Vector3d.Cross(vel, upAxisSurface).normalized;
+            Vector3d normal = Vector3d.Cross(prograde, upAxisSurface).normalized;
             Vector3d antinormal = -normal;
-            // Radial out is perpendicular to both normal and prograde
-            // Cross(prograde, normal) gives vector pointing away from body center
-            Vector3d radialOut = Vector3d.Cross(prograde, normal).normalized;
+            // Radial out points away from body center (perpendicular to prograde in orbital plane)
+            // Cross(normal, prograde) rotates 90° from prograde toward radial
+            Vector3d radialOut = Vector3d.Cross(normal, prograde).normalized;
             // Ensure radial points away from body center (flip if needed based on position)
             if (Vector3d.Dot(radialOut, pos) < 0)
                 radialOut = -radialOut;
