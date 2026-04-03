@@ -86,13 +86,13 @@ namespace CinematicShaders.Core
 
         // Texture loading
         private static readonly string[] IconFileNames = {
-            "prograde_sdf.dds",
-            "retrograde_sdf.dds",
-            "normal_sdf.dds",
-            "antinormal_sdf.dds",
-            "radial_in_sdf.dds",
-            "radial_out_sdf.dds",
-            "maneuver_sdf.dds"
+            "prograde_sdf.png",
+            "retrograde_sdf.png",
+            "normal_sdf.png",
+            "antinormal_sdf.png",
+            "radial_in_sdf.png",
+            "radial_out_sdf.png",
+            "maneuver_sdf.png"
         };
         private const int ICON_TEXTURE_SIZE = 128;
         private Texture2D[] _iconTextures;
@@ -100,7 +100,7 @@ namespace CinematicShaders.Core
         private bool _texturesUploaded = false;
 
         /// <summary>
-        /// Load navball icon textures from DDS files.
+        /// Load navball icon textures from PNG files.
         /// </summary>
         public void LoadTextures()
         {
@@ -128,8 +128,7 @@ namespace CinematicShaders.Core
                     }
 
                     byte[] bytes = File.ReadAllBytes(filePath);
-                    // Use LoadImage() to properly parse DDS format (handles header automatically)
-                    // Initial size is arbitrary - LoadImage will resize to match texture dimensions
+                    // LoadImage() properly handles PNG format
                     _iconTextures[i] = new Texture2D(2, 2, TextureFormat.RGBA32, false);
                     _iconTextures[i].LoadImage(bytes);
                 }
