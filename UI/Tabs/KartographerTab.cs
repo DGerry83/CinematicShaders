@@ -264,6 +264,18 @@ namespace CinematicShaders.UI.Tabs
                     StarfieldSettings.Save();
                 }
                 
+                GUILayout.Space(4);
+                
+                // Icon size slider
+                GUILayout.Label(new GUIContent($"Icon Size: {StarfieldSettings.KartographerNavballIconSize:F3}", 
+                    "Adjust icon size (0.05 = default, 0.15 = largest)"));
+                float newSize = GUILayout.HorizontalSlider(StarfieldSettings.KartographerNavballIconSize, 0.05f, 0.15f);
+                if (!Mathf.Approximately(newSize, StarfieldSettings.KartographerNavballIconSize))
+                {
+                    StarfieldSettings.KartographerNavballIconSize = newSize;
+                    StarfieldSettings.Save();
+                }
+                
             }
             
             GUILayout.Space(5);
