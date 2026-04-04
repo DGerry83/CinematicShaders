@@ -34,6 +34,21 @@ Here's a shot of the real star catalog
 Or you can make your own starfield as wild and colourful as you want it using the sliders to customize the look and feel to your preference
 ![A screenshot showing Kerbin sitting among a colourful and bright starfield with the UI](screenshots/KerbinStarfieldGeneratedSciFi.png "The Wild West")
 
+
+### Holographic Universal Celestial Kartographer
+
+## What is it? ##
+
+The Holographic Universal Celestial Kartographer, or H.U.C.K., is a diegetic heads-up info display that projects onto the background of space itself.  Complete with info about your current situation, navigation indicators, maneuver burn info display, and target live target tracking info, H.U.C.K. can help you keep sight of what's important.  With full options to enable and disable each feature individually, and an industry-first *four* colour options for the phosphor display, we think you'll find H.U.C.K. can be an invaluable member of your crew.
+
+But that's not all.  H.U.C.K. comes pre-loaded with a vast star catalog containing data on over three-thousand stars, allowing you to point-and click to to discover their names, distances, and more.  Not just a navigation aid, H.U.C.K. is your guide to the stars.  Simply enable the Kartographer, choose the visual options you want, and H.U.C.K. does the rest.
+
+**Screenshots**
+![A screenshot showing the H.U.C.K. label and basic UI]
+![A screenshot showing the H.U.C.K. target tracking indicator]
+![A screenshot showing the H.U.C.K. star catalog function]
+
+
 ## Requirements
 
 - **KSP 1.12.x**
@@ -62,10 +77,16 @@ The folder structure should be: `GameData/CinematicShaders/`
 3. Click **Enable** to turn on the starfield
 4. Either choose an existing catalog from the dropdown, or create a new one from scratch using the procedural generation sliders
 
+## Kartographer Usage
+1. Open the Cinematic Shaders UI from the toolbar button
+2. Click Enable Kartographer from the **Kartographer** tab
+3. Choose the visualizer options you want and optionally customize their appearance
+
 ## Known Issues
 
 - **GTAO** - There's currently an issue with the AO processing that I'll detail in a separate KnownIssues.md file.  It affects the overall rendering and may be more noticeable in some scenes than others.
 - **Starfield** - Some stars may experience some "z-fighting" which causes minor flickering/twinkling.
+- **Starfield** - per-save settings are currently not functioning correctly, so your settings will persist across saves - this is incorrect, as the intent is to allow each save to have its own sky based on your choices.
 
 ## License
 
@@ -88,8 +109,27 @@ and inherit CC BY-SA 4.0 obligations. Procedurally generated catalogs
 (random seed, no HYG data) are original works and can be shared freely under 
 any terms you choose.
 
+All navball icon assets(the sdf pngs and the svg source files in the assets\ folder) are licensed under the above MIT license terms.  You are free to use, modify, copy, distribute them as you wish without attribution.
+
+The DEC Rainbow 100 Font, Ac437_Rainbow100_re_66.ttf, found in the FONTS folder is licensed under CC-BY-SA-4.0 https://creativecommons.org/licenses/by-sa/4.0/ from 
+https://int10h.org/oldschool-pc-fonts/  The Oldschool PC Font Resource.
+
+Under CC-BY-SA-4.0 You are free to:
+Share — copy and redistribute the material in any medium or format for any purpose, even commercially.
+Adapt — remix, transform, and build upon the material for any purpose, even commercially.
+The licensor cannot revoke these freedoms as long as you follow the license terms.
+Under the following terms:
+Attribution — You must give appropriate credit, provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use.
+ShareAlike — If you remix, transform, or build upon the material, you must distribute your contributions under the same license as the original.
+No additional restrictions — You may not apply legal terms or technological measures that legally restrict others from doing anything the license permits.
+Notices:
+You do not have to comply with the license for elements of the material in the public domain or where your use is permitted by an applicable exception or limitation.
+
+No warranties are given. The license may not give you all of the permissions necessary for your intended use. For example, other rights such as publicity, privacy, or moral rights may limit how you use the material.
+
 ## Credits
 
 - GTAO implementation based on [XeGTAO](https://github.com/GameTechDev/XeGTAO)
 - ESA and the Hipparcos satellite for star data
 - Tiffany352 and the [Godot Starlight](https://github.com/tiffany352/godot-starlight) project for inspiration, PSF implementation.
+- The Oldschool PC Font Resource (https://int10h.org/oldschool-pc-fonts/) for the awesome-looking DEC Rainbow-100 font.
