@@ -685,7 +685,11 @@ namespace CinematicShaders.Core
 
         private Vector3 GetCameraPosition()
         {
-            return Vector3.zero; // Scaled space camera at origin
+            // The projection basis vectors come from GalaxyCamera (which mirrors FlightCamera rotation).
+            // We must use the actual flight camera position in world space to avoid parallax error.
+            if (FlightCamera.fetch != null)
+                return FlightCamera.fetch.transform.position;
+            return Vector3.zero;
         }
 
         private double GetDistanceToTarget(ITargetable target)
