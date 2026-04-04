@@ -2908,6 +2908,7 @@ int CR_SetNavballIconTextures(ID3D11Texture2D* sourceTextures[7], int width, int
 extern "C" __declspec(dllexport)
 int CR_SetPointingIconTexture(ID3D11Texture2D* sourceTexture)
 {
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     LogToFile("[Navball] CR_SetPointingIconTexture called");
     if (!g_StarfieldState.device) {
         LogToFile("[Navball] Error: Device not ready");
@@ -2921,13 +2922,17 @@ int CR_SetPointingIconTexture(ID3D11Texture2D* sourceTexture)
         g_StarfieldState.pointingIconSRV->Release();
         g_StarfieldState.pointingIconSRV = nullptr;
     }
-    D3D11_TEXTURE2D_DESC desc = {};
-    sourceTexture->GetDesc(&desc);
-    HRESULT hr = g_StarfieldState.device->CreateShaderResourceView(sourceTexture, nullptr, &g_StarfieldState.pointingIconSRV);
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels = 1;
+    HRESULT hr = g_StarfieldState.device->CreateShaderResourceView(sourceTexture, &srvDesc, &g_StarfieldState.pointingIconSRV);
     if (FAILED(hr)) {
         LogToFile("[Navball] Failed to create pointing icon SRV (0x%08X)", hr);
         return -3;
     }
+    D3D11_TEXTURE2D_DESC desc = {};
+    sourceTexture->GetDesc(&desc);
     LogToFile("[Navball] Pointing icon texture uploaded: %dx%d", desc.Width, desc.Height);
     return 0;
 }
@@ -2935,6 +2940,7 @@ int CR_SetPointingIconTexture(ID3D11Texture2D* sourceTexture)
 extern "C" __declspec(dllexport)
 int CR_SetManeuverTextTexture(ID3D11Texture2D* sourceTexture)
 {
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     LogToFile("[Navball] CR_SetManeuverTextTexture called");
     if (!g_StarfieldState.device) {
         LogToFile("[Navball] Error: Device not ready");
@@ -2948,13 +2954,17 @@ int CR_SetManeuverTextTexture(ID3D11Texture2D* sourceTexture)
         g_StarfieldState.maneuverTextSRV->Release();
         g_StarfieldState.maneuverTextSRV = nullptr;
     }
-    D3D11_TEXTURE2D_DESC desc = {};
-    sourceTexture->GetDesc(&desc);
-    HRESULT hr = g_StarfieldState.device->CreateShaderResourceView(sourceTexture, nullptr, &g_StarfieldState.maneuverTextSRV);
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels = 1;
+    HRESULT hr = g_StarfieldState.device->CreateShaderResourceView(sourceTexture, &srvDesc, &g_StarfieldState.maneuverTextSRV);
     if (FAILED(hr)) {
         LogToFile("[Navball] Failed to create maneuver text SRV (0x%08X)", hr);
         return -3;
     }
+    D3D11_TEXTURE2D_DESC desc = {};
+    sourceTexture->GetDesc(&desc);
     LogToFile("[Navball] Maneuver text texture uploaded: %dx%d", desc.Width, desc.Height);
     return 0;
 }

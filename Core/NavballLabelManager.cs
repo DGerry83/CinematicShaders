@@ -275,6 +275,7 @@ namespace CinematicShaders.Core
 
                 // Create maneuver text render texture
                 _maneuverTextTexture = new RenderTexture(MANEUVER_TEXT_WIDTH, MANEUVER_TEXT_HEIGHT, 0, RenderTextureFormat.ARGB32);
+                _maneuverTextTexture.enableRandomWrite = true;
                 _maneuverTextTexture.Create();
 
                 _initialized = true;
@@ -294,6 +295,7 @@ namespace CinematicShaders.Core
             if (_maneuverTextTexture == null)
             {
                 _maneuverTextTexture = new RenderTexture(MANEUVER_TEXT_WIDTH, MANEUVER_TEXT_HEIGHT, 0, RenderTextureFormat.ARGB32);
+                _maneuverTextTexture.enableRandomWrite = true;
                 _maneuverTextTexture.Create();
             }
         }
