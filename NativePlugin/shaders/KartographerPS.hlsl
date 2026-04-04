@@ -495,24 +495,31 @@ float3 RenderPointingIcon(float2 center, float rotation, float intensity, uint c
 {
     if (intensity <= 0.001) return float3(0, 0, 0);
     
-    // 1. Rotate in isotropic NDC space
+    // Compute offset from center in screen space
     float2 delta = uv - center;
-    float cosA = cos(rotation);
-    float sinA = sin(rotation);
-    float2 rotated;
-    rotated.x = delta.x * cosA - delta.y * sinA;
-    rotated.y = delta.x * sinA + delta.y * cosA;
     
-    // 2. Map rotated NDC to texture UV, accounting for 2:1 aspect
+    // Map to square space (icon height = iconSize, icon width = 2*iconSize)
+    float2 sq;
+    sq.x = delta.x / iconSize;
+    sq.y = delta.y / iconSize;
+    
+    // Inverse rotate in square space so the texture rotates correctly as a flat billboard
+    float cosA = cos(-rotation);
+    float sinA = sin(-rotation);
+    float2 isq;
+    isq.x = sq.x * cosA - sq.y * sinA;
+    isq.y = sq.x * sinA + sq.y * cosA;
+    
+    // Map back to texture UV, accounting for 2:1 aspect
     float2 texUV;
-    texUV.x = rotated.x / (iconSize * 2.0) + 0.5;
-    texUV.y = 1.0 - (rotated.y / iconSize + 0.5);
+    texUV.x = isq.x / 2.0 + 0.5;
+    texUV.y = 1.0 - (isq.y + 0.5);
     
-    // 3. Discard AFTER rotation (proper rotated bounds)
+    // Discard after rotation (proper rotated bounds)
     if (texUV.x < 0.0 || texUV.x > 1.0 || texUV.y < 0.0 || texUV.y > 1.0)
         return float3(0, 0, 0);
     
-    // 4. Sample MSDF texture
+    // Sample MSDF texture
     float3 msd = PointingIcon.SampleLevel(PointSampler, texUV, 0).rgb;
     
     // MSDF decoding
