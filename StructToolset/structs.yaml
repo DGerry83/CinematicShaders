@@ -1,0 +1,829 @@
+# Struct Definitions for CinematicShaders
+# ========================================
+# Define structs here using YAML format.
+# Run: python generator.py
+#
+# ALIGNMENT RULES (HLSL Constant Buffer):
+#   float, int, uint, bool - 4-byte align, 4-byte size
+#   float2 - 8-byte align, 8-byte size (CRITICAL: not 4-byte!)
+#   float3 - 16-byte align, 12-byte size (padded to 16)
+#   float4 - 16-byte align, 16-byte size
+#
+# The generator automatically inserts padding for alignment.
+# Vector patterns (NameX+NameY, Name_X+Name_Y) are detected and aligned correctly.
+#
+# Type Reference:
+#   float, int, uint, bool - 4 byte scalars
+#   float2 - 8 bytes (aligns to 8)
+#   float3 - 12 bytes (aligns to 16)
+#   float4 - 16 bytes (aligns to 16)
+#   float4x4 - 64 bytes (4x4 matrix)
+
+structs:
+  # ============================================================================
+  # KartographerParams - 12-label grid system + vessel target + navball icons
+  # Total: 1024 bytes, HLSL constant buffer (register b2)
+  # ============================================================================
+  - name: KartographerParams
+    size_align: 16
+    
+    fields:
+      # === Base parameters (64 bytes) ===
+      - name: ResolutionX
+        type: float
+        comment: Screen width in pixels
+        
+      - name: ResolutionY
+        type: float
+        comment: Screen height in pixels
+        
+      - name: Time
+        type: float
+        comment: Current time in seconds
+        
+      - name: GridIntensity
+        type: float
+        comment: Grid line brightness
+        
+      - name: GridThickness
+        type: float
+        comment: Grid line thickness
+        
+      - name: ChromaticAberrationStrength
+        type: float
+        comment: CA effect strength
+        
+      - name: VignetteStrength
+        type: float
+        comment: Vignette darkness
+        
+      - name: VignetteStart
+        type: float
+        comment: Vignette inner radius
+        
+      - name: VignetteEnd
+        type: float
+        comment: Vignette outer radius
+        
+      - name: PreRotationYaw
+        type: float
+        comment: Grid yaw rotation
+        
+      - name: PreRotationPitch
+        type: float
+        comment: Grid pitch rotation
+        
+      - name: GridSizePreset
+        type: int
+        comment: Grid density preset
+        
+      - name: GridColorIndex
+        type: int
+        comment: Grid color selection
+        
+      - name: _pad1
+        type: float
+        comment: Padding
+        
+      - name: _pad2
+        type: float
+        comment: Padding
+        
+      - name: _padAlignCamera
+        type: float
+        comment: Align to 16 bytes
+        
+      # === Camera basis vectors (48 bytes) ===
+      - name: CameraRightX
+        type: float
+        comment: Camera right vector X
+        
+      - name: CameraRightY
+        type: float
+        comment: Camera right vector Y
+        
+      - name: CameraRightZ
+        type: float
+        comment: Camera right vector Z
+        
+      - name: _pad3
+        type: float
+        comment: Padding
+        
+      - name: CameraUpX
+        type: float
+        comment: Camera up vector X
+        
+      - name: CameraUpY
+        type: float
+        comment: Camera up vector Y
+        
+      - name: CameraUpZ
+        type: float
+        comment: Camera up vector Z
+        
+      - name: _pad4
+        type: float
+        comment: Padding
+        
+      - name: CameraForwardX
+        type: float
+        comment: Camera forward vector X
+        
+      - name: CameraForwardY
+        type: float
+        comment: Camera forward vector Y
+        
+      - name: CameraForwardZ
+        type: float
+        comment: Camera forward vector Z
+        
+      - name: _pad5
+        type: float
+        comment: Padding
+        
+      # === Debug shapes (32 bytes) ===
+      - name: DebugShapesEnabled
+        type: int
+        comment: Show debug overlays
+        
+      - name: _pad6
+        type: float
+        comment: Padding
+        
+      - name: _pad7
+        type: float
+        comment: Padding
+        
+      - name: _pad8
+        type: float
+        comment: Padding
+        
+      - name: DebugCircleCenterX
+        type: float
+        comment: Debug circle X
+        
+      - name: DebugCircleCenterY
+        type: float
+        comment: Debug circle Y
+        
+      - name: DebugCircleRadius
+        type: float
+        comment: Debug circle radius
+        
+      - name: DebugCircleThickness
+        type: float
+        comment: Debug circle line thickness
+        
+      - name: DebugBoxTopLeftX
+        type: float
+        comment: Debug box X
+        
+      - name: DebugBoxTopLeftY
+        type: float
+        comment: Debug box Y
+        
+      - name: DebugBoxSizeX
+        type: float
+        comment: Debug box width
+        
+      - name: DebugBoxSizeY
+        type: float
+        comment: Debug box height
+        
+      - name: DebugBoxThickness
+        type: float
+        comment: Debug box line thickness
+        
+      - name: DebugShapeIntensity
+        type: float
+        comment: Debug shape brightness
+        
+      - name: _pad9
+        type: float
+        comment: Padding
+        
+      - name: FocalLength
+        type: float
+        comment: Camera focal length
+        
+      # === Selection circle (32 bytes) ===
+      - name: SelectionCircleEnabled
+        type: int
+        comment: Show selection circle
+        
+      - name: SelectionStarHash
+        type: float
+        comment: Hash for flicker variation
+        
+      - name: _padSelection2
+        type: float
+        comment: Padding
+        
+      - name: _padSelection3
+        type: float
+        comment: Padding
+        
+      - name: SelectionCircleCenterX
+        type: float
+        comment: Selection circle X
+        
+      - name: SelectionCircleCenterY
+        type: float
+        comment: Selection circle Y
+        
+      - name: SelectionCircleT
+        type: float
+        comment: Animation time 0-1
+        
+      - name: SelectionCircleIntensity
+        type: float
+        comment: Circle brightness
+        
+      - name: SelectionCircleThickness
+        type: float
+        comment: Circle line thickness
+        
+      - name: SelectionCircleRadius
+        type: float
+        comment: Circle radius
+        
+      - name: _padSelection4
+        type: float
+        comment: Padding
+        
+      - name: _padSelection5
+        type: float
+        comment: Padding
+        
+      - name: _padSelection6
+        type: float
+        comment: Padding
+        
+      - name: _padSelection7
+        type: float
+        comment: Padding
+        
+      # === Text area (20 bytes, plus padding) ===
+      - name: TextOriginX
+        type: float
+        comment: Text position X
+        
+      - name: TextOriginY
+        type: float
+        comment: Text position Y
+        
+      - name: TextAreaSizeX
+        type: float
+        comment: Text area width
+        
+      - name: TextAreaSizeY
+        type: float
+        comment: Text area height
+        
+      - name: SelectionTextT
+        type: float
+        comment: Text animation time
+        
+      # === Label control (16 bytes) ===
+      - name: GridLabelEnabledMask
+        type: uint
+        comment: Bit mask for enabled labels
+        
+      - name: _padGridMask1
+        type: float
+        comment: Padding
+        
+      - name: _padGridMask2
+        type: float
+        comment: Padding
+        
+      - name: _padGridMask3
+        type: float
+        comment: Padding
+        
+      - name: _padGridMask4
+        type: float
+        comment: Padding to align labels to 16 bytes
+        
+      # === Grid Labels 0-11 (12 labels × 32 bytes = 384 bytes) ===
+      - name: GridLabel0_PosTangentX
+        type: float4
+        comment: Label 0 position + sizeX
+        
+      - name: GridLabel0_TangentY
+        type: float4
+        comment: Label 0 tangent + sizeY
+        
+      - name: GridLabel1_PosTangentX
+        type: float4
+        comment: Label 1 position + sizeX
+        
+      - name: GridLabel1_TangentY
+        type: float4
+        comment: Label 1 tangent + sizeY
+        
+      - name: GridLabel2_PosTangentX
+        type: float4
+        comment: Label 2 position + sizeX
+        
+      - name: GridLabel2_TangentY
+        type: float4
+        comment: Label 2 tangent + sizeY
+        
+      - name: GridLabel3_PosTangentX
+        type: float4
+        comment: Label 3 position + sizeX
+        
+      - name: GridLabel3_TangentY
+        type: float4
+        comment: Label 3 tangent + sizeY
+        
+      - name: GridLabel4_PosTangentX
+        type: float4
+        comment: Label 4 position + sizeX
+        
+      - name: GridLabel4_TangentY
+        type: float4
+        comment: Label 4 tangent + sizeY
+        
+      - name: GridLabel5_PosTangentX
+        type: float4
+        comment: Label 5 position + sizeX
+        
+      - name: GridLabel5_TangentY
+        type: float4
+        comment: Label 5 tangent + sizeY
+        
+      - name: GridLabel6_PosTangentX
+        type: float4
+        comment: Label 6 position + sizeX
+        
+      - name: GridLabel6_TangentY
+        type: float4
+        comment: Label 6 tangent + sizeY
+        
+      - name: GridLabel7_PosTangentX
+        type: float4
+        comment: Label 7 position + sizeX
+        
+      - name: GridLabel7_TangentY
+        type: float4
+        comment: Label 7 tangent + sizeY
+        
+      - name: GridLabel8_PosTangentX
+        type: float4
+        comment: Label 8 position + sizeX
+        
+      - name: GridLabel8_TangentY
+        type: float4
+        comment: Label 8 tangent + sizeY
+        
+      - name: GridLabel9_PosTangentX
+        type: float4
+        comment: Label 9 position + sizeX
+        
+      - name: GridLabel9_TangentY
+        type: float4
+        comment: Label 9 tangent + sizeY
+        
+      - name: GridLabel10_PosTangentX
+        type: float4
+        comment: Label 10 position + sizeX
+        
+      - name: GridLabel10_TangentY
+        type: float4
+        comment: Label 10 tangent + sizeY
+        
+      - name: GridLabel11_PosTangentX
+        type: float4
+        comment: Label 11 position + sizeX
+        
+      - name: GridLabel11_TangentY
+        type: float4
+        comment: Label 11 tangent + sizeY
+        
+      # === Per-label visual params (96 bytes) ===
+      - name: GridLabelDebugMask
+        type: uint
+        comment: Bit mask for debug visualization
+        
+      # Label intensities (12 floats = 48 bytes)
+      - name: LabelIntensity0
+        type: float
+        comment: Label 0 brightness
+        
+      - name: LabelIntensity1
+        type: float
+        comment: Label 1 brightness
+        
+      - name: LabelIntensity2
+        type: float
+        comment: Label 2 brightness
+        
+      - name: LabelIntensity3
+        type: float
+        comment: Label 3 brightness
+        
+      - name: LabelIntensity4
+        type: float
+        comment: Label 4 brightness
+        
+      - name: LabelIntensity5
+        type: float
+        comment: Label 5 brightness
+        
+      - name: LabelIntensity6
+        type: float
+        comment: Label 6 brightness
+        
+      - name: LabelIntensity7
+        type: float
+        comment: Label 7 brightness
+        
+      - name: LabelIntensity8
+        type: float
+        comment: Label 8 brightness
+        
+      - name: LabelIntensity9
+        type: float
+        comment: Label 9 brightness
+        
+      - name: LabelIntensity10
+        type: float
+        comment: Label 10 brightness
+        
+      - name: LabelIntensity11
+        type: float
+        comment: Label 11 brightness
+        
+      # Label colors (12 uints = 48 bytes)
+      - name: LabelColor0
+        type: uint
+        comment: Label 0 color override (ARGB)
+        
+      - name: LabelColor1
+        type: uint
+        comment: Label 1 color override (ARGB)
+        
+      - name: LabelColor2
+        type: uint
+        comment: Label 2 color override (ARGB)
+        
+      - name: LabelColor3
+        type: uint
+        comment: Label 3 color override (ARGB)
+        
+      - name: LabelColor4
+        type: uint
+        comment: Label 4 color override (ARGB)
+        
+      - name: LabelColor5
+        type: uint
+        comment: Label 5 color override (ARGB)
+        
+      - name: LabelColor6
+        type: uint
+        comment: Label 6 color override (ARGB)
+        
+      - name: LabelColor7
+        type: uint
+        comment: Label 7 color override (ARGB)
+        
+      - name: LabelColor8
+        type: uint
+        comment: Label 8 color override (ARGB)
+        
+      - name: LabelColor9
+        type: uint
+        comment: Label 9 color override (ARGB)
+        
+      - name: LabelColor10
+        type: uint
+        comment: Label 10 color override (ARGB)
+        
+      - name: LabelColor11
+        type: uint
+        comment: Label 11 color override (ARGB)
+        
+      # === Vessel Target Selector (96 bytes) ===
+      - name: VesselTargetEnabled
+        type: int
+        comment: Show vessel target selector
+        
+      - name: VesselTargetHash
+        type: float
+        comment: Hash for flicker variation
+        
+      - name: _padVessel1
+        type: float
+        comment: Padding
+        
+      - name: _padVessel2
+        type: float
+        comment: Padding
+        
+      - name: VesselTargetCircleCenterX
+        type: float
+        comment: Vessel target circle X
+        
+      - name: VesselTargetCircleCenterY
+        type: float
+        comment: Vessel target circle Y
+        
+      - name: VesselTargetCircleT
+        type: float
+        comment: Vessel target animation time 0-1
+        
+      - name: VesselTargetCircleIntensity
+        type: float
+        comment: Vessel target circle brightness
+        
+      - name: VesselTargetCircleThickness
+        type: float
+        comment: Vessel target circle line thickness
+        
+      - name: VesselTargetCircleRadius
+        type: float
+        comment: Vessel target circle radius
+        
+      - name: _padVessel3
+        type: float
+        comment: Padding
+        
+      - name: _padVessel4
+        type: float
+        comment: Padding
+        
+      - name: _padVessel5
+        type: float
+        comment: Padding
+        
+      - name: _padVessel6
+        type: float
+        comment: Padding
+        
+      - name: VesselTargetBoxTopLeftX
+        type: float
+        comment: Vessel target box X
+        
+      - name: VesselTargetBoxTopLeftY
+        type: float
+        comment: Vessel target box Y
+        
+      - name: VesselTargetBoxSizeX
+        type: float
+        comment: Vessel target box width
+        
+      - name: VesselTargetBoxSizeY
+        type: float
+        comment: Vessel target box height
+        
+      - name: VesselTargetBoxThickness
+        type: float
+        comment: Vessel target box line thickness
+        
+      - name: _padVessel7
+        type: float
+        comment: Padding
+        
+      - name: VesselTargetTextOriginX
+        type: float
+        comment: Vessel target text position X
+        
+      - name: VesselTargetTextOriginY
+        type: float
+        comment: Vessel target text position Y
+        
+      - name: VesselTargetTextAreaSizeX
+        type: float
+        comment: Vessel target text area width
+        
+      - name: VesselTargetTextAreaSizeY
+        type: float
+        comment: Vessel target text area height
+        
+      - name: VesselTargetTextT
+        type: float
+        comment: Vessel target text animation time
+        
+      # === Animated label intensity (16 bytes) ===
+      - name: AnimatedLabelIntensity
+        type: float
+        comment: Generic intensity for animated labels (0-1)
+        
+      - name: _padAnimated1
+        type: float
+        comment: Padding
+        
+      - name: _padAnimated2
+        type: float
+        comment: Padding
+        
+      - name: _padAnimated3
+        type: float
+        comment: Padding to align to 16 bytes
+        
+      # === Navball Indicators (144 bytes total) ===
+      - name: NavballEnabledMask
+        type: int
+        comment: "Bits 0-6: prograde, retrograde, normal, antinormal, radial_in, radial_out, maneuver"
+        
+      - name: NavballOffscreenMode
+        type: int
+        comment: 0=world-space (disappear off-screen), 1=edge-clamp
+        
+      - name: NavballIconSize
+        type: float
+        comment: Screen-space size in NDC units
+        
+      - name: NavballIconThickness
+        type: float
+        comment: SDF edge thickness
+        
+      - name: NavballMinIntensity
+        type: float
+        comment: Minimum intensity when far off-center (default 0.33)
+        
+      - name: NavballMaxAngle
+        type: float
+        comment: Angle for min intensity in degrees (default 90)
+        
+      - name: NavballHysteresisMargin
+        type: float
+        comment: Buffer zone for edge transition (default 0.05)
+        
+      - name: _padNavball1
+        type: float
+        comment: Padding to 16-byte boundary
+        
+      # Icon 0: Prograde
+      - name: NavballIcon0_X
+        type: float
+        comment: Screen X in NDC (-aspect to aspect)
+        
+      - name: NavballIcon0_Y
+        type: float
+        comment: Screen Y in NDC (-1 to 1)
+        
+      - name: NavballIcon0_Intensity
+        type: float
+        comment: Current intensity (0 = disabled/hidden)
+        
+      - name: NavballIcon0_Color
+        type: uint
+        comment: Packed ARGB color override (0 = use grid color)
+        
+      # Icon 1: Retrograde
+      - name: NavballIcon1_X
+        type: float
+        comment: Screen X in NDC
+        
+      - name: NavballIcon1_Y
+        type: float
+        comment: Screen Y in NDC
+        
+      - name: NavballIcon1_Intensity
+        type: float
+        comment: Current intensity
+        
+      - name: NavballIcon1_Color
+        type: uint
+        comment: Packed ARGB color override
+        
+      # Icon 2: Normal
+      - name: NavballIcon2_X
+        type: float
+        comment: Screen X in NDC
+        
+      - name: NavballIcon2_Y
+        type: float
+        comment: Screen Y in NDC
+        
+      - name: NavballIcon2_Intensity
+        type: float
+        comment: Current intensity
+        
+      - name: NavballIcon2_Color
+        type: uint
+        comment: Packed ARGB color override
+        
+      # Icon 3: AntiNormal
+      - name: NavballIcon3_X
+        type: float
+        comment: Screen X in NDC
+        
+      - name: NavballIcon3_Y
+        type: float
+        comment: Screen Y in NDC
+        
+      - name: NavballIcon3_Intensity
+        type: float
+        comment: Current intensity
+        
+      - name: NavballIcon3_Color
+        type: uint
+        comment: Packed ARGB color override
+        
+      # Icon 4: Radial In
+      - name: NavballIcon4_X
+        type: float
+        comment: Screen X in NDC
+        
+      - name: NavballIcon4_Y
+        type: float
+        comment: Screen Y in NDC
+        
+      - name: NavballIcon4_Intensity
+        type: float
+        comment: Current intensity
+        
+      - name: NavballIcon4_Color
+        type: uint
+        comment: Packed ARGB color override
+        
+      # Icon 5: Radial Out
+      - name: NavballIcon5_X
+        type: float
+        comment: Screen X in NDC
+        
+      - name: NavballIcon5_Y
+        type: float
+        comment: Screen Y in NDC
+        
+      - name: NavballIcon5_Intensity
+        type: float
+        comment: Current intensity
+        
+      - name: NavballIcon5_Color
+        type: uint
+        comment: Packed ARGB color override
+        
+      # Icon 6: Maneuver
+      - name: NavballIcon6_X
+        type: float
+        comment: Screen X in NDC
+        
+      - name: NavballIcon6_Y
+        type: float
+        comment: Screen Y in NDC
+        
+      - name: NavballIcon6_Intensity
+        type: float
+        comment: Current intensity (0 when no node)
+        
+      - name: NavballIcon6_Color
+        type: uint
+        comment: Packed ARGB color override
+
+      # === Pointing Vector Icon (32 bytes) ===
+      - name: PointingIconEnabled
+        type: int
+        comment: Show pointing vector icon
+      - name: _padPointing1
+        type: float
+        comment: Manual padding before PosX/PosY pair
+      - name: PointingIconPosX
+        type: float
+        comment: Screen X in NDC
+      - name: PointingIconPosY
+        type: float
+        comment: Screen Y in NDC
+      - name: PointingIconRotation
+        type: float
+        comment: Roll angle in radians
+      - name: PointingIconIntensity
+        type: float
+        comment: Current intensity
+      - name: PointingIconSize
+        type: float
+        comment: Icon size in NDC
+      - name: PointingIconColor
+        type: uint
+        comment: Packed ARGB color override
+
+      # === Maneuver Node Text (32 bytes) ===
+      - name: ManeuverTextEnabled
+        type: int
+        comment: Show maneuver text overlay
+      - name: _padManeuverText1
+        type: float
+        comment: Manual padding before OriginX/OriginY pair
+      - name: ManeuverTextOriginX
+        type: float
+        comment: Text origin X in NDC
+      - name: ManeuverTextOriginY
+        type: float
+        comment: Text origin Y in NDC
+      - name: ManeuverTextWidth
+        type: float
+        comment: Text quad width in NDC
+      - name: ManeuverTextHeight
+        type: float
+        comment: Text quad height in NDC
+      - name: ManeuverTextIntensity
+        type: float
+        comment: Text brightness
+      - name: _padManeuverText2
+        type: float
+        comment: Padding to 16-byte boundary

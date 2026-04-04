@@ -19,3 +19,36 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+
+HYG Database (hyg_v42.csv) and derived real-sky catalogs (.bin files generated from this data) are licensed under CC BY-SA 4.0:
+
+Attribution-ShareAlike 4.0 International (CC BY-SA 4.0) Copyright (c) Astronexus (HYG Database)
+
+You are free to:
+
+Share: copy and redistribute the material
+Adapt: remix, transform, and build upon the material Under the terms: Attribution + ShareAlike
+Important: Real-sky catalogs derived from the HYG CSV (the included .bin files in GameData/CinematicShaders/PluginData/StarCatalogs/) are derivative works and inherit CC BY-SA 4.0 obligations. 
+Procedurally generated catalogs (random seed, no HYG data) are original works and can be shared freely under any terms you choose.
+
+
+ASSETS:
+
+All navball icon assets(the sdf pngs and the svg source files in the assets\ folder) are licensed under the above MIT license terms.  You are free to use, modify, copy, distribute them as you wish without attribution.
+
+The DEC Rainbow 100 Font, Ac437_Rainbow100_re_66.ttf, found in the FONTS folder is licensed under CC-BY-SA-4.0 https://creativecommons.org/licenses/by-sa/4.0/ from 
+https://int10h.org/oldschool-pc-fonts/  The Oldschool PC Font Resource.
+
+You are free to:
+Share — copy and redistribute the material in any medium or format for any purpose, even commercially.
+Adapt — remix, transform, and build upon the material for any purpose, even commercially.
+The licensor cannot revoke these freedoms as long as you follow the license terms.
+Under the following terms:
+Attribution — You must give appropriate credit, provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use.
+ShareAlike — If you remix, transform, or build upon the material, you must distribute your contributions under the same license as the original.
+No additional restrictions — You may not apply legal terms or technological measures that legally restrict others from doing anything the license permits.
+Notices:
+You do not have to comply with the license for elements of the material in the public domain or where your use is permitted by an applicable exception or limitation.
+
+No warranties are given. The license may not give you all of the permissions necessary for your intended use. For example, other rights such as publicity, privacy, or moral rights may limit how you use the material.

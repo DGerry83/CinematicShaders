@@ -131,6 +131,38 @@ if %errorlevel% neq 0 (
 echo   Success --^> ..\include\StarfieldUpscale.h
 echo.
 
+REM Compile Kartographer shaders (integrated into starfield pipeline)
+echo Compiling KartographerVS.hlsl...
+"%FXC%" /T vs_5_0 /E Main /Fh "..\include\KartographerVS.h" /Vn "g_KartographerVS" "..\Shaders\KartographerVS.hlsl"
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: KartographerVS compilation failed!
+    exit /b %errorlevel%
+)
+echo   Success --^> ..\include\KartographerVS.h
+echo.
+
+echo Compiling KartographerPS.hlsl...
+"%FXC%" /T ps_5_0 /E PSMain /Fh "..\include\KartographerPS.h" /Vn "g_KartographerPS" "..\Shaders\KartographerPS.hlsl"
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: KartographerPS compilation failed!
+    exit /b %errorlevel%
+)
+echo   Success --^> ..\include\KartographerPS.h
+echo.
+
+REM Compile text rendering compute shader
+echo Compiling KartographerText.hlsl (Text Rendering Compute Shader)...
+"%FXC%" /T cs_5_0 /E CSMain /Fh "..\include\KartographerText.h" /Vn "g_KartographerTextCS" "..\Shaders\KartographerText.hlsl"
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: KartographerText compilation failed!
+    exit /b %errorlevel%
+)
+echo   Success --^> ..\include\KartographerText.h
+echo.
+
 echo ============================================
 echo SUCCESS: All shaders compiled
 echo ============================================

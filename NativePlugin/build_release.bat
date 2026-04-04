@@ -44,10 +44,42 @@ if errorlevel 1 (
     exit /b 1
 )
 
+:: Compile GalaxyCamCompositor.cpp to object file
+cl ^
+  /c ^
+  /std:c++17 ^
+  /EHsc ^
+  /O2 ^
+  /DNDEBUG ^
+  /Iinclude ^
+  /Fobuild\intermediate\GalaxyCamCompositor.obj ^
+  src\GalaxyCamCompositor.cpp
+if errorlevel 1 (
+    echo Compilation of GalaxyCamCompositor.cpp failed!
+    exit /b 1
+)
+
+:: Compile TextSystem.cpp to object file
+cl ^
+  /c ^
+  /std:c++17 ^
+  /EHsc ^
+  /O2 ^
+  /DNDEBUG ^
+  /Iinclude ^
+  /Fobuild\intermediate\TextSystem.obj ^
+  src\TextSystem.cpp
+if errorlevel 1 (
+    echo Compilation of TextSystem.cpp failed!
+    exit /b 1
+)
+
 :: Link objects + resources into DLL
 link ^
   build\intermediate\CinematicShadersNative.obj ^
   build\intermediate\StarfieldNative.obj ^
+  build\intermediate\GalaxyCamCompositor.obj ^
+  build\intermediate\TextSystem.obj ^
   build\intermediate\CinematicShadersNative.res ^
   d3d11.lib dxgi.lib ole32.lib ^
   /DLL ^

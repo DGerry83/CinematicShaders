@@ -1,5 +1,6 @@
 ﻿using CinematicShaders.Core;
 using CinematicShaders.Native;
+using System;
 using UnityEngine;
 
 namespace CinematicShaders.Core
@@ -45,7 +46,65 @@ namespace CinematicShaders.Core
 
 
         // Bloom mode toggle: false = Classic (original 4-spike), true = Soft HDR (2-pass)
-        public static bool UseSoftBloom { get; set; } = false;
+        public static bool UseSoftBloom { get; set; } = true;
+        
+        // Navball icon style enum - must be defined before use
+        public enum NavballIconStyle
+        {
+            KSP,    // Default KSP-style icons (was SDF)
+            Retro   // Retro-style icons with _retro suffix
+        }
+        
+        // Kartographer holographic grid overlay
+        public static bool EnableKartographer { get; set; } = false;
+        
+        // Grid labels - optional labels painted onto the grid sphere
+        public static bool EnableGridLabelHUCK { get; set; } = false;  // HUCK text label
+        
+        // Kartographer star tracking (debug feature)
+        public static bool EnablePolarisTracking { get; set; } = false;
+        public static int KartographerTrackedStarHIP { get; set; } = 0;  // 0 = none, otherwise HIP ID
+        public static bool KartographerMouseHoverSelect { get; set; } = false;  // Enable mouse hover selection
+        public static bool KartographerVesselTargetSelect { get; set; } = false;  // Show vessel target indicator
+        public static bool KartographerSituationDisplay { get; set; } = false;  // Show situation info display
+        // Per-grid-size settings for situation display [0=Jumbo, 1=Large, 2=Medium, 3=Small]
+        public static int[] KartographerSituationRowOffset { get; set; } = new int[4] { 0, 0, 0, 0 };  // -2 to +2 per preset
+        public static int[] KartographerSituationRotationStep { get; set; } = new int[4] { 0, 0, 0, 0 };  // 0 to numMeridians-1 per preset
+        
+        // Navball indicators - orbital direction icons on the holographic grid
+        public static bool KartographerNavballLabels { get; set; } = false;  // Enable navball indicators
+        public static bool KartographerNavballUseColors { get; set; } = false;  // Use KSP navball colors vs grid color
+        public static NavballIconStyle KartographerNavballIconStyle { get; set; } = NavballIconStyle.Retro;  // Icon rendering style
+        
+        // Navball screen-space rendering settings
+        public static int KartographerNavballOffscreenMode { get; set; } = 0;  // 0=world-space (disappear), 1=edge-clamp
+        public static float KartographerNavballIconSize { get; set; } = 0.125f;  // Screen-space size in NDC units (slider display 4.0)
+        public static float KartographerNavballIconThickness { get; set; } = 0.2f;  // SDF line thickness (slider display 2.0)
+        public static float KartographerNavballMinIntensity { get; set; } = 0.33f;  // Minimum brightness when far off-center
+        public static float KartographerNavballMaxAngle { get; set; } = 90f;  // Angle for min intensity (degrees)
+        public static float KartographerNavballHysteresisMargin { get; set; } = 0.05f;  // Buffer zone for edge transition
+        public static float KartographerPointingIconSize { get; set; } = 0.125f;  // Slider display 4.0
+        public static float KartographerManeuverTextOffset { get; set; } = 0.1f;
+        public static float KartographerManeuverTextScale { get; set; } = 1.0f;
+        
+        // Kartographer visual parameters
+        public static float KartographerGridIntensity { get; set; } = 0.0012f;      // Display 1.0 (was 0.002f)
+        public static float KartographerGridThickness { get; set; } = 0.00036f;      // Display 4.0 (was 0.0003f)
+        // Chromatic Aberration is hard-coded to default
+        public const float KartographerCAStrength = 0.004f;
+        public static float KartographerVignetteStrength { get; set; } = 0.7f;      // Range: 0.35-1.0
+        public static float KartographerVignetteStart { get; set; } = 1.0f;         // Range: 0.8-2.4 (was 1.6f)
+        public static float KartographerVignetteEnd { get; set; } = 2.2f;           // Range: 1.1-3.3
+        public static float KartographerRotationYaw { get; set; } = 0.0f;           // Range: -PI to PI
+        public static float KartographerRotationPitch { get; set; } = 0.0f;         // Range: -PI/2 to PI/2
+        // Grid size with private backing field to enforce max value of 3 (Tiny preset disabled in UI)
+        private static int _kartographerGridSize = 2;
+        public static int KartographerGridSize 
+        { 
+            get => _kartographerGridSize; 
+            set => _kartographerGridSize = Mathf.Clamp(value, 0, 3);  // Max 3 = Small (Tiny disabled)
+        }
+        public static int KartographerGridColor { get; set; } = 0;                  // 0=Seafoam, 1=Amber, 2=White, 3=Green
 
         // HYG Catalog Coordinate Rotation (degrees)
         // Allows aligning the real sky catalog with the game's coordinate system
@@ -192,10 +251,59 @@ namespace CinematicShaders.Core
                 BloomThreshold = float.Parse(settingsNode.GetValue("BloomThreshold") ?? "0.08");
                 BloomIntensity = float.Parse(settingsNode.GetValue("BloomIntensity") ?? "0.5");
                 ColorSaturation = float.Parse(settingsNode.GetValue("ColorSaturation") ?? "1.0");
-                UseSoftBloom = bool.Parse(settingsNode.GetValue("UseSoftBloom") ?? "false");
+                UseSoftBloom = bool.Parse(settingsNode.GetValue("UseSoftBloom") ?? "true");
                 RotationX = float.Parse(settingsNode.GetValue("RotationX") ?? "0.0");
                 RotationY = float.Parse(settingsNode.GetValue("RotationY") ?? "0.0");
                 RotationZ = float.Parse(settingsNode.GetValue("RotationZ") ?? "0.0");
+                
+                // Kartographer settings
+                EnableKartographer = bool.Parse(settingsNode.GetValue("EnableKartographer") ?? "false");
+                EnablePolarisTracking = bool.Parse(settingsNode.GetValue("EnablePolarisTracking") ?? "false");
+                KartographerTrackedStarHIP = int.Parse(settingsNode.GetValue("KartographerTrackedStarHIP") ?? "0");
+                KartographerMouseHoverSelect = bool.Parse(settingsNode.GetValue("KartographerMouseHoverSelect") ?? "false");
+                KartographerVesselTargetSelect = bool.Parse(settingsNode.GetValue("KartographerVesselTargetSelect") ?? "false");
+                KartographerSituationDisplay = bool.Parse(settingsNode.GetValue("KartographerSituationDisplay") ?? "false");
+                // Load per-grid-size arrays (format: "0,0,0,0" for 4 presets)
+                string rowOffsetStr = settingsNode.GetValue("KartographerSituationRowOffset") ?? "0,0,0,0";
+                string[] rowOffsetParts = rowOffsetStr.Split(',');
+                for (int i = 0; i < 4 && i < rowOffsetParts.Length; i++)
+                    KartographerSituationRowOffset[i] = int.Parse(rowOffsetParts[i]);
+                
+                string rotationStepStr = settingsNode.GetValue("KartographerSituationRotationStep") ?? "0,0,0,0";
+                string[] rotationStepParts = rotationStepStr.Split(',');
+                for (int i = 0; i < 4 && i < rotationStepParts.Length; i++)
+                    KartographerSituationRotationStep[i] = int.Parse(rotationStepParts[i]);
+                
+                // Navball indicator settings
+                KartographerNavballLabels = bool.Parse(settingsNode.GetValue("KartographerNavballLabels") ?? "false");
+                KartographerNavballUseColors = bool.Parse(settingsNode.GetValue("KartographerNavballUseColors") ?? "false");
+                string iconStyleStr = settingsNode.GetValue("KartographerNavballIconStyle") ?? "Retro";
+                // Handle legacy "SDF" value
+                if (iconStyleStr == "SDF") iconStyleStr = "KSP";
+                if (iconStyleStr == "ASCII") iconStyleStr = "Retro";
+                KartographerNavballIconStyle = (NavballIconStyle)Enum.Parse(typeof(NavballIconStyle), iconStyleStr);
+                
+                // Navball screen-space rendering settings
+                KartographerNavballOffscreenMode = int.Parse(settingsNode.GetValue("KartographerNavballOffscreenMode") ?? "0");
+                KartographerNavballIconSize = float.Parse(settingsNode.GetValue("KartographerNavballIconSize") ?? "0.05");
+                KartographerNavballIconThickness = float.Parse(settingsNode.GetValue("KartographerNavballIconThickness") ?? "0.0");
+                KartographerNavballMinIntensity = float.Parse(settingsNode.GetValue("KartographerNavballMinIntensity") ?? "0.33");
+                KartographerNavballMaxAngle = float.Parse(settingsNode.GetValue("KartographerNavballMaxAngle") ?? "90");
+                KartographerNavballHysteresisMargin = float.Parse(settingsNode.GetValue("KartographerNavballHysteresisMargin") ?? "0.05");
+                KartographerPointingIconSize = float.Parse(settingsNode.GetValue("KartographerPointingIconSize") ?? "0.05");
+                KartographerManeuverTextOffset = float.Parse(settingsNode.GetValue("KartographerManeuverTextOffset") ?? "0.08");
+                KartographerManeuverTextScale = float.Parse(settingsNode.GetValue("KartographerManeuverTextScale") ?? "1.0");
+                
+                KartographerGridIntensity = float.Parse(settingsNode.GetValue("KartographerGridIntensity") ?? "0.002");
+                KartographerGridThickness = float.Parse(settingsNode.GetValue("KartographerGridThickness") ?? "0.0003");
+                // KartographerCAStrength is hard-coded, no longer loaded from config
+                KartographerVignetteStrength = float.Parse(settingsNode.GetValue("KartographerVignetteStrength") ?? "0.7");
+                KartographerVignetteStart = float.Parse(settingsNode.GetValue("KartographerVignetteStart") ?? "1.6");
+                KartographerVignetteEnd = float.Parse(settingsNode.GetValue("KartographerVignetteEnd") ?? "2.2");
+                KartographerRotationYaw = float.Parse(settingsNode.GetValue("KartographerRotationYaw") ?? "0.0");
+                KartographerRotationPitch = float.Parse(settingsNode.GetValue("KartographerRotationPitch") ?? "0.0");
+                KartographerGridSize = int.Parse(settingsNode.GetValue("KartographerGridSize") ?? "2");
+                KartographerGridColor = int.Parse(settingsNode.GetValue("KartographerGridColor") ?? "0");
                 ActiveCatalogPath = NormalizeCatalogPath(settingsNode.GetValue("ActiveCatalogPath") ?? "");
                 // IsReadOnly = bool.Parse(settingsNode.GetValue("IsReadOnly") ?? "false");
 
@@ -274,6 +382,122 @@ namespace CinematicShaders.Core
             };
 
             StarfieldNative.CR_StarfieldSetSettings(ref nativeSettings);
+            
+            // Push Kartographer parameters (merge with cached state so we don't stomp selection UI or navball)
+            float focalLength = Shaders.Starfield.StarfieldCompositor.CachedVerticalFOV > 0.001f
+                ? 1.0f / Mathf.Tan(Shaders.Starfield.StarfieldCompositor.CachedVerticalFOV * 0.5f)
+                : 1.732f;
+
+            var kartParams = StarfieldNative.LastKartographerParams;
+            
+            ModFileLogger.Log($"[StarfieldSettings] PushSettingsToNative - BEFORE preservation: NavballEnabledMask={kartParams.NavballEnabledMask}, Icon0_I={kartParams.NavballIcon0_Intensity:F3}");
+            
+            // Preserve navball-related fields before modifying grid settings
+            int preservedNavballEnabledMask = kartParams.NavballEnabledMask;
+            int preservedNavballOffscreenMode = kartParams.NavballOffscreenMode;
+            float preservedNavballIconSize = kartParams.NavballIconSize;
+            float preservedNavballIconThickness = kartParams.NavballIconThickness;
+            float preservedNavballMinIntensity = kartParams.NavballMinIntensity;
+            float preservedNavballMaxAngle = kartParams.NavballMaxAngle;
+            float preservedNavballHysteresisMargin = kartParams.NavballHysteresisMargin;
+            // Preserve all 7 icon positions, intensities, and colors
+            float preservedIcon0_X = kartParams.NavballIcon0_X, preservedIcon0_Y = kartParams.NavballIcon0_Y;
+            float preservedIcon0_Intensity = kartParams.NavballIcon0_Intensity;
+            uint preservedIcon0_Color = kartParams.NavballIcon0_Color;
+            float preservedIcon1_X = kartParams.NavballIcon1_X, preservedIcon1_Y = kartParams.NavballIcon1_Y;
+            float preservedIcon1_Intensity = kartParams.NavballIcon1_Intensity;
+            uint preservedIcon1_Color = kartParams.NavballIcon1_Color;
+            float preservedIcon2_X = kartParams.NavballIcon2_X, preservedIcon2_Y = kartParams.NavballIcon2_Y;
+            float preservedIcon2_Intensity = kartParams.NavballIcon2_Intensity;
+            uint preservedIcon2_Color = kartParams.NavballIcon2_Color;
+            float preservedIcon3_X = kartParams.NavballIcon3_X, preservedIcon3_Y = kartParams.NavballIcon3_Y;
+            float preservedIcon3_Intensity = kartParams.NavballIcon3_Intensity;
+            uint preservedIcon3_Color = kartParams.NavballIcon3_Color;
+            float preservedIcon4_X = kartParams.NavballIcon4_X, preservedIcon4_Y = kartParams.NavballIcon4_Y;
+            float preservedIcon4_Intensity = kartParams.NavballIcon4_Intensity;
+            uint preservedIcon4_Color = kartParams.NavballIcon4_Color;
+            float preservedIcon5_X = kartParams.NavballIcon5_X, preservedIcon5_Y = kartParams.NavballIcon5_Y;
+            float preservedIcon5_Intensity = kartParams.NavballIcon5_Intensity;
+            uint preservedIcon5_Color = kartParams.NavballIcon5_Color;
+            float preservedIcon6_X = kartParams.NavballIcon6_X, preservedIcon6_Y = kartParams.NavballIcon6_Y;
+            float preservedIcon6_Intensity = kartParams.NavballIcon6_Intensity;
+            uint preservedIcon6_Color = kartParams.NavballIcon6_Color;
+            
+            // Preserve pointing icon and maneuver text fields
+            int preservedPointingEnabled = kartParams.PointingIconEnabled;
+            float preservedPointingPosX = kartParams.PointingIconPosX;
+            float preservedPointingPosY = kartParams.PointingIconPosY;
+            float preservedPointingRotation = kartParams.PointingIconRotation;
+            float preservedPointingIntensity = kartParams.PointingIconIntensity;
+            float preservedPointingSize = kartParams.PointingIconSize;
+            uint preservedPointingColor = kartParams.PointingIconColor;
+            int preservedManeuverEnabled = kartParams.ManeuverTextEnabled;
+            float preservedManeuverOriginX = kartParams.ManeuverTextOriginX;
+            float preservedManeuverOriginY = kartParams.ManeuverTextOriginY;
+            float preservedManeuverWidth = kartParams.ManeuverTextWidth;
+            float preservedManeuverHeight = kartParams.ManeuverTextHeight;
+            float preservedManeuverIntensity = kartParams.ManeuverTextIntensity;
+            
+            // Modify grid-related fields
+            kartParams.GridIntensity = KartographerGridIntensity;
+            kartParams.GridThickness = KartographerGridThickness;
+            kartParams.ChromaticAberrationStrength = KartographerCAStrength;
+            kartParams.VignetteStrength = KartographerVignetteStrength;
+            kartParams.VignetteStart = KartographerVignetteStart;
+            kartParams.VignetteEnd = KartographerVignetteEnd;
+            kartParams.PreRotationYaw = KartographerRotationYaw;
+            kartParams.PreRotationPitch = KartographerRotationPitch;
+            kartParams.GridSizePreset = KartographerGridSize;
+            kartParams.GridColorIndex = KartographerGridColor;
+            kartParams.FocalLength = focalLength;
+            
+            // Restore navball-related fields
+            kartParams.NavballEnabledMask = preservedNavballEnabledMask;
+            kartParams.NavballOffscreenMode = preservedNavballOffscreenMode;
+            kartParams.NavballIconSize = preservedNavballIconSize;
+            kartParams.NavballIconThickness = preservedNavballIconThickness;
+            kartParams.NavballMinIntensity = preservedNavballMinIntensity;
+            kartParams.NavballMaxAngle = preservedNavballMaxAngle;
+            kartParams.NavballHysteresisMargin = preservedNavballHysteresisMargin;
+            kartParams.NavballIcon0_X = preservedIcon0_X; kartParams.NavballIcon0_Y = preservedIcon0_Y;
+            kartParams.NavballIcon0_Intensity = preservedIcon0_Intensity;
+            kartParams.NavballIcon0_Color = preservedIcon0_Color;
+            kartParams.NavballIcon1_X = preservedIcon1_X; kartParams.NavballIcon1_Y = preservedIcon1_Y;
+            kartParams.NavballIcon1_Intensity = preservedIcon1_Intensity;
+            kartParams.NavballIcon1_Color = preservedIcon1_Color;
+            kartParams.NavballIcon2_X = preservedIcon2_X; kartParams.NavballIcon2_Y = preservedIcon2_Y;
+            kartParams.NavballIcon2_Intensity = preservedIcon2_Intensity;
+            kartParams.NavballIcon2_Color = preservedIcon2_Color;
+            kartParams.NavballIcon3_X = preservedIcon3_X; kartParams.NavballIcon3_Y = preservedIcon3_Y;
+            kartParams.NavballIcon3_Intensity = preservedIcon3_Intensity;
+            kartParams.NavballIcon3_Color = preservedIcon3_Color;
+            kartParams.NavballIcon4_X = preservedIcon4_X; kartParams.NavballIcon4_Y = preservedIcon4_Y;
+            kartParams.NavballIcon4_Intensity = preservedIcon4_Intensity;
+            kartParams.NavballIcon4_Color = preservedIcon4_Color;
+            kartParams.NavballIcon5_X = preservedIcon5_X; kartParams.NavballIcon5_Y = preservedIcon5_Y;
+            kartParams.NavballIcon5_Intensity = preservedIcon5_Intensity;
+            kartParams.NavballIcon5_Color = preservedIcon5_Color;
+            kartParams.NavballIcon6_X = preservedIcon6_X; kartParams.NavballIcon6_Y = preservedIcon6_Y;
+            kartParams.NavballIcon6_Intensity = preservedIcon6_Intensity;
+            kartParams.NavballIcon6_Color = preservedIcon6_Color;
+            kartParams.PointingIconEnabled = preservedPointingEnabled;
+            kartParams.PointingIconPosX = preservedPointingPosX;
+            kartParams.PointingIconPosY = preservedPointingPosY;
+            kartParams.PointingIconRotation = preservedPointingRotation;
+            kartParams.PointingIconIntensity = preservedPointingIntensity;
+            kartParams.PointingIconSize = preservedPointingSize;
+            kartParams.PointingIconColor = preservedPointingColor;
+            kartParams.ManeuverTextEnabled = preservedManeuverEnabled;
+            kartParams.ManeuverTextOriginX = preservedManeuverOriginX;
+            kartParams.ManeuverTextOriginY = preservedManeuverOriginY;
+            kartParams.ManeuverTextWidth = preservedManeuverWidth;
+            kartParams.ManeuverTextHeight = preservedManeuverHeight;
+            kartParams.ManeuverTextIntensity = preservedManeuverIntensity;
+            
+            ModFileLogger.Log($"[StarfieldSettings] PushSettingsToNative - AFTER restoration: NavballEnabledMask={kartParams.NavballEnabledMask}, Icon0_I={kartParams.NavballIcon0_Intensity:F3}");
+            
+            StarfieldNative.LastKartographerParams = kartParams;
+            StarfieldNative.CR_StarfieldSetKartographerParams(ref kartParams);
 
             // Resolve to absolute path for file operations
             string absoluteCatalogPath = GetAbsoluteCatalogPath();
@@ -282,6 +506,11 @@ namespace CinematicShaders.Core
             bool catalogPathExists = !string.IsNullOrEmpty(absoluteCatalogPath) && System.IO.File.Exists(absoluteCatalogPath);
             bool shouldLoadCatalog = _catalogNeedsReload && EnableStarfield && catalogPathExists;
 
+            // Check if we need to generate a new catalog
+            float currentTime = Time.time;
+            bool shouldGenerateCatalog = catalogParamsChanged && EnableStarfield && !IsReadOnly &&
+                (currentTime - _lastCatalogGenerationTime > CATALOG_GENERATION_DEBOUNCE || _lastCatalogGenerationTime < 0);
+
             // Only log if we're actually going to do something (load or generate)
             // This prevents spam during the Update() check in StarfieldCompositor
             bool willTakeAction = shouldLoadCatalog || shouldGenerateCatalog;
@@ -289,11 +518,6 @@ namespace CinematicShaders.Core
             {
                 UnityEngine.Debug.Log($"[StarfieldSettings] Catalog check: needsReload={_catalogNeedsReload}, enabled={EnableStarfield}, pathExists={catalogPathExists}, path={ActiveCatalogPath}");
             }
-
-            // Check if we need to generate a new catalog
-            float currentTime = Time.time;
-            bool shouldGenerateCatalog = catalogParamsChanged && EnableStarfield && !IsReadOnly &&
-                (currentTime - _lastCatalogGenerationTime > CATALOG_GENERATION_DEBOUNCE || _lastCatalogGenerationTime < 0);
 
             if (shouldLoadCatalog)
             {
@@ -474,6 +698,46 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("RotationX", RotationX);
                 settingsNode.AddValue("RotationY", RotationY);
                 settingsNode.AddValue("RotationZ", RotationZ);
+                
+                // Kartographer settings
+                settingsNode.AddValue("EnableKartographer", EnableKartographer);
+                settingsNode.AddValue("EnablePolarisTracking", EnablePolarisTracking);
+                settingsNode.AddValue("KartographerTrackedStarHIP", KartographerTrackedStarHIP);
+                settingsNode.AddValue("KartographerMouseHoverSelect", KartographerMouseHoverSelect);
+                settingsNode.AddValue("KartographerVesselTargetSelect", KartographerVesselTargetSelect);
+                settingsNode.AddValue("KartographerSituationDisplay", KartographerSituationDisplay);
+                // Save per-grid-size arrays as comma-separated values
+                settingsNode.AddValue("KartographerSituationRowOffset", 
+                    string.Join(",", KartographerSituationRowOffset));
+                settingsNode.AddValue("KartographerSituationRotationStep", 
+                    string.Join(",", KartographerSituationRotationStep));
+                
+                // Navball indicator settings
+                settingsNode.AddValue("KartographerNavballLabels", KartographerNavballLabels);
+                settingsNode.AddValue("KartographerNavballUseColors", KartographerNavballUseColors);
+                settingsNode.AddValue("KartographerNavballIconStyle", KartographerNavballIconStyle.ToString());
+                
+                // Navball screen-space rendering settings
+                settingsNode.AddValue("KartographerNavballOffscreenMode", KartographerNavballOffscreenMode);
+                settingsNode.AddValue("KartographerNavballIconSize", KartographerNavballIconSize);
+                settingsNode.AddValue("KartographerNavballIconThickness", KartographerNavballIconThickness);
+                settingsNode.AddValue("KartographerNavballMinIntensity", KartographerNavballMinIntensity);
+                settingsNode.AddValue("KartographerNavballMaxAngle", KartographerNavballMaxAngle);
+                settingsNode.AddValue("KartographerNavballHysteresisMargin", KartographerNavballHysteresisMargin);
+                settingsNode.AddValue("KartographerPointingIconSize", KartographerPointingIconSize);
+                settingsNode.AddValue("KartographerManeuverTextOffset", KartographerManeuverTextOffset);
+                settingsNode.AddValue("KartographerManeuverTextScale", KartographerManeuverTextScale);
+                
+                settingsNode.AddValue("KartographerGridIntensity", KartographerGridIntensity);
+                settingsNode.AddValue("KartographerGridThickness", KartographerGridThickness);
+                // KartographerCAStrength is hard-coded, no longer saved to config
+                settingsNode.AddValue("KartographerVignetteStrength", KartographerVignetteStrength);
+                settingsNode.AddValue("KartographerVignetteStart", KartographerVignetteStart);
+                settingsNode.AddValue("KartographerVignetteEnd", KartographerVignetteEnd);
+                settingsNode.AddValue("KartographerRotationYaw", KartographerRotationYaw);
+                settingsNode.AddValue("KartographerRotationPitch", KartographerRotationPitch);
+                settingsNode.AddValue("KartographerGridSize", KartographerGridSize);
+                settingsNode.AddValue("KartographerGridColor", KartographerGridColor);
                 settingsNode.AddValue("ActiveCatalogPath", NormalizeCatalogPath(ActiveCatalogPath));
                 // settingsNode.AddValue("IsReadOnly", IsReadOnly);
                 settingsNode.AddValue("CatalogSeed", CatalogSeed);

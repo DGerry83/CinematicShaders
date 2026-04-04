@@ -1,5 +1,6 @@
 ﻿using CinematicShaders.Core;
 using CinematicShaders.Native;
+using CinematicShaders.UI;
 using System;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -18,6 +19,27 @@ namespace CinematicShaders.Shaders.Starfield
         // Cached camera params to detect FOV changes
         private float _cachedFOV;
         private float _cachedAspect;
+        
+        // Cached camera basis for KartographerSelector (Phase 2)
+        private Vector3 _cachedCameraRight;
+        private Vector3 _cachedCameraUp;
+        private Vector3 _cachedCameraForward;
+        private float _cachedVerticalFOV;
+
+        public static float CachedVerticalFOV { get; private set; } = 60f * Mathf.Deg2Rad;
+        
+        // Public static camera basis for grid label and other grid-fixed elements
+        // Updated every frame, accessible without needing a selector instance
+        // INERTIAL FRAME (counter-rotated for fixed stars) - for starfield/grid rendering
+        public static Vector3 CameraRight { get; private set; } = Vector3.right;
+        public static Vector3 CameraUp { get; private set; } = Vector3.up;
+        public static Vector3 CameraForward { get; private set; } = Vector3.forward;
+        public static float CameraAspect { get; private set; } = 1.777f;
+        
+        // SURFACE FRAME (raw camera transform) - for target tracking that matches world positions
+        public static Vector3 CameraRightSurface { get; private set; } = Vector3.right;
+        public static Vector3 CameraUpSurface { get; private set; } = Vector3.up;
+        public static Vector3 CameraForwardSurface { get; private set; } = Vector3.forward;
 
         void OnEnable()
         {
@@ -257,6 +279,12 @@ namespace CinematicShaders.Shaders.Starfield
             Vector3 surfaceRight = _scaledSpaceCamera.transform.right;
             Vector3 surfaceUp = _scaledSpaceCamera.transform.up;
             Vector3 surfaceForward = _scaledSpaceCamera.transform.forward;
+            
+            // Update surface frame camera basis for target tracking
+            // Target positions are in world space (surface frame), so we need camera in same frame
+            CameraRightSurface = surfaceRight;
+            CameraUpSurface = surfaceUp;
+            CameraForwardSurface = surfaceForward;
 
             // Transform to Inertial Frame (fixed celestial frame) to counteract planetary rotation
             QuaternionD inverseRotation = QuaternionD.Inverse(Planetarium.Rotation);
@@ -310,6 +338,19 @@ namespace CinematicShaders.Shaders.Starfield
             StarfieldNative.CR_StarfieldSetDimming(sunGlareDimming, planetaryDimming);
 
             _frameIndex = (_frameIndex + 1) & 7; // Temporal index 0-7
+            
+            // Cache camera basis for KartographerSelector (Phase 2)
+            _cachedCameraRight = right;
+            _cachedCameraUp = up;
+            _cachedCameraForward = forward;
+            _cachedVerticalFOV = verticalFOV;
+            CachedVerticalFOV = verticalFOV;
+            
+            // Update public static fields for grid label access (doesn't require selector)
+            CameraRight = right;
+            CameraUp = up;
+            CameraForward = forward;
+            CameraAspect = _cachedAspect;
         }
 
         void Update()
@@ -351,7 +392,25 @@ namespace CinematicShaders.Shaders.Starfield
                 StarfieldSettings.InvalidateCatalogForReload();
                 StarfieldSettings.PushSettingsToNative();
             }
+            
+            // Update KartographerSelector with current camera basis (Phase 2)
+            // Always call if callback is registered - the selector needs updates even when UI is closed
+            if (KartographerSelectorCallback != null)
+            {
+                UpdateKartographerSelector();
+            }
         }
+        
+        private void UpdateKartographerSelector()
+        {
+            // This will be called to update the selector - the actual implementation
+            // needs access to the KartographerTab which is managed by the window
+            // For now, we'll use a callback pattern
+            KartographerSelectorCallback?.Invoke(_cachedCameraRight, _cachedCameraUp, _cachedCameraForward, _cachedAspect, _cachedVerticalFOV);
+        }
+        
+        // Callback for KartographerTab to receive camera updates
+        public static System.Action<Vector3, Vector3, Vector3, float, float> KartographerSelectorCallback;
 
         // Called by manager when settings change
         public void InvalidateResources()

@@ -19,6 +19,98 @@ from datetime import datetime
 MAGIC = 0x53545243
 HEADER_SIZE = 256
 
+# Constellation abbreviation to full name mapping (IAU standard abbreviations)
+CONSTELLATION_NAMES = {
+    'And': 'Andromeda',
+    'Ant': 'Antlia',
+    'Aps': 'Apus',
+    'Aqr': 'Aquarius',
+    'Aql': 'Aquila',
+    'Ara': 'Ara',
+    'Ari': 'Aries',
+    'Aur': 'Auriga',
+    'Boo': 'Boötes',
+    'Cae': 'Caelum',
+    'Cam': 'Camelopardalis',
+    'Cnc': 'Cancer',
+    'CVn': 'Canes Venatici',
+    'CMa': 'Canis Major',
+    'CMi': 'Canis Minor',
+    'Cap': 'Capricornus',
+    'Car': 'Carina',
+    'Cas': 'Cassiopeia',
+    'Cen': 'Centaurus',
+    'Cep': 'Cepheus',
+    'Cet': 'Cetus',
+    'Cha': 'Chamaeleon',
+    'Cir': 'Circinus',
+    'Col': 'Columba',
+    'Com': 'Coma Berenices',
+    'CrA': 'Corona Austrina',
+    'CrB': 'Corona Borealis',
+    'Crv': 'Corvus',
+    'Crt': 'Crater',
+    'Cru': 'Crux',
+    'Cyg': 'Cygnus',
+    'Del': 'Delphinus',
+    'Dor': 'Dorado',
+    'Dra': 'Draco',
+    'Equ': 'Equuleus',
+    'Eri': 'Eridanus',
+    'For': 'Fornax',
+    'Gem': 'Gemini',
+    'Gru': 'Grus',
+    'Her': 'Hercules',
+    'Hor': 'Horologium',
+    'Hya': 'Hydra',
+    'Hyi': 'Hydrus',
+    'Ind': 'Indus',
+    'Lac': 'Lacerta',
+    'Leo': 'Leo',
+    'LMi': 'Leo Minor',
+    'Lep': 'Lepus',
+    'Lib': 'Libra',
+    'Lup': 'Lupus',
+    'Lyn': 'Lynx',
+    'Lyr': 'Lyra',
+    'Men': 'Mensa',
+    'Mic': 'Microscopium',
+    'Mon': 'Monoceros',
+    'Mus': 'Musca',
+    'Nor': 'Norma',
+    'Oct': 'Octans',
+    'Oph': 'Ophiuchus',
+    'Ori': 'Orion',
+    'Pav': 'Pavo',
+    'Peg': 'Pegasus',
+    'Per': 'Perseus',
+    'Phe': 'Phoenix',
+    'Pic': 'Pictor',
+    'Psc': 'Pisces',
+    'PsA': 'Piscis Austrinus',
+    'Pup': 'Puppis',
+    'Pyx': 'Pyxis',
+    'Ret': 'Reticulum',
+    'Sge': 'Sagitta',
+    'Sgr': 'Sagittarius',
+    'Sco': 'Scorpius',
+    'Scl': 'Sculptor',
+    'Sct': 'Scutum',
+    'Ser': 'Serpens',
+    'Sex': 'Sextans',
+    'Tau': 'Taurus',
+    'Tel': 'Telescopium',
+    'Tri': 'Triangulum',
+    'TrA': 'Triangulum Australe',
+    'Tuc': 'Tucana',
+    'UMa': 'Ursa Major',
+    'UMi': 'Ursa Minor',
+    'Vel': 'Vela',
+    'Vir': 'Virgo',
+    'Vol': 'Volans',
+    'Vul': 'Vulpecula',
+}
+
 def read_catalog_header(filepath):
     """Read header from binary catalog to get star count."""
     with open(filepath, 'rb') as f:
@@ -59,7 +151,7 @@ def parse_spectral_class(spectral):
         return s
     return None
 
-def format_full_designation(bayer, flamsteed, constellation):
+def format_full_designation(bayer, flamsteed, con_abbr):
     """Create full designation like 'Alpha Orionis'."""
     greek_names = {
         'Alp': 'Alpha', 'Bet': 'Beta', 'Gam': 'Gamma', 'Del': 'Delta',
@@ -77,8 +169,10 @@ def format_full_designation(bayer, flamsteed, constellation):
     elif flamsteed:
         parts.append(str(flamsteed))
     
-    if constellation:
-        parts.append(constellation)
+    if con_abbr:
+        # Use full constellation name instead of abbreviation
+        full_name = CONSTELLATION_NAMES.get(con_abbr, con_abbr)
+        parts.append(full_name)
     
     return ' '.join(parts) if parts else None
 
@@ -174,7 +268,8 @@ def generate_catalog_json(bin_file, csv_path, constellations, output_name):
             if flamsteed:
                 entry['flamsteed'] = int(flamsteed)
             if con:
-                entry['constellation'] = con
+                # Store full constellation name instead of abbreviation
+                entry['constellation'] = CONSTELLATION_NAMES.get(con, con)
             
             full_name = format_full_designation(bayer, flamsteed, con)
             if full_name and full_name != proper:
@@ -190,6 +285,26 @@ def generate_catalog_json(bin_file, csv_path, constellations, output_name):
                 entry['magnitude'] = round(mag, 2)
             except ValueError:
                 pass
+            
+            # Add distance in light years (convert from parsecs)
+            try:
+                dist_pc = float(row.get('dist', '0'))
+                if dist_pc > 0 and dist_pc < 100000:  # Valid distance range
+                    dist_ly = round(dist_pc * 3.26156, 2)
+                    entry['distance_ly'] = dist_ly
+            except ValueError:
+                pass
+            
+            # Add Cartesian direction vectors for GPU projection (x, y, z in world space)
+            # Must match convert_hyg.py which flips Y to correct mirroring
+            try:
+                entry['x'] = float(row.get('x', '0'))
+                entry['y'] = -float(row.get('y', '0'))
+                entry['z'] = float(row.get('z', '0'))
+            except ValueError:
+                entry['x'] = 0.0
+                entry['y'] = 0.0
+                entry['z'] = 0.0
             
             stars[str(hip_id)] = entry
     

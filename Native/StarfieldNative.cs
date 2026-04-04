@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using UnityEngine;
+using CinematicShaders.Native.Structs;
 
 namespace CinematicShaders.Native
 {
@@ -16,6 +17,94 @@ namespace CinematicShaders.Native
         }
 
         public static bool IsLoaded => DllLoader.IsLoaded;
+
+        // ============================================================================
+        // Text System structs and imports (Phase 2 - Font Integration)
+        // ============================================================================
+        
+        [StructLayout(LayoutKind.Sequential)]
+        public struct GlyphData
+        {
+            public float PosX;
+            public float PosY;
+            public float SizeX;
+            public float SizeY;
+            public float UvX;
+            public float UvY;
+            public float UvW;
+            public float UvH;
+            public uint Color;
+            public float Smoothing;
+        }
+        
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr CR_TextInit(IntPtr deviceSourceTexture, [MarshalAs(UnmanagedType.LPWStr)] string fontPath);
+        
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_TextShutdown(IntPtr textSystem);
+        
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CR_TextLayout(IntPtr textSystem, [MarshalAs(UnmanagedType.LPUTF8Str)] string text, float fontSize, uint color);
+        
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_TextGetBounds(IntPtr textSystem, out float outWidth, out float outHeight);
+        
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_TextMeasure(IntPtr textSystem, [MarshalAs(UnmanagedType.LPUTF8Str)] string text, float fontSize, out float outWidth, out float outHeight);
+        
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr CR_TextGetAtlasSRV(IntPtr textSystem);
+        
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr CR_TextGetGlyphPtr(IntPtr textSystem);
+        
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CR_TextGetGlyphCount(IntPtr textSystem);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_TextExportAtlas(IntPtr textSystem, [MarshalAs(UnmanagedType.LPStr)] string filename);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_TextExportGlyphDebug(IntPtr textSystem, [MarshalAs(UnmanagedType.LPStr)] string baseFilename);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_TextDispatch(
+            IntPtr textSystem,
+            IntPtr outputTexture,
+            int glyphCount,
+            int outputWidth,
+            int outputHeight);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CR_TextLayoutEx(
+            IntPtr textSystem,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string text,
+            float fontSize,
+            uint color,
+            float originX,
+            float originY,
+            float lineSpacing);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_TextDispatchEx(
+            IntPtr textSystem,
+            IntPtr outputTexture,
+            int glyphCount,
+            int outputWidth,
+            int outputHeight,
+            int clearOutput);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_SetTextTexture(IntPtr texture);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_SetVesselTargetTextTexture(IntPtr texture);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_SetGridLabelTexture(int slot, IntPtr texture);
+        
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_ClearGridLabelSlot(int slot);
 
         [StructLayout(LayoutKind.Sequential)]
         public struct StarfieldSettingsNative
@@ -135,26 +224,17 @@ namespace CinematicShaders.Native
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_StarfieldGenerateCatalog(int seed, int count);
 
-        // Catalog save/load exports
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        public static extern int CR_StarfieldGetCatalogData([Out] StarDataNative[] outBuffer, int maxCount);
+        public static extern int CR_StarfieldGetCatalogData(StarDataNative[] outBuffer, int maxCount);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CR_StarfieldLoadCatalog([In] StarDataNative[] buffer, int count, int heroCount);
+        public static extern void CR_StarfieldLoadCatalog(StarDataNative[] buffer, int count, int heroCount);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern int CR_StarfieldGetCatalogSize();
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern int CR_StarfieldGetHeroCount();
-
-
-        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CR_StarfieldSetDimming(float sunGlareDimming, float planetaryDimming);
-
-        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        public static extern int CR_RenderStarfieldCubemap([In] IntPtr[] targetTextures, int faceSize);
-
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern byte CR_StarfieldIsDeviceReady();
@@ -165,54 +245,39 @@ namespace CinematicShaders.Native
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_StarfieldInvalidateResources();
 
-        /// <summary>
-        /// Check if the D3D11 device is initialized and ready
-        /// </summary>
-        public static bool IsDeviceReady()
-        {
-            try
-            {
-                return CR_StarfieldIsDeviceReady() != 0;
-            }
-            catch
-            {
-                return false;
-            }
-        }
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern byte CR_NavballTexturesNeedReupload();
 
-        /// <summary>
-        /// Check if catalog needs reload (device was acquired but catalog empty). Resets flag after reading.
-        /// </summary>
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_StarfieldSetDimming(float sunGlareDimming, float planetaryDimming);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_StarfieldSetKartographerEnabled(byte enabled);
+
+        // ============================================================================
+        // Convenience wrappers (C#-friendly versions)
+        // ============================================================================
+        
         public static bool CatalogNeedsReload()
         {
-            try
-            {
-                return CR_StarfieldCatalogNeedsReload() != 0;
-            }
-            catch
-            {
-                return false;
-            }
+            return CR_StarfieldCatalogNeedsReload() != 0;
         }
-
-        /// <summary>
-        /// Invalidate GPU resources (call on scene change to force recreation, preserves catalog)
-        /// </summary>
+        
         public static void InvalidateResources()
         {
-            try
-            {
-                CR_StarfieldInvalidateResources();
-            }
-            catch
-            {
-                // Ignore if DLL not loaded
-            }
+            CR_StarfieldInvalidateResources();
         }
-
-        /// <summary>
-        /// Get current catalog data from native plugin
-        /// </summary>
+        
+        public static int GetCatalogSize()
+        {
+            return CR_StarfieldGetCatalogSize();
+        }
+        
+        public static int GetHeroCount()
+        {
+            return CR_StarfieldGetHeroCount();
+        }
+        
         public static StarDataNative[] GetCatalogData(int count)
         {
             if (count <= 0) return new StarDataNative[0];
@@ -224,21 +289,12 @@ namespace CinematicShaders.Native
             {
                 Debug.LogWarning($"[StarfieldNative] Catalog size mismatch: expected {count}, got {actualCount}");
                 // Resize array to actual count
-                if (actualCount > 0)
-                {
-                    var actual = new StarDataNative[actualCount];
-                    Array.Copy(buffer, actual, actualCount);
-                    return actual;
-                }
-                return new StarDataNative[0];
+                System.Array.Resize(ref buffer, actualCount);
             }
             
             return buffer;
         }
-
-        /// <summary>
-        /// Load a catalog into the native plugin
-        /// </summary>
+        
         public static void LoadCatalog(StarDataNative[] stars, int heroCount)
         {
             if (stars == null || stars.Length == 0)
@@ -246,26 +302,52 @@ namespace CinematicShaders.Native
                 Debug.LogWarning("[StarfieldNative] Cannot load null or empty catalog");
                 return;
             }
-            
             CR_StarfieldLoadCatalog(stars, stars.Length, heroCount);
         }
 
-        /// <summary>
-        /// Get the number of stars in the current catalog
-        /// </summary>
-        public static int GetCatalogSize()
-        {
-            return CR_StarfieldGetCatalogSize();
-        }
 
-        /// <summary>
-        /// Get the number of hero stars in the current catalog
-        /// </summary>
-        public static int GetHeroCount()
-        {
-            return CR_StarfieldGetHeroCount();
-        }
 
+        // Last params cache for incremental updates
+        public static KartographerParamsNative LastKartographerParams;
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_StarfieldSetKartographerParams(ref KartographerParamsNative parameters);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CR_RenderStarfieldCubemap(IntPtr[] targetTextures, int faceSize);
+
+        // ============================================================================
+        // Navball Icon Texture Array (Phase 4d)
+        // ============================================================================
         
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CR_SetNavballIconTextures(
+            [In] IntPtr[] sourceTextures, int width, int height);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CR_SetPointingIconTexture(IntPtr texture);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CR_SetManeuverTextTexture(IntPtr texture);
+        
+        /// <summary>
+        /// Uploads 7 navball icon textures to the GPU as a texture array.
+        /// </summary>
+        /// <param name="textures">Array of 7 Texture2D objects (must be R8G8B8A8 format)</param>
+        /// <param name="width">Texture width (must be same for all)</param>
+        /// <param name="height">Texture height (must be same for all)</param>
+        /// <returns>True if successful</returns>
+        public static bool SetNavballIconTextures(Texture2D[] textures, int width, int height)
+        {
+            if (textures == null || textures.Length != 7) return false;
+            
+            IntPtr[] nativePtrs = new IntPtr[7];
+            for (int i = 0; i < 7; i++) {
+                if (textures[i] == null) return false;
+                nativePtrs[i] = textures[i].GetNativeTexturePtr();
+            }
+            
+            return CR_SetNavballIconTextures(nativePtrs, width, height) == 0;
+        }
     }
 }

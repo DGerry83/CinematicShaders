@@ -12,6 +12,16 @@ namespace CinematicShaders.UI
             public static readonly Color READONLY_OFF_RED = new Color(0.9f, 0.2f, 0.2f);
             public static readonly Color INFO_ORANGE = new Color(1f, 0.5490196f, 0f);
             public static readonly Color TEXT_DIM = Color.gray;
+
+            public static class GridColors
+            {
+                public static readonly Color Seafoam = new Color(0.1f, 0.9f, 0.7f);
+                public static readonly Color Amber = new Color(1.0f, 0.65f, 0.0f);
+                public static readonly Color White = new Color(0.85f, 0.95f, 1.0f);
+                public static readonly Color Green = new Color(0.25f, 1.0f, 0.0f);
+
+                public static readonly Color[] All = { Seafoam, Amber, White, Green };
+            }
         }
         #endregion
 
@@ -120,6 +130,37 @@ namespace CinematicShaders.UI
             public static GUIStyle Tooltip()
             {
                 return new GUIStyle(HighLogic.Skin.box);
+            }
+
+            public static GUIStyle ColorButton(Color backgroundColor)
+            {
+                GUIStyle style = new GUIStyle(HighLogic.Skin.button);
+                Texture2D tex = MakeColorTexture(backgroundColor);
+                style.normal.background = tex;
+                style.normal.textColor = Color.black;
+                style.hover.background = tex;
+                style.hover.textColor = Color.black;
+                style.active.background = tex;
+                style.active.textColor = Color.black;
+                style.focused.background = tex;
+                style.focused.textColor = Color.black;
+                style.onNormal.background = tex;
+                style.onNormal.textColor = Color.black;
+                style.onHover.background = tex;
+                style.onHover.textColor = Color.black;
+                style.onActive.background = tex;
+                style.onActive.textColor = Color.black;
+                style.onFocused.background = tex;
+                style.onFocused.textColor = Color.black;
+                return style;
+            }
+
+            private static Texture2D MakeColorTexture(Color color)
+            {
+                Texture2D tex = new Texture2D(1, 1);
+                tex.SetPixel(0, 0, color);
+                tex.Apply();
+                return tex;
             }
         }
         #endregion

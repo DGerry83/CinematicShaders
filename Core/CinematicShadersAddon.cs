@@ -1,4 +1,6 @@
-﻿using CinematicShaders.Native;
+﻿using System.Linq;
+using CinematicShaders.Native;
+using CinematicShaders.Native.Structs;
 using CinematicShaders.Shaders.GTAO;
 using CinematicShaders.Shaders.Starfield;
 using CinematicShaders.UI;
@@ -18,6 +20,17 @@ namespace CinematicShaders.Core
         private static Texture2D _toolbarIcon;
 
         private CinematicShadersWindow _mainWindow;
+        
+        // Vessel target selector - needs frame updates independent of UI
+        private VesselTargetSelector _vesselTargetSelector;
+        
+        // Situation display label system - shared with UI for debug sliders
+        public static GridLabelSystem SituationLabelSystem { get; private set; }
+        
+        // Navball indicator label manager - shared with UI for settings
+        public static NavballLabelManager NavballManager { get; private set; }
+        
+        private float _lastSituationUpdate = 0f;
 
         void Awake()
         {
@@ -27,12 +40,26 @@ namespace CinematicShaders.Core
                 return;
             }
             Instance = this;
+            
+            ModFileLogger.Initialize();
+            ModFileLogger.Log("CinematicShadersAddon awakened");
         }
 
         void Start()
         {
+            // Skip initialization in MAINMENU/LOADING scenes - GameDatabase not ready, no vessel exists
+            if (HighLogic.LoadedScene == GameScenes.MAINMENU || 
+                HighLogic.LoadedScene == GameScenes.LOADING)
+            {
+                return;
+            }
+            
             GTAOSettings.Load();
             StarfieldSettings.Load();
+            
+            System.Diagnostics.Debug.Assert(System.Runtime.InteropServices.Marshal.SizeOf(typeof(KartographerParamsNative)) == 1088,
+                $"KartographerParamsNative size mismatch");
+            
             // If we're already in a game session, re-apply per-save settings to override
             // the global settings we just loaded. This happens on scene changes within
             // the same save (e.g., Flight -> Tracking Station -> Flight).
@@ -79,6 +106,10 @@ namespace CinematicShaders.Core
                 GTAOManager.Initialize();
             if (StarfieldSettings.EnableStarfield)
                 StarfieldManager.Initialize();
+            
+            // Initialize Kartographer from saved settings (no UI required)
+            // Done here instead of OnLevelWasLoadedGUIReady to ensure DLL is loaded
+            KartographerTab.InitializeFromSettings();
         }
 
         /// <summary>
@@ -148,10 +179,288 @@ namespace CinematicShaders.Core
                 GTAOManager.Initialize();
             }
         }
+        
+        void Update()
+        {
+            // Update vessel target selector every frame (independent of UI)
+            if (StarfieldSettings.EnableKartographer && StarfieldSettings.KartographerVesselTargetSelect)
+            {
+                if (_vesselTargetSelector == null)
+                {
+                    _vesselTargetSelector = new VesselTargetSelector();
+                }
+                
+                // Update camera params from compositor
+                // Use SURFACE FRAME for target tracking (matches world space target positions)
+                _vesselTargetSelector.CameraRight = StarfieldCompositor.CameraRightSurface;
+                _vesselTargetSelector.CameraUp = StarfieldCompositor.CameraUpSurface;
+                _vesselTargetSelector.CameraForward = StarfieldCompositor.CameraForwardSurface;
+                _vesselTargetSelector.AspectRatio = StarfieldCompositor.CameraAspect;
+                _vesselTargetSelector.VerticalFOV = StarfieldCompositor.CachedVerticalFOV;
+                
+                // Update projection
+                _vesselTargetSelector.Update();
+            }
+            else if (_vesselTargetSelector != null)
+            {
+                // Selector exists but should be disabled
+                _vesselTargetSelector.StopTracking();
+                _vesselTargetSelector = null;
+            }
+            
+            // Update grid label system (HUCK, situation labels) - runs whenever Kartographer is enabled
+            UpdateGridLabelSystem();
+            
+            // Update navball indicators if enabled
+            if (StarfieldSettings.EnableKartographer && NavballManager != null)
+            {
+                NavballManager.Update();
+            }
+            
+            // Update situation display only in playable scenes (Flight, Tracking Station, KSC)
+            // Shows "NO VESSEL" when not in a vessel (e.g., Tracking Station)
+            if (IsPlayableScene())
+            {
+                UpdateSituationDisplay();
+            }
+            else
+            {
+                // Disable situation labels when not in a playable scene
+                if (SituationLabelSystem != null)
+                {
+                    var labelA = SituationLabelSystem.GetLabel("situation_a");
+                    var labelB = SituationLabelSystem.GetLabel("situation_b");
+                    if (labelA != null && labelA.Enabled)
+                        SituationLabelSystem.SetLabelEnabled("situation_a", false);
+                    if (labelB != null && labelB.Enabled)
+                        SituationLabelSystem.SetLabelEnabled("situation_b", false);
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Updates the shared GridLabelSystem that manages HUCK and situation labels.
+        /// This runs whenever Kartographer is enabled, independent of situation display setting.
+        /// </summary>
+        private void UpdateGridLabelSystem()
+        {
+            if (!StarfieldSettings.EnableKartographer)
+            {
+                // Disable all grid labels when Kartographer is off
+                if (SituationLabelSystem != null)
+                {
+                    if (SituationLabelSystem.GetLabel("situation_a") is var a && a != null && a.Enabled)
+                        SituationLabelSystem.SetLabelEnabled("situation_a", false);
+                    if (SituationLabelSystem.GetLabel("situation_b") is var b && b != null && b.Enabled)
+                        SituationLabelSystem.SetLabelEnabled("situation_b", false);
+                    if (SituationLabelSystem.GetLabel("huck") is var h && h != null && h.Enabled)
+                        SituationLabelSystem.SetLabelEnabled("huck", false);
+                }
+                return;
+            }
+            
+            // Initialize label system if needed (shared between HUCK and situation display)
+            if (SituationLabelSystem == null)
+            {
+                SituationLabelSystem = new GridLabelSystem();
+                SituationLabelSystem.Initialize();
+            }
+            
+            // Initialize navball label manager if needed
+            if (NavballManager == null)
+            {
+                NavballManager = new NavballLabelManager();
+                NavballManager.Initialize();
+                // Apply saved settings
+                NavballManager.SetEnabled(StarfieldSettings.KartographerNavballLabels);
+                NavballManager.SetUseNavballColors(StarfieldSettings.KartographerNavballUseColors);
+                NavballManager.SetOffscreenMode(StarfieldSettings.KartographerNavballOffscreenMode);
+            }
+            
+            // Ensure HUCK label is enabled (unless Tiny preset)
+            int currentPreset = Mathf.Clamp(StarfieldSettings.KartographerGridSize, 0, 4);
+            if (SituationLabelSystem.GetLabel("huck") is var huck && huck != null)
+            {
+                if (currentPreset == 4 && huck.Enabled) // Tiny
+                {
+                    SituationLabelSystem.SetLabelEnabled("huck", false);
+                }
+                else if (currentPreset != 4 && !huck.Enabled)
+                {
+                    SituationLabelSystem.SetLabelEnabled("huck", true);
+                }
+            }
+            
+            // Update the label system - this handles preset changes, texture generation, and native pushing
+            SituationLabelSystem.Update();
+        }
+        
+        /// <summary>
+        /// Updates situation-specific text and positioning.
+        /// Only runs when situation display is enabled, but uses the shared GridLabelSystem.
+        /// </summary>
+        private void UpdateSituationDisplay()
+        {
+            if (!StarfieldSettings.EnableKartographer || !StarfieldSettings.KartographerSituationDisplay)
+            {
+                // Disable situation labels if display is off (HUCK remains managed by UpdateGridLabelSystem)
+                if (SituationLabelSystem != null)
+                {
+                    if (SituationLabelSystem.GetLabel("situation_a") is var a && a != null && a.Enabled)
+                        SituationLabelSystem.SetLabelEnabled("situation_a", false);
+                    if (SituationLabelSystem.GetLabel("situation_b") is var b && b != null && b.Enabled)
+                        SituationLabelSystem.SetLabelEnabled("situation_b", false);
+                }
+                return;
+            }
+            
+            // Label system is guaranteed to be initialized by UpdateGridLabelSystem()
+            // Update positions based on grid preset and rotation slider
+            UpdateSituationPositions();
+            
+            // Enable the situation labels
+            var labelA = SituationLabelSystem.GetLabel("situation_a");
+            var labelB = SituationLabelSystem.GetLabel("situation_b");
+            if (labelA != null && !labelA.Enabled)
+                SituationLabelSystem.SetLabelEnabled("situation_a", true);
+            if (labelB != null && !labelB.Enabled)
+                SituationLabelSystem.SetLabelEnabled("situation_b", true);
+            
+            // Update text periodically (10 FPS)
+            float now = Time.time;
+            if (now - _lastSituationUpdate > 0.1f)
+            {
+                _lastSituationUpdate = now;
+                string text = BuildSituationText();
+                if (labelA != null)
+                {
+                    labelA.Text = text;
+                    labelA.TextureDirty = true;
+                }
+                if (labelB != null)
+                {
+                    labelB.Text = text;
+                    labelB.TextureDirty = true;
+                }
+            }
+            
+            // Note: LabelSystem.Update() is called in UpdateGridLabelSystem() which runs first
+        }
+        
+        /// <summary>
+        /// Update situation label grid cell positions based on grid preset and rotation slider
+        /// Uses GridCellRow and GridCellCol for explicit cell positioning
+        /// </summary>
+        private void UpdateSituationPositions()
+        {
+            if (SituationLabelSystem == null) return;
+            
+            var labelA = SituationLabelSystem.GetLabel("situation_a");
+            var labelB = SituationLabelSystem.GetLabel("situation_b");
+            if (labelA == null || labelB == null) return;
+            
+            // Get grid preset
+            int preset = Mathf.Clamp(StarfieldSettings.KartographerGridSize, 0, 3);
+            
+            // Row from top (0 = north pole)
+            // Preset-specific base positions: Jumbo=2, Large=3, Medium=5, Small=7
+            // Medium and Small shifted +2 towards south pole for better label positioning
+            int[] baseRows = { 2, 3, 5, 7 };
+            int baseRow = baseRows[preset];
+            int rowOffset = StarfieldSettings.KartographerSituationRowOffset[preset];
+            int rowFromTop = Mathf.Clamp(baseRow - rowOffset, 0, 15);
+            
+            // Get grid dimensions
+            int[] gridMeridians = { 8, 12, 16, 24 };
+            int numLong = gridMeridians[preset];
+            
+            // Get discrete rotation step (0 to numLong-1)
+            // Negate the step so slider to the right rotates labels clockwise
+            int rotationStep = StarfieldSettings.KartographerSituationRotationStep[preset] % numLong;
+            int col = (numLong - rotationStep) % numLong;
+            int oppositeStep = (col + numLong / 2) % numLong;
+            
+            // Update label A if position changed
+            if (labelA.GridCellRow != rowFromTop || labelA.GridCellCol != col)
+            {
+                labelA.GridCellRow = rowFromTop;
+                labelA.GridCellCol = col;
+                labelA.PositionDirty = true;
+            }
+            
+            // Update label B if position changed
+            if (labelB.GridCellRow != rowFromTop || labelB.GridCellCol != oppositeStep)
+            {
+                labelB.GridCellRow = rowFromTop;
+                labelB.GridCellCol = oppositeStep;
+                labelB.PositionDirty = true;
+            }
+        }
+        
+        /// <summary>
+        /// Sanitize text to remove non-printable characters and KSP formatting codes
+        /// </summary>
+        private string SanitizeText(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return "";
+            // Remove KSP formatting codes like ^N (newline), ^C (color), etc.
+            string cleaned = input.Replace("^N", "").Replace("^n", "");
+            // Keep only printable ASCII
+            return new string(cleaned.Where(c => c >= 32 && c < 127).ToArray());
+        }
+
+        /// <summary>
+        /// Formats a distance in meters - always outputs meters
+        /// Texture width overflow detection in GenerateTexture handles unit escalation per-line
+        /// </summary>
+        private string FormatDistanceSmart(double meters, string prefix)
+        {
+            // Always output meters - per-line width detection in GenerateTexture will 
+            // compress individual lines to KM/MM/GM/TM if they don't fit in texture
+            if (meters >= 100) return $"{prefix}{meters:F0} M";
+            if (meters >= 10) return $"{prefix}{meters:F1} M";
+            return $"{prefix}{meters:F2} M";
+        }
+        
+        /// <summary>
+        /// Build situation info text for display
+        /// </summary>
+        private string BuildSituationText()
+        {
+            if (FlightGlobals.ActiveVessel == null)
+                return "NO VESSEL";
+            
+            var sb = new System.Text.StringBuilder();
+            
+            // SOI (no label) - sanitized
+            if (FlightGlobals.currentMainBody != null)
+                sb.Append(SanitizeText(FlightGlobals.currentMainBody.bodyDisplayName).ToUpper() + '\n');
+            
+            // Situation (no label)
+            sb.Append(FlightGlobals.ActiveVessel.situation.ToString().ToUpper() + '\n');
+            
+            // Altitude - use smart formatting
+            sb.Append(FormatDistanceSmart(FlightGlobals.ActiveVessel.altitude, "ALT: ") + '\n');
+            
+            // Apoapsis/Periapsis
+            if (FlightGlobals.ActiveVessel.orbit != null)
+            {
+                double ap = FlightGlobals.ActiveVessel.orbit.ApA;
+                double pe = FlightGlobals.ActiveVessel.orbit.PeA;
+                
+                sb.Append(FormatDistanceSmart(ap, "A/P: ") + '\n');
+                sb.Append(FormatDistanceSmart(pe, "P/E: "));
+            }
+            
+            return sb.ToString();
+        }
 
         void OnDestroy()
         {
             if (Instance != this) return;
+            ModFileLogger.Log("CinematicShadersAddon destroying");
+            ModFileLogger.Shutdown();
+            
             CancelInvoke(nameof(RetryInit));
 
             GameEvents.onGUIApplicationLauncherReady.Remove(OnGUIApplicationLauncherReady);
@@ -247,7 +556,7 @@ namespace CinematicShaders.Core
             if (_mainWindow == null)
             {
                 GameObject go = new GameObject("CinematicShadersWindow");
-                DontDestroyOnLoad(go);
+                // NOTE: Removed DontDestroyOnLoad - window is recreated per scene
                 _mainWindow = go.AddComponent<CinematicShadersWindow>();
                 _mainWindow.OnClose += () =>
                 {
@@ -267,6 +576,26 @@ namespace CinematicShaders.Core
             {
                 _mainWindow.Hide();
             }
+        }
+
+        /// <summary>
+        /// Get the current target tracker screen position for debug purposes.
+        /// Returns (-1, -1) if no target is set or not visible.
+        /// </summary>
+        public Vector2? GetTargetTrackerScreenPos()
+        {
+            if (_vesselTargetSelector == null || !_vesselTargetSelector.IsTrackingTarget)
+                return null;
+            
+            Vector2 uv = _vesselTargetSelector.TargetScreenUV;
+            if (uv.x < 0 || uv.y < 0)
+                return null;
+            
+            // Convert UV to NDC (matching what the shader uses)
+            float aspect = StarfieldCompositor.CameraAspect;
+            float ndcX = (uv.x - 0.5f) * 2.0f * aspect;
+            float ndcY = (uv.y - 0.5f) * 2.0f;
+            return new Vector2(ndcX, ndcY);
         }
     }
 }

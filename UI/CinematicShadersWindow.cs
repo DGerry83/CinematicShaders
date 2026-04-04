@@ -18,27 +18,24 @@ namespace CinematicShaders.UI
         private GUIStyle tabButtonActiveStyle;
         private string errorMessage = null;
 
-        public enum ShaderTab { GTAO, Starfield }
+        public enum ShaderTab { GTAO, Starfield, Kartographer }
         private ShaderTab currentTab = ShaderTab.GTAO;
         private GTAOTab _gtaoTab;
         private StarfieldTab _starfieldTab;
+        private KartographerTab _kartographerTab;
 
         public event Action OnClose;
-        private bool wasVisibleBeforeF2 = false;
 
         void Start()
         {
             Instance = this;
-            
-            GameEvents.onHideUI.Add(OnHideUI);
-            GameEvents.onShowUI.Add(OnShowUI);
-
             InitStyles();
 
             try
             {
                 _gtaoTab = new GTAOTab();
                 _starfieldTab = new StarfieldTab();
+                _kartographerTab = new KartographerTab();
             }
             catch (Exception ex)
             {
@@ -114,6 +111,10 @@ namespace CinematicShaders.UI
                         if (_starfieldTab != null)
                             _starfieldTab.Draw();
                         break;
+                    case ShaderTab.Kartographer:
+                        if (_kartographerTab != null)
+                            _kartographerTab.Draw();
+                        break;
                 }
 
                 GUILayout.EndVertical();
@@ -147,6 +148,13 @@ namespace CinematicShaders.UI
                 currentTab = ShaderTab.Starfield;
             }
 
+            GUIStyle kartographerStyle = (currentTab == ShaderTab.Kartographer) ? tabButtonActiveStyle : tabButtonStyle;
+            if (GUILayout.Button(CinematicShadersUIStrings.Kartographer.TabName, kartographerStyle,
+                GUILayout.Height(tabHeight), GUILayout.Width(tabWidth)))
+            {
+                currentTab = ShaderTab.Kartographer;
+            }
+
             GUILayout.EndHorizontal();
         }
 
@@ -155,42 +163,17 @@ namespace CinematicShaders.UI
         public void Hide()
         {
             isVisible = false;
-            wasVisibleBeforeF2 = false;
             GTAOSettings.Save();
             StarfieldSettings.Save();
             OnClose?.Invoke();
         }
 
-        private void OnHideUI()
+        void OnDestroy()
         {
             if (isVisible)
             {
-                wasVisibleBeforeF2 = true;
-                isVisible = false;
-            }
-        }
-
-        private void OnShowUI()
-        {
-            if (wasVisibleBeforeF2)
-            {
-                isVisible = true;
-                wasVisibleBeforeF2 = false;
-            }
-        }
-
-        void OnDestroy()
-        {
-            GameEvents.onHideUI.Remove(OnHideUI);
-            GameEvents.onShowUI.Remove(OnShowUI);
-
-            if (isVisible || wasVisibleBeforeF2)
-            {
                 GTAOSettings.Save();
                 StarfieldSettings.Save();
-                
-                // OnClose event handles cubemap update for normal close
-                // This is fallback for scene changes where OnClose may not fire
                 CubemapGenerationScheduler.OnUIClose();
             }
         }

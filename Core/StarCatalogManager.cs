@@ -537,14 +537,11 @@ namespace CinematicShaders.Core
                 if (!Directory.Exists(folder))
                     Directory.CreateDirectory(folder);
 
-                // Use ProcessStartInfo for proper argument handling
-                var startInfo = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "explorer.exe",
-                    Arguments = $"\"{folder}\"",
-                    UseShellExecute = true
-                };
-                System.Diagnostics.Process.Start(startInfo);
+                // Use Unity's OpenURL with file:// protocol for reliable folder opening
+                // This works more consistently than Process.Start with explorer.exe
+                string url = "file:///" + folder.Replace("\\", "/");
+                Application.OpenURL(url);
+                Debug.Log($"[CinematicShaders] Opening catalog folder: {folder}");
             }
             catch (Exception ex)
             {

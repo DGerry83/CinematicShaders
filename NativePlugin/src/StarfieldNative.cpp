@@ -1,4 +1,6 @@
 #include "StarfieldNative.h"
+#include "GalaxyCamCompositor.h"
+#include "TextSystem.h"
 #include "../include/StarfieldPass1.h"
 #include "../include/StarfieldPass2.h"
 #include "../include/StarfieldVS.h"
@@ -7,6 +9,9 @@
 #include "../include/StarfieldBlur.h"
 #include "../include/StarfieldPass2Soft.h"
 #include "../include/StarfieldUpscale.h"
+#include "../include/KartographerVS.h"
+#include "../include/KartographerPS.h"
+#include "../include/KartographerText.h"
 #include <vector>
 #include <mutex>
 #include <algorithm>
@@ -28,6 +33,7 @@ static struct {
     
     // States
     ID3D11SamplerState* linearSampler = nullptr;
+    ID3D11SamplerState* pointSampler = nullptr;     // Point sampler for MSDF textures (navball icons)
     ID3D11DepthStencilState* depthState = nullptr;  // Depth test: draw if depth < epsilon (sky)
     ID3D11BlendState* blendState = nullptr;
     ID3D11RasterizerState* rasterState = nullptr;
@@ -132,6 +138,142 @@ static struct {
     ID3D11PixelShader* blurPS = nullptr;       // Vertical blur (keep existing name)
     ID3D11PixelShader* softCompositePS = nullptr;
     ID3D11PixelShader* upscalePS = nullptr;
+    
+    // Kartographer holographic grid overlay
+    bool kartographerEnabled = false;
+    ID3D11VertexShader* kartographerVS = nullptr;
+    ID3D11PixelShader* kartographerPS = nullptr;
+    ID3D11BlendState* kartographerBlendState = nullptr;
+    ID3D11Buffer* kartographerCB = nullptr;
+    
+    // Kartographer visual parameters (cached)
+    float kartographerGridIntensity = 0.002f;
+    float kartographerGridThickness = 0.0003f;
+    float kartographerCAStrength = 0.004f;
+    float kartographerVignetteStrength = 0.7f;
+    float kartographerVignetteStart = 1.6f;
+    float kartographerVignetteEnd = 2.2f;
+    float kartographerPreRotationYaw = 0.0f;
+    float kartographerPreRotationPitch = 0.0f;
+    int kartographerGridSizePreset = 2;  // 0=Jumbo, 1=Large, 2=Medium, 3=Small, 4=Tiny
+    int kartographerGridColor = 0;       // 0=Seafoam, 1=Amber, 2=White, 3=Green
+    int kartographerDebugShapesEnabled = 0;  // Phase 1: Debug SDF shapes toggle
+    float kartographerFocalLength = 1.732f;  // Matches 60° vertical FOV
+    float kartographerDebugBoxTopLeftX = 0.0f;
+    float kartographerDebugBoxTopLeftY = 0.0f;
+    float kartographerDebugBoxSizeX = 0.0f;
+    float kartographerDebugBoxSizeY = 0.0f;
+    float kartographerDebugBoxThickness = 0.001f;
+    
+    // Kartographer selection circle (cached from C#)
+    int kartographerSelectionCircleEnabled = 0;
+    float kartographerStarHash = 0.0f;
+    float kartographerSelectionCircleCenterX = 0.0f;
+    float kartographerSelectionCircleCenterY = 0.0f;
+    float kartographerSelectionCircleT = 0.0f;
+    float kartographerSelectionCircleIntensity = 0.0f;
+    float kartographerSelectionCircleThickness = 0.0f;
+    float kartographerSelectionCircleRadius = 0.0f;
+    
+    // Kartographer text params (cached from C#)
+    float kartographerTextOriginX = 0.0f;
+    float kartographerTextOriginY = 0.0f;
+    float kartographerTextAreaSizeX = 0.0f;
+    float kartographerTextAreaSizeY = 0.0f;
+    float kartographerSelectionTextT = 0.0f;
+    // Grid labels (8 slots) - stored as arrays for compactness
+    unsigned int kartographerGridLabelEnabledMask = 0;
+    unsigned int kartographerGridLabelDebugMask = 0;
+    float kartographerGridLabelPosX[12] = {0};
+    float kartographerGridLabelPosY[12] = {0};
+    float kartographerGridLabelPosZ[12] = {0,0,0,0,0,0,0,1,0,0,0,1};  // Default Z=1
+    float kartographerGridLabelTangentX[12] = {1,1,1,1,1,1,1,1,1,1,1,1};  // Default X=1
+    float kartographerGridLabelTangentY[12] = {0};
+    float kartographerGridLabelTangentZ[12] = {0};
+    float kartographerGridLabelWorldSizeX[12] = {0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f};
+    float kartographerGridLabelWorldSizeY[12] = {0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f,0.1f};
+    float kartographerGridLabelIntensity[12] = {1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f};
+    uint32_t kartographerGridLabelColor[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
+    
+    // Text rendering system resources
+    ID3D11ComputeShader* textCS = nullptr;
+    ID3D11Buffer* textCB = nullptr;
+    ID3D11SamplerState* textSampler = nullptr;
+    ID3D11ShaderResourceView* textTextureSRV = nullptr;           // t2 - Star selector text
+    ID3D11ShaderResourceView* vesselTargetTextTextureSRV = nullptr; // t11 - Vessel target text
+    ID3D11ShaderResourceView* gridLabelTextureSRV[12] = {};       // t3-t14 - Grid labels
+    
+    // Vessel target parameters (separate from star selector)
+    int kartographerVesselTargetEnabled = 0;
+    float kartographerVesselTargetHash = 0.0f;
+    float kartographerVesselTargetCircleCenterX = 0.0f;
+    float kartographerVesselTargetCircleCenterY = 0.0f;
+    float kartographerVesselTargetCircleT = 0.0f;
+    float kartographerVesselTargetCircleIntensity = 0.002f;
+    float kartographerVesselTargetCircleThickness = 0.001f;
+    float kartographerVesselTargetCircleRadius = 0.02f;
+    float kartographerVesselTargetBoxTopLeftX = 0.0f;
+    float kartographerVesselTargetBoxTopLeftY = 0.0f;
+    float kartographerVesselTargetBoxSizeX = 0.0f;
+    float kartographerVesselTargetBoxSizeY = 0.0f;
+    float kartographerVesselTargetBoxThickness = 0.001f;
+    float kartographerVesselTargetTextOriginX = 0.0f;
+    float kartographerVesselTargetTextOriginY = 0.0f;
+    float kartographerVesselTargetTextAreaSizeX = 0.0f;
+    float kartographerVesselTargetTextAreaSizeY = 0.0f;
+    float kartographerVesselTargetTextT = 0.0f;
+    float kartographerAnimatedLabelIntensity = 0.0f;
+    
+    // Navball icon parameters (7 icons: prograde, retrograde, normal, antinormal, radial_in, radial_out, maneuver)
+    int kartographerNavballEnabledMask = 0;
+    int kartographerNavballOffscreenMode = 0;
+    float kartographerNavballIconSize = 0.05f;
+    float kartographerNavballIconThickness = 0.0f;  // 0 = default thickness, positive = thicker, negative = thinner
+    float kartographerNavballMinIntensity = 0.33f;
+    float kartographerNavballMaxAngle = 90.0f;
+    float kartographerNavballHysteresisMargin = 0.05f;
+    float kartographerNavballIconPosX[7] = {0};
+    float kartographerNavballIconPosY[7] = {0};
+    float kartographerNavballIconIntensity[7] = {0};
+    uint32_t kartographerNavballIconColor[7] = {0};
+    
+    // Pointing icon (heading indicator)
+    int kartographerPointingIconEnabled = 0;
+    float kartographerPointingIconPosX = 0.0f;
+    float kartographerPointingIconPosY = 0.0f;
+    float kartographerPointingIconRotation = 0.0f;
+    float kartographerPointingIconIntensity = 0.0f;
+    float kartographerPointingIconSize = 0.05f;
+    uint32_t kartographerPointingIconColor = 0;
+    
+    // Maneuver text overlay
+    int kartographerManeuverTextEnabled = 0;
+    float kartographerManeuverTextOriginX = 0.0f;
+    float kartographerManeuverTextOriginY = 0.0f;
+    float kartographerManeuverTextWidth = 0.0f;
+    float kartographerManeuverTextHeight = 0.0f;
+    float kartographerManeuverTextIntensity = 0.0f;
+    
+    // Navball icon texture array (MSDF textures)
+    ID3D11Texture2D* navballIconArray = nullptr;
+    ID3D11ShaderResourceView* navballIconArraySRV = nullptr;
+    ID3D11ShaderResourceView* pointingIconSRV = nullptr;
+    ID3D11ShaderResourceView* maneuverTextSRV = nullptr;
+    bool navballTexturesInvalidated = false;  // Set to true when textures are released, false when re-uploaded
+    
+    // Grid label slot state management (Phase 1 Refactor)
+    // Each slot tracks its own active state and SRV to prevent crashes from garbage data
+    struct GridLabelSlot {
+        ID3D11ShaderResourceView* textureSRV = nullptr;
+        bool isActive = false;
+        // Cached parameters for slot
+        float posX = 0.0f, posY = 0.0f, posZ = 1.0f;
+        float tangentX = 1.0f, tangentY = 0.0f, tangentZ = 0.0f;
+        float worldSizeX = 0.1f, worldSizeY = 0.1f;
+        float intensity = 1.0f;
+        uint32_t color = 0;
+    };
+    GridLabelSlot gridLabelSlots[12];
 } g_StarfieldState;
 
 // Constant buffer layouts (must match HLSL exactly, 16-byte aligned)
@@ -228,6 +370,8 @@ struct StarfieldPass2Params {
     float GlobalDimming;
     float _padFinal;  // Ensure 16-byte alignment (96 bytes total)
 };
+
+// KartographerParams struct is defined in the generated header included via StarfieldNative.h
 
 // Soft bloom constant buffer layouts (must match HLSL exactly)
 struct PrefilterParams {
@@ -827,6 +971,16 @@ static void EnsureStarfieldResources(ID3D11Device* device, int width, int height
         device->CreateSamplerState(&sampDesc, &g_StarfieldState.linearSampler);
     }
     
+    // Point sampler for MSDF textures (navball icons) - must use CLAMP to avoid wrapping artifacts
+    if (!g_StarfieldState.pointSampler) {
+        D3D11_SAMPLER_DESC pointDesc = {};
+        pointDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+        pointDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;  // CRITICAL: Prevents wrap-around artifacts
+        pointDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+        pointDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+        device->CreateSamplerState(&pointDesc, &g_StarfieldState.pointSampler);
+    }
+    
     // Depth stencil state: Disabled - we handle masking in pixel shader via normal alpha
     if (!g_StarfieldState.depthState) {
         D3D11_DEPTH_STENCIL_DESC dsDesc = {};
@@ -907,6 +1061,39 @@ if (!g_StarfieldState.blendState) {
         device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.compositeCB);
     }
     
+    // Kartographer resources (created on-demand when enabled)
+    if (!g_StarfieldState.kartographerVS) {
+        hr = device->CreateVertexShader(g_KartographerVS, sizeof(g_KartographerVS), nullptr, &g_StarfieldState.kartographerVS);
+        if (FAILED(hr)) LogToFile("[Starfield] Failed to create Kartographer VS (0x%08X)", hr);
+    }
+    if (!g_StarfieldState.kartographerPS) {
+        hr = device->CreatePixelShader(g_KartographerPS, sizeof(g_KartographerPS), nullptr, &g_StarfieldState.kartographerPS);
+        if (FAILED(hr)) LogToFile("[Starfield] Failed to create Kartographer PS (0x%08X)", hr);
+    }
+    if (!g_StarfieldState.kartographerBlendState) {
+        D3D11_BLEND_DESC blendDesc = {};
+        blendDesc.RenderTarget[0].BlendEnable = TRUE;
+        blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+        blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ONE;
+        blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+        blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+        blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+        blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+        blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+        device->CreateBlendState(&blendDesc, &g_StarfieldState.kartographerBlendState);
+    }
+    
+    // Kartographer constant buffer (256 bytes for expanded Phase 1 layout)
+    if (!g_StarfieldState.kartographerCB) {
+        D3D11_BUFFER_DESC cbDesc = {};
+        cbDesc.ByteWidth = sizeof(KartographerParams);
+        cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+        cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.kartographerCB);
+        LogToFile("[Starfield] Kartographer CB created: %zu bytes", sizeof(KartographerParams));
+    }
+    
     if (!g_StarfieldState.device) {
         g_StarfieldState.device = device;
         g_StarfieldState.device->AddRef();
@@ -917,10 +1104,21 @@ if (!g_StarfieldState.blendState) {
     g_StarfieldState.initialized = true;
     g_StarfieldState.cachedHDRFormat = DXGI_FORMAT_R11G11B10_FLOAT;
     
+    // Initialize all grid label slots to empty state (Phase 1 Refactor)
+    // This ensures no garbage SRV pointers exist in unused slots
+    for (int i = 0; i < 12; i++) {
+        g_StarfieldState.gridLabelSlots[i].isActive = false;
+        if (g_StarfieldState.gridLabelSlots[i].textureSRV) {
+            g_StarfieldState.gridLabelSlots[i].textureSRV->Release();
+            g_StarfieldState.gridLabelSlots[i].textureSRV = nullptr;
+        }
+    }
+    
     LogToFile("[Starfield] Resources initialized: %dx%d", width, height);
 }
 
 static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTargetView* finalRTV);
+static void MapKartographerConstantBuffer(ID3D11DeviceContext* context);
 
 static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
 {
@@ -1171,14 +1369,88 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
     context->IASetIndexBuffer(nullptr, DXGI_FORMAT_UNKNOWN, 0);
     context->Draw(3, 0);
     
-    // Cleanup bindings
+    // Cleanup SRV bindings (but keep RTV bound for Kartographer)
     ID3D11ShaderResourceView* psNullSRV[1] = {nullptr};
-    ID3D11RenderTargetView* nullRTV = nullptr;
     context->PSSetShaderResources(0, 1, psNullSRV);
+    
+    // Kartographer overlay pass (if enabled)
+    if (g_StarfieldState.kartographerEnabled && g_StarfieldState.kartographerVS && g_StarfieldState.kartographerPS) {
+        // Save current state
+        ID3D11BlendState* oldBlend = nullptr;
+        float oldBlendFactor[4];
+        UINT oldSampleMask;
+        context->OMGetBlendState(&oldBlend, oldBlendFactor, &oldSampleMask);
+        
+        // Set additive blend for grid overlay
+        context->OMSetBlendState(g_StarfieldState.kartographerBlendState, nullptr, 0xFFFFFFFF);
+        context->OMSetDepthStencilState(g_StarfieldState.depthState, 0);
+        context->RSSetState(g_StarfieldState.rasterState);
+        
+        // Set Kartographer shaders and constant buffer
+        context->VSSetShader(g_StarfieldState.kartographerVS, nullptr, 0);
+        context->PSSetShader(g_StarfieldState.kartographerPS, nullptr, 0);
+        MapKartographerConstantBuffer(context);
+        context->PSSetConstantBuffers(0, 1, &g_StarfieldState.kartographerCB);
+        
+        // Bind text texture to slot t2 if available
+        if (g_StarfieldState.textTextureSRV) {
+            LogToFile("[Text] Binding text texture SRV %p to PS slot t2", g_StarfieldState.textTextureSRV);
+            context->PSSetShaderResources(2, 1, &g_StarfieldState.textTextureSRV);
+        } else {
+            LogToFile("[Text] No text texture SRV available (null), nothing bound to t2");
+        }
+        
+        // Bind grid label textures to slots t3-t14
+        for (int i = 0; i < 12; i++) {
+            const auto& slot = g_StarfieldState.gridLabelSlots[i];
+            if (slot.isActive && slot.textureSRV) {
+                context->PSSetShaderResources(3 + i, 1, &slot.textureSRV);
+            }
+        }
+        
+        // Bind vessel target text texture to slot t15
+        if (g_StarfieldState.vesselTargetTextTextureSRV) {
+            context->PSSetShaderResources(15, 1, &g_StarfieldState.vesselTargetTextTextureSRV);
+        }
+        
+        // Bind navball icon texture array to slot t16
+        if (g_StarfieldState.navballIconArraySRV) {
+            context->PSSetShaderResources(16, 1, &g_StarfieldState.navballIconArraySRV);
+        }
+        
+        // Bind pointing icon texture to slot t17
+        if (g_StarfieldState.pointingIconSRV) {
+            context->PSSetShaderResources(17, 1, &g_StarfieldState.pointingIconSRV);
+        }
+        // Bind maneuver text texture to slot t18
+        if (g_StarfieldState.maneuverTextSRV) {
+            context->PSSetShaderResources(18, 1, &g_StarfieldState.maneuverTextSRV);
+        }
+        
+        // Bind samplers: s0 = linear (for text/grid), s1 = point (for MSDF navball icons)
+        ID3D11SamplerState* samplers[2] = {g_StarfieldState.linearSampler, g_StarfieldState.pointSampler};
+        context->PSSetSamplers(0, 2, samplers);
+        
+        // RTV is still bound from main pass - no need to rebind
+        
+        // Draw fullscreen triangle
+        context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        context->IASetInputLayout(nullptr);
+        context->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
+        context->IASetIndexBuffer(nullptr, DXGI_FORMAT_UNKNOWN, 0);
+        context->Draw(3, 0);
+        
+        // Restore blend state
+        context->OMSetBlendState(oldBlend, oldBlendFactor, oldSampleMask);
+        if (oldBlend) oldBlend->Release();
+    }
+    
+    // NOW unbind RTV after Kartographer is done (consistent with SoftBloom path)
+    ID3D11RenderTargetView* nullRTV = nullptr;
     context->OMSetRenderTargets(1, &nullRTV, nullptr);
     
-    // Release our RTV if we created it from explicit render target
-    if (usingExplicitRT && currentRTV) {
+    // Release RTV (always, regardless of whether it was explicit or from OMGetRenderTargets)
+    if (currentRTV) {
         currentRTV->Release();
     }
     if (currentDSV) currentDSV->Release();
@@ -1413,6 +1685,69 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
     
     context->Draw(3, 0);
     
+    // Kartographer overlay pass (if enabled)
+    if (g_StarfieldState.kartographerEnabled && g_StarfieldState.kartographerVS && g_StarfieldState.kartographerPS) {
+        // Save current state
+        ID3D11BlendState* oldBlend = nullptr;
+        float oldBlendFactor[4];
+        UINT oldSampleMask;
+        context->OMGetBlendState(&oldBlend, oldBlendFactor, &oldSampleMask);
+        
+        // Set additive blend for grid overlay
+        context->OMSetBlendState(g_StarfieldState.kartographerBlendState, nullptr, 0xFFFFFFFF);
+        
+        // Update and set Kartographer constant buffer
+        MapKartographerConstantBuffer(context);
+        context->PSSetConstantBuffers(0, 1, &g_StarfieldState.kartographerCB);
+        
+        // Set Kartographer shaders
+        context->VSSetShader(g_StarfieldState.kartographerVS, nullptr, 0);
+        context->PSSetShader(g_StarfieldState.kartographerPS, nullptr, 0);
+        
+        // Bind text texture to slot t2 if available
+        if (g_StarfieldState.textTextureSRV) {
+            context->PSSetShaderResources(2, 1, &g_StarfieldState.textTextureSRV);
+        }
+        
+        // Bind grid label textures to slots t3-t14 (Phase 1: Use new slot state with isActive check)
+        for (int i = 0; i < 12; i++) {
+            const auto& slot = g_StarfieldState.gridLabelSlots[i];
+            if (slot.isActive && slot.textureSRV) {
+                context->PSSetShaderResources(3 + i, 1, &slot.textureSRV);
+            }
+        }
+        
+        // Bind vessel target text texture to slot t15
+        if (g_StarfieldState.vesselTargetTextTextureSRV) {
+            context->PSSetShaderResources(15, 1, &g_StarfieldState.vesselTargetTextTextureSRV);
+        }
+        
+        // Bind navball icon texture array to slot t16
+        if (g_StarfieldState.navballIconArraySRV) {
+            context->PSSetShaderResources(16, 1, &g_StarfieldState.navballIconArraySRV);
+        }
+        
+        // Bind pointing icon texture to slot t17
+        if (g_StarfieldState.pointingIconSRV) {
+            context->PSSetShaderResources(17, 1, &g_StarfieldState.pointingIconSRV);
+        }
+        // Bind maneuver text texture to slot t18
+        if (g_StarfieldState.maneuverTextSRV) {
+            context->PSSetShaderResources(18, 1, &g_StarfieldState.maneuverTextSRV);
+        }
+        
+        // Bind samplers: s0 = linear (for text/grid), s1 = point (for MSDF navball icons)
+        ID3D11SamplerState* samplers[2] = {g_StarfieldState.linearSampler, g_StarfieldState.pointSampler};
+        context->PSSetSamplers(0, 2, samplers);
+        
+        // Draw fullscreen triangle
+        context->Draw(3, 0);
+        
+        // Restore blend state
+        context->OMSetBlendState(oldBlend, oldBlendFactor, oldSampleMask);
+        if (oldBlend) oldBlend->Release();
+    }
+    
     // Cleanup
     context->PSSetShaderResources(0, 2, nullSRV);
     ID3D11RenderTargetView* nullRTV = nullptr;
@@ -1430,6 +1765,19 @@ static void UNITY_INTERFACE_API OnStarfieldRenderEvent(int eventId)
     if (!context) return;
     
     ExecuteStarfieldRender(context);
+    
+    // Render any registered compositor layers on top of the starfield
+    if (GalaxyCamCompositor_HasLayers()) {
+        ID3D11RenderTargetView* currentRTV = nullptr;
+        ID3D11DepthStencilView* currentDSV = nullptr;
+        context->OMGetRenderTargets(1, &currentRTV, &currentDSV);
+        
+        if (currentRTV) {
+            GalaxyCamCompositor_RenderLayers(context, currentRTV, g_StarfieldState.width, g_StarfieldState.height);
+            currentRTV->Release();
+        }
+        if (currentDSV) currentDSV->Release();
+    }
     
     context->Release();
     
@@ -1450,6 +1798,1171 @@ void CR_StarfieldSetDimming(float sunGlareDimming, float planetaryDimming)
     // Safety clamp - never allow complete blackness from dimming alone
     if (g_StarfieldState.globalDimming < 0.05f)
         g_StarfieldState.globalDimming = 0.05f;
+}
+
+extern "C" __declspec(dllexport)
+void CR_StarfieldSetKartographerEnabled(unsigned char enabled)
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    g_StarfieldState.kartographerEnabled = (enabled != 0);
+    // LogToFile("[Starfield] Kartographer %s", g_StarfieldState.kartographerEnabled ? "enabled" : "disabled");
+}
+
+static void MapKartographerConstantBuffer(ID3D11DeviceContext* context)
+{
+    D3D11_MAPPED_SUBRESOURCE mappedKart;
+    if (SUCCEEDED(context->Map(g_StarfieldState.kartographerCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedKart))) {
+        KartographerParams* params = (KartographerParams*)mappedKart.pData;
+        
+        // Base grid params
+        params->ResolutionX = (float)g_StarfieldState.width;
+        params->ResolutionY = (float)g_StarfieldState.height;
+        params->Time = (float)g_StarfieldState.frameIndex * 0.016f;
+        params->GridIntensity = g_StarfieldState.kartographerGridIntensity;
+        params->GridThickness = g_StarfieldState.kartographerGridThickness;
+        params->ChromaticAberrationStrength = g_StarfieldState.kartographerCAStrength;
+        params->VignetteStrength = g_StarfieldState.kartographerVignetteStrength;
+        params->VignetteStart = g_StarfieldState.kartographerVignetteStart;
+        params->VignetteEnd = g_StarfieldState.kartographerVignetteEnd;
+        params->PreRotationYaw = g_StarfieldState.kartographerPreRotationYaw;
+        params->PreRotationPitch = g_StarfieldState.kartographerPreRotationPitch;
+        params->GridSizePreset = g_StarfieldState.kartographerGridSizePreset;
+        params->GridColorIndex = g_StarfieldState.kartographerGridColor;
+        params->_pad1 = 0.0f;
+        params->_pad2 = 0.0f;
+        params->_padAlignCamera = 0.0f;
+        
+        // Camera basis
+        params->CameraRightX = g_StarfieldState.cameraRight.x;
+        params->CameraRightY = g_StarfieldState.cameraRight.y;
+        params->CameraRightZ = g_StarfieldState.cameraRight.z;
+        params->_pad3 = 0.0f;
+        params->CameraUpX = g_StarfieldState.cameraUp.x;
+        params->CameraUpY = g_StarfieldState.cameraUp.y;
+        params->CameraUpZ = g_StarfieldState.cameraUp.z;
+        params->_pad4 = 0.0f;
+        params->CameraForwardX = g_StarfieldState.cameraForward.x;
+        params->CameraForwardY = g_StarfieldState.cameraForward.y;
+        params->CameraForwardZ = g_StarfieldState.cameraForward.z;
+        params->_pad5 = 0.0f;
+        
+        // Debug shapes - hard-coded test values (independent of grid settings)
+        params->DebugShapesEnabled = g_StarfieldState.kartographerDebugShapesEnabled;
+        params->_pad6 = 0.0f;
+        params->_pad7 = 0.0f;
+        params->_pad8 = 0.0f;
+        params->DebugCircleCenterX = 0.0f;  // Screen center in shader-uv space
+        params->DebugCircleCenterY = 0.0f;
+        params->DebugCircleRadius = 0.05f;
+        params->DebugCircleThickness = 0.001f;
+        params->DebugBoxTopLeftX = g_StarfieldState.kartographerDebugBoxTopLeftX;
+        params->DebugBoxTopLeftY = g_StarfieldState.kartographerDebugBoxTopLeftY;
+        params->DebugBoxSizeX = g_StarfieldState.kartographerDebugBoxSizeX;
+        params->DebugBoxSizeY = g_StarfieldState.kartographerDebugBoxSizeY;
+        params->DebugBoxThickness = g_StarfieldState.kartographerDebugBoxThickness;
+        params->DebugShapeIntensity = 0.002f;
+        params->_pad9 = 0.0f;
+        params->FocalLength = g_StarfieldState.kartographerFocalLength > 0.001f ? g_StarfieldState.kartographerFocalLength : 1.732f;
+        
+        // Selection circle (filled from cached state set by CR_StarfieldSetKartographerParams)
+        params->SelectionCircleEnabled = g_StarfieldState.kartographerSelectionCircleEnabled;
+        params->SelectionStarHash = g_StarfieldState.kartographerStarHash;
+        params->_padSelection2 = 0.0f;
+        params->_padSelection3 = 0.0f;
+        params->SelectionCircleCenterX = g_StarfieldState.kartographerSelectionCircleCenterX;
+        params->SelectionCircleCenterY = g_StarfieldState.kartographerSelectionCircleCenterY;
+        params->SelectionCircleT = g_StarfieldState.kartographerSelectionCircleT;
+        params->SelectionCircleIntensity = g_StarfieldState.kartographerSelectionCircleIntensity;
+        params->SelectionCircleThickness = g_StarfieldState.kartographerSelectionCircleThickness;
+        params->SelectionCircleRadius = g_StarfieldState.kartographerSelectionCircleRadius;
+        params->_padSelection4 = 0.0f;
+        params->_padSelection5 = 0.0f;
+        params->_padSelection6 = 0.0f;
+        
+        // Text params
+        params->TextOriginX = g_StarfieldState.kartographerTextOriginX;
+        params->TextOriginY = g_StarfieldState.kartographerTextOriginY;
+        params->TextAreaSizeX = g_StarfieldState.kartographerTextAreaSizeX;
+        params->TextAreaSizeY = g_StarfieldState.kartographerTextAreaSizeY;
+        params->SelectionTextT = g_StarfieldState.kartographerSelectionTextT;
+        // Copy all 8 grid labels from state to CB (as float4)
+        params->GridLabelEnabledMask = g_StarfieldState.kartographerGridLabelEnabledMask;
+        params->_padGridMask1 = 0.0f;
+        params->_padGridMask2 = 0.0f;
+        params->_padGridMask3 = 0.0f;
+        params->_padGridMask4 = 0.0f;
+        
+        params->GridLabel0_PosTangentX = float4(
+            g_StarfieldState.kartographerGridLabelPosX[0],
+            g_StarfieldState.kartographerGridLabelPosY[0],
+            g_StarfieldState.kartographerGridLabelPosZ[0],
+            g_StarfieldState.kartographerGridLabelWorldSizeX[0]);
+        params->GridLabel0_TangentY = float4(
+            g_StarfieldState.kartographerGridLabelTangentX[0],
+            g_StarfieldState.kartographerGridLabelTangentY[0],
+            g_StarfieldState.kartographerGridLabelTangentZ[0],
+            g_StarfieldState.kartographerGridLabelWorldSizeY[0]);
+        
+        params->GridLabel1_PosTangentX = float4(
+            g_StarfieldState.kartographerGridLabelPosX[1],
+            g_StarfieldState.kartographerGridLabelPosY[1],
+            g_StarfieldState.kartographerGridLabelPosZ[1],
+            g_StarfieldState.kartographerGridLabelWorldSizeX[1]);
+        params->GridLabel1_TangentY = float4(
+            g_StarfieldState.kartographerGridLabelTangentX[1],
+            g_StarfieldState.kartographerGridLabelTangentY[1],
+            g_StarfieldState.kartographerGridLabelTangentZ[1],
+            g_StarfieldState.kartographerGridLabelWorldSizeY[1]);
+        
+        params->GridLabel2_PosTangentX = float4(
+            g_StarfieldState.kartographerGridLabelPosX[2],
+            g_StarfieldState.kartographerGridLabelPosY[2],
+            g_StarfieldState.kartographerGridLabelPosZ[2],
+            g_StarfieldState.kartographerGridLabelWorldSizeX[2]);
+        params->GridLabel2_TangentY = float4(
+            g_StarfieldState.kartographerGridLabelTangentX[2],
+            g_StarfieldState.kartographerGridLabelTangentY[2],
+            g_StarfieldState.kartographerGridLabelTangentZ[2],
+            g_StarfieldState.kartographerGridLabelWorldSizeY[2]);
+        
+        params->GridLabel3_PosTangentX = float4(
+            g_StarfieldState.kartographerGridLabelPosX[3],
+            g_StarfieldState.kartographerGridLabelPosY[3],
+            g_StarfieldState.kartographerGridLabelPosZ[3],
+            g_StarfieldState.kartographerGridLabelWorldSizeX[3]);
+        params->GridLabel3_TangentY = float4(
+            g_StarfieldState.kartographerGridLabelTangentX[3],
+            g_StarfieldState.kartographerGridLabelTangentY[3],
+            g_StarfieldState.kartographerGridLabelTangentZ[3],
+            g_StarfieldState.kartographerGridLabelWorldSizeY[3]);
+        
+        params->GridLabel4_PosTangentX = float4(
+            g_StarfieldState.kartographerGridLabelPosX[4],
+            g_StarfieldState.kartographerGridLabelPosY[4],
+            g_StarfieldState.kartographerGridLabelPosZ[4],
+            g_StarfieldState.kartographerGridLabelWorldSizeX[4]);
+        params->GridLabel4_TangentY = float4(
+            g_StarfieldState.kartographerGridLabelTangentX[4],
+            g_StarfieldState.kartographerGridLabelTangentY[4],
+            g_StarfieldState.kartographerGridLabelTangentZ[4],
+            g_StarfieldState.kartographerGridLabelWorldSizeY[4]);
+        
+        params->GridLabel5_PosTangentX = float4(
+            g_StarfieldState.kartographerGridLabelPosX[5],
+            g_StarfieldState.kartographerGridLabelPosY[5],
+            g_StarfieldState.kartographerGridLabelPosZ[5],
+            g_StarfieldState.kartographerGridLabelWorldSizeX[5]);
+        params->GridLabel5_TangentY = float4(
+            g_StarfieldState.kartographerGridLabelTangentX[5],
+            g_StarfieldState.kartographerGridLabelTangentY[5],
+            g_StarfieldState.kartographerGridLabelTangentZ[5],
+            g_StarfieldState.kartographerGridLabelWorldSizeY[5]);
+        
+        params->GridLabel6_PosTangentX = float4(
+            g_StarfieldState.kartographerGridLabelPosX[6],
+            g_StarfieldState.kartographerGridLabelPosY[6],
+            g_StarfieldState.kartographerGridLabelPosZ[6],
+            g_StarfieldState.kartographerGridLabelWorldSizeX[6]);
+        params->GridLabel6_TangentY = float4(
+            g_StarfieldState.kartographerGridLabelTangentX[6],
+            g_StarfieldState.kartographerGridLabelTangentY[6],
+            g_StarfieldState.kartographerGridLabelTangentZ[6],
+            g_StarfieldState.kartographerGridLabelWorldSizeY[6]);
+        
+        params->GridLabel7_PosTangentX = float4(
+            g_StarfieldState.kartographerGridLabelPosX[7],
+            g_StarfieldState.kartographerGridLabelPosY[7],
+            g_StarfieldState.kartographerGridLabelPosZ[7],
+            g_StarfieldState.kartographerGridLabelWorldSizeX[7]);
+        params->GridLabel7_TangentY = float4(
+            g_StarfieldState.kartographerGridLabelTangentX[7],
+            g_StarfieldState.kartographerGridLabelTangentY[7],
+            g_StarfieldState.kartographerGridLabelTangentZ[7],
+            g_StarfieldState.kartographerGridLabelWorldSizeY[7]);
+        
+        params->GridLabel8_PosTangentX = float4(
+            g_StarfieldState.kartographerGridLabelPosX[8],
+            g_StarfieldState.kartographerGridLabelPosY[8],
+            g_StarfieldState.kartographerGridLabelPosZ[8],
+            g_StarfieldState.kartographerGridLabelWorldSizeX[8]);
+        params->GridLabel8_TangentY = float4(
+            g_StarfieldState.kartographerGridLabelTangentX[8],
+            g_StarfieldState.kartographerGridLabelTangentY[8],
+            g_StarfieldState.kartographerGridLabelTangentZ[8],
+            g_StarfieldState.kartographerGridLabelWorldSizeY[8]);
+        
+        params->GridLabel9_PosTangentX = float4(
+            g_StarfieldState.kartographerGridLabelPosX[9],
+            g_StarfieldState.kartographerGridLabelPosY[9],
+            g_StarfieldState.kartographerGridLabelPosZ[9],
+            g_StarfieldState.kartographerGridLabelWorldSizeX[9]);
+        params->GridLabel9_TangentY = float4(
+            g_StarfieldState.kartographerGridLabelTangentX[9],
+            g_StarfieldState.kartographerGridLabelTangentY[9],
+            g_StarfieldState.kartographerGridLabelTangentZ[9],
+            g_StarfieldState.kartographerGridLabelWorldSizeY[9]);
+        
+        params->GridLabel10_PosTangentX = float4(
+            g_StarfieldState.kartographerGridLabelPosX[10],
+            g_StarfieldState.kartographerGridLabelPosY[10],
+            g_StarfieldState.kartographerGridLabelPosZ[10],
+            g_StarfieldState.kartographerGridLabelWorldSizeX[10]);
+        params->GridLabel10_TangentY = float4(
+            g_StarfieldState.kartographerGridLabelTangentX[10],
+            g_StarfieldState.kartographerGridLabelTangentY[10],
+            g_StarfieldState.kartographerGridLabelTangentZ[10],
+            g_StarfieldState.kartographerGridLabelWorldSizeY[10]);
+        
+        params->GridLabel11_PosTangentX = float4(
+            g_StarfieldState.kartographerGridLabelPosX[11],
+            g_StarfieldState.kartographerGridLabelPosY[11],
+            g_StarfieldState.kartographerGridLabelPosZ[11],
+            g_StarfieldState.kartographerGridLabelWorldSizeX[11]);
+        params->GridLabel11_TangentY = float4(
+            g_StarfieldState.kartographerGridLabelTangentX[11],
+            g_StarfieldState.kartographerGridLabelTangentY[11],
+            g_StarfieldState.kartographerGridLabelTangentZ[11],
+            g_StarfieldState.kartographerGridLabelWorldSizeY[11]);
+        
+        // Debug mask and per-label visual params
+        params->GridLabelDebugMask = g_StarfieldState.kartographerGridLabelDebugMask;
+        params->LabelIntensity0 = g_StarfieldState.kartographerGridLabelIntensity[0];
+        params->LabelIntensity1 = g_StarfieldState.kartographerGridLabelIntensity[1];
+        params->LabelIntensity2 = g_StarfieldState.kartographerGridLabelIntensity[2];
+        params->LabelIntensity3 = g_StarfieldState.kartographerGridLabelIntensity[3];
+        params->LabelIntensity4 = g_StarfieldState.kartographerGridLabelIntensity[4];
+        params->LabelIntensity5 = g_StarfieldState.kartographerGridLabelIntensity[5];
+        params->LabelIntensity6 = g_StarfieldState.kartographerGridLabelIntensity[6];
+        params->LabelIntensity7 = g_StarfieldState.kartographerGridLabelIntensity[7];
+        params->LabelIntensity8 = g_StarfieldState.kartographerGridLabelIntensity[8];
+        params->LabelIntensity9 = g_StarfieldState.kartographerGridLabelIntensity[9];
+        params->LabelIntensity10 = g_StarfieldState.kartographerGridLabelIntensity[10];
+        params->LabelIntensity11 = g_StarfieldState.kartographerGridLabelIntensity[11];
+        params->LabelColor0 = g_StarfieldState.kartographerGridLabelColor[0];
+        params->LabelColor1 = g_StarfieldState.kartographerGridLabelColor[1];
+        params->LabelColor2 = g_StarfieldState.kartographerGridLabelColor[2];
+        params->LabelColor3 = g_StarfieldState.kartographerGridLabelColor[3];
+        params->LabelColor4 = g_StarfieldState.kartographerGridLabelColor[4];
+        params->LabelColor5 = g_StarfieldState.kartographerGridLabelColor[5];
+        params->LabelColor6 = g_StarfieldState.kartographerGridLabelColor[6];
+        params->LabelColor7 = g_StarfieldState.kartographerGridLabelColor[7];
+        params->LabelColor8 = g_StarfieldState.kartographerGridLabelColor[8];
+        params->LabelColor9 = g_StarfieldState.kartographerGridLabelColor[9];
+        params->LabelColor10 = g_StarfieldState.kartographerGridLabelColor[10];
+        params->LabelColor11 = g_StarfieldState.kartographerGridLabelColor[11];
+        
+        // Vessel target parameters (separate from star selector)
+        params->VesselTargetEnabled = g_StarfieldState.kartographerVesselTargetEnabled;
+        params->VesselTargetHash = g_StarfieldState.kartographerVesselTargetHash;
+        params->VesselTargetCircleCenterX = g_StarfieldState.kartographerVesselTargetCircleCenterX;
+        params->VesselTargetCircleCenterY = g_StarfieldState.kartographerVesselTargetCircleCenterY;
+        params->VesselTargetCircleT = g_StarfieldState.kartographerVesselTargetCircleT;
+        params->VesselTargetCircleIntensity = g_StarfieldState.kartographerVesselTargetCircleIntensity;
+        params->VesselTargetCircleThickness = g_StarfieldState.kartographerVesselTargetCircleThickness;
+        params->VesselTargetCircleRadius = g_StarfieldState.kartographerVesselTargetCircleRadius;
+        params->VesselTargetBoxTopLeftX = g_StarfieldState.kartographerVesselTargetBoxTopLeftX;
+        params->VesselTargetBoxTopLeftY = g_StarfieldState.kartographerVesselTargetBoxTopLeftY;
+        params->VesselTargetBoxSizeX = g_StarfieldState.kartographerVesselTargetBoxSizeX;
+        params->VesselTargetBoxSizeY = g_StarfieldState.kartographerVesselTargetBoxSizeY;
+        params->VesselTargetBoxThickness = g_StarfieldState.kartographerVesselTargetBoxThickness;
+        params->VesselTargetTextOriginX = g_StarfieldState.kartographerVesselTargetTextOriginX;
+        params->VesselTargetTextOriginY = g_StarfieldState.kartographerVesselTargetTextOriginY;
+        params->VesselTargetTextAreaSizeX = g_StarfieldState.kartographerVesselTargetTextAreaSizeX;
+        params->VesselTargetTextAreaSizeY = g_StarfieldState.kartographerVesselTargetTextAreaSizeY;
+        params->VesselTargetTextT = g_StarfieldState.kartographerVesselTargetTextT;
+        params->AnimatedLabelIntensity = g_StarfieldState.kartographerAnimatedLabelIntensity;
+        
+        // Navball icon parameters
+        params->NavballEnabledMask = g_StarfieldState.kartographerNavballEnabledMask;
+        params->NavballOffscreenMode = g_StarfieldState.kartographerNavballOffscreenMode;
+        params->NavballIconSize = g_StarfieldState.kartographerNavballIconSize;
+        params->NavballIconThickness = g_StarfieldState.kartographerNavballIconThickness;
+        params->NavballMinIntensity = g_StarfieldState.kartographerNavballMinIntensity;
+        params->NavballMaxAngle = g_StarfieldState.kartographerNavballMaxAngle;
+        params->NavballHysteresisMargin = g_StarfieldState.kartographerNavballHysteresisMargin;
+        params->_padNavball1 = 0.0f;
+        
+        // Navball icon 0: Prograde
+        params->NavballIcon0_X = g_StarfieldState.kartographerNavballIconPosX[0];
+        params->NavballIcon0_Y = g_StarfieldState.kartographerNavballIconPosY[0];
+        params->NavballIcon0_Intensity = g_StarfieldState.kartographerNavballIconIntensity[0];
+        params->NavballIcon0_Color = g_StarfieldState.kartographerNavballIconColor[0];
+        
+        // Navball icon 1: Retrograde
+        params->NavballIcon1_X = g_StarfieldState.kartographerNavballIconPosX[1];
+        params->NavballIcon1_Y = g_StarfieldState.kartographerNavballIconPosY[1];
+        params->NavballIcon1_Intensity = g_StarfieldState.kartographerNavballIconIntensity[1];
+        params->NavballIcon1_Color = g_StarfieldState.kartographerNavballIconColor[1];
+        
+        // Navball icon 2: Normal
+        params->NavballIcon2_X = g_StarfieldState.kartographerNavballIconPosX[2];
+        params->NavballIcon2_Y = g_StarfieldState.kartographerNavballIconPosY[2];
+        params->NavballIcon2_Intensity = g_StarfieldState.kartographerNavballIconIntensity[2];
+        params->NavballIcon2_Color = g_StarfieldState.kartographerNavballIconColor[2];
+        
+        // Navball icon 3: AntiNormal
+        params->NavballIcon3_X = g_StarfieldState.kartographerNavballIconPosX[3];
+        params->NavballIcon3_Y = g_StarfieldState.kartographerNavballIconPosY[3];
+        params->NavballIcon3_Intensity = g_StarfieldState.kartographerNavballIconIntensity[3];
+        params->NavballIcon3_Color = g_StarfieldState.kartographerNavballIconColor[3];
+        
+        // Navball icon 4: Radial In
+        params->NavballIcon4_X = g_StarfieldState.kartographerNavballIconPosX[4];
+        params->NavballIcon4_Y = g_StarfieldState.kartographerNavballIconPosY[4];
+        params->NavballIcon4_Intensity = g_StarfieldState.kartographerNavballIconIntensity[4];
+        params->NavballIcon4_Color = g_StarfieldState.kartographerNavballIconColor[4];
+        
+        // Navball icon 5: Radial Out
+        params->NavballIcon5_X = g_StarfieldState.kartographerNavballIconPosX[5];
+        params->NavballIcon5_Y = g_StarfieldState.kartographerNavballIconPosY[5];
+        params->NavballIcon5_Intensity = g_StarfieldState.kartographerNavballIconIntensity[5];
+        params->NavballIcon5_Color = g_StarfieldState.kartographerNavballIconColor[5];
+        
+        // Navball icon 6: Maneuver
+        params->NavballIcon6_X = g_StarfieldState.kartographerNavballIconPosX[6];
+        params->NavballIcon6_Y = g_StarfieldState.kartographerNavballIconPosY[6];
+        params->NavballIcon6_Intensity = g_StarfieldState.kartographerNavballIconIntensity[6];
+        params->NavballIcon6_Color = g_StarfieldState.kartographerNavballIconColor[6];
+        
+        // Pointing icon
+        params->PointingIconEnabled = g_StarfieldState.kartographerPointingIconEnabled;
+        params->PointingIconPosX = g_StarfieldState.kartographerPointingIconPosX;
+        params->PointingIconPosY = g_StarfieldState.kartographerPointingIconPosY;
+        params->PointingIconRotation = g_StarfieldState.kartographerPointingIconRotation;
+        params->PointingIconIntensity = g_StarfieldState.kartographerPointingIconIntensity;
+        params->PointingIconSize = g_StarfieldState.kartographerPointingIconSize;
+        params->PointingIconColor = g_StarfieldState.kartographerPointingIconColor;
+        
+        // Maneuver text
+        params->ManeuverTextEnabled = g_StarfieldState.kartographerManeuverTextEnabled;
+        params->ManeuverTextOriginX = g_StarfieldState.kartographerManeuverTextOriginX;
+        params->ManeuverTextOriginY = g_StarfieldState.kartographerManeuverTextOriginY;
+        params->ManeuverTextWidth = g_StarfieldState.kartographerManeuverTextWidth;
+        params->ManeuverTextHeight = g_StarfieldState.kartographerManeuverTextHeight;
+        params->ManeuverTextIntensity = g_StarfieldState.kartographerManeuverTextIntensity;
+        
+        context->Unmap(g_StarfieldState.kartographerCB, 0);
+    }
+}
+
+void CR_StarfieldSetKartographerParams(const KartographerParamsNative* params)
+{
+    if (!params) return;
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
+    g_StarfieldState.kartographerGridIntensity = params->GridIntensity;
+    g_StarfieldState.kartographerGridThickness = params->GridThickness;
+    g_StarfieldState.kartographerCAStrength = params->ChromaticAberrationStrength;
+    g_StarfieldState.kartographerVignetteStrength = params->VignetteStrength;
+    g_StarfieldState.kartographerVignetteStart = params->VignetteStart;
+    g_StarfieldState.kartographerVignetteEnd = params->VignetteEnd;
+    g_StarfieldState.kartographerPreRotationYaw = params->PreRotationYaw;
+    g_StarfieldState.kartographerPreRotationPitch = params->PreRotationPitch;
+    g_StarfieldState.kartographerGridSizePreset = params->GridSizePreset;
+    g_StarfieldState.kartographerGridColor = params->GridColorIndex;
+    g_StarfieldState.kartographerDebugShapesEnabled = params->DebugShapesEnabled;
+    g_StarfieldState.kartographerFocalLength = params->FocalLength;
+    g_StarfieldState.kartographerDebugBoxTopLeftX = params->DebugBoxTopLeftX;
+    g_StarfieldState.kartographerDebugBoxTopLeftY = params->DebugBoxTopLeftY;
+    g_StarfieldState.kartographerDebugBoxSizeX = params->DebugBoxSizeX;
+    g_StarfieldState.kartographerDebugBoxSizeY = params->DebugBoxSizeY;
+    g_StarfieldState.kartographerDebugBoxThickness = params->DebugBoxThickness;
+    
+    // Selection circle parameters (cached for CB update)
+    g_StarfieldState.kartographerSelectionCircleEnabled = params->SelectionCircleEnabled;
+    g_StarfieldState.kartographerStarHash = params->SelectionStarHash;
+    g_StarfieldState.kartographerSelectionCircleCenterX = params->SelectionCircleCenterX;
+    g_StarfieldState.kartographerSelectionCircleCenterY = params->SelectionCircleCenterY;
+    g_StarfieldState.kartographerSelectionCircleT = params->SelectionCircleT;
+    g_StarfieldState.kartographerSelectionCircleIntensity = params->SelectionCircleIntensity;
+    g_StarfieldState.kartographerSelectionCircleThickness = params->SelectionCircleThickness;
+    g_StarfieldState.kartographerSelectionCircleRadius = params->SelectionCircleRadius;
+    
+    // Text parameters (cached for CB update)
+    g_StarfieldState.kartographerTextOriginX = params->TextOriginX;
+    g_StarfieldState.kartographerTextOriginY = params->TextOriginY;
+    g_StarfieldState.kartographerTextAreaSizeX = params->TextAreaSizeX;
+    g_StarfieldState.kartographerTextAreaSizeY = params->TextAreaSizeY;
+    g_StarfieldState.kartographerSelectionTextT = params->SelectionTextT;
+    
+    // Vessel target parameters (separate from star selector)
+    g_StarfieldState.kartographerVesselTargetEnabled = params->VesselTargetEnabled;
+    g_StarfieldState.kartographerVesselTargetHash = params->VesselTargetHash;
+    g_StarfieldState.kartographerVesselTargetCircleCenterX = params->VesselTargetCircleCenterX;
+    g_StarfieldState.kartographerVesselTargetCircleCenterY = params->VesselTargetCircleCenterY;
+    g_StarfieldState.kartographerVesselTargetCircleT = params->VesselTargetCircleT;
+    g_StarfieldState.kartographerVesselTargetCircleIntensity = params->VesselTargetCircleIntensity;
+    g_StarfieldState.kartographerVesselTargetCircleThickness = params->VesselTargetCircleThickness;
+    g_StarfieldState.kartographerVesselTargetCircleRadius = params->VesselTargetCircleRadius;
+    g_StarfieldState.kartographerVesselTargetBoxTopLeftX = params->VesselTargetBoxTopLeftX;
+    g_StarfieldState.kartographerVesselTargetBoxTopLeftY = params->VesselTargetBoxTopLeftY;
+    g_StarfieldState.kartographerVesselTargetBoxSizeX = params->VesselTargetBoxSizeX;
+    g_StarfieldState.kartographerVesselTargetBoxSizeY = params->VesselTargetBoxSizeY;
+    g_StarfieldState.kartographerVesselTargetBoxThickness = params->VesselTargetBoxThickness;
+    g_StarfieldState.kartographerVesselTargetTextOriginX = params->VesselTargetTextOriginX;
+    g_StarfieldState.kartographerVesselTargetTextOriginY = params->VesselTargetTextOriginY;
+    g_StarfieldState.kartographerVesselTargetTextAreaSizeX = params->VesselTargetTextAreaSizeX;
+    g_StarfieldState.kartographerVesselTargetTextAreaSizeY = params->VesselTargetTextAreaSizeY;
+    g_StarfieldState.kartographerVesselTargetTextT = params->VesselTargetTextT;
+    g_StarfieldState.kartographerAnimatedLabelIntensity = params->AnimatedLabelIntensity;
+    
+    // Copy all 12 grid labels from params to state (extract from float4)
+    g_StarfieldState.kartographerGridLabelEnabledMask = params->GridLabelEnabledMask;
+    g_StarfieldState.kartographerGridLabelDebugMask = params->GridLabelDebugMask;
+    g_StarfieldState.kartographerGridLabelPosX[0] = params->GridLabel0_PosTangentX.x;
+    g_StarfieldState.kartographerGridLabelPosY[0] = params->GridLabel0_PosTangentX.y;
+    g_StarfieldState.kartographerGridLabelPosZ[0] = params->GridLabel0_PosTangentX.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeX[0] = params->GridLabel0_PosTangentX.w;
+    g_StarfieldState.kartographerGridLabelTangentX[0] = params->GridLabel0_TangentY.x;
+    g_StarfieldState.kartographerGridLabelTangentY[0] = params->GridLabel0_TangentY.y;
+    g_StarfieldState.kartographerGridLabelTangentZ[0] = params->GridLabel0_TangentY.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeY[0] = params->GridLabel0_TangentY.w;
+    
+    g_StarfieldState.kartographerGridLabelPosX[1] = params->GridLabel1_PosTangentX.x;
+    g_StarfieldState.kartographerGridLabelPosY[1] = params->GridLabel1_PosTangentX.y;
+    g_StarfieldState.kartographerGridLabelPosZ[1] = params->GridLabel1_PosTangentX.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeX[1] = params->GridLabel1_PosTangentX.w;
+    g_StarfieldState.kartographerGridLabelTangentX[1] = params->GridLabel1_TangentY.x;
+    g_StarfieldState.kartographerGridLabelTangentY[1] = params->GridLabel1_TangentY.y;
+    g_StarfieldState.kartographerGridLabelTangentZ[1] = params->GridLabel1_TangentY.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeY[1] = params->GridLabel1_TangentY.w;
+    
+    g_StarfieldState.kartographerGridLabelPosX[2] = params->GridLabel2_PosTangentX.x;
+    g_StarfieldState.kartographerGridLabelPosY[2] = params->GridLabel2_PosTangentX.y;
+    g_StarfieldState.kartographerGridLabelPosZ[2] = params->GridLabel2_PosTangentX.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeX[2] = params->GridLabel2_PosTangentX.w;
+    g_StarfieldState.kartographerGridLabelTangentX[2] = params->GridLabel2_TangentY.x;
+    g_StarfieldState.kartographerGridLabelTangentY[2] = params->GridLabel2_TangentY.y;
+    g_StarfieldState.kartographerGridLabelTangentZ[2] = params->GridLabel2_TangentY.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeY[2] = params->GridLabel2_TangentY.w;
+    
+    g_StarfieldState.kartographerGridLabelPosX[3] = params->GridLabel3_PosTangentX.x;
+    g_StarfieldState.kartographerGridLabelPosY[3] = params->GridLabel3_PosTangentX.y;
+    g_StarfieldState.kartographerGridLabelPosZ[3] = params->GridLabel3_PosTangentX.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeX[3] = params->GridLabel3_PosTangentX.w;
+    g_StarfieldState.kartographerGridLabelTangentX[3] = params->GridLabel3_TangentY.x;
+    g_StarfieldState.kartographerGridLabelTangentY[3] = params->GridLabel3_TangentY.y;
+    g_StarfieldState.kartographerGridLabelTangentZ[3] = params->GridLabel3_TangentY.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeY[3] = params->GridLabel3_TangentY.w;
+    
+    g_StarfieldState.kartographerGridLabelPosX[4] = params->GridLabel4_PosTangentX.x;
+    g_StarfieldState.kartographerGridLabelPosY[4] = params->GridLabel4_PosTangentX.y;
+    g_StarfieldState.kartographerGridLabelPosZ[4] = params->GridLabel4_PosTangentX.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeX[4] = params->GridLabel4_PosTangentX.w;
+    g_StarfieldState.kartographerGridLabelTangentX[4] = params->GridLabel4_TangentY.x;
+    g_StarfieldState.kartographerGridLabelTangentY[4] = params->GridLabel4_TangentY.y;
+    g_StarfieldState.kartographerGridLabelTangentZ[4] = params->GridLabel4_TangentY.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeY[4] = params->GridLabel4_TangentY.w;
+    
+    g_StarfieldState.kartographerGridLabelPosX[5] = params->GridLabel5_PosTangentX.x;
+    g_StarfieldState.kartographerGridLabelPosY[5] = params->GridLabel5_PosTangentX.y;
+    g_StarfieldState.kartographerGridLabelPosZ[5] = params->GridLabel5_PosTangentX.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeX[5] = params->GridLabel5_PosTangentX.w;
+    g_StarfieldState.kartographerGridLabelTangentX[5] = params->GridLabel5_TangentY.x;
+    g_StarfieldState.kartographerGridLabelTangentY[5] = params->GridLabel5_TangentY.y;
+    g_StarfieldState.kartographerGridLabelTangentZ[5] = params->GridLabel5_TangentY.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeY[5] = params->GridLabel5_TangentY.w;
+    
+    g_StarfieldState.kartographerGridLabelPosX[6] = params->GridLabel6_PosTangentX.x;
+    g_StarfieldState.kartographerGridLabelPosY[6] = params->GridLabel6_PosTangentX.y;
+    g_StarfieldState.kartographerGridLabelPosZ[6] = params->GridLabel6_PosTangentX.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeX[6] = params->GridLabel6_PosTangentX.w;
+    g_StarfieldState.kartographerGridLabelTangentX[6] = params->GridLabel6_TangentY.x;
+    g_StarfieldState.kartographerGridLabelTangentY[6] = params->GridLabel6_TangentY.y;
+    g_StarfieldState.kartographerGridLabelTangentZ[6] = params->GridLabel6_TangentY.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeY[6] = params->GridLabel6_TangentY.w;
+    
+    g_StarfieldState.kartographerGridLabelPosX[7] = params->GridLabel7_PosTangentX.x;
+    g_StarfieldState.kartographerGridLabelPosY[7] = params->GridLabel7_PosTangentX.y;
+    g_StarfieldState.kartographerGridLabelPosZ[7] = params->GridLabel7_PosTangentX.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeX[7] = params->GridLabel7_PosTangentX.w;
+    g_StarfieldState.kartographerGridLabelTangentX[7] = params->GridLabel7_TangentY.x;
+    g_StarfieldState.kartographerGridLabelTangentY[7] = params->GridLabel7_TangentY.y;
+    g_StarfieldState.kartographerGridLabelTangentZ[7] = params->GridLabel7_TangentY.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeY[7] = params->GridLabel7_TangentY.w;
+    
+    g_StarfieldState.kartographerGridLabelPosX[8] = params->GridLabel8_PosTangentX.x;
+    g_StarfieldState.kartographerGridLabelPosY[8] = params->GridLabel8_PosTangentX.y;
+    g_StarfieldState.kartographerGridLabelPosZ[8] = params->GridLabel8_PosTangentX.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeX[8] = params->GridLabel8_PosTangentX.w;
+    g_StarfieldState.kartographerGridLabelTangentX[8] = params->GridLabel8_TangentY.x;
+    g_StarfieldState.kartographerGridLabelTangentY[8] = params->GridLabel8_TangentY.y;
+    g_StarfieldState.kartographerGridLabelTangentZ[8] = params->GridLabel8_TangentY.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeY[8] = params->GridLabel8_TangentY.w;
+    
+    g_StarfieldState.kartographerGridLabelPosX[9] = params->GridLabel9_PosTangentX.x;
+    g_StarfieldState.kartographerGridLabelPosY[9] = params->GridLabel9_PosTangentX.y;
+    g_StarfieldState.kartographerGridLabelPosZ[9] = params->GridLabel9_PosTangentX.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeX[9] = params->GridLabel9_PosTangentX.w;
+    g_StarfieldState.kartographerGridLabelTangentX[9] = params->GridLabel9_TangentY.x;
+    g_StarfieldState.kartographerGridLabelTangentY[9] = params->GridLabel9_TangentY.y;
+    g_StarfieldState.kartographerGridLabelTangentZ[9] = params->GridLabel9_TangentY.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeY[9] = params->GridLabel9_TangentY.w;
+    
+    g_StarfieldState.kartographerGridLabelPosX[10] = params->GridLabel10_PosTangentX.x;
+    g_StarfieldState.kartographerGridLabelPosY[10] = params->GridLabel10_PosTangentX.y;
+    g_StarfieldState.kartographerGridLabelPosZ[10] = params->GridLabel10_PosTangentX.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeX[10] = params->GridLabel10_PosTangentX.w;
+    g_StarfieldState.kartographerGridLabelTangentX[10] = params->GridLabel10_TangentY.x;
+    g_StarfieldState.kartographerGridLabelTangentY[10] = params->GridLabel10_TangentY.y;
+    g_StarfieldState.kartographerGridLabelTangentZ[10] = params->GridLabel10_TangentY.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeY[10] = params->GridLabel10_TangentY.w;
+    
+    g_StarfieldState.kartographerGridLabelPosX[11] = params->GridLabel11_PosTangentX.x;
+    g_StarfieldState.kartographerGridLabelPosY[11] = params->GridLabel11_PosTangentX.y;
+    g_StarfieldState.kartographerGridLabelPosZ[11] = params->GridLabel11_PosTangentX.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeX[11] = params->GridLabel11_PosTangentX.w;
+    g_StarfieldState.kartographerGridLabelTangentX[11] = params->GridLabel11_TangentY.x;
+    g_StarfieldState.kartographerGridLabelTangentY[11] = params->GridLabel11_TangentY.y;
+    g_StarfieldState.kartographerGridLabelTangentZ[11] = params->GridLabel11_TangentY.z;
+    g_StarfieldState.kartographerGridLabelWorldSizeY[11] = params->GridLabel11_TangentY.w;
+    
+    g_StarfieldState.kartographerGridLabelIntensity[0] = params->LabelIntensity0;
+    g_StarfieldState.kartographerGridLabelIntensity[1] = params->LabelIntensity1;
+    g_StarfieldState.kartographerGridLabelIntensity[2] = params->LabelIntensity2;
+    g_StarfieldState.kartographerGridLabelIntensity[3] = params->LabelIntensity3;
+    g_StarfieldState.kartographerGridLabelIntensity[4] = params->LabelIntensity4;
+    g_StarfieldState.kartographerGridLabelIntensity[5] = params->LabelIntensity5;
+    g_StarfieldState.kartographerGridLabelIntensity[6] = params->LabelIntensity6;
+    g_StarfieldState.kartographerGridLabelIntensity[7] = params->LabelIntensity7;
+    g_StarfieldState.kartographerGridLabelIntensity[8] = params->LabelIntensity8;
+    g_StarfieldState.kartographerGridLabelIntensity[9] = params->LabelIntensity9;
+    g_StarfieldState.kartographerGridLabelIntensity[10] = params->LabelIntensity10;
+    g_StarfieldState.kartographerGridLabelIntensity[11] = params->LabelIntensity11;
+    g_StarfieldState.kartographerGridLabelColor[0] = params->LabelColor0;
+    g_StarfieldState.kartographerGridLabelColor[1] = params->LabelColor1;
+    g_StarfieldState.kartographerGridLabelColor[2] = params->LabelColor2;
+    g_StarfieldState.kartographerGridLabelColor[3] = params->LabelColor3;
+    g_StarfieldState.kartographerGridLabelColor[4] = params->LabelColor4;
+    g_StarfieldState.kartographerGridLabelColor[5] = params->LabelColor5;
+    g_StarfieldState.kartographerGridLabelColor[6] = params->LabelColor6;
+    g_StarfieldState.kartographerGridLabelColor[7] = params->LabelColor7;
+    g_StarfieldState.kartographerGridLabelColor[8] = params->LabelColor8;
+    g_StarfieldState.kartographerGridLabelColor[9] = params->LabelColor9;
+    g_StarfieldState.kartographerGridLabelColor[10] = params->LabelColor10;
+    g_StarfieldState.kartographerGridLabelColor[11] = params->LabelColor11;
+    
+    // Navball icon parameters
+    g_StarfieldState.kartographerNavballEnabledMask = params->NavballEnabledMask;
+    g_StarfieldState.kartographerNavballOffscreenMode = params->NavballOffscreenMode;
+    g_StarfieldState.kartographerNavballIconSize = params->NavballIconSize;
+    g_StarfieldState.kartographerNavballIconThickness = params->NavballIconThickness;
+    g_StarfieldState.kartographerNavballMinIntensity = params->NavballMinIntensity;
+    g_StarfieldState.kartographerNavballMaxAngle = params->NavballMaxAngle;
+    g_StarfieldState.kartographerNavballHysteresisMargin = params->NavballHysteresisMargin;
+    
+    // Navball icon 0: Prograde
+    g_StarfieldState.kartographerNavballIconPosX[0] = params->NavballIcon0_X;
+    g_StarfieldState.kartographerNavballIconPosY[0] = params->NavballIcon0_Y;
+    g_StarfieldState.kartographerNavballIconIntensity[0] = params->NavballIcon0_Intensity;
+    g_StarfieldState.kartographerNavballIconColor[0] = params->NavballIcon0_Color;
+    
+    // Navball icon 1: Retrograde
+    g_StarfieldState.kartographerNavballIconPosX[1] = params->NavballIcon1_X;
+    g_StarfieldState.kartographerNavballIconPosY[1] = params->NavballIcon1_Y;
+    g_StarfieldState.kartographerNavballIconIntensity[1] = params->NavballIcon1_Intensity;
+    g_StarfieldState.kartographerNavballIconColor[1] = params->NavballIcon1_Color;
+    
+    // Navball icon 2: Normal
+    g_StarfieldState.kartographerNavballIconPosX[2] = params->NavballIcon2_X;
+    g_StarfieldState.kartographerNavballIconPosY[2] = params->NavballIcon2_Y;
+    g_StarfieldState.kartographerNavballIconIntensity[2] = params->NavballIcon2_Intensity;
+    g_StarfieldState.kartographerNavballIconColor[2] = params->NavballIcon2_Color;
+    
+    // Navball icon 3: AntiNormal
+    g_StarfieldState.kartographerNavballIconPosX[3] = params->NavballIcon3_X;
+    g_StarfieldState.kartographerNavballIconPosY[3] = params->NavballIcon3_Y;
+    g_StarfieldState.kartographerNavballIconIntensity[3] = params->NavballIcon3_Intensity;
+    g_StarfieldState.kartographerNavballIconColor[3] = params->NavballIcon3_Color;
+    
+    // Navball icon 4: Radial In
+    g_StarfieldState.kartographerNavballIconPosX[4] = params->NavballIcon4_X;
+    g_StarfieldState.kartographerNavballIconPosY[4] = params->NavballIcon4_Y;
+    g_StarfieldState.kartographerNavballIconIntensity[4] = params->NavballIcon4_Intensity;
+    g_StarfieldState.kartographerNavballIconColor[4] = params->NavballIcon4_Color;
+    
+    // Navball icon 5: Radial Out
+    g_StarfieldState.kartographerNavballIconPosX[5] = params->NavballIcon5_X;
+    g_StarfieldState.kartographerNavballIconPosY[5] = params->NavballIcon5_Y;
+    g_StarfieldState.kartographerNavballIconIntensity[5] = params->NavballIcon5_Intensity;
+    g_StarfieldState.kartographerNavballIconColor[5] = params->NavballIcon5_Color;
+    
+    // Navball icon 6: Maneuver
+    g_StarfieldState.kartographerNavballIconPosX[6] = params->NavballIcon6_X;
+    g_StarfieldState.kartographerNavballIconPosY[6] = params->NavballIcon6_Y;
+    g_StarfieldState.kartographerNavballIconIntensity[6] = params->NavballIcon6_Intensity;
+    g_StarfieldState.kartographerNavballIconColor[6] = params->NavballIcon6_Color;
+    
+    // Pointing icon
+    g_StarfieldState.kartographerPointingIconEnabled = params->PointingIconEnabled;
+    g_StarfieldState.kartographerPointingIconPosX = params->PointingIconPosX;
+    g_StarfieldState.kartographerPointingIconPosY = params->PointingIconPosY;
+    g_StarfieldState.kartographerPointingIconRotation = params->PointingIconRotation;
+    g_StarfieldState.kartographerPointingIconIntensity = params->PointingIconIntensity;
+    g_StarfieldState.kartographerPointingIconSize = params->PointingIconSize;
+    g_StarfieldState.kartographerPointingIconColor = params->PointingIconColor;
+    
+    // Maneuver text
+    g_StarfieldState.kartographerManeuverTextEnabled = params->ManeuverTextEnabled;
+    g_StarfieldState.kartographerManeuverTextOriginX = params->ManeuverTextOriginX;
+    g_StarfieldState.kartographerManeuverTextOriginY = params->ManeuverTextOriginY;
+    g_StarfieldState.kartographerManeuverTextWidth = params->ManeuverTextWidth;
+    g_StarfieldState.kartographerManeuverTextHeight = params->ManeuverTextHeight;
+    g_StarfieldState.kartographerManeuverTextIntensity = params->ManeuverTextIntensity;
+}
+
+// ============================================================================
+// Text Rendering System Exports (Phase 4)
+// ============================================================================
+
+struct TextParams {
+    int GlyphCount;
+    float OutputSizeX;
+    float OutputSizeY;
+    float Pad;
+};
+
+extern "C" __declspec(dllexport)
+void CR_TextDispatch(
+    void* textSystem,
+    ID3D11Texture2D* outputTexture,
+    int glyphCount,
+    int outputWidth,
+    int outputHeight)
+{
+    // Early exit checks (no logging for normal calls)
+    if (!textSystem || !outputTexture) {
+        return;
+    }
+    
+    CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(textSystem);
+    
+    // Ensure glyph buffer is created and populated
+    ID3D11Buffer* glyphBuffer = ts->GetOrCreateGlyphBuffer();
+    if (!glyphBuffer) {
+        return;
+    }
+    
+    ID3D11ShaderResourceView* glyphSRV = ts->GetGlyphBufferSRV();
+    if (!glyphSRV) {
+        return;
+    }
+    
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
+    if (!g_StarfieldState.device) {
+        return;
+    }
+    
+    ID3D11DeviceContext* context = nullptr;
+    g_StarfieldState.device->GetImmediateContext(&context);
+    if (!context) {
+        return;
+    }
+    
+    // Create compute shader if not already created
+    if (!g_StarfieldState.textCS) {
+        HRESULT hr = g_StarfieldState.device->CreateComputeShader(
+            g_KartographerTextCS, sizeof(g_KartographerTextCS), nullptr, &g_StarfieldState.textCS);
+        if (FAILED(hr)) {
+            context->Release();
+            return;
+        }
+    }
+    
+    // Create constant buffer if not already created
+    if (!g_StarfieldState.textCB) {
+        D3D11_BUFFER_DESC cbDesc = {};
+        cbDesc.ByteWidth = sizeof(TextParams);
+        cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+        cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        g_StarfieldState.device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.textCB);
+    }
+    
+    // Create sampler if not already created
+    if (!g_StarfieldState.textSampler) {
+        D3D11_SAMPLER_DESC sampDesc = {};
+        sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+        sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+        sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+        sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+        g_StarfieldState.device->CreateSamplerState(&sampDesc, &g_StarfieldState.textSampler);
+    }
+    
+    // Create UAV for output texture
+    ID3D11UnorderedAccessView* outputUAV = nullptr;
+    D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+    uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+    HRESULT hr = g_StarfieldState.device->CreateUnorderedAccessView(outputTexture, &uavDesc, &outputUAV);
+    if (FAILED(hr)) {
+        context->Release();
+        return;
+    }
+    
+    // Get atlas texture from text system
+    ID3D11ShaderResourceView* atlasSRV = ts->GetAtlasSRV();
+    if (!atlasSRV) {
+        outputUAV->Release();
+        context->Release();
+        return;
+    }
+    
+    // Update constant buffer
+    D3D11_MAPPED_SUBRESOURCE mapped;
+    if (SUCCEEDED(context->Map(g_StarfieldState.textCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+        TextParams* params = (TextParams*)mapped.pData;
+        params->GlyphCount = glyphCount;
+        params->OutputSizeX = (float)outputWidth;
+        params->OutputSizeY = (float)outputHeight;
+        params->Pad = 0.0f;
+        context->Unmap(g_StarfieldState.textCB, 0);
+    }
+    
+    // Clear output texture
+    UINT clearColor[4] = {0, 0, 0, 0};
+    context->ClearUnorderedAccessViewUint(outputUAV, clearColor);
+    
+    // Set compute shader and resources
+    context->CSSetShader(g_StarfieldState.textCS, nullptr, 0);
+    context->CSSetConstantBuffers(0, 1, &g_StarfieldState.textCB);
+    ID3D11ShaderResourceView* srvs[2] = {atlasSRV, glyphSRV}; // t0 = atlas, t1 = glyph buffer
+    context->CSSetShaderResources(0, 2, srvs);
+    context->CSSetSamplers(0, 1, &g_StarfieldState.textSampler);
+    
+    ID3D11UnorderedAccessView* uavs[1] = {outputUAV};
+    context->CSSetUnorderedAccessViews(0, 1, uavs, nullptr);
+    
+    // Dispatch compute shader
+    UINT dispatchX = (outputWidth + 15) / 16;
+    UINT dispatchY = (outputHeight + 15) / 16;
+    context->Dispatch(dispatchX, dispatchY, 1);
+    
+    // Unbind resources
+    ID3D11UnorderedAccessView* nullUAV[1] = {nullptr};
+    ID3D11ShaderResourceView* nullSRV[2] = {nullptr, nullptr};
+    context->CSSetUnorderedAccessViews(0, 1, nullUAV, nullptr);
+    context->CSSetShaderResources(0, 2, nullSRV);
+    context->CSSetShader(nullptr, nullptr, 0);
+    
+    outputUAV->Release();
+    context->Release();
+}
+
+extern "C" __declspec(dllexport)
+void CR_TextDispatchEx(
+    void* textSystem,
+    ID3D11Texture2D* outputTexture,
+    int glyphCount,
+    int outputWidth,
+    int outputHeight,
+    int clearOutput)
+{
+    // Early exit checks (no logging for normal calls)
+    if (!textSystem || !outputTexture) {
+        return;
+    }
+    
+    CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(textSystem);
+    
+    // Ensure glyph buffer is created and populated
+    ID3D11Buffer* glyphBuffer = ts->GetOrCreateGlyphBuffer();
+    if (!glyphBuffer) {
+        return;
+    }
+    
+    ID3D11ShaderResourceView* glyphSRV = ts->GetGlyphBufferSRV();
+    if (!glyphSRV) {
+        return;
+    }
+    
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
+    if (!g_StarfieldState.device) {
+        return;
+    }
+    
+    ID3D11DeviceContext* context = nullptr;
+    g_StarfieldState.device->GetImmediateContext(&context);
+    if (!context) {
+        return;
+    }
+    
+    // Create compute shader if not already created
+    if (!g_StarfieldState.textCS) {
+        HRESULT hr = g_StarfieldState.device->CreateComputeShader(
+            g_KartographerTextCS, sizeof(g_KartographerTextCS), nullptr, &g_StarfieldState.textCS);
+        if (FAILED(hr)) {
+            context->Release();
+            return;
+        }
+    }
+    
+    // Create constant buffer if not already created
+    if (!g_StarfieldState.textCB) {
+        D3D11_BUFFER_DESC cbDesc = {};
+        cbDesc.ByteWidth = sizeof(TextParams);
+        cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+        cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        g_StarfieldState.device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.textCB);
+    }
+    
+    // Create sampler if not already created
+    if (!g_StarfieldState.textSampler) {
+        D3D11_SAMPLER_DESC sampDesc = {};
+        sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+        sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+        sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+        sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+        g_StarfieldState.device->CreateSamplerState(&sampDesc, &g_StarfieldState.textSampler);
+    }
+    
+    // Create UAV for output texture
+    ID3D11UnorderedAccessView* outputUAV = nullptr;
+    D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+    uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+    HRESULT hr = g_StarfieldState.device->CreateUnorderedAccessView(outputTexture, &uavDesc, &outputUAV);
+    if (FAILED(hr)) {
+        context->Release();
+        return;
+    }
+    
+    // Get atlas texture from text system
+    ID3D11ShaderResourceView* atlasSRV = ts->GetAtlasSRV();
+    if (!atlasSRV) {
+        outputUAV->Release();
+        context->Release();
+        return;
+    }
+    
+    // Update constant buffer
+    D3D11_MAPPED_SUBRESOURCE mapped;
+    if (SUCCEEDED(context->Map(g_StarfieldState.textCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+        TextParams* params = (TextParams*)mapped.pData;
+        params->GlyphCount = glyphCount;
+        params->OutputSizeX = (float)outputWidth;
+        params->OutputSizeY = (float)outputHeight;
+        params->Pad = 0.0f;
+        context->Unmap(g_StarfieldState.textCB, 0);
+    }
+    
+    // Clear output texture only if requested
+    if (clearOutput != 0) {
+        UINT clearColor[4] = {0, 0, 0, 0};
+        context->ClearUnorderedAccessViewUint(outputUAV, clearColor);
+    }
+    
+    // Set compute shader and resources
+    context->CSSetShader(g_StarfieldState.textCS, nullptr, 0);
+    context->CSSetConstantBuffers(0, 1, &g_StarfieldState.textCB);
+    ID3D11ShaderResourceView* srvs[2] = {atlasSRV, glyphSRV}; // t0 = atlas, t1 = glyph buffer
+    context->CSSetShaderResources(0, 2, srvs);
+    context->CSSetSamplers(0, 1, &g_StarfieldState.textSampler);
+    
+    ID3D11UnorderedAccessView* uavs[1] = {outputUAV};
+    context->CSSetUnorderedAccessViews(0, 1, uavs, nullptr);
+    
+    // Dispatch compute shader
+    UINT dispatchX = (outputWidth + 15) / 16;
+    UINT dispatchY = (outputHeight + 15) / 16;
+    context->Dispatch(dispatchX, dispatchY, 1);
+    
+    // Unbind resources
+    ID3D11UnorderedAccessView* nullUAV[1] = {nullptr};
+    ID3D11ShaderResourceView* nullSRV[2] = {nullptr, nullptr};
+    context->CSSetUnorderedAccessViews(0, 1, nullUAV, nullptr);
+    context->CSSetShaderResources(0, 2, nullSRV);
+    context->CSSetShader(nullptr, nullptr, 0);
+    
+    outputUAV->Release();
+    context->Release();
+}
+
+extern "C" __declspec(dllexport)
+void CR_SetTextTexture(ID3D11Texture2D* texture)
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
+    // Release old SRV if exists
+    if (g_StarfieldState.textTextureSRV) {
+        g_StarfieldState.textTextureSRV->Release();
+        g_StarfieldState.textTextureSRV = nullptr;
+    }
+    
+    if (texture && g_StarfieldState.device) {
+        // Create SRV for the texture
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MipLevels = 1;
+        g_StarfieldState.device->CreateShaderResourceView(texture, &srvDesc, &g_StarfieldState.textTextureSRV);
+    }
+}
+
+extern "C" __declspec(dllexport)
+void CR_SetVesselTargetTextTexture(ID3D11Texture2D* texture)
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
+    // Release old SRV if exists
+    if (g_StarfieldState.vesselTargetTextTextureSRV) {
+        g_StarfieldState.vesselTargetTextTextureSRV->Release();
+        g_StarfieldState.vesselTargetTextTextureSRV = nullptr;
+    }
+    
+    if (texture && g_StarfieldState.device) {
+        // Create SRV for the texture
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MipLevels = 1;
+        g_StarfieldState.device->CreateShaderResourceView(texture, &srvDesc, &g_StarfieldState.vesselTargetTextTextureSRV);
+    }
+}
+
+extern "C" __declspec(dllexport)
+void CR_SetGridLabelTexture(int slot, ID3D11Texture2D* texture)
+{
+    // Set texture for grid label slot
+    
+    if (slot < 0 || slot >= 12) {
+        LogToFile("[GridLabel]   -> INVALID SLOT %d", slot);
+        return;
+    }
+    
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
+    // Update slot state
+    auto& slotState = g_StarfieldState.gridLabelSlots[slot];
+    
+    // Release old SRV if exists
+    if (slotState.textureSRV) {
+        slotState.textureSRV->Release();
+        slotState.textureSRV = nullptr;
+    }
+    
+    // Create new SRV if texture provided
+    if (texture && g_StarfieldState.device) {
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MipLevels = 1;
+        HRESULT hr = g_StarfieldState.device->CreateShaderResourceView(texture, &srvDesc, &slotState.textureSRV);
+        if (FAILED(hr)) {
+            // SRV creation failed
+            slotState.isActive = false;
+            return;
+        }
+        slotState.isActive = true;
+        // SRV created successfully
+    } else {
+        slotState.isActive = false;
+        // Slot cleared
+    }
+}
+
+extern "C" __declspec(dllexport)
+void CR_ClearGridLabelSlot(int slot)
+{
+    if (slot < 0 || slot >= 12) {
+        return;
+    }
+    
+    // Clear grid label slot
+    
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
+    auto& slotState = g_StarfieldState.gridLabelSlots[slot];
+    
+    // Release SRV and mark inactive
+    if (slotState.textureSRV) {
+        slotState.textureSRV->Release();
+        slotState.textureSRV = nullptr;
+    }
+    slotState.isActive = false;
+    
+    // Also clear from the legacy array for compatibility during transition
+    if (g_StarfieldState.gridLabelTextureSRV[slot]) {
+        g_StarfieldState.gridLabelTextureSRV[slot]->Release();
+        g_StarfieldState.gridLabelTextureSRV[slot] = nullptr;
+    }
+}
+
+// ============================================================================
+// Navball Icon Texture Array (Phase 4c)
+// ============================================================================
+
+extern "C" __declspec(dllexport)
+int CR_SetNavballIconTextures(ID3D11Texture2D* sourceTextures[7], int width, int height)
+{
+    LogToFile("[Navball] CR_SetNavballIconTextures called: width=%d, height=%d", width, height);
+    
+    if (!g_StarfieldState.device) {
+        LogToFile("[Navball] Error: Device not ready");
+        return -1;
+    }
+    if (!sourceTextures) {
+        LogToFile("[Navball] Error: sourceTextures is null");
+        return -2;
+    }
+    
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
+    // Release existing texture array and SRV
+    if (g_StarfieldState.navballIconArraySRV) {
+        g_StarfieldState.navballIconArraySRV->Release();
+        g_StarfieldState.navballIconArraySRV = nullptr;
+    }
+    if (g_StarfieldState.navballIconArray) {
+        g_StarfieldState.navballIconArray->Release();
+        g_StarfieldState.navballIconArray = nullptr;
+    }
+    
+    // Check if all source textures are valid
+    bool hasValidTextures = false;
+    for (int i = 0; i < 7; i++) {
+        if (sourceTextures[i]) {
+            hasValidTextures = true;
+            LogToFile("[Navball] Texture %d: valid ptr=%p", i, sourceTextures[i]);
+        } else {
+            LogToFile("[Navball] Texture %d: NULL", i);
+        }
+    }
+    if (!hasValidTextures) {
+        LogToFile("[Navball] Error: No valid textures provided");
+        return -3;  // No valid textures provided
+    }
+    
+    // Create texture array
+    D3D11_TEXTURE2D_DESC arrayDesc = {};
+    arrayDesc.Width = width;
+    arrayDesc.Height = height;
+    arrayDesc.MipLevels = 1;
+    arrayDesc.ArraySize = 7;  // 7 navball icons
+    arrayDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;  // MSDF textures are RGBA
+    arrayDesc.SampleDesc.Count = 1;
+    arrayDesc.Usage = D3D11_USAGE_DEFAULT;
+    arrayDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    
+    LogToFile("[Navball] Creating texture array: %dx%d x 7", width, height);
+    HRESULT hr = g_StarfieldState.device->CreateTexture2D(&arrayDesc, nullptr, &g_StarfieldState.navballIconArray);
+    if (FAILED(hr)) {
+        LogToFile("[Navball] Failed to create texture array (0x%08X)", hr);
+        return -4;
+    }
+    LogToFile("[Navball] Texture array created successfully");
+    
+    // Copy each source texture to the corresponding array slice
+    ID3D11DeviceContext* context = nullptr;
+    g_StarfieldState.device->GetImmediateContext(&context);
+    if (!context) {
+        LogToFile("[Navball] Error: Failed to get immediate context");
+        g_StarfieldState.navballIconArray->Release();
+        g_StarfieldState.navballIconArray = nullptr;
+        return -5;
+    }
+    
+    LogToFile("[Navball] Copying textures to array...");
+    for (int i = 0; i < 7; i++) {
+        if (sourceTextures[i]) {
+            context->CopySubresourceRegion(
+                g_StarfieldState.navballIconArray,
+                D3D11CalcSubresource(0, i, 1),  // Mip 0, Array slice i
+                0, 0, 0,
+                sourceTextures[i],
+                0, nullptr
+            );
+        }
+    }
+    
+    context->Release();
+    LogToFile("[Navball] Textures copied, creating SRV...");
+    
+    // Create SRV for the texture array
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+    srvDesc.Texture2DArray.MostDetailedMip = 0;
+    srvDesc.Texture2DArray.MipLevels = 1;
+    srvDesc.Texture2DArray.FirstArraySlice = 0;
+    srvDesc.Texture2DArray.ArraySize = 7;
+    
+    hr = g_StarfieldState.device->CreateShaderResourceView(g_StarfieldState.navballIconArray, &srvDesc, &g_StarfieldState.navballIconArraySRV);
+    if (FAILED(hr)) {
+        LogToFile("[Navball] Failed to create texture array SRV (0x%08X)", hr);
+        g_StarfieldState.navballIconArray->Release();
+        g_StarfieldState.navballIconArray = nullptr;
+        return -6;
+    }
+    
+    // Clear the invalidated flag since textures are now uploaded
+    g_StarfieldState.navballTexturesInvalidated = false;
+    
+    LogToFile("[Navball] Texture array created: %dx%d x 7 slices, invalidated flag cleared", width, height);
+    return 0;  // Success
+}
+
+extern "C" __declspec(dllexport)
+int CR_SetPointingIconTexture(ID3D11Texture2D* sourceTexture)
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    LogToFile("[Navball] CR_SetPointingIconTexture called");
+    if (!g_StarfieldState.device) {
+        LogToFile("[Navball] Error: Device not ready");
+        return -1;
+    }
+    if (!sourceTexture) {
+        LogToFile("[Navball] Warning: null pointing icon texture");
+        return -2;
+    }
+    if (g_StarfieldState.pointingIconSRV) {
+        g_StarfieldState.pointingIconSRV->Release();
+        g_StarfieldState.pointingIconSRV = nullptr;
+    }
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels = 1;
+    HRESULT hr = g_StarfieldState.device->CreateShaderResourceView(sourceTexture, &srvDesc, &g_StarfieldState.pointingIconSRV);
+    if (FAILED(hr)) {
+        LogToFile("[Navball] Failed to create pointing icon SRV (0x%08X)", hr);
+        return -3;
+    }
+    D3D11_TEXTURE2D_DESC desc = {};
+    sourceTexture->GetDesc(&desc);
+    LogToFile("[Navball] Pointing icon texture uploaded: %dx%d", desc.Width, desc.Height);
+    return 0;
+}
+
+extern "C" __declspec(dllexport)
+int CR_SetManeuverTextTexture(ID3D11Texture2D* sourceTexture)
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    if (!g_StarfieldState.device) {
+        LogToFile("[Navball] Error: Device not ready");
+        return -1;
+    }
+    if (!sourceTexture) {
+        LogToFile("[Navball] Warning: null maneuver text texture");
+        return -2;
+    }
+    if (g_StarfieldState.maneuverTextSRV) {
+        g_StarfieldState.maneuverTextSRV->Release();
+        g_StarfieldState.maneuverTextSRV = nullptr;
+    }
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels = 1;
+    HRESULT hr = g_StarfieldState.device->CreateShaderResourceView(sourceTexture, &srvDesc, &g_StarfieldState.maneuverTextSRV);
+    if (FAILED(hr)) {
+        LogToFile("[Navball] Failed to create maneuver text SRV (0x%08X)", hr);
+        return -3;
+    }
+    return 0;
 }
 
 extern "C" __declspec(dllexport)
@@ -2052,6 +3565,7 @@ void CR_StarfieldShutdown()
     if (g_StarfieldState.pass2VS) { g_StarfieldState.pass2VS->Release(); g_StarfieldState.pass2VS = nullptr; }
     if (g_StarfieldState.pass2PS) { g_StarfieldState.pass2PS->Release(); g_StarfieldState.pass2PS = nullptr; }
     if (g_StarfieldState.linearSampler) { g_StarfieldState.linearSampler->Release(); g_StarfieldState.linearSampler = nullptr; }
+    if (g_StarfieldState.pointSampler) { g_StarfieldState.pointSampler->Release(); g_StarfieldState.pointSampler = nullptr; }
     if (g_StarfieldState.depthState) { g_StarfieldState.depthState->Release(); g_StarfieldState.depthState = nullptr; }
     if (g_StarfieldState.blendState) { g_StarfieldState.blendState->Release(); g_StarfieldState.blendState = nullptr; }
     if (g_StarfieldState.rasterState) { g_StarfieldState.rasterState->Release(); g_StarfieldState.rasterState = nullptr; }
@@ -2084,6 +3598,17 @@ void CR_StarfieldShutdown()
     if (g_StarfieldState.bloomHalfRTV) { g_StarfieldState.bloomHalfRTV->Release(); g_StarfieldState.bloomHalfRTV = nullptr; }
     if (g_StarfieldState.bloomHalfTexture) { g_StarfieldState.bloomHalfTexture->Release(); g_StarfieldState.bloomHalfTexture = nullptr; }
     if (g_StarfieldState.upscalePS) { g_StarfieldState.upscalePS->Release(); g_StarfieldState.upscalePS = nullptr; }
+    
+    // Cleanup grid label textures (all 12 slots)
+    for (int i = 0; i < 12; i++) {
+        if (g_StarfieldState.gridLabelTextureSRV[i]) {
+            g_StarfieldState.gridLabelTextureSRV[i]->Release();
+            g_StarfieldState.gridLabelTextureSRV[i] = nullptr;
+        }
+    }
+    
+    if (g_StarfieldState.pointingIconSRV) { g_StarfieldState.pointingIconSRV->Release(); g_StarfieldState.pointingIconSRV = nullptr; }
+    if (g_StarfieldState.maneuverTextSRV) { g_StarfieldState.maneuverTextSRV->Release(); g_StarfieldState.maneuverTextSRV = nullptr; }
     
     if (g_StarfieldState.device) { g_StarfieldState.device->Release(); g_StarfieldState.device = nullptr; }
     
@@ -2119,10 +3644,38 @@ void CR_StarfieldInvalidateResources()
     if (g_StarfieldState.hdrUAV) { g_StarfieldState.hdrUAV->Release(); g_StarfieldState.hdrUAV = nullptr; }
     if (g_StarfieldState.hdrTexture) { g_StarfieldState.hdrTexture->Release(); g_StarfieldState.hdrTexture = nullptr; }
     
+    // Release navball icon textures so they get re-uploaded
+    if (g_StarfieldState.navballIconArraySRV) { 
+        g_StarfieldState.navballIconArraySRV->Release(); 
+        g_StarfieldState.navballIconArraySRV = nullptr; 
+        g_StarfieldState.navballTexturesInvalidated = true;
+    }
+    if (g_StarfieldState.navballIconArray) { 
+        g_StarfieldState.navballIconArray->Release(); 
+        g_StarfieldState.navballIconArray = nullptr; 
+        g_StarfieldState.navballTexturesInvalidated = true;
+    }
+    if (g_StarfieldState.pointingIconSRV) { 
+        g_StarfieldState.pointingIconSRV->Release(); 
+        g_StarfieldState.pointingIconSRV = nullptr; 
+    }
+    if (g_StarfieldState.maneuverTextSRV) { 
+        g_StarfieldState.maneuverTextSRV->Release(); 
+        g_StarfieldState.maneuverTextSRV = nullptr; 
+    }
+    
     // Reset initialized flag so resources get recreated
     g_StarfieldState.initialized = false;
     
-    LogToFile("[Starfield] Resources invalidated for recreation");
+    LogToFile("[Starfield] Resources invalidated for recreation (navballTexturesInvalidated=%s)", 
+        g_StarfieldState.navballTexturesInvalidated ? "true" : "false");
+}
+
+extern "C" __declspec(dllexport)
+byte CR_NavballTexturesNeedReupload()
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    return g_StarfieldState.navballTexturesInvalidated ? 1 : 0;
 }
 
 // ============================================================================
