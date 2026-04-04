@@ -78,22 +78,22 @@ namespace CinematicShaders.Core
         
         // Navball screen-space rendering settings
         public static int KartographerNavballOffscreenMode { get; set; } = 0;  // 0=world-space (disappear), 1=edge-clamp
-        public static float KartographerNavballIconSize { get; set; } = 0.05f;  // Screen-space size in NDC units
-        public static float KartographerNavballIconThickness { get; set; } = 0.0f;  // SDF line thickness (0 = default, positive = thicker)
+        public static float KartographerNavballIconSize { get; set; } = 0.125f;  // Screen-space size in NDC units (slider display 4.0)
+        public static float KartographerNavballIconThickness { get; set; } = 0.2f;  // SDF line thickness (slider display 2.0)
         public static float KartographerNavballMinIntensity { get; set; } = 0.33f;  // Minimum brightness when far off-center
         public static float KartographerNavballMaxAngle { get; set; } = 90f;  // Angle for min intensity (degrees)
         public static float KartographerNavballHysteresisMargin { get; set; } = 0.05f;  // Buffer zone for edge transition
-        public static float KartographerPointingIconSize { get; set; } = 0.05f;
-        public static float KartographerManeuverTextOffset { get; set; } = 0.08f;
+        public static float KartographerPointingIconSize { get; set; } = 0.125f;  // Slider display 4.0
+        public static float KartographerManeuverTextOffset { get; set; } = 0.1f;
         public static float KartographerManeuverTextScale { get; set; } = 1.0f;
         
         // Kartographer visual parameters
-        public static float KartographerGridIntensity { get; set; } = 0.002f;      // Range: 0.001-0.003
-        public static float KartographerGridThickness { get; set; } = 0.0003f;      // Range: 0.00015-0.00045
+        public static float KartographerGridIntensity { get; set; } = 0.0012f;      // Display 1.0 (was 0.002f)
+        public static float KartographerGridThickness { get; set; } = 0.00036f;      // Display 4.0 (was 0.0003f)
         // Chromatic Aberration is hard-coded to default
         public const float KartographerCAStrength = 0.004f;
         public static float KartographerVignetteStrength { get; set; } = 0.7f;      // Range: 0.35-1.0
-        public static float KartographerVignetteStart { get; set; } = 1.6f;         // Range: 0.8-2.4
+        public static float KartographerVignetteStart { get; set; } = 1.0f;         // Range: 0.8-2.4 (was 1.6f)
         public static float KartographerVignetteEnd { get; set; } = 2.2f;           // Range: 1.1-3.3
         public static float KartographerRotationYaw { get; set; } = 0.0f;           // Range: -PI to PI
         public static float KartographerRotationPitch { get; set; } = 0.0f;         // Range: -PI/2 to PI/2

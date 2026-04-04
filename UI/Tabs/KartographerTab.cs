@@ -719,16 +719,37 @@ namespace CinematicShaders.UI.Tabs
 
         private void ResetToDefaults()
         {
-            StarfieldSettings.KartographerGridIntensity = 0.002f;
-            StarfieldSettings.KartographerGridThickness = 0.0003f;
+            // Display Options
+            StarfieldSettings.KartographerGridIntensity = 0.0012f;
+            StarfieldSettings.KartographerGridThickness = 0.00036f;
             StarfieldSettings.KartographerVignetteStrength = 0.7f;
-            StarfieldSettings.KartographerVignetteStart = 1.6f;
+            StarfieldSettings.KartographerVignetteStart = 1.0f;
             StarfieldSettings.KartographerVignetteEnd = 2.2f;
             StarfieldSettings.KartographerRotationYaw = 0.0f;
             StarfieldSettings.KartographerRotationPitch = 0.0f;
             StarfieldSettings.KartographerGridSize = 2;
             StarfieldSettings.KartographerGridColor = 0;
             _currentColorIndex = 0;
+
+            // Situation Display
+            StarfieldSettings.KartographerSituationRotationStep = new int[4] { 0, 0, 0, 0 };
+            StarfieldSettings.KartographerSituationRowOffset = new int[4] { 0, 0, 0, 0 };
+
+            // Navball Indicators
+            StarfieldSettings.KartographerNavballUseColors = false;
+            StarfieldSettings.KartographerNavballIconStyle = NavballIconStyle.Retro;
+            StarfieldSettings.KartographerNavballIconThickness = 0.2f;
+            StarfieldSettings.KartographerNavballIconSize = 0.125f;
+            StarfieldSettings.KartographerPointingIconSize = 0.125f;
+            StarfieldSettings.KartographerManeuverTextOffset = 0.1f;
+            StarfieldSettings.KartographerManeuverTextScale = 1.0f;
+            
+            // Notify managers of style reset
+            if (CinematicShadersAddon.NavballManager != null)
+            {
+                CinematicShadersAddon.NavballManager.SetUseNavballColors(StarfieldSettings.KartographerNavballUseColors);
+                CinematicShadersAddon.NavballManager.SetIconStyle(StarfieldSettings.KartographerNavballIconStyle);
+            }
             
             PushKartographerParams();
             StarfieldSettings.Save();
