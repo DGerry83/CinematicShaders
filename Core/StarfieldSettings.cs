@@ -46,7 +46,7 @@ namespace CinematicShaders.Core
 
 
         // Bloom mode toggle: false = Classic (original 4-spike), true = Soft HDR (2-pass)
-        public static bool UseSoftBloom { get; set; } = false;
+        public static bool UseSoftBloom { get; set; } = true;
         
         // Navball icon style enum - must be defined before use
         public enum NavballIconStyle
@@ -251,7 +251,7 @@ namespace CinematicShaders.Core
                 BloomThreshold = float.Parse(settingsNode.GetValue("BloomThreshold") ?? "0.08");
                 BloomIntensity = float.Parse(settingsNode.GetValue("BloomIntensity") ?? "0.5");
                 ColorSaturation = float.Parse(settingsNode.GetValue("ColorSaturation") ?? "1.0");
-                UseSoftBloom = bool.Parse(settingsNode.GetValue("UseSoftBloom") ?? "false");
+                UseSoftBloom = bool.Parse(settingsNode.GetValue("UseSoftBloom") ?? "true");
                 RotationX = float.Parse(settingsNode.GetValue("RotationX") ?? "0.0");
                 RotationY = float.Parse(settingsNode.GetValue("RotationY") ?? "0.0");
                 RotationZ = float.Parse(settingsNode.GetValue("RotationZ") ?? "0.0");
