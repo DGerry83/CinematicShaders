@@ -12,6 +12,7 @@ namespace CinematicShaders.UI.Tabs
     {
         private bool _initialized = false;
         private bool _showVisualSettings = true;
+        private bool _showDisplayOptions = true;
         private bool _showColorDropdown = false;
         private int _currentColorIndex = 0;
 
@@ -317,89 +318,91 @@ namespace CinematicShaders.UI.Tabs
             
             GUILayout.Space(5);
 
-            // Display Color dropdown
-            DrawColorDropdown();
+            _showDisplayOptions = GUILayout.Toggle(_showDisplayOptions, " ▼ Display Options", HighLogic.Skin.button);
 
-            GUILayout.Space(5);
-
-            // Grid Size: 0-3 (Jumbo, Large, Medium, Small), default 2 (Medium)
-            // Note: Tiny (4) is available in code but disabled in UI - too dense for labels
-            GUILayout.Label(new GUIContent($"Grid Size: {GetGridSizeLabel(StarfieldSettings.KartographerGridSize)}",
-                "Density of the holographic grid lines"));
-            int newGridSize = Mathf.RoundToInt(GUILayout.HorizontalSlider(StarfieldSettings.KartographerGridSize, 0, 3));
-            if (newGridSize != StarfieldSettings.KartographerGridSize)
+            if (_showDisplayOptions)
             {
-                StarfieldSettings.KartographerGridSize = newGridSize;
-                PushKartographerParams();
-                StarfieldSettings.Save();
-            }
+                // Display Color dropdown
+                DrawColorDropdown();
 
-            // Grid Intensity: display 0-5, internal 0-0.006 (default display ~1.7)
-            float displayIntensity = IntensityToDisplay(StarfieldSettings.KartographerGridIntensity);
-            GUILayout.Label(new GUIContent($"Grid Intensity: {displayIntensity:F1}", 
-                "Brightness of the holographic grid lines"));
-            float newDisplayIntensity = GUILayout.HorizontalSlider(displayIntensity, 0f, 5f);
-            if (!Mathf.Approximately(newDisplayIntensity, displayIntensity))
-            {
-                StarfieldSettings.KartographerGridIntensity = DisplayToIntensity(newDisplayIntensity);
-                PushKartographerParams();
-                
-                // Update HUCK label intensity to match grid intensity
-                if (CinematicShadersAddon.SituationLabelSystem != null)
+                GUILayout.Space(5);
+
+                // Grid Size: 0-3 (Jumbo, Large, Medium, Small), default 2 (Medium)
+                // Note: Tiny (4) is available in code but disabled in UI - too dense for labels
+                GUILayout.Label(new GUIContent($"Grid Size: {GetGridSizeLabel(StarfieldSettings.KartographerGridSize)}",
+                    "Density of the holographic grid lines"));
+                int newGridSize = Mathf.RoundToInt(GUILayout.HorizontalSlider(StarfieldSettings.KartographerGridSize, 0, 3));
+                if (newGridSize != StarfieldSettings.KartographerGridSize)
                 {
-                    CinematicShadersAddon.SituationLabelSystem.SetLabelIntensity("huck", StarfieldSettings.KartographerGridIntensity / 0.002f);
+                    StarfieldSettings.KartographerGridSize = newGridSize;
+                    PushKartographerParams();
+                    StarfieldSettings.Save();
                 }
-                
-                StarfieldSettings.Save();
-            }
 
-            // Grid Softness: display 0-10, internal 0-0.0009 (default display ~3.3)
-            // Note: Higher value = softer/thicker lines, Lower = sharper/thinner
-            float displayThickness = ThicknessToDisplay(StarfieldSettings.KartographerGridThickness);
-            GUILayout.Label(new GUIContent($"Grid Softness: {displayThickness:F1}", 
-                "Softness of the grid lines (higher = softer, lower = sharper)"));
-            float newDisplayThickness = GUILayout.HorizontalSlider(displayThickness, 0f, 10f);
-            if (!Mathf.Approximately(newDisplayThickness, displayThickness))
-            {
-                StarfieldSettings.KartographerGridThickness = DisplayToThickness(newDisplayThickness);
-                PushKartographerParams();
-                StarfieldSettings.Save();
-            }
+                // Grid Intensity: display 0-5, internal 0-0.006 (default display ~1.7)
+                float displayIntensity = IntensityToDisplay(StarfieldSettings.KartographerGridIntensity);
+                GUILayout.Label(new GUIContent($"Grid Intensity: {displayIntensity:F1}", 
+                    "Brightness of the holographic grid lines"));
+                float newDisplayIntensity = GUILayout.HorizontalSlider(displayIntensity, 0f, 5f);
+                if (!Mathf.Approximately(newDisplayIntensity, displayIntensity))
+                {
+                    StarfieldSettings.KartographerGridIntensity = DisplayToIntensity(newDisplayIntensity);
+                    PushKartographerParams();
+                    
+                    // Update HUCK label intensity to match grid intensity
+                    if (CinematicShadersAddon.SituationLabelSystem != null)
+                    {
+                        CinematicShadersAddon.SituationLabelSystem.SetLabelIntensity("huck", StarfieldSettings.KartographerGridIntensity / 0.002f);
+                    }
+                    
+                    StarfieldSettings.Save();
+                }
 
-            GUILayout.Space(5);
-            GUILayout.Label("<b>Vignette Settings</b>", HighLogic.Skin.label);
+                // Grid Softness: display 0-10, internal 0-0.0009 (default display ~3.3)
+                // Note: Higher value = softer/thicker lines, Lower = sharper/thinner
+                float displayThickness = ThicknessToDisplay(StarfieldSettings.KartographerGridThickness);
+                GUILayout.Label(new GUIContent($"Grid Softness: {displayThickness:F1}", 
+                    "Softness of the grid lines (higher = softer, lower = sharper)"));
+                float newDisplayThickness = GUILayout.HorizontalSlider(displayThickness, 0f, 10f);
+                if (!Mathf.Approximately(newDisplayThickness, displayThickness))
+                {
+                    StarfieldSettings.KartographerGridThickness = DisplayToThickness(newDisplayThickness);
+                    PushKartographerParams();
+                    StarfieldSettings.Save();
+                }
 
-            // Vignette Strength: 0.35 - 1.0, default 0.7
-            GUILayout.Label(new GUIContent($"Vignette Strength: {StarfieldSettings.KartographerVignetteStrength:F2}", 
-                "Darkening at screen corners (0 = no vignette, 1 = black corners)"));
-            float newVignetteStr = GUILayout.HorizontalSlider(StarfieldSettings.KartographerVignetteStrength, 0.35f, 1.0f);
-            if (!Mathf.Approximately(newVignetteStr, StarfieldSettings.KartographerVignetteStrength))
-            {
-                StarfieldSettings.KartographerVignetteStrength = newVignetteStr;
-                PushKartographerParams();
-                StarfieldSettings.Save();
-            }
+                // Vignette Strength: 0.35 - 1.0, default 0.7
+                GUILayout.Label(new GUIContent($"Vignette Strength: {StarfieldSettings.KartographerVignetteStrength:F2}", 
+                    "Darkening at screen corners (0 = no vignette, 1 = black corners)"));
+                float newVignetteStr = GUILayout.HorizontalSlider(StarfieldSettings.KartographerVignetteStrength, 0.35f, 1.0f);
+                if (!Mathf.Approximately(newVignetteStr, StarfieldSettings.KartographerVignetteStrength))
+                {
+                    StarfieldSettings.KartographerVignetteStrength = newVignetteStr;
+                    PushKartographerParams();
+                    StarfieldSettings.Save();
+                }
 
-            // Vignette Start: 0.8 - 2.4, default 1.6
-            GUILayout.Label(new GUIContent($"Vignette Start: {StarfieldSettings.KartographerVignetteStart:F2}", 
-                "Distance from center where vignette begins"));
-            float newVignetteStart = GUILayout.HorizontalSlider(StarfieldSettings.KartographerVignetteStart, 0.8f, 2.4f);
-            if (!Mathf.Approximately(newVignetteStart, StarfieldSettings.KartographerVignetteStart))
-            {
-                StarfieldSettings.KartographerVignetteStart = newVignetteStart;
-                PushKartographerParams();
-                StarfieldSettings.Save();
-            }
+                // Vignette Start: 0.8 - 2.4, default 1.6
+                GUILayout.Label(new GUIContent($"Vignette Start: {StarfieldSettings.KartographerVignetteStart:F2}", 
+                    "Distance from center where vignette begins"));
+                float newVignetteStart = GUILayout.HorizontalSlider(StarfieldSettings.KartographerVignetteStart, 0.8f, 2.4f);
+                if (!Mathf.Approximately(newVignetteStart, StarfieldSettings.KartographerVignetteStart))
+                {
+                    StarfieldSettings.KartographerVignetteStart = newVignetteStart;
+                    PushKartographerParams();
+                    StarfieldSettings.Save();
+                }
 
-            // Vignette End: 1.1 - 3.3, default 2.2
-            GUILayout.Label(new GUIContent($"Vignette End: {StarfieldSettings.KartographerVignetteEnd:F2}", 
-                "Distance from center where vignette reaches full strength"));
-            float newVignetteEnd = GUILayout.HorizontalSlider(StarfieldSettings.KartographerVignetteEnd, 1.1f, 3.3f);
-            if (!Mathf.Approximately(newVignetteEnd, StarfieldSettings.KartographerVignetteEnd))
-            {
-                StarfieldSettings.KartographerVignetteEnd = newVignetteEnd;
-                PushKartographerParams();
-                StarfieldSettings.Save();
+                // Vignette End: 1.1 - 3.3, default 2.2
+                GUILayout.Label(new GUIContent($"Vignette End: {StarfieldSettings.KartographerVignetteEnd:F2}", 
+                    "Distance from center where vignette reaches full strength"));
+                float newVignetteEnd = GUILayout.HorizontalSlider(StarfieldSettings.KartographerVignetteEnd, 1.1f, 3.3f);
+                if (!Mathf.Approximately(newVignetteEnd, StarfieldSettings.KartographerVignetteEnd))
+                {
+                    StarfieldSettings.KartographerVignetteEnd = newVignetteEnd;
+                    PushKartographerParams();
+                    StarfieldSettings.Save();
+                }
             }
 
             /* GRID ORIENTATION SLIDERS DISABLED - Code preserved for future use
