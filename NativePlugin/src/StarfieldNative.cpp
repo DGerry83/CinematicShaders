@@ -2941,7 +2941,6 @@ extern "C" __declspec(dllexport)
 int CR_SetManeuverTextTexture(ID3D11Texture2D* sourceTexture)
 {
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
-    LogToFile("[Navball] CR_SetManeuverTextTexture called");
     if (!g_StarfieldState.device) {
         LogToFile("[Navball] Error: Device not ready");
         return -1;
@@ -2963,9 +2962,6 @@ int CR_SetManeuverTextTexture(ID3D11Texture2D* sourceTexture)
         LogToFile("[Navball] Failed to create maneuver text SRV (0x%08X)", hr);
         return -3;
     }
-    D3D11_TEXTURE2D_DESC desc = {};
-    sourceTexture->GetDesc(&desc);
-    LogToFile("[Navball] Maneuver text texture uploaded: %dx%d", desc.Width, desc.Height);
     return 0;
 }
 
