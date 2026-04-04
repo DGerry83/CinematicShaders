@@ -515,17 +515,18 @@ float3 RenderPointingIcon(float2 center, float rotation, float intensity, uint c
     texUV.x = isq.x / 2.0 + 0.5;
     texUV.y = 1.0 - (isq.y + 0.5);
     
-    // Discard after rotation (proper rotated bounds)
-    if (texUV.x < 0.0 || texUV.x > 1.0 || texUV.y < 0.0 || texUV.y > 1.0)
-        return float3(0, 0, 0);
+    // Soft edge fade to hide the texture boundary (2-pixel margin on 256x128)
+    float2 edgeFadeUV = saturate(texUV * 64.0) * saturate((1.0 - texUV) * 64.0);
+    float edgeFade = min(edgeFadeUV.x, edgeFadeUV.y);
     
-    // Sample MSDF texture
+    // Clamp to valid range and sample MSDF texture
+    texUV = saturate(texUV);
     float3 msd = PointingIcon.SampleLevel(PointSampler, texUV, 0).rgb;
     
     // MSDF decoding
     float sd = median(msd.r, msd.g, msd.b) - 0.5;
     float edgeWidth = fwidth(sd);
-    float alpha = smoothstep(-edgeWidth, edgeWidth, sd);
+    float alpha = smoothstep(-edgeWidth, edgeWidth, sd) * edgeFade;
     
     // Get color
     float3 color = gridColor;
