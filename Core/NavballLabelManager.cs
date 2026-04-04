@@ -814,10 +814,11 @@ namespace CinematicShaders.Core
             int fullBlocks = Mathf.FloorToInt(filled);
             float remainder = filled - fullBlocks;
             char currentBlock = ' ';
-            if (remainder >= 0.75f) currentBlock = '▓';
-            else if (remainder >= 0.50f) currentBlock = '▒';
-            else if (remainder >= 0.25f) currentBlock = '░';
-            else if (remainder > 0.001f) currentBlock = '█';
+            if (remainder >= 0.875f) currentBlock = '█';      // 87.5-99.9% → full block
+            else if (remainder >= 0.625f) currentBlock = '▓'; // 62.5-87.5% → three-quarters
+            else if (remainder >= 0.375f) currentBlock = '▒'; // 37.5-62.5% → half
+            else if (remainder >= 0.125f) currentBlock = '░'; // 12.5-37.5% → quarter
+            // else remains ' ' for 0-12.5%
             var sb = new System.Text.StringBuilder();
             sb.Append('█', fullBlocks);
             if (fullBlocks < 10)

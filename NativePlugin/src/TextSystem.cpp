@@ -358,7 +358,8 @@ int TextSystem::LayoutStringEx(const char* text, float fontSize, uint32_t color,
         }
         
         // Handle escape sequence: ^| -> U+258C LEFT HALF BLOCK
-        if (codepoint == '^' && *(p+1) == '|') {
+        // Note: after UTF-8 decode, p points to next character, so check *p not *(p+1)
+        if (codepoint == '^' && *p == '|') {
             codepoint = 0x258C;  // U+258C LEFT HALF BLOCK
             p++;  // Skip the '|' character
         }
