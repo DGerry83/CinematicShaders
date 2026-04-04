@@ -44,7 +44,7 @@ The Holographic Universal Celestial Kartographer, or H.U.C.K., is a diegetic hea
 But that's not all.  H.U.C.K. comes pre-loaded with a vast star catalog containing data on over three-thousand stars, allowing you to point-and click to to discover their names, distances, and more.  Not just a navigation aid, H.U.C.K. is your guide to the stars.  Simply enable the Kartographer, choose the visual options you want, and H.U.C.K. does the rest.
 
 **Screenshots**
-![A screenshot showing the H.U.C.K. label and basic UI](screenshots/KartogarpherGeneral.png "The Kartographer UI")
+![A screenshot showing the H.U.C.K. label and basic UI](screenshots/KartographerGeneral.png "The Kartographer UI")
 ![A screenshot showing the H.U.C.K. target tracking indicator](screenshots/KartographerTarget.png "The Tracking Indicator")
 ![A screenshot showing the H.U.C.K. star catalog function](screenshots/KartographerCatalog.png "The Star Catalog")
 
