@@ -110,7 +110,7 @@ namespace CinematicShaders.Core
         private Texture2D[] _iconTextures;
         private bool _texturesLoaded = false;
         private bool _texturesUploaded = false;
-        private NavballIconStyle _currentIconStyle = NavballIconStyle.KSP;
+        private NavballIconStyle _currentIconStyle = NavballIconStyle.Retro;
 
         // Pointing icon texture
         private const string HEADING_ICON_FILE_KSP = "heading_sdf.png";
@@ -138,7 +138,7 @@ namespace CinematicShaders.Core
         /// <summary>
         /// Load navball icon textures from PNG files based on current style.
         /// </summary>
-        public void LoadTextures(NavballIconStyle style = NavballIconStyle.KSP)
+        public void LoadTextures(NavballIconStyle style = NavballIconStyle.Retro)
         {
             if (_texturesLoaded && _currentIconStyle == style) return;
 

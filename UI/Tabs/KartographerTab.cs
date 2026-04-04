@@ -11,7 +11,6 @@ namespace CinematicShaders.UI.Tabs
     public class KartographerTab
     {
         private bool _initialized = false;
-        private bool _showVisualSettings = true;
         private bool _showDisplayOptions = true;
         private bool _showNavballOptions = false;
         private bool _showSituationOptions = false;
@@ -113,7 +112,7 @@ namespace CinematicShaders.UI.Tabs
                 CinematicShadersUIResources.Styles.ToggleActive() : HighLogic.Skin.toggle;
 
             bool newEnable = GUILayout.Toggle(StarfieldSettings.EnableKartographer,
-                " Enable Holographic Grid", toggleStyle);
+                " Enable Kartographer", toggleStyle);
 
             if (newEnable != StarfieldSettings.EnableKartographer)
             {
@@ -129,11 +128,6 @@ namespace CinematicShaders.UI.Tabs
 
         private void DrawVisualSettings()
         {
-            _showVisualSettings = GUILayout.Toggle(_showVisualSettings, " ▼ Visual Settings", HighLogic.Skin.button);
-            
-            if (!_showVisualSettings)
-                return;
-
             GUILayout.BeginVertical(HighLogic.Skin.box);
 
             // Star catalog selection mode toggle

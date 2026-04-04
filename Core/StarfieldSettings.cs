@@ -74,7 +74,7 @@ namespace CinematicShaders.Core
         // Navball indicators - orbital direction icons on the holographic grid
         public static bool KartographerNavballLabels { get; set; } = false;  // Enable navball indicators
         public static bool KartographerNavballUseColors { get; set; } = false;  // Use KSP navball colors vs grid color
-        public static NavballIconStyle KartographerNavballIconStyle { get; set; } = NavballIconStyle.KSP;  // Icon rendering style
+        public static NavballIconStyle KartographerNavballIconStyle { get; set; } = NavballIconStyle.Retro;  // Icon rendering style
         
         // Navball screen-space rendering settings
         public static int KartographerNavballOffscreenMode { get; set; } = 0;  // 0=world-space (disappear), 1=edge-clamp
@@ -277,7 +277,7 @@ namespace CinematicShaders.Core
                 // Navball indicator settings
                 KartographerNavballLabels = bool.Parse(settingsNode.GetValue("KartographerNavballLabels") ?? "false");
                 KartographerNavballUseColors = bool.Parse(settingsNode.GetValue("KartographerNavballUseColors") ?? "false");
-                string iconStyleStr = settingsNode.GetValue("KartographerNavballIconStyle") ?? "KSP";
+                string iconStyleStr = settingsNode.GetValue("KartographerNavballIconStyle") ?? "Retro";
                 // Handle legacy "SDF" value
                 if (iconStyleStr == "SDF") iconStyleStr = "KSP";
                 if (iconStyleStr == "ASCII") iconStyleStr = "Retro";
