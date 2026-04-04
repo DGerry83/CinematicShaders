@@ -14,6 +14,7 @@ namespace CinematicShaders.UI.Tabs
         private bool _showVisualSettings = true;
         private bool _showDisplayOptions = true;
         private bool _showNavballOptions = false;
+        private bool _showSituationOptions = false;
         private bool _showColorDropdown = false;
         private int _currentColorIndex = 0;
 
@@ -165,9 +166,13 @@ namespace CinematicShaders.UI.Tabs
                 // Note: Actual selector is managed by CinematicShadersAddon which checks the setting every frame
             }
             
-            // Situation display toggle and rotation slider
-            bool newSituationDisplay = GUILayout.Toggle(StarfieldSettings.KartographerSituationDisplay, 
-                " Show Situation Display", HighLogic.Skin.toggle);
+            // Situation display toggle + expand button
+            GUILayout.BeginHorizontal();
+            bool newSituationDisplay = GUILayout.Toggle(StarfieldSettings.KartographerSituationDisplay, "", HighLogic.Skin.toggle, GUILayout.Width(20));
+            GUILayout.Space(20);
+            _showSituationOptions = GUILayout.Toggle(_showSituationOptions, " ▼ Situation Display", HighLogic.Skin.button);
+            GUILayout.EndHorizontal();
+            
             if (newSituationDisplay != StarfieldSettings.KartographerSituationDisplay)
             {
                 StarfieldSettings.KartographerSituationDisplay = newSituationDisplay;
@@ -175,7 +180,7 @@ namespace CinematicShaders.UI.Tabs
             }
             
             // Situation label position adjustment (user-facing, not debug)
-            if (StarfieldSettings.KartographerSituationDisplay)
+            if (_showSituationOptions)
             {
                 int gridSize = Mathf.Clamp(StarfieldSettings.KartographerGridSize, 0, 3);
                 int[] meridians = { 8, 12, 16, 24 };
@@ -209,6 +214,7 @@ namespace CinematicShaders.UI.Tabs
             // Navball indicators toggle + expand button
             GUILayout.BeginHorizontal();
             bool newNavballLabels = GUILayout.Toggle(StarfieldSettings.KartographerNavballLabels, "", HighLogic.Skin.toggle, GUILayout.Width(20));
+            GUILayout.Space(20);
             _showNavballOptions = GUILayout.Toggle(_showNavballOptions, " ▼ Navball Indicators", HighLogic.Skin.button);
             GUILayout.EndHorizontal();
             
