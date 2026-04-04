@@ -90,8 +90,8 @@ namespace CinematicShaders.Core
             "retrograde_sdf.png",
             "normal_sdf.png",
             "antinormal_sdf.png",
-            "radial_in_sdf.png",
             "radial_out_sdf.png",
+            "radial_in_sdf.png",
             "maneuver_sdf.png"
         };
         
@@ -101,8 +101,8 @@ namespace CinematicShaders.Core
             "retrograde_retro_sdf.png",
             "normal_retro_sdf.png",
             "antinormal_retro_sdf.png",
-            "radial_in_retro_sdf.png",
             "radial_out_retro_sdf.png",
+            "radial_in_retro_sdf.png",
             "maneuver_retro_sdf.png"
         };
         
