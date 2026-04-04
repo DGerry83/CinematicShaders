@@ -323,8 +323,32 @@ int TextSystem::LayoutStringEx(const char* text, float fontSize, uint32_t color,
     float cursorY = originY;
     float lineHeight = (m_ascent - m_descent + m_lineGap) * m_fontScale + lineSpacing;
     
-    for (const char* p = text; *p; ++p) {
-        int codepoint = static_cast<unsigned char>(*p);
+    for (const char* p = text; *p; ) {
+        // UTF-8 decode
+        int codepoint = 0;
+        unsigned char c = static_cast<unsigned char>(*p);
+        
+        if ((c & 0x80) == 0) {
+            // 1-byte ASCII (0xxxxxxx)
+            codepoint = c;
+            ++p;
+        } else if ((c & 0xE0) == 0xC0) {
+            // 2-byte sequence (110xxxxx 10xxxxxx)
+            codepoint = ((c & 0x1F) << 6) | (static_cast<unsigned char>(p[1]) & 0x3F);
+            p += 2;
+        } else if ((c & 0xF0) == 0xE0) {
+            // 3-byte sequence (1110xxxx 10xxxxxx 10xxxxxx)
+            codepoint = ((c & 0x0F) << 12) | ((static_cast<unsigned char>(p[1]) & 0x3F) << 6) | (static_cast<unsigned char>(p[2]) & 0x3F);
+            p += 3;
+        } else if ((c & 0xF8) == 0xF0) {
+            // 4-byte sequence (11110xxx 10xxxxxx 10xxxxxx 10xxxxxx)
+            codepoint = ((c & 0x07) << 18) | ((static_cast<unsigned char>(p[1]) & 0x3F) << 12) | ((static_cast<unsigned char>(p[2]) & 0x3F) << 6) | (static_cast<unsigned char>(p[3]) & 0x3F);
+            p += 4;
+        } else {
+            // Invalid sequence, skip byte
+            ++p;
+            continue;
+        }
         
         // Handle newline
         if (codepoint == '\n') {
@@ -368,10 +392,24 @@ int TextSystem::LayoutStringEx(const char* text, float fontSize, uint32_t color,
         // Advance cursor by glyph advance
         cursorX += m.advance;
         
-        // Apply kerning with next character
-        if (*(p + 1) && *(p + 1) != '\n') {
-            int nextCodepoint = static_cast<unsigned char>(*(p + 1));
-            cursorX += stbtt_GetCodepointKernAdvance(m_fontInfo, codepoint, nextCodepoint) * m_fontScale;
+        // Apply kerning with next character (peek next UTF-8 codepoint)
+        if (*p && *p != '\n') {
+            int nextCodepoint = 0;
+            unsigned char nc = static_cast<unsigned char>(*p);
+            
+            if ((nc & 0x80) == 0) {
+                nextCodepoint = nc;
+            } else if ((nc & 0xE0) == 0xC0 && *(p+1)) {
+                nextCodepoint = ((nc & 0x1F) << 6) | (static_cast<unsigned char>(p[1]) & 0x3F);
+            } else if ((nc & 0xF0) == 0xE0 && *(p+1) && *(p+2)) {
+                nextCodepoint = ((nc & 0x0F) << 12) | ((static_cast<unsigned char>(p[1]) & 0x3F) << 6) | (static_cast<unsigned char>(p[2]) & 0x3F);
+            } else if ((nc & 0xF8) == 0xF0 && *(p+1) && *(p+2) && *(p+3)) {
+                nextCodepoint = ((nc & 0x07) << 18) | ((static_cast<unsigned char>(p[1]) & 0x3F) << 12) | ((static_cast<unsigned char>(p[2]) & 0x3F) << 6) | (static_cast<unsigned char>(p[3]) & 0x3F);
+            }
+            
+            if (nextCodepoint > 0) {
+                cursorX += stbtt_GetCodepointKernAdvance(m_fontInfo, codepoint, nextCodepoint) * m_fontScale;
+            }
         }
     }
     

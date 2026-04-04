@@ -463,7 +463,7 @@ namespace CinematicShaders.Core
             {
                 _maneuverTextVisible = true;
                 float textOffsetY = StarfieldSettings.KartographerManeuverTextOffset > 0 ? StarfieldSettings.KartographerManeuverTextOffset : 0.08f;
-                _maneuverTextPos = new Vector2(_iconStates[MANEUVER].ScreenNDC.x, _iconStates[MANEUVER].ScreenNDC.y + textOffsetY);
+                _maneuverTextPos = new Vector2(_iconStates[MANEUVER].ScreenNDC.x, _iconStates[MANEUVER].ScreenNDC.y - textOffsetY);
 
                 var node = FlightGlobals.ActiveVessel.patchedConicSolver.maneuverNodes[0];
                 double timeToNode = node.UT - Planetarium.GetUniversalTime();

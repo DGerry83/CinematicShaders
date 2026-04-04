@@ -44,13 +44,13 @@ namespace CinematicShaders.Native
         public static extern void CR_TextShutdown(IntPtr textSystem);
         
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        public static extern int CR_TextLayout(IntPtr textSystem, [MarshalAs(UnmanagedType.LPStr)] string text, float fontSize, uint color);
+        public static extern int CR_TextLayout(IntPtr textSystem, [MarshalAs(UnmanagedType.LPUTF8Str)] string text, float fontSize, uint color);
         
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_TextGetBounds(IntPtr textSystem, out float outWidth, out float outHeight);
         
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CR_TextMeasure(IntPtr textSystem, [MarshalAs(UnmanagedType.LPStr)] string text, float fontSize, out float outWidth, out float outHeight);
+        public static extern void CR_TextMeasure(IntPtr textSystem, [MarshalAs(UnmanagedType.LPUTF8Str)] string text, float fontSize, out float outWidth, out float outHeight);
         
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr CR_TextGetAtlasSRV(IntPtr textSystem);
@@ -78,7 +78,7 @@ namespace CinematicShaders.Native
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern int CR_TextLayoutEx(
             IntPtr textSystem,
-            [MarshalAs(UnmanagedType.LPStr)] string text,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string text,
             float fontSize,
             uint color,
             float originX,
