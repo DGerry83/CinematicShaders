@@ -51,8 +51,8 @@ namespace CinematicShaders.Core
         // Navball icon style enum - must be defined before use
         public enum NavballIconStyle
         {
-            SDF,    // High-quality SDF icons from SVG
-            ASCII   // Retro ASCII art style (future implementation)
+            KSP,    // Default KSP-style icons (was SDF)
+            Retro   // Retro-style icons with _retro suffix
         }
         
         // Kartographer holographic grid overlay
@@ -74,7 +74,7 @@ namespace CinematicShaders.Core
         // Navball indicators - orbital direction icons on the holographic grid
         public static bool KartographerNavballLabels { get; set; } = false;  // Enable navball indicators
         public static bool KartographerNavballUseColors { get; set; } = false;  // Use KSP navball colors vs grid color
-        public static NavballIconStyle KartographerNavballIconStyle { get; set; } = NavballIconStyle.SDF;  // Icon rendering style
+        public static NavballIconStyle KartographerNavballIconStyle { get; set; } = NavballIconStyle.KSP;  // Icon rendering style
         
         // Navball screen-space rendering settings
         public static int KartographerNavballOffscreenMode { get; set; } = 0;  // 0=world-space (disappear), 1=edge-clamp
@@ -277,7 +277,10 @@ namespace CinematicShaders.Core
                 // Navball indicator settings
                 KartographerNavballLabels = bool.Parse(settingsNode.GetValue("KartographerNavballLabels") ?? "false");
                 KartographerNavballUseColors = bool.Parse(settingsNode.GetValue("KartographerNavballUseColors") ?? "false");
-                string iconStyleStr = settingsNode.GetValue("KartographerNavballIconStyle") ?? "SDF";
+                string iconStyleStr = settingsNode.GetValue("KartographerNavballIconStyle") ?? "KSP";
+                // Handle legacy "SDF" value
+                if (iconStyleStr == "SDF") iconStyleStr = "KSP";
+                if (iconStyleStr == "ASCII") iconStyleStr = "Retro";
                 KartographerNavballIconStyle = (NavballIconStyle)Enum.Parse(typeof(NavballIconStyle), iconStyleStr);
                 
                 // Navball screen-space rendering settings

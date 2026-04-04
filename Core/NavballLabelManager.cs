@@ -84,8 +84,8 @@ namespace CinematicShaders.Core
         private Vector3d _lastRadialOut;
         private Vector3d? _lastManeuver;
 
-        // Texture loading
-        private static readonly string[] IconFileNames = {
+        // Texture loading - KSP (default) style
+        private static readonly string[] IconFileNamesKSP = {
             "prograde_sdf.png",
             "retrograde_sdf.png",
             "normal_sdf.png",
@@ -94,13 +94,27 @@ namespace CinematicShaders.Core
             "radial_out_sdf.png",
             "maneuver_sdf.png"
         };
+        
+        // Texture loading - Retro style
+        private static readonly string[] IconFileNamesRetro = {
+            "prograde_retro_sdf.png",
+            "retrograde_retro_sdf.png",
+            "normal_retro_sdf.png",
+            "antinormal_retro_sdf.png",
+            "radial_in_retro_sdf.png",
+            "radial_out_retro_sdf.png",
+            "maneuver_retro_sdf.png"
+        };
+        
         private const int ICON_TEXTURE_SIZE = 128;
         private Texture2D[] _iconTextures;
         private bool _texturesLoaded = false;
         private bool _texturesUploaded = false;
+        private NavballIconStyle _currentIconStyle = NavballIconStyle.KSP;
 
         // Pointing icon texture
-        private const string HEADING_ICON_FILE = "heading_sdf.png";
+        private const string HEADING_ICON_FILE_KSP = "heading_sdf.png";
+        private const string HEADING_ICON_FILE_RETRO = "heading_retro_sdf.png";
         private Texture2D _pointingIconTexture;
         private bool _pointingTextureLoaded = false;
         private bool _pointingTextureUploaded = false;
@@ -122,26 +136,43 @@ namespace CinematicShaders.Core
         private bool _pointingVisible;
 
         /// <summary>
-        /// Load navball icon textures from PNG files.
+        /// Load navball icon textures from PNG files based on current style.
         /// </summary>
-        public void LoadTextures()
+        public void LoadTextures(NavballIconStyle style = NavballIconStyle.KSP)
         {
-            if (_texturesLoaded) return;
+            if (_texturesLoaded && _currentIconStyle == style) return;
 
             try
             {
                 // Build path to GameData/CinematicShaders/PluginData/NavballIcons
-                // Following the same pattern as StarCatalogManager
                 string basePath = Path.Combine(KSPUtil.ApplicationRootPath, "GameData", "CinematicShaders", "PluginData", "NavballIcons");
 
-                ModFileLogger.Log($"[NavballLabelManager] Loading textures from: {basePath}");
+                ModFileLogger.Log($"[NavballLabelManager] Loading textures from: {basePath}, style: {style}");
+
+                // Select filename array based on style
+                string[] iconFileNames = (style == NavballIconStyle.Retro) ? IconFileNamesRetro : IconFileNamesKSP;
+                string headingFileName = (style == NavballIconStyle.Retro) ? HEADING_ICON_FILE_RETRO : HEADING_ICON_FILE_KSP;
+
+                // Clean up old textures if reloading
+                if (_iconTextures != null)
+                {
+                    foreach (var tex in _iconTextures)
+                    {
+                        if (tex != null) UnityEngine.Object.Destroy(tex);
+                    }
+                }
+                if (_pointingIconTexture != null)
+                {
+                    UnityEngine.Object.Destroy(_pointingIconTexture);
+                    _pointingIconTexture = null;
+                }
 
                 _iconTextures = new Texture2D[ICON_COUNT];
                 bool allLoaded = true;
 
                 for (int i = 0; i < ICON_COUNT; i++)
                 {
-                    string filePath = Path.Combine(basePath, IconFileNames[i]);
+                    string filePath = Path.Combine(basePath, iconFileNames[i]);
                     if (!File.Exists(filePath))
                     {
                         ModFileLogger.LogError($"[NavballLabelManager] Missing texture: {filePath}");
@@ -150,13 +181,12 @@ namespace CinematicShaders.Core
                     }
 
                     byte[] bytes = File.ReadAllBytes(filePath);
-                    // LoadImage() properly handles PNG format
                     _iconTextures[i] = new Texture2D(2, 2, TextureFormat.RGBA32, false);
                     _iconTextures[i].LoadImage(bytes);
                 }
 
                 // Load pointing icon texture
-                string pointingPath = Path.Combine(basePath, HEADING_ICON_FILE);
+                string pointingPath = Path.Combine(basePath, headingFileName);
                 if (File.Exists(pointingPath))
                 {
                     byte[] ptBytes = File.ReadAllBytes(pointingPath);
@@ -175,8 +205,11 @@ namespace CinematicShaders.Core
                     return;
                 }
 
+                _currentIconStyle = style;
                 _texturesLoaded = true;
-                ModFileLogger.Log("[NavballLabelManager] Textures loaded, will upload when device ready");
+                _texturesUploaded = false; // Force re-upload
+                _pointingTextureUploaded = false;
+                ModFileLogger.Log($"[NavballLabelManager] Textures loaded for style: {style}");
             }
             catch (Exception ex)
             {
@@ -270,8 +303,8 @@ namespace CinematicShaders.Core
                     };
                 }
 
-                // Load textures
-                LoadTextures();
+                // Load textures with current style from settings
+                LoadTextures(StarfieldSettings.KartographerNavballIconStyle);
 
                 // Create maneuver text render texture
                 _maneuverTextTexture = new RenderTexture(MANEUVER_TEXT_WIDTH, MANEUVER_TEXT_HEIGHT, 0, RenderTextureFormat.ARGB32);
@@ -767,14 +800,17 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
-        /// Set the icon style (SDF or ASCII).
-        /// Note: Kept for API compatibility, but SDF is always used now.
+        /// Set the icon style (KSP or Retro).
+        /// Reloads textures when style changes.
         /// </summary>
         public void SetIconStyle(NavballIconStyle style)
         {
-            // Kept for backward compatibility with UI
-            // The new screen-space system only uses SDF
-            Debug.Log($"[NavballLabelManager] Icon style set to {style} (note: screen-space uses SDF)");
+            if (_currentIconStyle == style) return;
+            
+            Debug.Log($"[NavballLabelManager] Switching icon style from {_currentIconStyle} to {style}");
+            
+            // Reload textures with new style
+            LoadTextures(style);
         }
 
         /// <summary>
