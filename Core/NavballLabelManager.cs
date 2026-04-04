@@ -415,7 +415,6 @@ namespace CinematicShaders.Core
 
             // Calculate orbit vectors using KSP's built-in world-space properties
             // (already in surface frame, matching the working approach in VesselTargetSelector)
-            Vector3d pos = FlightGlobals.ActiveVessel.GetWorldPos3D();
             Vector3d vel = FlightGlobals.ActiveVessel.obt_velocity;
 
             // Use fixed celestial up axis (transformed to surface frame) for consistent orbital plane reference
@@ -424,16 +423,13 @@ namespace CinematicShaders.Core
 
             Vector3d prograde = vel.normalized;
             Vector3d retrograde = -prograde;
-            // Normal is perpendicular to velocity and celestial up (fixed reference)
-            Vector3d normal = Vector3d.Cross(prograde, upAxisSurface).normalized;
-            Vector3d antinormal = -normal;
             // Radial out points away from body center (perpendicular to prograde in orbital plane)
-            // Cross(normal, prograde) rotates 90° from prograde toward radial
-            Vector3d radialOut = Vector3d.Cross(normal, prograde).normalized;
-            // Ensure radial points away from body center (flip if needed based on position)
-            if (Vector3d.Dot(radialOut, pos) < 0)
-                radialOut = -radialOut;
+            // ProjectOnPlane gives the body-up component perpendicular to velocity, matching KSP's NavBall.cs
+            Vector3d radialOut = (upAxisSurface - prograde * Vector3d.Dot(upAxisSurface, prograde)).normalized;
             Vector3d radialIn = -radialOut;
+            // Normal is perpendicular to velocity and radial (right-hand rule)
+            Vector3d normal = Vector3d.Cross(radialOut, prograde).normalized;
+            Vector3d antinormal = -normal;
 
             // Cache for debugging
             _lastPrograde = prograde;
