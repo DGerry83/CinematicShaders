@@ -44,10 +44,13 @@ The Holographic Universal Celestial Kartographer, or H.U.C.K., is a diegetic hea
 But that's not all.  H.U.C.K. comes pre-loaded with a vast star catalog containing data on over three-thousand stars, allowing you to point-and click to to discover their names, distances, and more.  Not just a navigation aid, H.U.C.K. is your guide to the stars.  Simply enable the Kartographer, choose the visual options you want, and H.U.C.K. does the rest.
 
 **Screenshots**
-![A screenshot showing the H.U.C.K. label and basic UI]
-![A screenshot showing the H.U.C.K. target tracking indicator]
-![A screenshot showing the H.U.C.K. star catalog function]
+![A screenshot showing the H.U.C.K. label and basic UI](screenshots/KartogarpherGeneral.png "The Kartographer UI")
+![A screenshot showing the H.U.C.K. target tracking indicator](screenshots/KartographerTarget.png "The Tracking Indicator")
+![A screenshot showing the H.U.C.K. star catalog function](screenshots/KartographerCatalog.png "The Star Catalog")
 
+## IMPORTANT NOTE ##
+
+The Kartographer *requires* the starfield to be enabled in order to function, and you would not be able to access the star catalog data otherwise regardless.
 
 ## Requirements
 
@@ -81,6 +84,7 @@ The folder structure should be: `GameData/CinematicShaders/`
 1. Open the Cinematic Shaders UI from the toolbar button
 2. Click Enable Kartographer from the **Kartographer** tab
 3. Choose the visualizer options you want and optionally customize their appearance
+4. Starfield MUST be enabled!
 
 ## Known Issues
 
