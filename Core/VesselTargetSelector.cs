@@ -392,8 +392,9 @@ namespace CinematicShaders.Core
             latCell = Mathf.Min(latCell, numLat - 1);
 
             // Rotation step (0 to numLong-1, discrete meridian alignment)
+            // Negate the step so slider to the right rotates labels clockwise
             int rotationStep = StarfieldSettings.KartographerSituationRotationStep[preset] % numLong;
-            int lonCell1 = rotationStep;
+            int lonCell1 = (numLong - rotationStep) % numLong;
             int lonCell2 = (lonCell1 + numLong / 2) % numLong; // Opposite side
 
             // Calculate spherical coordinates

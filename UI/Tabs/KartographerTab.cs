@@ -17,13 +17,6 @@ namespace CinematicShaders.UI.Tabs
         private bool _showColorDropdown = false;
         private int _currentColorIndex = 0;
 
-        private readonly string[] _colorNames = { "Seafoam", "Amber", "White", "Green" };
-        private readonly Color[] _colorValues = {
-            new Color(0.1f, 0.9f, 0.7f),
-            new Color(1.0f, 0.65f, 0.0f),
-            new Color(0.85f, 0.95f, 1.0f),
-            new Color(0.25f, 1.0f, 0.0f)
-        };
         private GUIStyle[] _colorButtonStyles = null;
 
         public KartographerTab()
@@ -66,18 +59,16 @@ namespace CinematicShaders.UI.Tabs
                 _initialized = true;
             }
 
-            // Check native plugin loaded
             if (!StarfieldNative.IsLoaded)
             {
-                GUILayout.Label("Native plugin failed to load. Check KSP.log for details.", 
+                GUILayout.Label(CinematicShadersUIStrings.Kartographer.NativeLoadError, 
                     CinematicShadersUIResources.Styles.Error());
                 return;
             }
 
             DrawEnableToggle();
             
-            // Initialize mouse hover if it was previously enabled but selector doesn't exist
-            // This happens when loading a game with mouse hover saved as enabled
+            // Initialize mouse hover if previously enabled (loading game state)
             if (StarfieldSettings.EnableKartographer && 
                 StarfieldSettings.KartographerMouseHoverSelect && 
                 _selector == null)
@@ -112,7 +103,7 @@ namespace CinematicShaders.UI.Tabs
                 CinematicShadersUIResources.Styles.ToggleActive() : HighLogic.Skin.toggle;
 
             bool newEnable = GUILayout.Toggle(StarfieldSettings.EnableKartographer,
-                " Enable Kartographer", toggleStyle);
+                CinematicShadersUIStrings.Kartographer.EnableToggleLabel, toggleStyle);
 
             if (newEnable != StarfieldSettings.EnableKartographer)
             {
@@ -130,9 +121,8 @@ namespace CinematicShaders.UI.Tabs
         {
             GUILayout.BeginVertical(HighLogic.Skin.box);
 
-            // Star catalog selection mode toggle
             bool newMouseHoverMode = GUILayout.Toggle(StarfieldSettings.KartographerMouseHoverSelect, 
-                " Star Catalog", HighLogic.Skin.toggle);
+                CinematicShadersUIStrings.Kartographer.StarCatalogToggle, HighLogic.Skin.toggle);
             if (newMouseHoverMode != StarfieldSettings.KartographerMouseHoverSelect)
             {
                 StarfieldSettings.KartographerMouseHoverSelect = newMouseHoverMode;
@@ -150,9 +140,8 @@ namespace CinematicShaders.UI.Tabs
                 }
             }
             
-            // Vessel target tracking toggle
             bool newVesselTarget = GUILayout.Toggle(StarfieldSettings.KartographerVesselTargetSelect, 
-                " Show Vessel Target", HighLogic.Skin.toggle);
+                CinematicShadersUIStrings.Kartographer.VesselTargetToggle, HighLogic.Skin.toggle);
             if (newVesselTarget != StarfieldSettings.KartographerVesselTargetSelect)
             {
                 StarfieldSettings.KartographerVesselTargetSelect = newVesselTarget;
@@ -160,11 +149,10 @@ namespace CinematicShaders.UI.Tabs
                 // Note: Actual selector is managed by CinematicShadersAddon which checks the setting every frame
             }
             
-            // Situation display toggle + expand button
             GUILayout.BeginHorizontal();
             bool newSituationDisplay = GUILayout.Toggle(StarfieldSettings.KartographerSituationDisplay, "", HighLogic.Skin.toggle, GUILayout.Width(20));
             GUILayout.Space(20);
-            _showSituationOptions = GUILayout.Toggle(_showSituationOptions, " ▼ Situation Display", HighLogic.Skin.button);
+            _showSituationOptions = GUILayout.Toggle(_showSituationOptions, CinematicShadersUIStrings.Kartographer.SituationDisplaySection, HighLogic.Skin.button);
             GUILayout.EndHorizontal();
             
             if (newSituationDisplay != StarfieldSettings.KartographerSituationDisplay)
@@ -182,7 +170,7 @@ namespace CinematicShaders.UI.Tabs
                 
                 // Rotation: discrete steps 0 to numMeridians-1
                 int currentStep = StarfieldSettings.KartographerSituationRotationStep[gridSize];
-                GUILayout.Label($"Rotation Step: {currentStep + 1} / {numSteps}");
+                GUILayout.Label(string.Format(CinematicShadersUIStrings.Kartographer.RotationStepFormat, currentStep + 1, numSteps));
                 int newStep = Mathf.RoundToInt(GUILayout.HorizontalSlider(currentStep, 0, numSteps - 1));
                 if (newStep != currentStep)
                 {
@@ -192,10 +180,10 @@ namespace CinematicShaders.UI.Tabs
                 
                 // Row offset: -2 to +2 steps from base position
                 // Left side = down (toward equator), Right side = up (toward pole)
-                string[] rowLabels = { "-2 (Down)", "-1 (Down)", "0 (Default)", "+1 (Up)", "+2 (Up)" };
                 int currentOffset = StarfieldSettings.KartographerSituationRowOffset[gridSize];
                 int sliderIndex = currentOffset + 2;
-                GUILayout.Label($"Display Height: {rowLabels[sliderIndex]}");
+                GUILayout.Label(string.Format(CinematicShadersUIStrings.Kartographer.DisplayHeightFormat, 
+                    CinematicShadersUIStrings.Kartographer.RowOffsetLabels[sliderIndex]));
                 int newSliderIndex = Mathf.RoundToInt(GUILayout.HorizontalSlider(sliderIndex, 0, 4));
                 int newRowOffset = newSliderIndex - 2;
                 if (newRowOffset != currentOffset)
@@ -205,11 +193,10 @@ namespace CinematicShaders.UI.Tabs
                 }
             }
             
-            // Navball indicators toggle + expand button
             GUILayout.BeginHorizontal();
             bool newNavballLabels = GUILayout.Toggle(StarfieldSettings.KartographerNavballLabels, "", HighLogic.Skin.toggle, GUILayout.Width(20));
             GUILayout.Space(20);
-            _showNavballOptions = GUILayout.Toggle(_showNavballOptions, " ▼ Navball Indicators", HighLogic.Skin.button);
+            _showNavballOptions = GUILayout.Toggle(_showNavballOptions, CinematicShadersUIStrings.Kartographer.NavballIndicatorsSection, HighLogic.Skin.button);
             GUILayout.EndHorizontal();
             
             if (newNavballLabels != StarfieldSettings.KartographerNavballLabels)
@@ -224,12 +211,10 @@ namespace CinematicShaders.UI.Tabs
                 }
             }
             
-            // Navball options (shown when expanded)
             if (_showNavballOptions)
             {
-                // Use navball colors toggle
                 bool newUseColors = GUILayout.Toggle(StarfieldSettings.KartographerNavballUseColors,
-                    " Use Navball Colors", HighLogic.Skin.toggle);
+                    CinematicShadersUIStrings.Kartographer.NavballColorsToggle, HighLogic.Skin.toggle);
                 if (newUseColors != StarfieldSettings.KartographerNavballUseColors)
                 {
                     StarfieldSettings.KartographerNavballUseColors = newUseColors;
@@ -242,10 +227,9 @@ namespace CinematicShaders.UI.Tabs
                 }
                 
                 // Icon style selection - vertical layout to prevent overlapping
-                GUILayout.Label("Icon Style:");
-                string[] styleNames = { "KSP", "Retro" };
+                GUILayout.Label(CinematicShadersUIStrings.Kartographer.IconStyleLabel);
                 int currentStyle = (int)StarfieldSettings.KartographerNavballIconStyle;
-                int newStyle = GUILayout.SelectionGrid(currentStyle, styleNames, 1, HighLogic.Skin.toggle);
+                int newStyle = GUILayout.SelectionGrid(currentStyle, CinematicShadersUIStrings.Kartographer.IconStyleNames, 1, HighLogic.Skin.toggle);
                 if (newStyle != currentStyle)
                 {
                     StarfieldSettings.KartographerNavballIconStyle = (NavballIconStyle)newStyle;
@@ -261,7 +245,7 @@ namespace CinematicShaders.UI.Tabs
                 
                 // Icon thickness slider (display 1-5, maps to 0.1-0.49)
                 float navballDisplayThickness = StarfieldSettings.KartographerNavballIconThickness * 10f;
-                GUILayout.Label($"Icon Thickness: {navballDisplayThickness:F1}");
+                GUILayout.Label(string.Format(CinematicShadersUIStrings.Kartographer.IconThicknessFormat, navballDisplayThickness));
                 float newNavballDisplayThickness = GUILayout.HorizontalSlider(navballDisplayThickness, 1f, 5f);
                 float newThickness = Mathf.Min(newNavballDisplayThickness / 10f, 0.49f);
                 if (!Mathf.Approximately(newThickness, StarfieldSettings.KartographerNavballIconThickness))
@@ -274,7 +258,7 @@ namespace CinematicShaders.UI.Tabs
                 
                 // Icon size slider (display 1-5, maps to 0.05-0.15)
                 float navballDisplaySize = (StarfieldSettings.KartographerNavballIconSize - 0.05f) * 40f + 1f;
-                GUILayout.Label($"Icon Size: {navballDisplaySize:F1}");
+                GUILayout.Label(string.Format(CinematicShadersUIStrings.Kartographer.IconSizeFormat, navballDisplaySize));
                 float newNavballDisplaySize = GUILayout.HorizontalSlider(navballDisplaySize, 1f, 5f);
                 float newSize = 0.05f + (newNavballDisplaySize - 1f) * 0.025f;
                 if (!Mathf.Approximately(newSize, StarfieldSettings.KartographerNavballIconSize))
@@ -285,9 +269,8 @@ namespace CinematicShaders.UI.Tabs
                 
                 GUILayout.Space(4);
                 
-                // Pointing icon size slider (display 1-5, maps to 0.05-0.15)
                 float pointingDisplaySize = (StarfieldSettings.KartographerPointingIconSize - 0.05f) * 40f + 1f;
-                GUILayout.Label($"Heading Indicator Size: {pointingDisplaySize:F1}");
+                GUILayout.Label(string.Format(CinematicShadersUIStrings.Kartographer.HeadingIndicatorFormat, pointingDisplaySize));
                 float newPointingDisplaySize = GUILayout.HorizontalSlider(pointingDisplaySize, 1f, 5f);
                 float newPointingSize = 0.05f + (newPointingDisplaySize - 1f) * 0.025f;
                 if (!Mathf.Approximately(newPointingSize, StarfieldSettings.KartographerPointingIconSize))
@@ -298,8 +281,8 @@ namespace CinematicShaders.UI.Tabs
                 
                 GUILayout.Space(4);
                 
-                // Maneuver text offset slider (0.02-0.15)
-                GUILayout.Label($"Maneuver Text Offset: {StarfieldSettings.KartographerManeuverTextOffset:F2}");
+                GUILayout.Label(string.Format(CinematicShadersUIStrings.Kartographer.ManeuverOffsetFormat, 
+                    StarfieldSettings.KartographerManeuverTextOffset));
                 float newManeuverOffset = GUILayout.HorizontalSlider(StarfieldSettings.KartographerManeuverTextOffset, 0.02f, 0.15f);
                 if (!Mathf.Approximately(newManeuverOffset, StarfieldSettings.KartographerManeuverTextOffset))
                 {
@@ -309,8 +292,8 @@ namespace CinematicShaders.UI.Tabs
                 
                 GUILayout.Space(4);
                 
-                // Maneuver text scale slider (0.5-2.0)
-                GUILayout.Label($"Maneuver Text Scale: {StarfieldSettings.KartographerManeuverTextScale:F2}");
+                GUILayout.Label(string.Format(CinematicShadersUIStrings.Kartographer.ManeuverScaleFormat, 
+                    StarfieldSettings.KartographerManeuverTextScale));
                 float newManeuverScale = GUILayout.HorizontalSlider(StarfieldSettings.KartographerManeuverTextScale, 0.5f, 2.0f);
                 if (!Mathf.Approximately(newManeuverScale, StarfieldSettings.KartographerManeuverTextScale))
                 {
@@ -322,7 +305,7 @@ namespace CinematicShaders.UI.Tabs
             
             GUILayout.Space(5);
 
-            _showDisplayOptions = GUILayout.Toggle(_showDisplayOptions, " ▼ Display Options", HighLogic.Skin.button);
+            _showDisplayOptions = GUILayout.Toggle(_showDisplayOptions, CinematicShadersUIStrings.Kartographer.DisplayOptionsSection, HighLogic.Skin.button);
 
             if (_showDisplayOptions)
             {
@@ -333,8 +316,10 @@ namespace CinematicShaders.UI.Tabs
 
                 // Grid Size: 0-3 (Jumbo, Large, Medium, Small), default 2 (Medium)
                 // Note: Tiny (4) is available in code but disabled in UI - too dense for labels
-                GUILayout.Label(new GUIContent($"Grid Size: {GetGridSizeLabel(StarfieldSettings.KartographerGridSize)}",
-                    "Density of the holographic grid lines"));
+                GUILayout.Label(new GUIContent(
+                    string.Format(CinematicShadersUIStrings.Kartographer.GridSizeFormat, 
+                        CinematicShadersUIStrings.Kartographer.GridSizeLabels[StarfieldSettings.KartographerGridSize]),
+                    CinematicShadersUIStrings.Kartographer.GridSizeTooltip));
                 int newGridSize = Mathf.RoundToInt(GUILayout.HorizontalSlider(StarfieldSettings.KartographerGridSize, 0, 3));
                 if (newGridSize != StarfieldSettings.KartographerGridSize)
                 {
@@ -345,8 +330,9 @@ namespace CinematicShaders.UI.Tabs
 
                 // Grid Intensity: display 0-5, internal 0-0.006 (default display ~1.7)
                 float displayIntensity = IntensityToDisplay(StarfieldSettings.KartographerGridIntensity);
-                GUILayout.Label(new GUIContent($"Grid Intensity: {displayIntensity:F1}", 
-                    "Brightness of the holographic grid lines"));
+                GUILayout.Label(new GUIContent(
+                    string.Format(CinematicShadersUIStrings.Kartographer.GridIntensityFormat, displayIntensity), 
+                    CinematicShadersUIStrings.Kartographer.GridIntensityTooltip));
                 float newDisplayIntensity = GUILayout.HorizontalSlider(displayIntensity, 0f, 5f);
                 if (!Mathf.Approximately(newDisplayIntensity, displayIntensity))
                 {
@@ -365,8 +351,9 @@ namespace CinematicShaders.UI.Tabs
                 // Grid Softness: display 0-10, internal 0-0.0009 (default display ~3.3)
                 // Note: Higher value = softer/thicker lines, Lower = sharper/thinner
                 float displayThickness = ThicknessToDisplay(StarfieldSettings.KartographerGridThickness);
-                GUILayout.Label(new GUIContent($"Grid Softness: {displayThickness:F1}", 
-                    "Softness of the grid lines (higher = softer, lower = sharper)"));
+                GUILayout.Label(new GUIContent(
+                    string.Format(CinematicShadersUIStrings.Kartographer.GridSoftnessFormat, displayThickness), 
+                    CinematicShadersUIStrings.Kartographer.GridSoftnessTooltip));
                 float newDisplayThickness = GUILayout.HorizontalSlider(displayThickness, 0f, 10f);
                 if (!Mathf.Approximately(newDisplayThickness, displayThickness))
                 {
@@ -375,9 +362,10 @@ namespace CinematicShaders.UI.Tabs
                     StarfieldSettings.Save();
                 }
 
-                // Vignette Strength: 0.35 - 1.0, default 0.7
-                GUILayout.Label(new GUIContent($"Vignette Strength: {StarfieldSettings.KartographerVignetteStrength:F2}", 
-                    "Darkening at screen corners (0 = no vignette, 1 = black corners)"));
+                GUILayout.Label(new GUIContent(
+                    string.Format(CinematicShadersUIStrings.Kartographer.VignetteStrengthFormat, 
+                        StarfieldSettings.KartographerVignetteStrength), 
+                    CinematicShadersUIStrings.Kartographer.VignetteStrengthTooltip));
                 float newVignetteStr = GUILayout.HorizontalSlider(StarfieldSettings.KartographerVignetteStrength, 0.35f, 1.0f);
                 if (!Mathf.Approximately(newVignetteStr, StarfieldSettings.KartographerVignetteStrength))
                 {
@@ -386,9 +374,10 @@ namespace CinematicShaders.UI.Tabs
                     StarfieldSettings.Save();
                 }
 
-                // Vignette Start: 0.8 - 2.4, default 1.6
-                GUILayout.Label(new GUIContent($"Vignette Start: {StarfieldSettings.KartographerVignetteStart:F2}", 
-                    "Distance from center where vignette begins"));
+                GUILayout.Label(new GUIContent(
+                    string.Format(CinematicShadersUIStrings.Kartographer.VignetteStartFormat, 
+                        StarfieldSettings.KartographerVignetteStart), 
+                    CinematicShadersUIStrings.Kartographer.VignetteStartTooltip));
                 float newVignetteStart = GUILayout.HorizontalSlider(StarfieldSettings.KartographerVignetteStart, 0.8f, 2.4f);
                 if (!Mathf.Approximately(newVignetteStart, StarfieldSettings.KartographerVignetteStart))
                 {
@@ -397,9 +386,10 @@ namespace CinematicShaders.UI.Tabs
                     StarfieldSettings.Save();
                 }
 
-                // Vignette End: 1.1 - 3.3, default 2.2
-                GUILayout.Label(new GUIContent($"Vignette End: {StarfieldSettings.KartographerVignetteEnd:F2}", 
-                    "Distance from center where vignette reaches full strength"));
+                GUILayout.Label(new GUIContent(
+                    string.Format(CinematicShadersUIStrings.Kartographer.VignetteEndFormat, 
+                        StarfieldSettings.KartographerVignetteEnd), 
+                    CinematicShadersUIStrings.Kartographer.VignetteEndTooltip));
                 float newVignetteEnd = GUILayout.HorizontalSlider(StarfieldSettings.KartographerVignetteEnd, 1.1f, 3.3f);
                 if (!Mathf.Approximately(newVignetteEnd, StarfieldSettings.KartographerVignetteEnd))
                 {
@@ -440,7 +430,7 @@ namespace CinematicShaders.UI.Tabs
 
             // Reset button
             GUILayout.Space(10);
-            if (GUILayout.Button("Reset to Defaults"))
+            if (GUILayout.Button(CinematicShadersUIStrings.Kartographer.ResetButton))
             {
                 ResetToDefaults();
             }
@@ -570,9 +560,11 @@ namespace CinematicShaders.UI.Tabs
             EnsureColorStyles();
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label("Display Color", GUILayout.Width(CinematicShadersUIResources.Layout.Dropdowns.DEBUG_LABEL_WIDTH));
+            GUILayout.Label(CinematicShadersUIStrings.Kartographer.DisplayColorLabel, 
+                GUILayout.Width(CinematicShadersUIResources.Layout.Dropdowns.DEBUG_LABEL_WIDTH));
             GUIStyle currentStyle = _colorButtonStyles[_currentColorIndex];
-            if (GUILayout.Button(_colorNames[_currentColorIndex], currentStyle, GUILayout.Width(CinematicShadersUIResources.Layout.Dropdowns.DEBUG_BUTTON_WIDTH)))
+            if (GUILayout.Button(CinematicShadersUIStrings.Kartographer.ColorNames[_currentColorIndex], 
+                currentStyle, GUILayout.Width(CinematicShadersUIResources.Layout.Dropdowns.DEBUG_BUTTON_WIDTH)))
             {
                 _showColorDropdown = !_showColorDropdown;
             }
@@ -582,9 +574,9 @@ namespace CinematicShaders.UI.Tabs
             {
                 GUIStyle boxStyle = CinematicShadersUIResources.Styles.DropdownBox();
                 GUILayout.BeginVertical(boxStyle);
-                for (int i = 0; i < _colorNames.Length; i++)
+                for (int i = 0; i < CinematicShadersUIStrings.Kartographer.ColorNames.Length; i++)
                 {
-                    if (GUILayout.Button(_colorNames[i], _colorButtonStyles[i]))
+                    if (GUILayout.Button(CinematicShadersUIStrings.Kartographer.ColorNames[i], _colorButtonStyles[i]))
                     {
                         if (_currentColorIndex != i)
                         {
@@ -604,37 +596,12 @@ namespace CinematicShaders.UI.Tabs
         {
             if (_colorButtonStyles != null) return;
 
-            _colorButtonStyles = new GUIStyle[_colorNames.Length];
-            for (int i = 0; i < _colorNames.Length; i++)
+            _colorButtonStyles = new GUIStyle[CinematicShadersUIStrings.Kartographer.ColorNames.Length];
+            for (int i = 0; i < CinematicShadersUIStrings.Kartographer.ColorNames.Length; i++)
             {
-                GUIStyle style = new GUIStyle(HighLogic.Skin.button);
-                Texture2D tex = MakeColorTexture(_colorValues[i]);
-                style.normal.background = tex;
-                style.normal.textColor = Color.black;
-                style.hover.background = tex;
-                style.hover.textColor = Color.black;
-                style.active.background = tex;
-                style.active.textColor = Color.black;
-                style.focused.background = tex;
-                style.focused.textColor = Color.black;
-                style.onNormal.background = tex;
-                style.onNormal.textColor = Color.black;
-                style.onHover.background = tex;
-                style.onHover.textColor = Color.black;
-                style.onActive.background = tex;
-                style.onActive.textColor = Color.black;
-                style.onFocused.background = tex;
-                style.onFocused.textColor = Color.black;
-                _colorButtonStyles[i] = style;
+                _colorButtonStyles[i] = CinematicShadersUIResources.Styles.ColorButton(
+                    CinematicShadersUIResources.Colors.GridColors.All[i]);
             }
-        }
-
-        private static Texture2D MakeColorTexture(Color color)
-        {
-            Texture2D tex = new Texture2D(1, 1);
-            tex.SetPixel(0, 0, color);
-            tex.Apply();
-            return tex;
         }
 
         private void PushKartographerParams()
@@ -812,15 +779,11 @@ namespace CinematicShaders.UI.Tabs
 
         private string GetGridSizeLabel(int size)
         {
-            switch (size)
+            if (size >= 0 && size < CinematicShadersUIStrings.Kartographer.GridSizeLabels.Length)
             {
-                case 0: return "Jumbo";
-                case 1: return "Large";
-                case 2: return "Medium";
-                case 3: return "Small";
-                case 4: return "Tiny";
-                default: return "Medium";
+                return CinematicShadersUIStrings.Kartographer.GridSizeLabels[size];
             }
+            return CinematicShadersUIStrings.Kartographer.GridSizeMedium;
         }
 
         /// <summary>

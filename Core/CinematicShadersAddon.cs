@@ -375,14 +375,16 @@ namespace CinematicShaders.Core
             int numLong = gridMeridians[preset];
             
             // Get discrete rotation step (0 to numLong-1)
+            // Negate the step so slider to the right rotates labels clockwise
             int rotationStep = StarfieldSettings.KartographerSituationRotationStep[preset] % numLong;
-            int oppositeStep = (rotationStep + numLong / 2) % numLong;
+            int col = (numLong - rotationStep) % numLong;
+            int oppositeStep = (col + numLong / 2) % numLong;
             
             // Update label A if position changed
-            if (labelA.GridCellRow != rowFromTop || labelA.GridCellCol != rotationStep)
+            if (labelA.GridCellRow != rowFromTop || labelA.GridCellCol != col)
             {
                 labelA.GridCellRow = rowFromTop;
-                labelA.GridCellCol = rotationStep;
+                labelA.GridCellCol = col;
                 labelA.PositionDirty = true;
             }
             

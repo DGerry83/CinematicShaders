@@ -185,10 +185,78 @@ namespace CinematicShaders.UI
         // ============================================================================
         public static class Kartographer
         {
+            // ------------------------------------------------------------------------
+            // GENERAL
+            // ------------------------------------------------------------------------
             public const string TabName = "Kartographer";
-            public const string EnableToggle = " Enable Holographic Grid";
+            public const string EnableToggleLabel = " Enable Kartographer";
+            public const string StarCatalogToggle = " Star Catalog";
+            public const string VesselTargetToggle = " Show Vessel Target";
+            public const string ResetButton = "Reset to Defaults";
             public const string NativeLoadError = "Native plugin failed to load. Check KSP.log for details.";
             public const string Initializing = "Initializing Kartographer...";
+
+            // ------------------------------------------------------------------------
+            // SECTION HEADERS
+            // ------------------------------------------------------------------------
+            public const string DisplayOptionsSection = " ▼ Display Options";
+            public const string SituationDisplaySection = " ▼ Situation Display";
+            public const string NavballIndicatorsSection = " ▼ Navball Indicators";
+
+            // ------------------------------------------------------------------------
+            // SITUATION DISPLAY
+            // ------------------------------------------------------------------------
+            public const string RotationStepFormat = "Rotation Step: {0} / {1}";
+            public const string DisplayHeightFormat = "Display Height: {0}";
+            public static readonly string[] RowOffsetLabels = { "-2 (Down)", "-1 (Down)", "0 (Default)", "+1 (Up)", "+2 (Up)" };
+
+            // ------------------------------------------------------------------------
+            // NAVBALL
+            // ------------------------------------------------------------------------
+            public const string NavballColorsToggle = " Use Navball Colors";
+            public const string IconStyleLabel = "Icon Style:";
+            public static readonly string[] IconStyleNames = { "KSP", "Retro" };
+            public const string IconThicknessFormat = "Icon Thickness: {0:F1}";
+            public const string IconSizeFormat = "Icon Size: {0:F1}";
+            public const string HeadingIndicatorFormat = "Heading Indicator Size: {0:F1}";
+            public const string ManeuverOffsetFormat = "Maneuver Text Offset: {0:F2}";
+            public const string ManeuverScaleFormat = "Maneuver Text Scale: {0:F2}";
+
+            // ------------------------------------------------------------------------
+            // DISPLAY OPTIONS
+            // ------------------------------------------------------------------------
+            public const string GridSizeFormat = "Grid Size: {0}";
+            public const string GridSizeTooltip = "Density of the holographic grid lines";
+            public const string GridIntensityFormat = "Grid Intensity: {0:F1}";
+            public const string GridIntensityTooltip = "Brightness of the holographic grid lines";
+            public const string GridSoftnessFormat = "Grid Softness: {0:F1}";
+            public const string GridSoftnessTooltip = "Softness of the grid lines (higher = softer, lower = sharper)";
+            public const string VignetteStrengthFormat = "Vignette Strength: {0:F2}";
+            public const string VignetteStrengthTooltip = "Darkening at screen corners (0 = no vignette, 1 = black corners)";
+            public const string VignetteStartFormat = "Vignette Start: {0:F2}";
+            public const string VignetteStartTooltip = "Distance from center where vignette begins";
+            public const string VignetteEndFormat = "Vignette End: {0:F2}";
+            public const string VignetteEndTooltip = "Distance from center where vignette reaches full strength";
+            public const string DisplayColorLabel = "Display Color";
+
+            // ------------------------------------------------------------------------
+            // GRID SIZE LABELS
+            // ------------------------------------------------------------------------
+            public const string GridSizeJumbo = "Jumbo";
+            public const string GridSizeLarge = "Large";
+            public const string GridSizeMedium = "Medium";
+            public const string GridSizeSmall = "Small";
+            public const string GridSizeTiny = "Tiny";
+            public static readonly string[] GridSizeLabels = { GridSizeJumbo, GridSizeLarge, GridSizeMedium, GridSizeSmall, GridSizeTiny };
+
+            // ------------------------------------------------------------------------
+            // COLOR NAMES
+            // ------------------------------------------------------------------------
+            public const string ColorSeafoam = "Seafoam";
+            public const string ColorAmber = "Amber";
+            public const string ColorWhite = "White";
+            public const string ColorGreen = "Green";
+            public static readonly string[] ColorNames = { ColorSeafoam, ColorAmber, ColorWhite, ColorGreen };
         }
     }
 }
