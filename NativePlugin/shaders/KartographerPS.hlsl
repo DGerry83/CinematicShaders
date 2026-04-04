@@ -495,28 +495,25 @@ float3 RenderPointingIcon(float2 center, float rotation, float intensity, uint c
 {
     if (intensity <= 0.001) return float3(0, 0, 0);
     
-    // Hardcoded 2:1 aspect - width is 2x height
-    float2 iconSizeWithAspect = float2(iconSize * 2.0, iconSize);
-    
-    // Calculate local UV in icon space
-    float2 localUV = (uv - center) / iconSizeWithAspect + 0.5;
-    localUV.y = 1.0 - localUV.y;  // Flip Y to match Unity texture coordinates
-    
-    // Discard if outside icon bounds
-    if (localUV.x < 0.0 || localUV.x > 1.0 || localUV.y < 0.0 || localUV.y > 1.0)
-        return float3(0, 0, 0);
-    
-    // Apply rotation around center
-    float2 centered = localUV - 0.5;
+    // 1. Rotate in isotropic NDC space
+    float2 delta = uv - center;
     float cosA = cos(rotation);
     float sinA = sin(rotation);
     float2 rotated;
-    rotated.x = centered.x * cosA - centered.y * sinA;
-    rotated.y = centered.x * sinA + centered.y * cosA;
-    localUV = rotated + 0.5;
+    rotated.x = delta.x * cosA - delta.y * sinA;
+    rotated.y = delta.x * sinA + delta.y * cosA;
     
-    // Sample MSDF texture
-    float3 msd = PointingIcon.SampleLevel(PointSampler, localUV, 0).rgb;
+    // 2. Map rotated NDC to texture UV, accounting for 2:1 aspect
+    float2 texUV;
+    texUV.x = rotated.x / (iconSize * 2.0) + 0.5;
+    texUV.y = 1.0 - (rotated.y / iconSize + 0.5);
+    
+    // 3. Discard AFTER rotation (proper rotated bounds)
+    if (texUV.x < 0.0 || texUV.x > 1.0 || texUV.y < 0.0 || texUV.y > 1.0)
+        return float3(0, 0, 0);
+    
+    // 4. Sample MSDF texture
+    float3 msd = PointingIcon.SampleLevel(PointSampler, texUV, 0).rgb;
     
     // MSDF decoding
     float sd = median(msd.r, msd.g, msd.b) - 0.5;

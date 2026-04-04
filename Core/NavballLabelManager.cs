@@ -445,8 +445,9 @@ namespace CinematicShaders.Core
                 {
                     pointingNDC = new Vector2((ptUV.x - 0.5f) * 2 * aspect, (ptUV.y - 0.5f) * 2);
                     Vector3 vesselUp = FlightGlobals.ActiveVessel.transform.forward;
-                    Vector3 projectedUp = Vector3.ProjectOnPlane(vesselUp, forward).normalized;
-                    rollAngle = Vector3.SignedAngle(up, projectedUp, forward) * Mathf.Deg2Rad;
+                    Vector3 worldUp = (Planetarium.Rotation * FlightGlobals.upAxis).normalized;
+                    Vector3 projectedWorldUp = Vector3.ProjectOnPlane(worldUp, vesselForward).normalized;
+                    rollAngle = Vector3.SignedAngle(projectedWorldUp, vesselUp, vesselForward) * Mathf.Deg2Rad;
                     pointingIntensity = 1.0f;
                 }
             }
