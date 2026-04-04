@@ -13,6 +13,7 @@ namespace CinematicShaders.UI.Tabs
         private bool _initialized = false;
         private bool _showVisualSettings = true;
         private bool _showDisplayOptions = true;
+        private bool _showNavballOptions = false;
         private bool _showColorDropdown = false;
         private int _currentColorIndex = 0;
 
@@ -205,9 +206,12 @@ namespace CinematicShaders.UI.Tabs
                 }
             }
             
-            // Navball indicators toggle
-            bool newNavballLabels = GUILayout.Toggle(StarfieldSettings.KartographerNavballLabels,
-                " Show Navball Indicators", HighLogic.Skin.toggle);
+            // Navball indicators toggle + expand button
+            GUILayout.BeginHorizontal();
+            bool newNavballLabels = GUILayout.Toggle(StarfieldSettings.KartographerNavballLabels, "", HighLogic.Skin.toggle, GUILayout.Width(20));
+            _showNavballOptions = GUILayout.Toggle(_showNavballOptions, " ▼ Navball Indicators", HighLogic.Skin.button);
+            GUILayout.EndHorizontal();
+            
             if (newNavballLabels != StarfieldSettings.KartographerNavballLabels)
             {
                 StarfieldSettings.KartographerNavballLabels = newNavballLabels;
@@ -220,8 +224,8 @@ namespace CinematicShaders.UI.Tabs
                 }
             }
             
-            // Navball options (shown when enabled)
-            if (StarfieldSettings.KartographerNavballLabels)
+            // Navball options (shown when expanded)
+            if (_showNavballOptions)
             {
                 // Use navball colors toggle
                 bool newUseColors = GUILayout.Toggle(StarfieldSettings.KartographerNavballUseColors,
