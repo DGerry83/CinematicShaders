@@ -282,7 +282,7 @@ namespace CinematicShaders.UI.Tabs
                 
                 // Pointing icon size slider (display 1-5, maps to 0.05-0.15)
                 float pointingDisplaySize = (StarfieldSettings.KartographerPointingIconSize - 0.05f) * 40f + 1f;
-                GUILayout.Label($"Pointing Icon Size: {pointingDisplaySize:F1}");
+                GUILayout.Label($"Heading Indicator Size: {pointingDisplaySize:F1}");
                 float newPointingDisplaySize = GUILayout.HorizontalSlider(pointingDisplaySize, 1f, 5f);
                 float newPointingSize = 0.05f + (newPointingDisplaySize - 1f) * 0.025f;
                 if (!Mathf.Approximately(newPointingSize, StarfieldSettings.KartographerPointingIconSize))
@@ -317,7 +317,7 @@ namespace CinematicShaders.UI.Tabs
             
             GUILayout.Space(5);
 
-            // Grid Color dropdown
+            // Display Color dropdown
             DrawColorDropdown();
 
             GUILayout.Space(5);
@@ -563,7 +563,7 @@ namespace CinematicShaders.UI.Tabs
             EnsureColorStyles();
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label("Grid Color", GUILayout.Width(CinematicShadersUIResources.Layout.Dropdowns.DEBUG_LABEL_WIDTH));
+            GUILayout.Label("Display Color", GUILayout.Width(CinematicShadersUIResources.Layout.Dropdowns.DEBUG_LABEL_WIDTH));
             GUIStyle currentStyle = _colorButtonStyles[_currentColorIndex];
             if (GUILayout.Button(_colorNames[_currentColorIndex], currentStyle, GUILayout.Width(CinematicShadersUIResources.Layout.Dropdowns.DEBUG_BUTTON_WIDTH)))
             {
