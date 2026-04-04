@@ -438,7 +438,7 @@ namespace CinematicShaders.UI.Tabs
                 ResetToDefaults();
             }
             
-            // Debug: Fixed padding tuning for situation labels
+            /* DEBUG: Fixed padding tuning for situation labels - DISABLED
             if (CinematicShadersAddon.SituationLabelSystem != null)
             {
                 var labelA = CinematicShadersAddon.SituationLabelSystem.GetLabel("situation_a");
@@ -472,6 +472,7 @@ namespace CinematicShaders.UI.Tabs
                     }
                 }
             }
+            */
 
             /* DEBUG UI DISABLED - Methods preserved for future use
             // Debug buttons
