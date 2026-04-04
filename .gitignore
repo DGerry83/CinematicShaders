@@ -377,3 +377,10 @@ FodyWeavers.xsd
 /HipparcosData/Tools/check_polaris.py
 /HipparcosData/Tools/check_polaris2.py
 /HipparcosData/Tools/add_guide_stars.py
+/ARCHITECTURE_CONTRACT.md
+/AUDIT_REPORT.md
+/AUDIT_REPORT_TARGET_TRACKING.md
+/INVESTIGATION_LOG_TARGET_TRACKING.md
+/PROGRESS_LOG.md
+/PROGRESS_LOG_TARGET_TRACKING.md
+/tools
