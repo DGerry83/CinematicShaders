@@ -19,6 +19,10 @@ namespace CinematicShaders.UI
         private const float BORDER_THICKNESS = 8f;    // Grey border around CRT
         private const float TITLE_BAR_HEIGHT = 30f;   // Height for PWR button and X
         private const int WINDOW_ID = 98767;          // Unique window ID
+        
+        // DEBUG: Instance tracking
+        private static int s_instanceCount = 0;
+        private int _instanceId;
         #endregion
 
         #region State
@@ -75,6 +79,10 @@ namespace CinematicShaders.UI
             HolographicDisplaySize size = HolographicDisplaySize.Medium,
             string customJsonPath = "", string defaultJsonPath = "")
         {
+            // DEBUG: Assign instance ID
+            _instanceId = ++s_instanceCount;
+            Debug.Log($"[HolographicDisplay] Instance #{_instanceId} initialized");
+            
             _textSystem = sharedTextSystem;
             _displaySize = size;
             
@@ -285,11 +293,8 @@ namespace CinematicShaders.UI
         
         private void OnGUI()
         {
-            // DEBUG: ModFileLogger.Log($"[DRAW-FLOW] OnGUI called, _isVisible={_isVisible}");
+            // DEBUG: ModFileLogger.Log($"[DRAW-FLOW] OnGUI called, _isVisible={_isVisible}, instance={_instanceId}");
             if (!_isVisible) return;
-            
-            // Only draw during Repaint event to avoid duplicates
-            if (Event.current.type != EventType.Repaint) return;
             
             InitStyles();
             
@@ -595,6 +600,7 @@ namespace CinematicShaders.UI
         private void DrawElements()
         {
             // DIAGNOSTIC: Log entry point
+            Debug.Log($"[HolographicDisplay] Instance #{_instanceId} DrawElements called");
             // DEBUG: ModFileLogger.Log($"[DRAW] DrawElements called, _elements count={_elements?.Count}, _displayRect={_displayRect}");
             // DEBUG: ModFileLogger.Log($"[DRAW] GUI.matrix={GUI.matrix}");
             
