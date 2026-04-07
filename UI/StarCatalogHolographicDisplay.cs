@@ -592,17 +592,23 @@ namespace CinematicShaders.UI
                 if (!element.IsVisible) continue;
                 if (element.TextTexture == null) continue;
 
-                // Flip Y coordinate: displayHeight - y - elementHeight
-                float flippedY = _displayRect.height - element.Position4K.y - element.Position4K.height;
-                
+                // Use original Y position - flipping is done via UV coordinates
                 Rect screenPos = new Rect(
-                    element.Position4K.x,  // X is correct
-                    flippedY,              // Y is flipped
+                    element.Position4K.x,      // X position
+                    element.Position4K.y,      // Original Y (UV flip handles the coordinate system difference)
                     element.Position4K.width,
                     element.Position4K.height
                 );
 
-                GUI.DrawTexture(screenPos, element.TextTexture);
+                // Flip texture vertically via UV coordinates
+                Graphics.DrawTexture(
+                    screenPos,              // dest rect
+                    element.TextTexture,    // source texture
+                    new Rect(0, 1, 1, -1),  // source UVs: flip Y
+                    0, 0, 0, 0,             // border widths
+                    Color.white,            // color
+                    null                    // material
+                );
             }
         }
         #endregion
@@ -1676,9 +1682,16 @@ namespace CinematicShaders.UI
             {
                 Color borderColor = GetGridColor();
                 borderColor.a = _borderTypeOnProgress;  // Fade from 0 to 1
-                GUI.color = borderColor;
-                GUI.DrawTexture(_displayRect, _borderTexture);
-                GUI.color = Color.white;
+                
+                // Flip texture vertically by swapping UV y coordinates (0,1 -> 1,0)
+                Graphics.DrawTexture(
+                    _displayRect,           // dest rect (screen position)
+                    _borderTexture,         // source texture
+                    new Rect(0, 1, 1, -1),  // source UVs: flip Y (x, y, width, height in UV space)
+                    0, 0, 0, 0,             // border widths
+                    borderColor,            // color with alpha for fade
+                    null                    // material
+                );
             }
         }
 
