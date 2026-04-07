@@ -1607,6 +1607,7 @@ namespace CinematicShaders.UI
             "\u2560\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2563\u2551                     \u2551",
             "\u2551                                  \u2551\u2551                     \u2551",
             "\u2551                                  \u2551\u2551                     \u2551",
+            "\u2551                                  \u2551\u2551                     \u2551",
             "\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2569\u2569\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d"
         };
 
@@ -1655,7 +1656,7 @@ namespace CinematicShaders.UI
             }
 
             uint color = GetGridColorUint();
-            float fontSize = _fontSize * 0.8f;
+            float fontSize = _fontSize;
 
             // Layout the border text
             int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, borderText, fontSize, color);
