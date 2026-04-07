@@ -25,6 +25,7 @@ namespace CinematicShaders.UI
         #region State
         private bool _isVisible = false;
         private bool _stylesInitialized = false;
+        private bool _positionInitialized = false;
         private Rect _windowRect = new Rect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
         
         // Search state
@@ -75,8 +76,6 @@ namespace CinematicShaders.UI
         {
             if (!_isVisible) return;
             
-            EnforceDockedPosition();
-            
             _windowRect = GUILayout.Window(
                 WINDOW_ID,
                 _windowRect,
@@ -88,13 +87,15 @@ namespace CinematicShaders.UI
         #endregion
 
         #region Position Management
-        private void EnforceDockedPosition()
+        private void InitializePosition()
         {
+            if (_positionInitialized) return;
             if (CinematicShadersWindow.Instance == null) return;
             
             Rect mainRect = CinematicShadersWindow.Instance.WindowRect;
             _windowRect.x = mainRect.x + mainRect.width + 5f;
             _windowRect.y = mainRect.y;
+            _positionInitialized = true;
         }
         #endregion
 
@@ -112,7 +113,8 @@ namespace CinematicShaders.UI
             
             DrawEditorSection();
             
-            // No DragWindow() - docked window
+            // Make window draggable
+            GUI.DragWindow();
         }
 
         private void DrawCloseButton()
@@ -388,17 +390,35 @@ namespace CinematicShaders.UI
 
         private void ReloadCatalogData()
         {
-            // Trigger reload in KartographerSelector
-            if (_selector != null)
+            if (_selector == null) return;
+            
+            string catalogPath = StarfieldSettings.ActiveCatalogPath;
+            if (string.IsNullOrEmpty(catalogPath)) return;
+            
+            string absolutePath = Path.Combine(KSPUtil.ApplicationRootPath, catalogPath);
+            
+            // Remember which star was selected
+            int selectedHipId = _selectedStar?.HipparcosID ?? 0;
+            
+            // Reload the catalog
+            _selector.LoadJsonForCatalog(absolutePath);
+            
+            // Refresh our local star list
+            RefreshStarList();
+            
+            // If we had a star selected, re-select it with the updated data
+            if (selectedHipId > 0)
             {
-                string catalogPath = StarfieldSettings.ActiveCatalogPath;
-                if (!string.IsNullOrEmpty(catalogPath))
+                var updatedStar = _allStars.FirstOrDefault(s => s.HipparcosID == selectedHipId);
+                if (updatedStar != null)
                 {
-                    string absolutePath = Path.Combine(KSPUtil.ApplicationRootPath, catalogPath);
-                    _selector.LoadJsonForCatalog(absolutePath);
+                    // Update our reference to the new star object with updated name
+                    _selectedStar = updatedStar;
+                    _originalName = updatedStar.Name;
+                    _editNameText = updatedStar.Name;
                     
-                    // Refresh our star list
-                    RefreshStarList();
+                    // Re-select in the Kartographer display to force refresh
+                    _selector.SelectStarByHipId(selectedHipId);
                 }
             }
         }
@@ -426,6 +446,7 @@ namespace CinematicShaders.UI
         public void Show()
         {
             _isVisible = true;
+            InitializePosition();  // Set initial docked position
             UpdateFilteredList();  // Refresh in case data changed
         }
 
@@ -433,6 +454,7 @@ namespace CinematicShaders.UI
         {
             _isVisible = false;
             _selectedStar = null;
+            _positionInitialized = false;  // Reset so next Show() can re-dock
         }
 
         public bool IsVisible => _isVisible;

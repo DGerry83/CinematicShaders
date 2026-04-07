@@ -262,7 +262,7 @@ namespace CinematicShaders.UI
             // STAR CATALOG EDITOR
             // ------------------------------------------------------------------------
             public const string StarCatalogEditorTitle = "STAR CATALOG EDITOR";
-            public const string StarCatalogEditorButton = "EDIT NAMES";
+            public const string StarConsoleToggle = " ▼ Star Console";
             public const string SearchLabel = "SEARCH:";
             public const string SelectStarPrompt = "SELECT A STAR TO EDIT";
             

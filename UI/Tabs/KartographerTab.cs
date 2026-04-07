@@ -133,22 +133,19 @@ namespace CinematicShaders.UI.Tabs
         {
             GUILayout.BeginVertical(HighLogic.Skin.box);
 
-            GUILayout.BeginHorizontal();
             bool newMouseHoverMode = GUILayout.Toggle(StarfieldSettings.KartographerMouseHoverSelect, 
-                CinematicShadersUIStrings.Kartographer.StarCatalogToggle, HighLogic.Skin.toggle, 
-                GUILayout.Width(150));
+                CinematicShadersUIStrings.Kartographer.StarCatalogToggle, HighLogic.Skin.toggle);
             
-            // Add editor button (always visible when Kartographer enabled)
-            GUIStyle editorButtonStyle = (_starEditorWindow != null && _starEditorWindow.IsVisible) 
-                ? CinematicShadersUIResources.Styles.ToggleActive() 
-                : HighLogic.Skin.button;
-            
-            if (GUILayout.Button(CinematicShadersUIStrings.Kartographer.StarCatalogEditorButton, 
-                editorButtonStyle, GUILayout.Width(80)))
+            // Star Console box toggle - matches Situation/Navball section style
+            GUILayout.Space(5);
+            bool editorVisible = (_starEditorWindow != null && _starEditorWindow.IsVisible);
+            bool newEditorVisible = GUILayout.Toggle(editorVisible,
+                CinematicShadersUIStrings.Kartographer.StarConsoleToggle, 
+                HighLogic.Skin.button);
+            if (newEditorVisible != editorVisible)
             {
                 ToggleStarEditor();
             }
-            GUILayout.EndHorizontal();
             
             if (newMouseHoverMode != StarfieldSettings.KartographerMouseHoverSelect)
             {

@@ -944,6 +944,12 @@ namespace CinematicShaders.Core
                 // Immediately lock it (as if clicked)
                 _lockedStar = star;
                 _starHash = star.HipparcosID * 0.123f;
+                
+                // Force text cache invalidation to ensure updated names display immediately
+                _textDirty = true;
+                _fullStarText = BuildStarText(star);
+                _currentDisplayText = "^|";
+                
                 StartAnimationForStar(star);
                 
                 Debug.Log($"[KartographerSelector] Star selected via editor: {star.Name} (HIP {hipId})");
@@ -1010,16 +1016,43 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
-        /// Check if the mouse is currently over the mod UI window
+        /// Check if the mouse is currently over any mod UI window
+        /// Each window only blocks when it is visible
         /// </summary>
         private bool IsMouseOverUI()
         {
-            if (CinematicShadersWindow.Instance == null)
-                return false;
-            
             // Unity Input.mousePosition is bottom-left origin, GUI is top-left origin
             Vector2 mousePos = new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
-            return CinematicShadersWindow.Instance.WindowRect.Contains(mousePos);
+            
+            // Check main window (only if visible - use activeInHierarchy since isVisible is private)
+            if (CinematicShadersWindow.Instance != null && 
+                CinematicShadersWindow.Instance.gameObject.activeInHierarchy &&
+                CinematicShadersWindow.Instance.WindowRect.Contains(mousePos))
+            {
+                return true;
+            }
+            
+            // Check editor window (only if visible)
+            var editor = FindEditorWindow();
+            if (editor != null && editor.IsVisible && editor.WindowRect.Contains(mousePos))
+            {
+                return true;
+            }
+            
+            return false;
+        }
+        
+        /// <summary>
+        /// Find the StarCatalogEditorWindow component
+        /// </summary>
+        private StarCatalogEditorWindow FindEditorWindow()
+        {
+            var addon = CinematicShadersAddon.Instance;
+            if (addon != null)
+            {
+                return addon.GetComponent<StarCatalogEditorWindow>();
+            }
+            return null;
         }
 
         /// <summary>
