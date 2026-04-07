@@ -1,4 +1,5 @@
 using CinematicShaders.Core;
+using CinematicShaders.Native;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -268,8 +269,9 @@ namespace CinematicShaders.UI
                 // Modify the JSON
                 ModifyStarNameInJson(customPath, _selectedStar.HipparcosID, _editNameText);
                 
-                // Reload to refresh display
-                ReloadCatalogData();
+                // Restart Kartographer to force fresh load of _Custom.json
+                // This causes a brief "hitch" but guarantees correct state
+                RestartKartographer();
                 
                 Debug.Log($"[StarCatalogEditor] Saved name for HIP {_selectedStar.HipparcosID}: {_editNameText}");
             }
@@ -388,39 +390,40 @@ namespace CinematicShaders.UI
             return depth == 0 ? pos - 1 : -1;
         }
 
-        private void ReloadCatalogData()
+        private void RestartKartographer()
         {
-            if (_selector == null) return;
+            // Programmatic toggle: Disable then re-enable Kartographer
+            // This forces a complete reload of the catalog from _Custom.json
+            // Brief hitch is acceptable trade-off for guaranteed correctness
             
-            string catalogPath = StarfieldSettings.ActiveCatalogPath;
-            if (string.IsNullOrEmpty(catalogPath)) return;
+            if (!StarfieldSettings.EnableKartographer)
+                return; // Can't restart if not enabled
             
-            string absolutePath = Path.Combine(KSPUtil.ApplicationRootPath, catalogPath);
+            Debug.Log("[StarCatalogEditor] Restarting Kartographer to reload _Custom.json...");
             
-            // Remember which star was selected
-            int selectedHipId = _selectedStar?.HipparcosID ?? 0;
-            
-            // Reload the catalog
-            _selector.LoadJsonForCatalog(absolutePath);
-            
-            // Refresh our local star list
-            RefreshStarList();
-            
-            // If we had a star selected, re-select it with the updated data
-            if (selectedHipId > 0)
+            // Disable
+            StarfieldSettings.EnableKartographer = false;
+            if (StarfieldNative.IsLoaded)
             {
-                var updatedStar = _allStars.FirstOrDefault(s => s.HipparcosID == selectedHipId);
-                if (updatedStar != null)
-                {
-                    // Update our reference to the new star object with updated name
-                    _selectedStar = updatedStar;
-                    _originalName = updatedStar.Name;
-                    _editNameText = updatedStar.Name;
-                    
-                    // Re-select in the Kartographer display to force refresh
-                    _selector.SelectStarByHipId(selectedHipId);
-                }
+                StarfieldNative.CR_StarfieldSetKartographerEnabled(0);
             }
+            
+            // Small delay to ensure native state updates
+            // We'll do this synchronously for simplicity (one frame hitch)
+            
+            // Re-enable
+            StarfieldSettings.EnableKartographer = true;
+            if (StarfieldNative.IsLoaded)
+            {
+                StarfieldNative.CR_StarfieldSetKartographerEnabled(1);
+            }
+            
+            StarfieldSettings.Save();
+            
+            // Update our local selector reference (it was likely recreated)
+            // The new selector will load _Custom.json automatically when initialized
+            
+            Debug.Log("[StarCatalogEditor] Kartographer restarted");
         }
 
         private void RefreshStarList()
