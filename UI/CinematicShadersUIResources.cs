@@ -88,6 +88,14 @@ namespace CinematicShaders.UI
                 return style;
             }
 
+            public static GUIStyle ButtonActive()
+            {
+                GUIStyle style = new GUIStyle(HighLogic.Skin.button);
+                style.normal.textColor = Colors.TOGGLE_ACTIVE_GREEN;
+                style.fontStyle = FontStyle.Bold;
+                return style;
+            }
+
             public static GUIStyle ToggleActive()
             {
                 GUIStyle style = new GUIStyle(HighLogic.Skin.toggle);

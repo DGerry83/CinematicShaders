@@ -1059,9 +1059,16 @@ namespace CinematicShaders.Core
                 return true;
             }
             
-            // Check editor window (only if visible)
+            // Check editor window (legacy)
             var editor = FindEditorWindow();
             if (editor != null && editor.IsVisible && editor.WindowRect.Contains(mousePos))
+            {
+                return true;
+            }
+            
+            // Check holographic display
+            var holographic = FindHolographicDisplay();
+            if (holographic != null && holographic.IsVisible && holographic.DisplayRect.Contains(mousePos))
             {
                 return true;
             }
@@ -1080,6 +1087,31 @@ namespace CinematicShaders.Core
                 return addon.GetComponent<StarCatalogEditorWindow>();
             }
             return null;
+        }
+
+        /// <summary>
+        /// Find the holographic display component
+        /// </summary>
+        private StarCatalogHolographicDisplay FindHolographicDisplay()
+        {
+            var addon = CinematicShadersAddon.Instance;
+            if (addon != null)
+            {
+                return addon.GetComponent<StarCatalogHolographicDisplay>();
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Get the native text system pointer for sharing with holographic display
+        /// </summary>
+        public IntPtr GetTextSystem()
+        {
+            if (_textSystem == IntPtr.Zero)
+            {
+                InitializeTextSystem();
+            }
+            return _textSystem;
         }
 
         /// <summary>

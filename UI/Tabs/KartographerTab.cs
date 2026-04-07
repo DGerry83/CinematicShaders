@@ -22,6 +22,23 @@ namespace CinematicShaders.UI.Tabs
 
         private GUIStyle[] _colorButtonStyles = null;
 
+        #region Holographic Display Integration
+
+        // Display mode enum
+        public enum StarConsoleMode
+        {
+            Legacy,     // Original IMGUI window
+            Small,      // Holographic 450x525
+            Medium,     // Holographic 600x700 (default)
+            Large       // Holographic 800x933
+        }
+
+        // State
+        private StarConsoleMode _consoleMode = StarConsoleMode.Medium;
+        private StarCatalogHolographicDisplay _holographicDisplay = null;
+
+        #endregion
+
         public KartographerTab()
         {
             // Settings loaded by StarfieldSettings on module startup
@@ -112,6 +129,16 @@ namespace CinematicShaders.UI.Tabs
             {
                 GUILayout.Space(10);
                 DrawVisualSettings();
+                
+                // Add Star Console display mode selector when enabled
+                if (StarfieldSettings.KartographerMouseHoverSelect || 
+                    (_holographicDisplay != null && _holographicDisplay.IsVisible) ||
+                    (_starEditorWindow != null && _starEditorWindow.IsVisible))
+                {
+                    GUILayout.Space(10);
+                    GUILayout.Label(CinematicShadersUIStrings.Kartographer.DisplayModeLabel, HighLogic.Skin.label);
+                    DrawStarConsoleSelector();
+                }
             }
             else
             {
@@ -163,13 +190,27 @@ namespace CinematicShaders.UI.Tabs
             
             // Star Console box toggle - matches Situation/Navball section style
             GUILayout.Space(5);
-            bool editorVisible = (_starEditorWindow != null && _starEditorWindow.IsVisible);
-            bool newEditorVisible = GUILayout.Toggle(editorVisible,
+            bool displayVisible = (_consoleMode == StarConsoleMode.Legacy && 
+                                   _starEditorWindow != null && 
+                                   _starEditorWindow.IsVisible) ||
+                                  (_consoleMode != StarConsoleMode.Legacy &&
+                                   _holographicDisplay != null &&
+                                   _holographicDisplay.IsVisible);
+
+            bool newDisplayVisible = GUILayout.Toggle(displayVisible,
                 CinematicShadersUIStrings.Kartographer.StarConsoleToggle, 
                 HighLogic.Skin.button);
-            if (newEditorVisible != editorVisible)
+
+            if (newDisplayVisible != displayVisible)
             {
-                ToggleStarEditor();
+                if (newDisplayVisible)
+                {
+                    ShowCurrentDisplay();
+                }
+                else
+                {
+                    HideCurrentDisplay();
+                }
             }
             
             if (newMouseHoverMode != StarfieldSettings.KartographerMouseHoverSelect)
@@ -843,9 +884,9 @@ namespace CinematicShaders.UI.Tabs
         }
         
         /// <summary>
-        /// Toggle the Star Catalog Editor window
+        /// Toggle the legacy Star Catalog Editor window
         /// </summary>
-        private void ToggleStarEditor()
+        private void ToggleStarEditorLegacy()
         {
             if (_starEditorWindow == null)
             {
@@ -862,11 +903,272 @@ namespace CinematicShaders.UI.Tabs
                 if (_selector != null)
                 {
                     var stars = GetNamedStarsFromSelector();
-                    // Get currently selected star (if any) to pre-populate editor
                     NamedStar preselectedStar = _selector.GetLockedStar();
                     _starEditorWindow.Initialize(stars, _selector, preselectedStar);
                 }
                 _starEditorWindow.Show();
+            }
+        }
+
+        /// <summary>
+        /// Draw the Star Console mode selector
+        /// </summary>
+        private void DrawStarConsoleSelector()
+        {
+            GUILayout.Space(5);
+            
+            // Mode selection buttons
+            GUILayout.BeginHorizontal();
+            
+            GUIStyle buttonStyle = HighLogic.Skin.button;
+            
+            // Legacy button
+            GUIStyle legacyStyle = (_consoleMode == StarConsoleMode.Legacy) ? 
+                CinematicShadersUIResources.Styles.ButtonActive() : buttonStyle;
+            if (GUILayout.Button(CinematicShadersUIStrings.Kartographer.DisplayModeLegacy, legacyStyle, GUILayout.Width(60)))
+            {
+                SetConsoleMode(StarConsoleMode.Legacy);
+            }
+            
+            // Small button
+            GUIStyle smallStyle = (_consoleMode == StarConsoleMode.Small) ? 
+                CinematicShadersUIResources.Styles.ButtonActive() : buttonStyle;
+            if (GUILayout.Button(CinematicShadersUIStrings.Kartographer.DisplayModeSmall, smallStyle, GUILayout.Width(60)))
+            {
+                SetConsoleMode(StarConsoleMode.Small);
+            }
+            
+            // Medium button
+            GUIStyle mediumStyle = (_consoleMode == StarConsoleMode.Medium) ? 
+                CinematicShadersUIResources.Styles.ButtonActive() : buttonStyle;
+            if (GUILayout.Button(CinematicShadersUIStrings.Kartographer.DisplayModeMedium, mediumStyle, GUILayout.Width(60)))
+            {
+                SetConsoleMode(StarConsoleMode.Medium);
+            }
+            
+            // Large button
+            GUIStyle largeStyle = (_consoleMode == StarConsoleMode.Large) ? 
+                CinematicShadersUIResources.Styles.ButtonActive() : buttonStyle;
+            if (GUILayout.Button(CinematicShadersUIStrings.Kartographer.DisplayModeLarge, largeStyle, GUILayout.Width(60)))
+            {
+                SetConsoleMode(StarConsoleMode.Large);
+            }
+            
+            GUILayout.EndHorizontal();
+        }
+
+        /// <summary>
+        /// Set the console display mode
+        /// </summary>
+        private void SetConsoleMode(StarConsoleMode mode)
+        {
+            if (_consoleMode == mode) return;
+            
+            // Hide current display
+            HideCurrentDisplay();
+            
+            _consoleMode = mode;
+            
+            // Show new display
+            ShowCurrentDisplay();
+            
+            Debug.Log($"[KartographerTab] Star Console mode changed to: {mode}");
+        }
+
+        /// <summary>
+        /// Hide the current display (legacy or holographic)
+        /// </summary>
+        private void HideCurrentDisplay()
+        {
+            if (_consoleMode == StarConsoleMode.Legacy)
+            {
+                if (_starEditorWindow != null && _starEditorWindow.IsVisible)
+                {
+                    _starEditorWindow.Hide();
+                }
+            }
+            else
+            {
+                if (_holographicDisplay != null && _holographicDisplay.IsVisible)
+                {
+                    _holographicDisplay.Hide();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Show the current display based on mode
+        /// </summary>
+        private void ShowCurrentDisplay()
+        {
+            if (_consoleMode == StarConsoleMode.Legacy)
+            {
+                ToggleStarEditorLegacy();
+            }
+            else
+            {
+                ToggleHolographicDisplay();
+            }
+        }
+
+        /// <summary>
+        /// Toggle the holographic display
+        /// </summary>
+        private void ToggleHolographicDisplay()
+        {
+            if (_holographicDisplay == null)
+            {
+                CreateHolographicDisplay();
+            }
+            
+            if (_holographicDisplay.IsVisible)
+            {
+                _holographicDisplay.Hide();
+            }
+            else
+            {
+                // Initialize with data
+                InitializeHolographicDisplay();
+                _holographicDisplay.Show();
+            }
+        }
+
+        /// <summary>
+        /// Create the holographic display component
+        /// </summary>
+        private void CreateHolographicDisplay()
+        {
+            var addon = CinematicShadersAddon.Instance;
+            if (addon != null)
+            {
+                _holographicDisplay = addon.gameObject.AddComponent<StarCatalogHolographicDisplay>();
+                
+                // Calculate position (docked to main window)
+                float x = 0, y = 0;
+                if (CinematicShadersWindow.Instance != null)
+                {
+                    Rect mainRect = CinematicShadersWindow.Instance.WindowRect;
+                    x = mainRect.x + mainRect.width + 5f;
+                    y = mainRect.y;
+                }
+                
+                // Get text system from selector (or initialize new one)
+                IntPtr textSystem = _selector?.GetTextSystem() ?? IntPtr.Zero;
+                
+                // Get JSON paths from selector
+                string customPath = _selector?.CustomJsonPath ?? "";
+                string defaultPath = _selector?.DefaultJsonPath ?? "";
+                
+                // Initialize
+                _holographicDisplay.Initialize(textSystem, x, y, customPath, defaultPath);
+                
+                // Set selector for bidirectional sync
+                _holographicDisplay.SetSelector(_selector);
+                
+                // Subscribe to events
+                _holographicDisplay.OnSaveClicked += OnHolographicSave;
+                _holographicDisplay.OnResetClicked += OnHolographicReset;
+                _holographicDisplay.OnRescanConfirmed += OnHolographicRescan;
+                _holographicDisplay.OnWindowClosed += OnHolographicWindowClosed;
+            }
+        }
+
+        /// <summary>
+        /// Initialize holographic display with star data
+        /// </summary>
+        private void InitializeHolographicDisplay()
+        {
+            if (_holographicDisplay == null) return;
+            if (_selector == null) return;
+            
+            // Get star list from selector
+            var stars = GetNamedStarsFromSelector();
+            _holographicDisplay.SetStarList(stars);
+            
+            // Set pre-selected star if any
+            var lockedStar = _selector.GetLockedStar();
+            if (lockedStar != null)
+            {
+                _holographicDisplay.SelectStar(lockedStar);
+            }
+        }
+
+        /// <summary>
+        /// Event handlers for holographic display
+        /// </summary>
+        private void OnHolographicSave()
+        {
+            Debug.Log("[KartographerTab] Holographic display save triggered");
+            // The holographic display handles the actual save
+            // This is just for any additional UI updates needed
+        }
+
+        private void OnHolographicReset()
+        {
+            Debug.Log("[KartographerTab] Holographic display reset triggered");
+            // The holographic display handles the actual reset
+        }
+
+        private void OnHolographicRescan()
+        {
+            Debug.Log("[KartographerTab] Holographic display rescan triggered");
+            ScanCatalog();
+        }
+        
+        private void OnHolographicWindowClosed()
+        {
+            Debug.Log("[KartographerTab] Holographic display closed via X button");
+            // Window closed itself, just clean up reference if needed
+            // The component will be destroyed by the GameObject cleanup
+        }
+
+        /// <summary>
+        /// Scan the current catalog and generate JSON
+        /// </summary>
+        private void ScanCatalog()
+        {
+            try
+            {
+                string catalogPath = StarfieldSettings.ActiveCatalogPath;
+                if (string.IsNullOrEmpty(catalogPath))
+                {
+                    Debug.LogError("[KartographerTab] No active catalog to scan");
+                    return;
+                }
+                
+                string binPath = Path.Combine(KSPUtil.ApplicationRootPath, catalogPath);
+                if (!File.Exists(binPath))
+                {
+                    Debug.LogError($"[KartographerTab] Catalog file not found: {binPath}");
+                    return;
+                }
+                
+                // Generate JSON
+                if (StarCatalogManager.GenerateJsonForProceduralCatalog(binPath))
+                {
+                    Debug.Log($"[KartographerTab] Successfully scanned catalog: {binPath}");
+                    
+                    // Force reload JSON from disk
+                    if (_selector != null)
+                    {
+                        _selector.ForceReloadJson();
+                    }
+                    
+                    // Refresh holographic display if active
+                    if (_holographicDisplay != null && _holographicDisplay.IsVisible)
+                    {
+                        var stars = GetNamedStarsFromSelector();
+                        _holographicDisplay.SetStarList(stars);
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning($"[KartographerTab] Failed to scan catalog (may not be procedural): {binPath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[KartographerTab] Error scanning catalog: {ex.Message}");
             }
         }
         
