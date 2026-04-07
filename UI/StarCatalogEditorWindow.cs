@@ -232,6 +232,12 @@ namespace CinematicShaders.UI
                     // Update cached state
                     _jsonExists = true;
                     
+                    // Force reload JSON from disk (bypasses cache) so selector sees new data
+                    if (_selector != null)
+                    {
+                        _selector.ForceReloadJson();
+                    }
+                    
                     // Reload to use the new JSON
                     RefreshStarList();
                 }

@@ -29,6 +29,26 @@ namespace CinematicShaders.UI.Tabs
             
             // Register for camera update callbacks from StarfieldCompositor
             StarfieldCompositor.KartographerSelectorCallback = OnCameraUpdate;
+            
+            // Register for catalog change notifications to reload JSON when catalog changes
+            StarCatalogManager.OnCatalogChanged += OnCatalogChanged;
+        }
+        
+        /// <summary>
+        /// Called when active catalog changes - reloads JSON for new catalog
+        /// </summary>
+        private void OnCatalogChanged()
+        {
+            if (_selector != null)
+            {
+                string catalogPath = StarfieldSettings.ActiveCatalogPath;
+                if (!string.IsNullOrEmpty(catalogPath))
+                {
+                    string absolutePath = Path.Combine(KSPUtil.ApplicationRootPath, catalogPath);
+                    _selector.LoadJsonForCatalog(absolutePath);
+                    Debug.Log("[KartographerTab] Reloaded JSON for new catalog: " + absolutePath);
+                }
+            }
         }
         
         private void OnCameraUpdate(Vector3 right, Vector3 up, Vector3 forward, float aspect, float verticalFOV)
