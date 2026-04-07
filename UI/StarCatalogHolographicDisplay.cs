@@ -418,9 +418,10 @@ namespace CinematicShaders.UI
         private void UpdateDisplayRect()
         {
             // Update _displayRect to match the CRT area within the window
+            // Window-relative coordinates (0,0 = window top-left) since this is used inside GUI.Window
             _displayRect = new Rect(
-                _windowRect.x + BORDER_THICKNESS,
-                _windowRect.y + TITLE_BAR_HEIGHT + BORDER_THICKNESS,
+                BORDER_THICKNESS,
+                TITLE_BAR_HEIGHT + BORDER_THICKNESS,
                 _windowRect.width - BORDER_THICKNESS * 2,
                 _windowRect.height - TITLE_BAR_HEIGHT - BORDER_THICKNESS * 2
             );
