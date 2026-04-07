@@ -416,9 +416,9 @@ namespace CinematicShaders.UI
             {
                 DrawScanScreen();
             }
-            else
+            else if (_displayPowered)
             {
-                // Draw ASCII border
+                // Draw ASCII border (only when powered on)
                 DrawASCIIBorder();
                 
                 // Update and draw text elements
@@ -427,6 +427,7 @@ namespace CinematicShaders.UI
                 DrawElements();
                 // DEBUG: ModFileLogger.Log("[DRAW-FLOW] Back from DrawElements");
             }
+            // When power is off, just show black background (already drawn above)
         }
         
         private void UpdateDisplayRect()
@@ -641,16 +642,15 @@ namespace CinematicShaders.UI
                 // DEBUG: ModFileLogger.Log($"[DRAW] _displayRect.x={_displayRect.x}, _displayRect.y={_displayRect.y}, Position4K.x={element.Position4K.x}, Position4K.y={element.Position4K.y}");
 
                 // Flip texture vertically via UV coordinates
-                // DEBUG: Tint red to identify this draw call
-                // TEST: Only draw during Repaint event
+                // Only draw during Repaint event
                 if (Event.current.type == EventType.Repaint)
                 {
                     Graphics.DrawTexture(
                         screenPos,              // dest rect
-                        element.TextTexture,    // source texture
+                        element.TextTexture,    // source texture (already has Kartographer color baked in)
                         new Rect(0, 1, 1, -1),  // source UVs: flip Y
                         0, 0, 0, 0,             // border widths
-                        Color.red,              // DEBUG: Tint red to identify
+                        Color.white,            // Full color - texture has grid color baked in
                         null                    // material
                     );
                 }
