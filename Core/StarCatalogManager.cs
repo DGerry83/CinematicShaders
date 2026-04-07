@@ -723,9 +723,9 @@ namespace CinematicShaders.Core
                         // Distance in light years
                         json.Append($"\"distance_ly\": {distanceLy.ToString(System.Globalization.CultureInfo.InvariantCulture)}, ");
                         
-                        // Direction vectors (Y is negated)
+                        // Direction vectors (matching binary storage - no flip needed)
                         json.Append($"\"x\": {dirX.ToString(System.Globalization.CultureInfo.InvariantCulture)}, ");
-                        json.Append($"\"y\": {(-dirY).ToString(System.Globalization.CultureInfo.InvariantCulture)}, ");
+                        json.Append($"\"y\": {dirY.ToString(System.Globalization.CultureInfo.InvariantCulture)}, ");
                         json.Append($"\"z\": {dirZ.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
                         
                         json.Append(" }");
