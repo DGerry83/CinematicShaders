@@ -2,7 +2,10 @@ using CinematicShaders.Core;
 using CinematicShaders.Native;
 using CinematicShaders.Shaders.Starfield;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using UnityEngine;
 using static CinematicShaders.Core.StarfieldSettings;
 
@@ -50,6 +53,9 @@ namespace CinematicShaders.UI.Tabs
         // Star tracking
         private KartographerSelector _selector;
         
+        // Star Catalog Editor
+        private StarCatalogEditorWindow _starEditorWindow;
+        
         // Grid label system is now managed by CinematicShadersAddon and shared with UI
         
         public void Draw()
@@ -89,6 +95,12 @@ namespace CinematicShaders.UI.Tabs
                 {
                     StopTracking();
                 }
+                
+                // Hide editor window when Kartographer disabled
+                if (_starEditorWindow != null && _starEditorWindow.IsVisible)
+                {
+                    _starEditorWindow.Hide();
+                }
             }
             
             // Update grid labels independently of selector - runs when Kartographer is enabled
@@ -121,8 +133,23 @@ namespace CinematicShaders.UI.Tabs
         {
             GUILayout.BeginVertical(HighLogic.Skin.box);
 
+            GUILayout.BeginHorizontal();
             bool newMouseHoverMode = GUILayout.Toggle(StarfieldSettings.KartographerMouseHoverSelect, 
-                CinematicShadersUIStrings.Kartographer.StarCatalogToggle, HighLogic.Skin.toggle);
+                CinematicShadersUIStrings.Kartographer.StarCatalogToggle, HighLogic.Skin.toggle, 
+                GUILayout.Width(150));
+            
+            // Add editor button (always visible when Kartographer enabled)
+            GUIStyle editorButtonStyle = (_starEditorWindow != null && _starEditorWindow.IsVisible) 
+                ? CinematicShadersUIResources.Styles.ToggleActive() 
+                : HighLogic.Skin.button;
+            
+            if (GUILayout.Button(CinematicShadersUIStrings.Kartographer.StarCatalogEditorButton, 
+                editorButtonStyle, GUILayout.Width(80)))
+            {
+                ToggleStarEditor();
+            }
+            GUILayout.EndHorizontal();
+            
             if (newMouseHoverMode != StarfieldSettings.KartographerMouseHoverSelect)
             {
                 StarfieldSettings.KartographerMouseHoverSelect = newMouseHoverMode;
@@ -791,6 +818,66 @@ namespace CinematicShaders.UI.Tabs
             StarfieldSettings.KartographerTrackedStarHIP = 0;
             StarfieldSettings.EnablePolarisTracking = false;
             StarfieldSettings.Save();
+        }
+        
+        /// <summary>
+        /// Toggle the Star Catalog Editor window
+        /// </summary>
+        private void ToggleStarEditor()
+        {
+            if (_starEditorWindow == null)
+            {
+                CreateEditorWindow();
+            }
+            
+            if (_starEditorWindow.IsVisible)
+            {
+                _starEditorWindow.Hide();
+            }
+            else
+            {
+                // Refresh star list from selector
+                if (_selector != null)
+                {
+                    var stars = GetNamedStarsFromSelector();
+                    _starEditorWindow.Initialize(stars, _selector);
+                }
+                _starEditorWindow.Show();
+            }
+        }
+        
+        /// <summary>
+        /// Create the StarCatalogEditorWindow component
+        /// </summary>
+        private void CreateEditorWindow()
+        {
+            // Add component to same GameObject as the addon
+            var addon = CinematicShadersAddon.Instance;
+            if (addon != null)
+            {
+                _starEditorWindow = addon.gameObject.AddComponent<StarCatalogEditorWindow>();
+            }
+        }
+        
+        /// <summary>
+        /// Get the list of named stars from the selector
+        /// </summary>
+        private List<NamedStar> GetNamedStarsFromSelector()
+        {
+            if (_selector == null) return new List<NamedStar>();
+            
+            // Use reflection to access private _namedStars field
+            var field = typeof(KartographerSelector).GetField("_namedStars", 
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (field != null)
+            {
+                var namedStars = field.GetValue(_selector) as Dictionary<int, NamedStar>;
+                if (namedStars != null)
+                {
+                    return namedStars.Values.ToList();
+                }
+            }
+            return new List<NamedStar>();
         }
         
         private float IntensityToDisplay(float internalVal) => internalVal / 0.006f * 5f;

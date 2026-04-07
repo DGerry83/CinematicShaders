@@ -44,6 +44,17 @@ namespace CinematicShaders.Core
         private bool _jsonLoaded = false;
         private string _lastCatalogPath = "";
 
+        // Path tracking for _Custom.json support
+        private string _loadedJsonPath = "";
+        private string _defaultJsonPath = "";
+        private string _customJsonPath = "";
+
+        // Public accessors for editor (future Phase 2)
+        public string LoadedJsonPath => _loadedJsonPath;
+        public string DefaultJsonPath => _defaultJsonPath;
+        public string CustomJsonPath => _customJsonPath;
+        public string CurrentCatalogBasePath => Path.ChangeExtension(_lastCatalogPath, null);
+
         // Tracking state
         public NamedStar TrackedStar { get; private set; }
         public Vector2 TrackedStarScreenUV { get; private set; }
@@ -478,7 +489,18 @@ namespace CinematicShaders.Core
             if (_jsonLoaded && _lastCatalogPath == binPath)
                 return; // Already loaded
 
-            string jsonPath = Path.ChangeExtension(binPath, ".json");
+            // Check for _Custom.json first, fallback to .json
+            string basePath = Path.ChangeExtension(binPath, null);  // Remove .bin
+            string customPath = basePath + "_Custom.json";
+            string defaultPath = basePath + ".json";
+
+            string jsonPath = File.Exists(customPath) ? customPath : defaultPath;
+
+            // Store which file we loaded for potential editor use
+            _loadedJsonPath = jsonPath;
+            _defaultJsonPath = defaultPath;
+            _customJsonPath = customPath;
+
             if (!File.Exists(jsonPath))
             {
                 Debug.Log($"[KartographerSelector] No JSON sidecar found: {jsonPath}");
@@ -739,6 +761,31 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
+        /// Strips directional suffixes from full_designation for display purposes.
+        /// "Epsilon Triangulum Australe" -> "EPSILON TRIANGULUM"
+        /// "Asellus Borealis" -> "ASELLUS"
+        /// </summary>
+        public static string StripDirectionalSuffix(string fullDesignation)
+        {
+            if (string.IsNullOrEmpty(fullDesignation))
+                return fullDesignation;
+            
+            string[] suffixes = new[] { " Australe", " Australis", " Borealis", " Posterior", " Prior" };
+            string result = fullDesignation;
+            
+            foreach (var suffix in suffixes)
+            {
+                if (result.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                {
+                    result = result.Substring(0, result.Length - suffix.Length);
+                    break;  // Only strip one suffix
+                }
+            }
+            
+            return result.ToUpper();
+        }
+
+        /// <summary>
         /// Find the matching closing brace for an opening brace at startIndex
         /// </summary>
         private int FindMatchingBrace(string json, int startIndex)
@@ -770,10 +817,11 @@ namespace CinematicShaders.Core
         /// </summary>
         private NamedStar ParseStarEntry(int hipId, string starJson)
         {
+            string rawName = ExtractStringValue(starJson, "proper") ?? ExtractStringValue(starJson, "full_designation");
             var star = new NamedStar
             {
                 HipparcosID = hipId,
-                Name = ExtractStringValue(starJson, "proper") ?? ExtractStringValue(starJson, "full_designation") ?? $"HIP {hipId}",
+                Name = StripDirectionalSuffix(rawName) ?? $"HIP {hipId}",
                 SpectralType = ExtractStringValue(starJson, "spectral") ?? "?",
                 Magnitude = ExtractFloatValue(starJson, "magnitude", 99f),
                 DistanceLy = ExtractFloatValue(starJson, "distance_ly", 0f),

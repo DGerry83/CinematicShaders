@@ -75,6 +75,7 @@
     <Compile Include="UI\CinematicShadersUIResources.cs" />
     <Compile Include="UI\CinematicShadersUIStrings.cs" />
     <Compile Include="UI\CinematicShadersWindow.cs" />
+    <Compile Include="UI\StarCatalogEditorWindow.cs" />
     <Compile Include="UI\Tabs\GTAOTab.cs" />
     <Compile Include="UI\Tabs\GridLabelDebugUI.cs" />
     <Compile Include="UI\Tabs\KartographerTab.cs" />
