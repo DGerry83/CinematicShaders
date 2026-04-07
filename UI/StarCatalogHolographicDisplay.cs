@@ -467,12 +467,18 @@ namespace CinematicShaders.UI
 
         private void UpdateElements()
         {
-            if (!_displayPowered) return;
+            Debug.Log($"[DIAG] UpdateElements: _displayPowered={_displayPowered}, element count={_elements?.Count}");
+            if (!_displayPowered) {
+                Debug.Log("[DIAG] FAIL: not powered on");
+                return;
+            }
 
             _powerOnTime += Time.deltaTime;
 
             foreach (var element in _elements.Values)
             {
+                Debug.Log($"[DIAG] Element {element.ElementId}: IsDirty={element.IsDirty}, IsVisible={element.IsVisible}, TypeOnProgress={element.TypeOnProgress}");
+
                 // Update type-on animation
                 if (_powerOnTime >= element.TypeOnDelay && element.TypeOnProgress < 1f)
                 {
@@ -500,20 +506,38 @@ namespace CinematicShaders.UI
 
         private void RenderElement(HolographicTextElement element)
         {
-            if (_textSystem == IntPtr.Zero) return;
-            if (element.TextTexture == null) return;
+            Debug.Log($"[DIAG] RenderElement {element.ElementId}: _textSystem={_textSystem != IntPtr.Zero}");
+            if (_textSystem == IntPtr.Zero) {
+                Debug.Log($"[DIAG] FAIL: _textSystem is null");
+                return;
+            }
+            
+            Debug.Log($"[DIAG] {element.ElementId}: TextTexture={element.TextTexture != null}");
+            if (element.TextTexture == null) {
+                Debug.Log($"[DIAG] FAIL: TextTexture is null");
+                return;
+            }
 
             // Get text to render (with type-on truncation)
             string text = GetDisplayText(element);
-            if (string.IsNullOrEmpty(text)) return;
+            Debug.Log($"[DIAG] {element.ElementId}: text='{text}', length={text?.Length}");
+            if (string.IsNullOrEmpty(text)) {
+                Debug.Log($"[DIAG] FAIL: text is empty");
+                return;
+            }
 
             // Get grid color
             uint color = GetGridColorUint();
 
             // Layout text in native system
             int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, text, _fontSize, color);
+            Debug.Log($"[DIAG] {element.ElementId}: glyphCount={glyphCount}");
+            if (glyphCount <= 0) {
+                Debug.Log($"[DIAG] FAIL: glyphCount <= 0");
+                return;
+            }
 
-            if (glyphCount <= 0) return;
+            Debug.Log($"[DIAG] {element.ElementId}: Calling CR_TextDispatch");
 
             // Clear texture
             RenderTexture.active = element.TextTexture;
@@ -1061,6 +1085,7 @@ namespace CinematicShaders.UI
 
         private void TogglePower()
         {
+            Debug.Log($"[DIAG] TogglePower: current={_displayPowered}");
             if (_displayPowered)
             {
                 PowerOff();
@@ -1073,6 +1098,7 @@ namespace CinematicShaders.UI
 
         private void PowerOn()
         {
+            Debug.Log("[DIAG] PowerOn() called");
             _displayPowered = true;
             _powerOnTime = 0f;
             
