@@ -1013,6 +1013,23 @@ namespace CinematicShaders.UI.Tabs
         }
 
         /// <summary>
+        /// Map StarConsoleMode to HolographicDisplaySize
+        /// </summary>
+        private HolographicDisplaySize MapConsoleModeToSize(StarConsoleMode mode)
+        {
+            switch (mode)
+            {
+                case StarConsoleMode.Small:
+                    return HolographicDisplaySize.Small;
+                case StarConsoleMode.Large:
+                    return HolographicDisplaySize.Large;
+                case StarConsoleMode.Medium:
+                default:
+                    return HolographicDisplaySize.Medium;
+            }
+        }
+
+        /// <summary>
         /// Toggle the holographic display
         /// </summary>
         private void ToggleHolographicDisplay()
@@ -1020,6 +1037,12 @@ namespace CinematicShaders.UI.Tabs
             if (_holographicDisplay == null)
             {
                 CreateHolographicDisplay();
+            }
+            else
+            {
+                // Update size if mode changed
+                HolographicDisplaySize expectedSize = MapConsoleModeToSize(_consoleMode);
+                _holographicDisplay.SetDisplaySize(expectedSize);
             }
             
             if (_holographicDisplay.IsVisible)

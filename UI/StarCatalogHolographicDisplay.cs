@@ -538,7 +538,7 @@ namespace CinematicShaders.UI
             {
                 int visibleChars = Mathf.RoundToInt(fullText.Length * element.TypeOnProgress);
                 visibleChars = Mathf.Clamp(visibleChars, 0, fullText.Length);
-                return fullText.Substring(0, visibleChars);
+                return fullText.Substring(0, visibleChars) + "^|";
             }
 
             return fullText;
