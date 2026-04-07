@@ -651,12 +651,16 @@ namespace CinematicShaders.Core
                     }
                     
                     // Get starCount from header
-                    int starCount = reader.ReadInt32();
-                    if (starCount <= 0)
+                    int totalStarCount = reader.ReadInt32();
+                    if (totalStarCount <= 0)
                     {
                         Debug.LogWarning($"[CinematicShaders] Catalog has no stars: {binPath}");
                         return false;
                     }
+                    
+                    // Limit to first 5000 stars (covers heroes plus extras)
+                    // Hero stars are first in procedurally generated catalogs
+                    int starCount = Math.Min(totalStarCount, 5000);
                     
                     // 3. Read star records (starting at offset 256)
                     fs.Seek(HEADER_SIZE, SeekOrigin.Begin);
@@ -675,8 +679,8 @@ namespace CinematicShaders.Core
                     json.Append("    \"version\": 1,\n");
                     json.Append("    \"source_catalog\": \"Generated\",\n");
                     json.Append($"    \"bin_file\": \"./{fileName}\",\n");
-                    json.Append($"    \"star_count\": {starCount},\n");
-                    json.Append("    \"named_star_count\": 0,\n");
+                    json.Append($"    \"star_count\": {totalStarCount},\n");
+                    json.Append($"    \"named_star_count\": {starCount},\n");
                     json.Append("    \"constellation_count\": 0,\n");
                     json.Append($"    \"generated\": \"{timestamp}\"\n");
                     json.Append("  },\n");
@@ -687,7 +691,8 @@ namespace CinematicShaders.Core
                     {
                         // Read star data fields
                         int hipparcosID = reader.ReadInt32();      // offset 0
-                        float distancePc = reader.ReadSingle();    // offset 4 (skip)
+                        float distancePc = reader.ReadSingle();    // offset 4
+                        float distanceLy = distancePc * 3.26156f;    // Convert parsecs to light years
                         int spectralType = reader.ReadInt32();     // offset 8
                         uint starFlags = reader.ReadUInt32();      // offset 12 (skip)
                         float dirX = reader.ReadSingle();          // offset 16
@@ -699,11 +704,11 @@ namespace CinematicShaders.Core
                         float colorB = reader.ReadSingle();        // offset 40 (skip)
                         float temperature = reader.ReadSingle();   // offset 44 (skip)
                         
-                        // Build KIP key (KIP1, KIP2, etc.)
-                        string kipKey = $"KIP{hipparcosID}";
+                        // Use numeric ID as key (parser expects integer IDs)
+                        string starKey = hipparcosID.ToString();
                         
                         // Build star entry
-                        json.Append($"    \"{kipKey}\": {{ ");
+                        json.Append($"    \"{starKey}\": {{ ");
                         
                         // Spectral type (omit if 255 = unknown)
                         if (spectralType >= 0 && spectralType <= 7)
@@ -714,6 +719,9 @@ namespace CinematicShaders.Core
                         
                         // Magnitude
                         json.Append($"\"magnitude\": {magnitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}, ");
+                        
+                        // Distance in light years
+                        json.Append($"\"distance_ly\": {distanceLy.ToString(System.Globalization.CultureInfo.InvariantCulture)}, ");
                         
                         // Direction vectors (Y is negated)
                         json.Append($"\"x\": {dirX.ToString(System.Globalization.CultureInfo.InvariantCulture)}, ");
