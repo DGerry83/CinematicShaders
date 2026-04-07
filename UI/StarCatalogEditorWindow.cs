@@ -154,7 +154,7 @@ namespace CinematicShaders.UI
         private void DrawSearchBox()
         {
             GUILayout.BeginHorizontal();
-            GUILayout.Label(CinematicShadersUIStrings.Kartographer.SearchLabel, GUILayout.Width(50));
+            GUILayout.Label(CinematicShadersUIStrings.Kartographer.SearchLabel, GUILayout.Width(65));
             
             string newSearch = GUILayout.TextField(_searchText, GUILayout.Height(SEARCH_HEIGHT));
             if (newSearch != _searchText)
@@ -496,6 +496,9 @@ namespace CinematicShaders.UI
                                 _editNameText = updatedStar.Name;
                                 
                                 Debug.Log($"[StarCatalogEditor] Refreshed after save: {updatedStar.Name} (HIP {hipId})");
+                            
+                            // Re-select the star to trigger selection animation with new name
+                            _selector.SelectStarByHipId(hipId);
                             }
                             else
                             {
