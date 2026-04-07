@@ -288,6 +288,9 @@ namespace CinematicShaders.UI
             // DEBUG: ModFileLogger.Log($"[DRAW-FLOW] OnGUI called, _isVisible={_isVisible}");
             if (!_isVisible) return;
             
+            // Only draw during Repaint event to avoid duplicates
+            if (Event.current.type != EventType.Repaint) return;
+            
             InitStyles();
             
             // Handle keyboard input (even when window not focused for convenience)
