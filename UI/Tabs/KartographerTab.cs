@@ -53,6 +53,11 @@ namespace CinematicShaders.UI.Tabs
         // Star tracking
         private KartographerSelector _selector;
         
+        /// <summary>
+        /// Public accessor for the selector (used by StarCatalogEditorWindow)
+        /// </summary>
+        public KartographerSelector Selector => _selector;
+        
         // Star Catalog Editor
         private StarCatalogEditorWindow _starEditorWindow;
         

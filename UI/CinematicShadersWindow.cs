@@ -25,6 +25,11 @@ namespace CinematicShaders.UI
         private KartographerTab _kartographerTab;
 
         public event Action OnClose;
+        
+        /// <summary>
+        /// Public accessor for KartographerTab (used by StarCatalogEditorWindow)
+        /// </summary>
+        public KartographerTab KartographerTab => _kartographerTab;
 
         void Start()
         {

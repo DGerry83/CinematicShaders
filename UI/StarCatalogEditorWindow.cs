@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using UnityEngine;
 
 namespace CinematicShaders.UI
@@ -55,6 +56,12 @@ namespace CinematicShaders.UI
             _filteredStars = new List<NamedStar>(_allStars);
             _selector = selector;
             
+            // Subscribe to external selection events (when user clicks star in game world)
+            if (_selector != null)
+            {
+                _selector.OnStarLockedViaClick = OnExternalStarSelected;
+            }
+            
             // If there's a preselected star (from catalog), select it in the editor
             if (preselectedStar != null)
             {
@@ -62,6 +69,22 @@ namespace CinematicShaders.UI
             }
             
             InitStyles();
+        }
+        
+        /// <summary>
+        /// Called when user selects a star via point-and-click in the game world
+        /// </summary>
+        private void OnExternalStarSelected(NamedStar star)
+        {
+            if (star == null) return;
+            
+            // Update our selection to match the externally selected star
+            // Don't call _selector.SelectStarByHipId here (would be circular)
+            _selectedStar = star;
+            _originalName = star.Name;
+            _editNameText = star.Name;
+            
+            Debug.Log($"[StarCatalogEditor] External selection synced: {star.Name} (HIP {star.HipparcosID})");
         }
 
         private void InitStyles()
@@ -399,6 +422,10 @@ namespace CinematicShaders.UI
             if (!StarfieldSettings.EnableKartographer)
                 return; // Can't restart if not enabled
             
+            // Remember which star we were editing
+            int editedHipId = _selectedStar?.HipparcosID ?? 0;
+            string newName = _editNameText; // The name we just saved
+            
             Debug.Log("[StarCatalogEditor] Restarting Kartographer to reload _Custom.json...");
             
             // Disable
@@ -407,9 +434,6 @@ namespace CinematicShaders.UI
             {
                 StarfieldNative.CR_StarfieldSetKartographerEnabled(0);
             }
-            
-            // Small delay to ensure native state updates
-            // We'll do this synchronously for simplicity (one frame hitch)
             
             // Re-enable
             StarfieldSettings.EnableKartographer = true;
@@ -420,10 +444,60 @@ namespace CinematicShaders.UI
             
             StarfieldSettings.Save();
             
-            // Update our local selector reference (it was likely recreated)
-            // The new selector will load _Custom.json automatically when initialized
+            // Find the new selector instance (recreated by KartographerTab)
+            // and refresh our data
+            StartCoroutine(RefreshAfterRestart(editedHipId, newName));
             
             Debug.Log("[StarCatalogEditor] Kartographer restarted");
+        }
+        
+        private System.Collections.IEnumerator RefreshAfterRestart(int hipId, string savedName)
+        {
+            // Wait one frame for KartographerTab to recreate the selector
+            yield return null;
+            
+            // Get the new selector from KartographerTab (which was recreated on restart)
+            KartographerSelector newSelector = null;
+            if (CinematicShadersWindow.Instance != null && 
+                CinematicShadersWindow.Instance.KartographerTab != null)
+            {
+                newSelector = CinematicShadersWindow.Instance.KartographerTab.Selector;
+            }
+            
+            if (newSelector != null)
+            {
+                _selector = newSelector;
+                
+                // Subscribe to external selections on the new selector
+                _selector.OnStarLockedViaClick = OnExternalStarSelected;
+                
+                // Refresh star list from the new selector
+                var field = typeof(KartographerSelector).GetField("_namedStars", 
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (field != null)
+                {
+                    var namedStars = field.GetValue(_selector) as Dictionary<int, NamedStar>;
+                    if (namedStars != null)
+                    {
+                        _allStars = namedStars.Values.OrderBy(s => s.Name).ToList();
+                        UpdateFilteredList();
+                        
+                        // If we were editing a specific star, update our reference to it
+                        if (hipId > 0)
+                        {
+                            var updatedStar = _allStars.FirstOrDefault(s => s.HipparcosID == hipId);
+                            if (updatedStar != null)
+                            {
+                                _selectedStar = updatedStar;
+                                _originalName = updatedStar.Name;
+                                _editNameText = updatedStar.Name; // Show the saved (now loaded) name
+                                
+                                Debug.Log($"[StarCatalogEditor] Refreshed after restart: {updatedStar.Name} (HIP {hipId})");
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         private void RefreshStarList()

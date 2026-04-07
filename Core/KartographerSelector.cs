@@ -969,6 +969,12 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
+        /// Callback invoked when a star is locked via mouse click.
+        /// Used by StarCatalogEditorWindow to sync selection.
+        /// </summary>
+        public Action<NamedStar> OnStarLockedViaClick { get; set; }
+
+        /// <summary>
         /// Update projection and push to native plugin
         /// Handles hover/click selection for all named stars
         /// </summary>
@@ -1157,6 +1163,9 @@ namespace CinematicShaders.Core
                         // Same star clicked again while complete - just re-lock without animation reset
                         _lockedStar = _hoveredStar;
                         Debug.Log($"[KartographerSelector] RE-LOCKED (stable): {_lockedStar.Name} (HIP {_lockedStar.HipparcosID})");
+                        
+                        // Notify editor of selection (even for re-lock)
+                        OnStarLockedViaClick?.Invoke(_lockedStar);
                     }
                     else
                     {
@@ -1165,6 +1174,9 @@ namespace CinematicShaders.Core
                         _starHash = _lockedStar.HipparcosID * 0.123f;  // Unique hash per star
                         StartAnimationForStar(_lockedStar);
                         // Star locked
+                        
+                        // Notify editor of selection
+                        OnStarLockedViaClick?.Invoke(_lockedStar);
                     }
                 }
             }
