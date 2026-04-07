@@ -453,25 +453,28 @@ namespace CinematicShaders.UI
         
         private System.Collections.IEnumerator RefreshAfterRestart(int hipId, string savedName)
         {
-            // Wait one frame for KartographerTab to recreate the selector
+            // Wait one frame for KartographerTab to process the restart
             yield return null;
             
-            // Get the new selector from KartographerTab (which was recreated on restart)
-            KartographerSelector newSelector = null;
+            // Get the selector from KartographerTab
+            KartographerSelector selector = null;
             if (CinematicShadersWindow.Instance != null && 
                 CinematicShadersWindow.Instance.KartographerTab != null)
             {
-                newSelector = CinematicShadersWindow.Instance.KartographerTab.Selector;
+                selector = CinematicShadersWindow.Instance.KartographerTab.Selector;
             }
             
-            if (newSelector != null)
+            if (selector != null)
             {
-                _selector = newSelector;
+                _selector = selector;
                 
-                // Subscribe to external selections on the new selector
+                // Subscribe to external selections
                 _selector.OnStarLockedViaClick = OnExternalStarSelected;
                 
-                // Refresh star list from the new selector
+                // FORCE RELOAD the JSON from disk (bypasses cache)
+                _selector.ForceReloadJson();
+                
+                // Now refresh our star list from the reloaded data
                 var field = typeof(KartographerSelector).GetField("_namedStars", 
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                 if (field != null)
@@ -482,7 +485,7 @@ namespace CinematicShaders.UI
                         _allStars = namedStars.Values.OrderBy(s => s.Name).ToList();
                         UpdateFilteredList();
                         
-                        // If we were editing a specific star, update our reference to it
+                        // Update the editor with the newly loaded star data
                         if (hipId > 0)
                         {
                             var updatedStar = _allStars.FirstOrDefault(s => s.HipparcosID == hipId);
@@ -490,9 +493,16 @@ namespace CinematicShaders.UI
                             {
                                 _selectedStar = updatedStar;
                                 _originalName = updatedStar.Name;
-                                _editNameText = updatedStar.Name; // Show the saved (now loaded) name
+                                _editNameText = updatedStar.Name;
                                 
-                                Debug.Log($"[StarCatalogEditor] Refreshed after restart: {updatedStar.Name} (HIP {hipId})");
+                                Debug.Log($"[StarCatalogEditor] Refreshed after save: {updatedStar.Name} (HIP {hipId})");
+                            }
+                            else
+                            {
+                                // Star not found in reloaded data - use saved name as fallback
+                                Debug.LogWarning($"[StarCatalogEditor] Star HIP {hipId} not found after reload, using saved name");
+                                _editNameText = savedName;
+                                _originalName = savedName;
                             }
                         }
                     }

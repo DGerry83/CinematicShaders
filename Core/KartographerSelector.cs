@@ -522,6 +522,23 @@ namespace CinematicShaders.Core
             }
         }
 
+        /// <summary>
+        /// Force reload of the JSON catalog from disk, bypassing the cache.
+        /// Called after saving changes to _Custom.json to ensure fresh data.
+        /// </summary>
+        public void ForceReloadJson()
+        {
+            if (string.IsNullOrEmpty(_lastCatalogPath))
+            {
+                Debug.LogWarning("[KartographerSelector] Cannot force reload - no catalog path set");
+                return;
+            }
+            
+            Debug.Log("[KartographerSelector] Force reloading JSON from disk...");
+            _jsonLoaded = false;  // Clear cache flag
+            LoadJsonForCatalog(_lastCatalogPath);  // Will reload due to _jsonLoaded = false
+        }
+
         // ============================================================================
         // Grid Label Text (HUCK) Methods
         // ============================================================================
