@@ -19,6 +19,8 @@ namespace CinematicShaders.UI
         private const float BORDER_THICKNESS = 8f;    // Grey border around CRT
         private const float TITLE_BAR_HEIGHT = 30f;   // Height for PWR button and X
         private const int WINDOW_ID = 98767;          // Unique window ID
+        private const float MIN_WINDOW_WIDTH = 450f;  // Minimum window width
+        private const float MIN_WINDOW_HEIGHT = 525f; // Minimum window height (approx 450 + title + borders)
         #endregion
 
         #region State
@@ -78,8 +80,11 @@ namespace CinematicShaders.UI
             _windowRect.y = y;
             
             // Calculate window size based on display size plus borders
-            float displayWidth = HolographicLayoutConfig.DISPLAY_WIDTH_4K * _scaleFactor;
-            float displayHeight = HolographicLayoutConfig.DISPLAY_HEIGHT_4K * _scaleFactor;
+            // Enforce minimum size so content is always visible
+            float displayWidth = Mathf.Max(HolographicLayoutConfig.DISPLAY_WIDTH_4K * _scaleFactor, 
+                MIN_WINDOW_WIDTH - BORDER_THICKNESS * 2);
+            float displayHeight = Mathf.Max(HolographicLayoutConfig.DISPLAY_HEIGHT_4K * _scaleFactor,
+                MIN_WINDOW_HEIGHT - TITLE_BAR_HEIGHT - BORDER_THICKNESS * 2);
             _windowRect.width = displayWidth + BORDER_THICKNESS * 2;
             _windowRect.height = displayHeight + TITLE_BAR_HEIGHT + BORDER_THICKNESS * 2;
             
@@ -217,7 +222,8 @@ namespace CinematicShaders.UI
             HandleKeyboardInput();
             
             // Draw the IMGUI window with title bar and borders
-            _windowRect = GUILayout.Window(
+            // Use GUI.Window (not GUILayout.Window) to prevent auto-sizing
+            _windowRect = GUI.Window(
                 WINDOW_ID,
                 _windowRect,
                 DrawWindow,
