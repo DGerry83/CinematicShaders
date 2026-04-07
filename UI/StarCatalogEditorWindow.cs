@@ -158,13 +158,10 @@ namespace CinematicShaders.UI
                 _hasCheckedForJson = true;
             }
             
-            // If JSON exists, don't show scan button
-            if (_jsonExists) return;
-            
-            // Check if catalog is procedural
+            // Check if catalog is procedural - only show scan for procedural catalogs
             if (!IsCurrentCatalogProcedural()) return;
             
-            // Show Scan button
+            // Show Scan button (always available for procedural catalogs)
             GUILayout.BeginHorizontal();
             GUILayout.FlexibleSpace();
             
@@ -179,8 +176,11 @@ namespace CinematicShaders.UI
             
             GUILayout.Space(5);
             
-            GUILayout.Label(CinematicShadersUIStrings.Kartographer.ScanHelpText, 
-                CinematicShadersUIResources.Styles.Help());
+            // Show appropriate help text based on whether JSON exists
+            string helpText = _jsonExists 
+                ? "JSON EXISTS - CLICK SCAN TO REGENERATE (WILL OVERWRITE)"
+                : CinematicShadersUIStrings.Kartographer.ScanHelpText;
+            GUILayout.Label(helpText, CinematicShadersUIResources.Styles.Help());
             GUILayout.Space(10);
         }
 
@@ -231,6 +231,7 @@ namespace CinematicShaders.UI
                     
                     // Update cached state
                     _jsonExists = true;
+                    _hasCheckedForJson = false; // Force recheck on next draw
                     
                     // Force reload JSON from disk (bypasses cache) so selector sees new data
                     if (_selector != null)

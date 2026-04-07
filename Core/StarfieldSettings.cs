@@ -601,6 +601,9 @@ namespace CinematicShaders.Core
                     // Trigger cubemap update for newly generated catalog
                     CubemapGenerationScheduler.OnCatalogGenerated();
                     
+                    // Notify listeners that catalog has changed (clears old JSON from selector)
+                    StarCatalogManager.TriggerCatalogChanged();
+                    
                     // Auto-save to current catalog file if one is active
                     if (!string.IsNullOrEmpty(ActiveCatalogPath) && !IsReadOnly)
                     {

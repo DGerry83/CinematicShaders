@@ -504,6 +504,10 @@ namespace CinematicShaders.Core
             if (!File.Exists(jsonPath))
             {
                 Debug.Log($"[KartographerSelector] No JSON sidecar found: {jsonPath}");
+                // Clear any old data since there's no JSON for this catalog
+                _namedStars.Clear();
+                _jsonLoaded = false;
+                _lastCatalogPath = binPath;
                 return;
             }
 

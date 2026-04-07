@@ -35,6 +35,15 @@ namespace CinematicShaders.Core
         public static event Action OnCatalogChanged;
         
         /// <summary>
+        /// Triggers the OnCatalogChanged event. Call this after generating a new catalog
+        /// to notify listeners (e.g., Kartographer) to reload/clear their data.
+        /// </summary>
+        public static void TriggerCatalogChanged()
+        {
+            OnCatalogChanged?.Invoke();
+        }
+        
+        /// <summary>
         /// Currently active/loaded catalog metadata
         /// </summary>
         public static StarCatalogInfo ActiveCatalog { get; set; }
