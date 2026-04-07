@@ -281,6 +281,10 @@ namespace CinematicShaders.UI
             // Empty States
             public const string EnterTermsMessage = "ENTER TERMS";
             public const string NoResultMessage = "NO RESULT";
+            
+            // Star Catalog Scan
+            public const string ScanButton = "SCAN";
+            public const string ScanHelpText = "NO JSON FOUND - CLICK SCAN TO CREATE";
         }
     }
 }

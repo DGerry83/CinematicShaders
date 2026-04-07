@@ -47,6 +47,10 @@ namespace CinematicShaders.UI
         
         // Reference to selector (passed from KartographerTab)
         private KartographerSelector _selector;
+        
+        // Scan button state
+        private bool _hasCheckedForJson = false;
+        private bool _jsonExists = false;
         #endregion
 
         #region Initialization
@@ -129,6 +133,8 @@ namespace CinematicShaders.UI
             DrawCloseButton();
             GUILayout.Space(5);
             
+            DrawScanButton();
+            
             DrawSearchBox();
             GUILayout.Space(5);
             
@@ -139,6 +145,105 @@ namespace CinematicShaders.UI
             
             // Make window draggable
             GUI.DragWindow();
+        }
+
+        private void DrawScanButton()
+        {
+            // Check if JSON exists (cache result to avoid file check every frame)
+            if (!_hasCheckedForJson)
+            {
+                string customPath = GetCustomJsonPath();
+                string defaultPath = GetDefaultJsonPath();
+                _jsonExists = File.Exists(customPath) || File.Exists(defaultPath);
+                _hasCheckedForJson = true;
+            }
+            
+            // If JSON exists, don't show scan button
+            if (_jsonExists) return;
+            
+            // Check if catalog is procedural
+            if (!IsCurrentCatalogProcedural()) return;
+            
+            // Show Scan button
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            
+            if (GUILayout.Button(CinematicShadersUIStrings.Kartographer.ScanButton, 
+                GUILayout.Height(30), GUILayout.Width(100)))
+            {
+                ScanCatalog();
+            }
+            
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            
+            GUILayout.Space(5);
+            
+            GUILayout.Label(CinematicShadersUIStrings.Kartographer.ScanHelpText, 
+                CinematicShadersUIResources.Styles.Help());
+            GUILayout.Space(10);
+        }
+
+        private bool IsCurrentCatalogProcedural()
+        {
+            // Get the current catalog path from settings
+            string catalogPath = StarfieldSettings.ActiveCatalogPath;
+            if (string.IsNullOrEmpty(catalogPath)) return false;
+            
+            // Convert to absolute path
+            string absolutePath = Path.Combine(KSPUtil.ApplicationRootPath, catalogPath);
+            if (!File.Exists(absolutePath)) return false;
+            
+            // Use StarCatalogManager to read header and check IsProcedural flag
+            try
+            {
+                var info = StarCatalogManager.ReadCatalogHeader(absolutePath);
+                return info != null && info.IsProcedural;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void ScanCatalog()
+        {
+            try
+            {
+                string catalogPath = StarfieldSettings.ActiveCatalogPath;
+                if (string.IsNullOrEmpty(catalogPath))
+                {
+                    Debug.LogError("[StarCatalogEditor] No active catalog to scan");
+                    return;
+                }
+                
+                string binPath = Path.Combine(KSPUtil.ApplicationRootPath, catalogPath);
+                if (!File.Exists(binPath))
+                {
+                    Debug.LogError($"[StarCatalogEditor] Catalog file not found: {binPath}");
+                    return;
+                }
+                
+                // Generate JSON
+                if (StarCatalogManager.GenerateJsonForProceduralCatalog(binPath))
+                {
+                    Debug.Log($"[StarCatalogEditor] Successfully scanned catalog: {binPath}");
+                    
+                    // Update cached state
+                    _jsonExists = true;
+                    
+                    // Reload to use the new JSON
+                    RefreshStarList();
+                }
+                else
+                {
+                    Debug.LogWarning($"[StarCatalogEditor] Failed to scan catalog (may not be procedural): {binPath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[StarCatalogEditor] Error scanning catalog: {ex.Message}");
+            }
         }
 
         private void DrawCloseButton()
@@ -650,6 +755,8 @@ namespace CinematicShaders.UI
         {
             _isVisible = true;
             InitializePosition();  // Set initial docked position
+            _hasCheckedForJson = false;  // Recheck JSON status
+            _jsonExists = false;
             UpdateFilteredList();  // Refresh in case data changed
         }
 
