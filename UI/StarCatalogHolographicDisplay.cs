@@ -632,12 +632,13 @@ namespace CinematicShaders.UI
                 // DEBUG: ModFileLogger.Log($"[DRAW] _displayRect.x={_displayRect.x}, _displayRect.y={_displayRect.y}, Position4K.x={element.Position4K.x}, Position4K.y={element.Position4K.y}");
 
                 // Flip texture vertically via UV coordinates
+                // DEBUG: Tint red to identify this draw call
                 Graphics.DrawTexture(
                     screenPos,              // dest rect
                     element.TextTexture,    // source texture
                     new Rect(0, 1, 1, -1),  // source UVs: flip Y
                     0, 0, 0, 0,             // border widths
-                    Color.white,            // color
+                    Color.red,              // DEBUG: Tint red to identify
                     null                    // material
                 );
             }
