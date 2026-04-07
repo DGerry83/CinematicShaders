@@ -230,6 +230,9 @@ namespace CinematicShaders.UI
             
             GUILayout.Space(10);
             
+            GUILayout.BeginHorizontal();
+            
+            // Save button - only enabled when changes made
             bool hasChanges = (_editNameText != _originalName);
             GUI.enabled = hasChanges;
             
@@ -239,6 +242,14 @@ namespace CinematicShaders.UI
             }
             
             GUI.enabled = true;
+            
+            // Reset button - reverts to original name from default JSON
+            if (GUILayout.Button(CinematicShadersUIStrings.Kartographer.ResetNameButton, GUILayout.Height(BUTTON_HEIGHT)))
+            {
+                ResetStarName();
+            }
+            
+            GUILayout.EndHorizontal();
         }
         #endregion
 
@@ -301,6 +312,90 @@ namespace CinematicShaders.UI
             catch (Exception ex)
             {
                 Debug.LogError($"[StarCatalogEditor] Failed to save: {ex.Message}");
+            }
+        }
+
+        private void ResetStarName()
+        {
+            if (_selectedStar == null) return;
+            
+            try
+            {
+                // Get the default JSON path (without _Custom suffix)
+                string defaultPath = GetDefaultJsonPath();
+                if (string.IsNullOrEmpty(defaultPath) || !File.Exists(defaultPath))
+                {
+                    Debug.LogError("[StarCatalogEditor] Cannot reset - default JSON not found");
+                    return;
+                }
+                
+                // Read the original name from the default JSON
+                string originalName = GetOriginalNameFromJson(defaultPath, _selectedStar.HipparcosID);
+                if (string.IsNullOrEmpty(originalName))
+                {
+                    Debug.LogWarning($"[StarCatalogEditor] Could not find original name for HIP {_selectedStar.HipparcosID}, using designation");
+                    originalName = $"HIP {_selectedStar.HipparcosID}";
+                }
+                
+                // Ensure custom JSON exists
+                string customPath = GetCustomJsonPath();
+                if (string.IsNullOrEmpty(customPath))
+                {
+                    Debug.LogError("[StarCatalogEditor] Cannot reset - no custom JSON path available");
+                    return;
+                }
+                
+                if (!File.Exists(customPath))
+                {
+                    CreateCustomJson(customPath);
+                }
+                
+                // Modify the JSON with the original name
+                ModifyStarNameInJson(customPath, _selectedStar.HipparcosID, originalName);
+                
+                // Restart Kartographer to force fresh load
+                RestartKartographer();
+                
+                Debug.Log($"[StarCatalogEditor] Reset name for HIP {_selectedStar.HipparcosID} to: {originalName}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[StarCatalogEditor] Failed to reset: {ex.Message}");
+            }
+        }
+
+        private string GetOriginalNameFromJson(string jsonPath, int hipId)
+        {
+            try
+            {
+                string json = File.ReadAllText(jsonPath);
+                
+                // Find the star entry
+                string hipKey = $"\"{hipId}\":";
+                int starStart = json.IndexOf(hipKey);
+                if (starStart < 0) return null;
+                
+                int braceStart = json.IndexOf('{', starStart);
+                int braceEnd = FindMatchingBrace(json, braceStart);
+                if (braceEnd < 0) return null;
+                
+                string starJson = json.Substring(braceStart, braceEnd - braceStart + 1);
+                
+                // Try to get "proper" name first, then "full_designation"
+                string proper = ExtractStringValue(starJson, "proper");
+                if (!string.IsNullOrEmpty(proper))
+                    return proper.ToUpper();
+                
+                string designation = ExtractStringValue(starJson, "full_designation");
+                if (!string.IsNullOrEmpty(designation))
+                    return KartographerSelector.StripDirectionalSuffix(designation);
+                
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[StarCatalogEditor] Failed to read original name: {ex.Message}");
+                return null;
             }
         }
 
@@ -382,6 +477,24 @@ namespace CinematicShaders.UI
             File.WriteAllText(jsonPath, newJson);
             
             Debug.Log($"[StarCatalogEditor] Updated HIP {hipId} name to \"{newName}\" in {jsonPath}");
+        }
+
+        private string ExtractStringValue(string json, string key)
+        {
+            string pattern = "\"" + key + "\"";
+            int keyPos = json.IndexOf(pattern);
+            if (keyPos < 0) return null;
+
+            int colonPos = json.IndexOf(':', keyPos);
+            if (colonPos < 0) return null;
+
+            int quoteStart = json.IndexOf('"', colonPos);
+            if (quoteStart < 0) return null;
+
+            int quoteEnd = json.IndexOf('"', quoteStart + 1);
+            if (quoteEnd < 0) return null;
+
+            return json.Substring(quoteStart + 1, quoteEnd - quoteStart - 1);
         }
 
         private string EscapeJsonString(string s)

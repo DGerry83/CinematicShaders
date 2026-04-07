@@ -275,6 +275,7 @@ namespace CinematicShaders.UI
             public const string ConstellationLabel = "CONSTELLATION:";
             
             public const string SaveButton = "SAVE";
+            public const string ResetNameButton = "RESET";
             public const string EditNamePrompt = "EDIT NAME:";
             
             // Empty States
