@@ -613,8 +613,8 @@ namespace CinematicShaders.UI
 
                 // Use original Y position - flipping is done via UV coordinates
                 Rect screenPos = new Rect(
-                    element.Position4K.x,      // X position
-                    element.Position4K.y,      // Original Y (UV flip handles the coordinate system difference)
+                    _displayRect.x + element.Position4K.x,   // ADD display offset
+                    _displayRect.y + element.Position4K.y,   // ADD display offset
                     element.Position4K.width,
                     element.Position4K.height
                 );
@@ -1369,9 +1369,9 @@ namespace CinematicShaders.UI
             // Clear element texture
             RenderTexture.active = element.TextTexture;
             GL.Clear(true, true, Color.clear);
-            RenderTexture.active = null;
+            // REMOVED: RenderTexture.active = null;  // Keep active for compositing
 
-            // First draw the highlight background
+            // First draw the highlight background (now renders to active RT)
             Graphics.DrawTexture(
                 new Rect(0, 0, element.TextTexture.width, element.TextTexture.height),
                 highlightTex,
@@ -1379,13 +1379,16 @@ namespace CinematicShaders.UI
                 0, 0, 0, 0,
                 new Color(1, 1, 1, 1));
 
-            // Then render black text on top
+            // Then render black text on top (also uses active RT via native UAV)
             StarfieldNative.CR_TextDispatch(
                 _textSystem,
                 element.TextTexture.GetNativeTexturePtr(),
                 glyphCount,
                 element.TextTexture.width,
                 element.TextTexture.height);
+
+            // NOW clear active RT after all operations complete
+            RenderTexture.active = null;
 
             ReleaseHighlightTexture(highlightTex);
         }
