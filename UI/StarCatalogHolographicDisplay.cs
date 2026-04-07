@@ -285,6 +285,7 @@ namespace CinematicShaders.UI
         
         private void OnGUI()
         {
+            ModFileLogger.Log($"[DRAW-FLOW] OnGUI called, _isVisible={_isVisible}");
             if (!_isVisible) return;
             
             InitStyles();
@@ -386,6 +387,7 @@ namespace CinematicShaders.UI
         
         private void DrawCRTDisplay()
         {
+            ModFileLogger.Log("[DRAW-FLOW] DrawCRTDisplay called");
             // Draw black background for CRT area
             GUI.color = Color.black;
             Rect crtRect = new Rect(
@@ -412,8 +414,10 @@ namespace CinematicShaders.UI
                 DrawASCIIBorder();
                 
                 // Update and draw text elements
+                ModFileLogger.Log("[DRAW-FLOW] About to call UpdateElements and DrawElements");
                 UpdateElements();
                 DrawElements();
+                ModFileLogger.Log("[DRAW-FLOW] Back from DrawElements");
             }
         }
         
@@ -427,6 +431,7 @@ namespace CinematicShaders.UI
                 _windowRect.width - BORDER_THICKNESS * 2,
                 _windowRect.height - TITLE_BAR_HEIGHT - BORDER_THICKNESS * 2
             );
+            ModFileLogger.Log($"[DRAW] UpdateDisplayRect: _windowRect={_windowRect}, _displayRect={_displayRect}");
         }
         
         private void ClampWindowToScreen()
@@ -516,6 +521,7 @@ namespace CinematicShaders.UI
 
         private void RenderElement(HolographicTextElement element)
         {
+            ModFileLogger.Log($"[RENDER] RenderElement called for {element.ElementId}");
             ModFileLogger.Log($"[DIAG] RenderElement {element.ElementId}: _textSystem={_textSystem != IntPtr.Zero}");
             if (_textSystem == IntPtr.Zero) {
                 ModFileLogger.Log($"[DIAG] FAIL: _textSystem is null");
@@ -585,12 +591,25 @@ namespace CinematicShaders.UI
 
         private void DrawElements()
         {
-            if (!_displayPowered) return;
+            // DIAGNOSTIC: Log entry point
+            ModFileLogger.Log($"[DRAW] DrawElements called, _elements count={_elements?.Count}, _displayRect={_displayRect}");
+            ModFileLogger.Log($"[DRAW] GUI.matrix={GUI.matrix}");
             
+            if (!_displayPowered) {
+                ModFileLogger.Log("[DRAW] DrawElements: not powered, returning");
+                return;
+            }
+            
+            int visibleCount = 0;
             foreach (var element in _elements.Values)
             {
+                // DIAGNOSTIC: Log element state
+                ModFileLogger.Log($"[DRAW] Element {element.ElementId}: Position4K={element.Position4K}, IsVisible={element.IsVisible}, IsDirty={element.IsDirty}");
+                
                 if (!element.IsVisible) continue;
                 if (element.TextTexture == null) continue;
+                
+                visibleCount++;
 
                 // Use original Y position - flipping is done via UV coordinates
                 Rect screenPos = new Rect(
@@ -599,6 +618,18 @@ namespace CinematicShaders.UI
                     element.Position4K.width,
                     element.Position4K.height
                 );
+
+                // Calculate what the CORRECT position should be (for comparison)
+                Rect correctScreenPos = new Rect(
+                    _displayRect.x + element.Position4K.x,
+                    _displayRect.y + element.Position4K.y,
+                    element.Position4K.width,
+                    element.Position4K.height
+                );
+                
+                // DIAGNOSTIC: Log final screen position before draw
+                ModFileLogger.Log($"[DRAW] Drawing {element.ElementId} at screenPos={screenPos}, correctPos SHOULD BE={correctScreenPos}, textureSize={element.TextTexture.width}x{element.TextTexture.height}");
+                ModFileLogger.Log($"[DRAW] _displayRect.x={_displayRect.x}, _displayRect.y={_displayRect.y}, Position4K.x={element.Position4K.x}, Position4K.y={element.Position4K.y}");
 
                 // Flip texture vertically via UV coordinates
                 Graphics.DrawTexture(
@@ -610,6 +641,8 @@ namespace CinematicShaders.UI
                     null                    // material
                 );
             }
+            
+            ModFileLogger.Log($"[DRAW] DrawElements complete, drew {visibleCount} visible elements");
         }
         #endregion
 
