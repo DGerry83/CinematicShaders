@@ -642,14 +642,18 @@ namespace CinematicShaders.UI
 
                 // Flip texture vertically via UV coordinates
                 // DEBUG: Tint red to identify this draw call
-                Graphics.DrawTexture(
-                    screenPos,              // dest rect
-                    element.TextTexture,    // source texture
-                    new Rect(0, 1, 1, -1),  // source UVs: flip Y
-                    0, 0, 0, 0,             // border widths
-                    Color.red,              // DEBUG: Tint red to identify
-                    null                    // material
-                );
+                // TEST: Only draw during Repaint event
+                if (Event.current.type == EventType.Repaint)
+                {
+                    Graphics.DrawTexture(
+                        screenPos,              // dest rect
+                        element.TextTexture,    // source texture
+                        new Rect(0, 1, 1, -1),  // source UVs: flip Y
+                        0, 0, 0, 0,             // border widths
+                        Color.red,              // DEBUG: Tint red to identify
+                        null                    // material
+                    );
+                }
             }
             
             // DEBUG: ModFileLogger.Log($"[DRAW] DrawElements complete, drew {visibleCount} visible elements");
