@@ -25,6 +25,8 @@ namespace CinematicShaders.UI
         private bool _isVisible = false;
         private bool _displayPowered = false;
         private float _powerOnTime = 0f;
+        private float _borderTypeOnProgress = 0f;
+        private const float BORDER_TYPE_ON_DURATION = 0.5f;
         private HolographicDisplaySize _displaySize = HolographicDisplaySize.Medium;
         private float _fontSize = 24f;
         private float _lineSpacing = 32f;
@@ -475,6 +477,13 @@ namespace CinematicShaders.UI
             }
 
             _powerOnTime += Time.deltaTime;
+            
+            // Update border type-on animation
+            if (_borderTypeOnProgress < 1f)
+            {
+                _borderTypeOnProgress = Mathf.Clamp01(_powerOnTime / BORDER_TYPE_ON_DURATION);
+                InvalidateBorder();  // Mark border dirty to re-render
+            }
 
             foreach (var element in _elements.Values)
             {
@@ -563,7 +572,12 @@ namespace CinematicShaders.UI
             {
                 int visibleChars = Mathf.RoundToInt(fullText.Length * element.TypeOnProgress);
                 visibleChars = Mathf.Clamp(visibleChars, 0, fullText.Length);
-                return fullText.Substring(0, visibleChars) + "^|";
+                
+                // FIX: Return space when no characters visible, cursor only when text has started
+                if (visibleChars == 0)
+                    return " ";  // Space = nothing visible
+                else
+                    return fullText.Substring(0, visibleChars) + "^|";
             }
 
             return fullText;
@@ -571,14 +585,19 @@ namespace CinematicShaders.UI
 
         private void DrawElements()
         {
+            if (!_displayPowered) return;
+            
             foreach (var element in _elements.Values)
             {
                 if (!element.IsVisible) continue;
                 if (element.TextTexture == null) continue;
 
+                // Flip Y coordinate: displayHeight - y - elementHeight
+                float flippedY = _displayRect.height - element.Position4K.y - element.Position4K.height;
+                
                 Rect screenPos = new Rect(
-                    _displayRect.x + element.Position4K.x,
-                    _displayRect.y + element.Position4K.y,
+                    element.Position4K.x,  // X is correct
+                    flippedY,              // Y is flipped
                     element.Position4K.width,
                     element.Position4K.height
                 );
@@ -1102,6 +1121,13 @@ namespace CinematicShaders.UI
             ModFileLogger.Log("[DIAG] PowerOn() called");
             _displayPowered = true;
             _powerOnTime = 0f;
+            _borderTypeOnProgress = 0f;
+            
+            // Show all elements for type-on animation
+            foreach (var element in _elements.Values)
+            {
+                element.IsVisible = true;
+            }
             
             // Mark border as dirty to re-render
             InvalidateBorder();
@@ -1187,6 +1213,7 @@ namespace CinematicShaders.UI
             // Hide all elements immediately
             foreach (var element in _elements.Values)
             {
+                element.IsVisible = false;
                 element.TypeOnProgress = 0f;
                 element.IsDirty = true;
             }
@@ -1644,10 +1671,14 @@ namespace CinematicShaders.UI
                 RenderBorderTexture();
             }
 
-            // Draw the border texture
+            // Draw the border texture with fade-in effect
             if (_borderTexture != null)
             {
+                Color borderColor = GetGridColor();
+                borderColor.a = _borderTypeOnProgress;  // Fade from 0 to 1
+                GUI.color = borderColor;
                 GUI.DrawTexture(_displayRect, _borderTexture);
+                GUI.color = Color.white;
             }
         }
 
