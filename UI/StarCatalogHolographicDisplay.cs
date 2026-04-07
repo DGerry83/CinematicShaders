@@ -511,8 +511,8 @@ namespace CinematicShaders.UI
                     element.IsDirty = true;
                 }
 
-                // Re-render if dirty
-                if (element.IsDirty && element.IsVisible)
+                // Re-render if dirty (only during Repaint to avoid GPU sync issues)
+                if (element.IsDirty && element.IsVisible && Event.current.type == EventType.Repaint)
                 {
                     // Use two-pass selection rendering for selected elements
                     if (element.IsSelected)
@@ -600,8 +600,7 @@ namespace CinematicShaders.UI
 
         private void DrawElements()
         {
-            // DIAGNOSTIC: Log entry point with event type and matrix
-            Debug.Log($"[HolographicDisplay] Instance #{_instanceId} DrawElements called - Event: {Event.current.type}, Matrix: {GUI.matrix}");
+            // DIAGNOSTIC: Log entry point
             // DEBUG: ModFileLogger.Log($"[DRAW] DrawElements called, _elements count={_elements?.Count}, _displayRect={_displayRect}");
             // DEBUG: ModFileLogger.Log($"[DRAW] GUI.matrix={GUI.matrix}");
             
@@ -1739,8 +1738,8 @@ namespace CinematicShaders.UI
         /// </summary>
         private void DrawASCIIBorder()
         {
-            // Ensure border is rendered
-            if (_borderDirty)
+            // Ensure border is rendered (only during Repaint to avoid GPU sync issues)
+            if (_borderDirty && Event.current.type == EventType.Repaint)
             {
                 RenderBorderTexture();
             }
