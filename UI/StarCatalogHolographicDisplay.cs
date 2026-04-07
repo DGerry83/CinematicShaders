@@ -1699,13 +1699,18 @@ namespace CinematicShaders.UI
             // Build border text from lines
             string borderText = string.Join("\n", ASCII_BORDER_LINES);
 
-            // Apply type-on: only show portion based on progress
+            // Apply type-on: only show portion based on progress (with cursor)
             if (_borderTypeOnProgress < 1f)
             {
                 int totalChars = borderText.Length;
                 int visibleChars = Mathf.RoundToInt(totalChars * _borderTypeOnProgress);
                 visibleChars = Mathf.Clamp(visibleChars, 0, totalChars);
-                borderText = borderText.Substring(0, visibleChars);
+                
+                // Add cursor when typing is in progress (like text elements)
+                if (visibleChars == 0)
+                    borderText = " ";  // Space when nothing visible yet
+                else
+                    borderText = borderText.Substring(0, visibleChars) + "^|";
             }
 
             uint color = GetGridColorUint();
