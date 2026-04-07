@@ -1645,6 +1645,15 @@ namespace CinematicShaders.UI
             // Build border text from lines
             string borderText = string.Join("\n", ASCII_BORDER_LINES);
 
+            // Apply type-on: only show portion based on progress
+            if (_borderTypeOnProgress < 1f)
+            {
+                int totalChars = borderText.Length;
+                int visibleChars = Mathf.RoundToInt(totalChars * _borderTypeOnProgress);
+                visibleChars = Mathf.Clamp(visibleChars, 0, totalChars);
+                borderText = borderText.Substring(0, visibleChars);
+            }
+
             uint color = GetGridColorUint();
             float fontSize = _fontSize * 0.8f;
 
@@ -1677,19 +1686,17 @@ namespace CinematicShaders.UI
                 RenderBorderTexture();
             }
 
-            // Draw the border texture with fade-in effect
+            // Draw the border texture - type-on effect is in the text content itself
             if (_borderTexture != null)
             {
-                Color borderColor = GetGridColor();
-                borderColor.a = _borderTypeOnProgress;  // Fade from 0 to 1
-                
-                // Flip texture vertically by swapping UV y coordinates (0,1 -> 1,0)
+                // Remove alpha fade - border types on, doesn't fade
+                // Use full color, the type-on effect is in the text content itself
                 Graphics.DrawTexture(
                     _displayRect,           // dest rect (screen position)
                     _borderTexture,         // source texture
                     new Rect(0, 1, 1, -1),  // source UVs: flip Y (x, y, width, height in UV space)
                     0, 0, 0, 0,             // border widths
-                    borderColor,            // color with alpha for fade
+                    Color.white,            // Full color, no alpha fade
                     null                    // material
                 );
             }
