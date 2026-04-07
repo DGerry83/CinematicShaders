@@ -840,7 +840,9 @@ namespace CinematicShaders.UI.Tabs
                 if (_selector != null)
                 {
                     var stars = GetNamedStarsFromSelector();
-                    _starEditorWindow.Initialize(stars, _selector);
+                    // Get currently selected star (if any) to pre-populate editor
+                    NamedStar preselectedStar = _selector.GetLockedStar();
+                    _starEditorWindow.Initialize(stars, _selector, preselectedStar);
                 }
                 _starEditorWindow.Show();
             }

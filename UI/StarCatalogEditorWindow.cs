@@ -47,11 +47,18 @@ namespace CinematicShaders.UI
         #endregion
 
         #region Initialization
-        public void Initialize(List<NamedStar> stars, KartographerSelector selector)
+        public void Initialize(List<NamedStar> stars, KartographerSelector selector, NamedStar preselectedStar = null)
         {
             _allStars = stars.OrderBy(s => s.Name).ToList();
             _filteredStars = new List<NamedStar>(_allStars);
             _selector = selector;
+            
+            // If there's a preselected star (from catalog), select it in the editor
+            if (preselectedStar != null)
+            {
+                SelectStar(preselectedStar);
+            }
+            
             InitStyles();
         }
 
@@ -232,6 +239,9 @@ namespace CinematicShaders.UI
             _selectedStar = star;
             _originalName = star.Name;
             _editNameText = star.Name;
+            
+            // Also select this star in the Kartographer display
+            _selector?.SelectStarByHipId(star.HipparcosID);
         }
 
         private void SaveStarName()

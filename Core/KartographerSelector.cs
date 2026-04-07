@@ -924,6 +924,45 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
+        /// Select a star by HIP ID for display (as if clicked).
+        /// Called from StarCatalogEditorWindow when user selects a star to edit.
+        /// </summary>
+        public void SelectStarByHipId(int hipId)
+        {
+            if (!_jsonLoaded || _namedStars.Count == 0)
+            {
+                Debug.LogWarning("[KartographerSelector] Cannot select star - JSON not loaded");
+                return;
+            }
+
+            if (_namedStars.TryGetValue(hipId, out var star))
+            {
+                // Set as hovered (for display purposes)
+                _hoveredStar = star;
+                _hoveredStarUV = ProjectStarToUV(star);
+                
+                // Immediately lock it (as if clicked)
+                _lockedStar = star;
+                _starHash = star.HipparcosID * 0.123f;
+                StartAnimationForStar(star);
+                
+                Debug.Log($"[KartographerSelector] Star selected via editor: {star.Name} (HIP {hipId})");
+            }
+            else
+            {
+                Debug.LogWarning($"[KartographerSelector] Cannot select - HIP {hipId} not found");
+            }
+        }
+
+        /// <summary>
+        /// Get the currently locked star (if any)
+        /// </summary>
+        public NamedStar GetLockedStar()
+        {
+            return _lockedStar;
+        }
+
+        /// <summary>
         /// Update projection and push to native plugin
         /// Handles hover/click selection for all named stars
         /// </summary>
