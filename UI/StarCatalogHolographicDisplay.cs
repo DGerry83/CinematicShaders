@@ -599,8 +599,8 @@ namespace CinematicShaders.UI
 
         private void DrawElements()
         {
-            // DIAGNOSTIC: Log entry point
-            Debug.Log($"[HolographicDisplay] Instance #{_instanceId} DrawElements called");
+            // DIAGNOSTIC: Log entry point with event type and matrix
+            Debug.Log($"[HolographicDisplay] Instance #{_instanceId} DrawElements called - Event: {Event.current.type}, Matrix: {GUI.matrix}");
             // DEBUG: ModFileLogger.Log($"[DRAW] DrawElements called, _elements count={_elements?.Count}, _displayRect={_displayRect}");
             // DEBUG: ModFileLogger.Log($"[DRAW] GUI.matrix={GUI.matrix}");
             
