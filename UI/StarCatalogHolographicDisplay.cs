@@ -19,18 +19,18 @@ namespace CinematicShaders.UI
         private const float BORDER_THICKNESS = 8f;    // Grey border around CRT
         private const float TITLE_BAR_HEIGHT = 30f;   // Height for PWR button and X
         private const int WINDOW_ID = 98767;          // Unique window ID
-        private const float MIN_WINDOW_WIDTH = 450f;  // Minimum window width
-        private const float MIN_WINDOW_HEIGHT = 525f; // Minimum window height (approx 450 + title + borders)
         #endregion
 
         #region State
         private bool _isVisible = false;
         private bool _displayPowered = false;
         private float _powerOnTime = 0f;
-        private float _scaleFactor = 1f;
+        private HolographicDisplaySize _displaySize = HolographicDisplaySize.Medium;
+        private float _fontSize = 24f;
+        private float _lineSpacing = 32f;
         
         // IMGUI Window
-        private Rect _windowRect = new Rect(0, 0, 616, 746);  // Includes border and title bar
+        private Rect _windowRect = new Rect(0, 0, 616, 746);  // Will be set based on display size
         private bool _stylesInitialized = false;
         private GUIStyle _titleBarStyle;
         private GUIStyle _closeButtonStyle;
@@ -70,21 +70,24 @@ namespace CinematicShaders.UI
 
         #region Initialization
         public void Initialize(IntPtr sharedTextSystem, float x, float y, 
+            HolographicDisplaySize size = HolographicDisplaySize.Medium,
             string customJsonPath = "", string defaultJsonPath = "")
         {
             _textSystem = sharedTextSystem;
-            _scaleFactor = HolographicLayoutConfig.GetScaleFactor();
+            _displaySize = size;
+            
+            // Get fixed dimensions for the selected size
+            Vector2 dimensions = HolographicLayoutConfig.GetDisplayDimensions(size);
+            _fontSize = HolographicLayoutConfig.GetFontSize(size);
+            _lineSpacing = HolographicLayoutConfig.GetLineSpacing(size);
             
             // Set window position
             _windowRect.x = x;
             _windowRect.y = y;
             
             // Calculate window size based on display size plus borders
-            // Enforce minimum size so content is always visible
-            float displayWidth = Mathf.Max(HolographicLayoutConfig.DISPLAY_WIDTH_4K * _scaleFactor, 
-                MIN_WINDOW_WIDTH - BORDER_THICKNESS * 2);
-            float displayHeight = Mathf.Max(HolographicLayoutConfig.DISPLAY_HEIGHT_4K * _scaleFactor,
-                MIN_WINDOW_HEIGHT - TITLE_BAR_HEIGHT - BORDER_THICKNESS * 2);
+            float displayWidth = dimensions.x;
+            float displayHeight = dimensions.y;
             _windowRect.width = displayWidth + BORDER_THICKNESS * 2;
             _windowRect.height = displayHeight + TITLE_BAR_HEIGHT + BORDER_THICKNESS * 2;
             
@@ -99,8 +102,41 @@ namespace CinematicShaders.UI
             InitializeTextures();
             InitializeBorderTexture();
 
-            Debug.Log($"[HolographicDisplay] Initialized at ({x}, {y}), scale: {_scaleFactor}, " +
+            Debug.Log($"[HolographicDisplay] Initialized at ({x}, {y}), size: {size}, " +
                       $"window: {_windowRect.width}x{_windowRect.height}");
+        }
+        
+        /// <summary>
+        /// Change the display size (Small/Medium/Large)
+        /// </summary>
+        public void SetDisplaySize(HolographicDisplaySize size)
+        {
+            if (_displaySize == size) return;
+            
+            _displaySize = size;
+            
+            // Get new dimensions
+            Vector2 dimensions = HolographicLayoutConfig.GetDisplayDimensions(size);
+            _fontSize = HolographicLayoutConfig.GetFontSize(size);
+            _lineSpacing = HolographicLayoutConfig.GetLineSpacing(size);
+            
+            // Update window size
+            _windowRect.width = dimensions.x + BORDER_THICKNESS * 2;
+            _windowRect.height = dimensions.y + TITLE_BAR_HEIGHT + BORDER_THICKNESS * 2;
+            
+            // Recreate textures for new size
+            CleanupRenderTextures();
+            InitializeTextures();
+            InitializeBorderTexture();
+            
+            // Mark all elements dirty for re-render
+            foreach (var element in _elements.Values)
+            {
+                element.IsDirty = true;
+            }
+            _borderDirty = true;
+            
+            Debug.Log($"[HolographicDisplay] Size changed to: {size}");
         }
 
         private void CreateElements()
@@ -182,9 +218,10 @@ namespace CinematicShaders.UI
 
         private void InitializeTextures()
         {
-            // Create display texture (scaled size)
-            int width = Mathf.RoundToInt(HolographicLayoutConfig.DISPLAY_WIDTH_4K * _scaleFactor);
-            int height = Mathf.RoundToInt(HolographicLayoutConfig.DISPLAY_HEIGHT_4K * _scaleFactor);
+            // Create display texture at fixed size
+            Vector2 dimensions = HolographicLayoutConfig.GetDisplayDimensions(_displaySize);
+            int width = Mathf.RoundToInt(dimensions.x);
+            int height = Mathf.RoundToInt(dimensions.y);
 
             _displayTexture = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32);
             _displayTexture.enableRandomWrite = true;
@@ -199,14 +236,46 @@ namespace CinematicShaders.UI
 
         private void CreateElementTexture(HolographicTextElement element)
         {
-            // Element textures at scaled size
-            Rect scaled = element.ScaledPosition(_scaleFactor);
-            int width = Mathf.Max(64, Mathf.RoundToInt(scaled.width));
-            int height = Mathf.Max(32, Mathf.RoundToInt(scaled.height));
+            // Element textures at fixed size
+            int width = Mathf.Max(64, Mathf.RoundToInt(element.Position4K.width));
+            int height = Mathf.Max(32, Mathf.RoundToInt(element.Position4K.height));
 
             element.TextTexture = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32);
             element.TextTexture.enableRandomWrite = true;
             element.TextTexture.Create();
+        }
+        
+        /// <summary>
+        /// Clean up all render textures before recreating them
+        /// </summary>
+        private void CleanupRenderTextures()
+        {
+            // Release display texture
+            if (_displayTexture != null)
+            {
+                _displayTexture.Release();
+                Destroy(_displayTexture);
+                _displayTexture = null;
+            }
+            
+            // Release element textures
+            foreach (var element in _elements.Values)
+            {
+                if (element.TextTexture != null)
+                {
+                    element.TextTexture.Release();
+                    Destroy(element.TextTexture);
+                    element.TextTexture = null;
+                }
+            }
+            
+            // Release border texture
+            if (_borderTexture != null)
+            {
+                _borderTexture.Release();
+                Destroy(_borderTexture);
+                _borderTexture = null;
+            }
         }
         #endregion
 
@@ -442,8 +511,7 @@ namespace CinematicShaders.UI
             uint color = GetGridColorUint();
 
             // Layout text in native system
-            float fontSize = HolographicLayoutConfig.FONT_SIZE_4K * _scaleFactor;
-            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, text, fontSize, color);
+            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, text, _fontSize, color);
 
             if (glyphCount <= 0) return;
 
@@ -483,12 +551,11 @@ namespace CinematicShaders.UI
                 if (!element.IsVisible) continue;
                 if (element.TextTexture == null) continue;
 
-                Rect scaledPos = element.ScaledPosition(_scaleFactor);
                 Rect screenPos = new Rect(
-                    _displayRect.x + scaledPos.x,
-                    _displayRect.y + scaledPos.y,
-                    scaledPos.width,
-                    scaledPos.height
+                    _displayRect.x + element.Position4K.x,
+                    _displayRect.y + element.Position4K.y,
+                    element.Position4K.width,
+                    element.Position4K.height
                 );
 
                 GUI.DrawTexture(screenPos, element.TextTexture);
@@ -1202,9 +1269,8 @@ namespace CinematicShaders.UI
 
             // Pass 2: Render text in BLACK color
             uint blackColor = 0xFF000000;  // ARGB black
-            float fontSize = HolographicLayoutConfig.FONT_SIZE_4K * _scaleFactor;
 
-            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, text, fontSize, blackColor);
+            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, text, _fontSize, blackColor);
             if (glyphCount <= 0) return;
 
             // Clear element texture
@@ -1236,9 +1302,8 @@ namespace CinematicShaders.UI
         /// </summary>
         private RenderTexture GetHighlightTexture(HolographicTextElement element)
         {
-            Rect scaled = element.ScaledPosition(_scaleFactor);
-            int width = Mathf.Max(64, Mathf.RoundToInt(scaled.width));
-            int height = Mathf.Max(32, Mathf.RoundToInt(scaled.height));
+            int width = Mathf.Max(64, Mathf.RoundToInt(element.Position4K.width));
+            int height = Mathf.Max(32, Mathf.RoundToInt(element.Position4K.height));
 
             // Check if we can reuse cached texture
             if (_cachedHighlightTexture != null &&
@@ -1308,12 +1373,11 @@ namespace CinematicShaders.UI
         {
             if (!element.IsVisible) return false;
 
-            Rect scaledPos = element.ScaledPosition(_scaleFactor);
             Rect screenPos = new Rect(
-                _displayRect.x + scaledPos.x,
-                _displayRect.y + scaledPos.y,
-                scaledPos.width,
-                scaledPos.height
+                _displayRect.x + element.Position4K.x,
+                _displayRect.y + element.Position4K.y,
+                element.Position4K.width,
+                element.Position4K.height
             );
 
             return screenPos.Contains(_mousePosition);
@@ -1497,8 +1561,9 @@ namespace CinematicShaders.UI
         {
             if (_borderTexture != null) return;
 
-            int width = Mathf.RoundToInt(HolographicLayoutConfig.DISPLAY_WIDTH_4K * _scaleFactor);
-            int height = Mathf.RoundToInt(HolographicLayoutConfig.DISPLAY_HEIGHT_4K * _scaleFactor);
+            Vector2 dimensions = HolographicLayoutConfig.GetDisplayDimensions(_displaySize);
+            int width = Mathf.RoundToInt(dimensions.x);
+            int height = Mathf.RoundToInt(dimensions.y);
 
             _borderTexture = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32);
             _borderTexture.enableRandomWrite = true;
@@ -1521,7 +1586,7 @@ namespace CinematicShaders.UI
             string borderText = string.Join("\n", ASCII_BORDER_LINES);
 
             uint color = GetGridColorUint();
-            float fontSize = HolographicLayoutConfig.FONT_SIZE_4K * _scaleFactor * 0.8f;
+            float fontSize = _fontSize * 0.8f;
 
             // Layout the border text
             int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, borderText, fontSize, color);
@@ -1627,8 +1692,8 @@ namespace CinematicShaders.UI
             Color borderColor = GetGridColor();
             GUI.color = borderColor;
 
-            float lineHeight = HolographicLayoutConfig.LINE_SPACING_4K * _scaleFactor;
-            float charWidth = 14f * _scaleFactor;  // Approximate monospace char width
+            float lineHeight = _lineSpacing;
+            float charWidth = 14f;  // Approximate monospace char width
             float artWidth = SCAN_ASCII_ART[0].Length * charWidth;
             float artHeight = SCAN_ASCII_ART.Length * lineHeight;
 
@@ -1636,7 +1701,7 @@ namespace CinematicShaders.UI
             float startY = _displayRect.y + (_displayRect.height - artHeight) * 0.5f;
 
             GUIStyle scanStyle = new GUIStyle();
-            scanStyle.fontSize = Mathf.RoundToInt(HolographicLayoutConfig.FONT_SIZE_4K * _scaleFactor * 0.9f);
+            scanStyle.fontSize = Mathf.RoundToInt(_fontSize * 0.9f);
             scanStyle.normal.textColor = borderColor;
 
             for (int i = 0; i < SCAN_ASCII_ART.Length; i++)
@@ -1722,8 +1787,8 @@ namespace CinematicShaders.UI
             Color borderColor = GetGridColor();
             GUI.color = borderColor;
 
-            float lineHeight = HolographicLayoutConfig.LINE_SPACING_4K * _scaleFactor;
-            float charWidth = 14f * _scaleFactor;
+            float lineHeight = _lineSpacing;
+            float charWidth = 14f;
             float artWidth = CONFIRM_ASCII_ART[0].Length * charWidth;
             float artHeight = CONFIRM_ASCII_ART.Length * lineHeight;
 
@@ -1731,7 +1796,7 @@ namespace CinematicShaders.UI
             float startY = _displayRect.y + (_displayRect.height - artHeight) * 0.5f;
 
             GUIStyle confirmStyle = new GUIStyle();
-            confirmStyle.fontSize = Mathf.RoundToInt(HolographicLayoutConfig.FONT_SIZE_4K * _scaleFactor * 0.85f);
+            confirmStyle.fontSize = Mathf.RoundToInt(_fontSize * 0.85f);
             confirmStyle.normal.textColor = borderColor;
 
             for (int i = 0; i < CONFIRM_ASCII_ART.Length; i++)

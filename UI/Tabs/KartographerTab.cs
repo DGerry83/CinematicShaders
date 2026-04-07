@@ -1,6 +1,7 @@
 using CinematicShaders.Core;
 using CinematicShaders.Native;
 using CinematicShaders.Shaders.Starfield;
+using CinematicShaders.UI;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -1059,8 +1060,24 @@ namespace CinematicShaders.UI.Tabs
                 string customPath = _selector?.CustomJsonPath ?? "";
                 string defaultPath = _selector?.DefaultJsonPath ?? "";
                 
-                // Initialize
-                _holographicDisplay.Initialize(textSystem, x, y, customPath, defaultPath);
+                // Map StarConsoleMode to HolographicDisplaySize
+                HolographicDisplaySize size = HolographicDisplaySize.Medium;
+                switch (_consoleMode)
+                {
+                    case StarConsoleMode.Small:
+                        size = HolographicDisplaySize.Small;
+                        break;
+                    case StarConsoleMode.Large:
+                        size = HolographicDisplaySize.Large;
+                        break;
+                    case StarConsoleMode.Medium:
+                    default:
+                        size = HolographicDisplaySize.Medium;
+                        break;
+                }
+                
+                // Initialize with selected size
+                _holographicDisplay.Initialize(textSystem, x, y, size, customPath, defaultPath);
                 
                 // Set selector for bidirectional sync
                 _holographicDisplay.SetSelector(_selector);

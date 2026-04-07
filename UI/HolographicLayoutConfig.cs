@@ -3,22 +3,91 @@ using UnityEngine;
 namespace CinematicShaders.UI
 {
     /// <summary>
+    /// Display size presets for the holographic star catalog.
+    /// Users manually select the size that works best for their preference.
+    /// </summary>
+    public enum HolographicDisplaySize
+    {
+        Small,   // 450x525 - compact
+        Medium,  // 600x700 - default
+        Large    // 800x933 - maximum readability
+    }
+
+    /// <summary>
     /// Layout configuration for the holographic star catalog display.
-    /// All positions are based on 4K reference resolution (3840x2160).
+    /// Fixed sizes that users manually select based on preference.
     /// </summary>
     public static class HolographicLayoutConfig
     {
-        // Base 4K resolution
-        public const float BASE_WIDTH = 3840f;
-        public const float BASE_HEIGHT = 2160f;
+        // Fixed display sizes (no auto-scaling)
+        public const float DISPLAY_WIDTH_SMALL = 450f;
+        public const float DISPLAY_HEIGHT_SMALL = 525f;
+        
+        public const float DISPLAY_WIDTH_MEDIUM = 600f;
+        public const float DISPLAY_HEIGHT_MEDIUM = 700f;
+        
+        public const float DISPLAY_WIDTH_LARGE = 800f;
+        public const float DISPLAY_HEIGHT_LARGE = 933f;
 
-        // Display size at 4K (will be scaled)
-        public const float DISPLAY_WIDTH_4K = 600f;
-        public const float DISPLAY_HEIGHT_4K = 700f;
+        // Font sizes for each display size
+        public const float FONT_SIZE_SMALL = 18f;
+        public const float FONT_SIZE_MEDIUM = 24f;
+        public const float FONT_SIZE_LARGE = 32f;
+        
+        public const float LINE_SPACING_SMALL = 24f;
+        public const float LINE_SPACING_MEDIUM = 32f;
+        public const float LINE_SPACING_LARGE = 42f;
 
-        // Font size at 4K
-        public const float FONT_SIZE_4K = 24f;
-        public const float LINE_SPACING_4K = 32f;
+        /// <summary>
+        /// Get display dimensions for the selected size
+        /// </summary>
+        public static Vector2 GetDisplayDimensions(HolographicDisplaySize size)
+        {
+            switch (size)
+            {
+                case HolographicDisplaySize.Small:
+                    return new Vector2(DISPLAY_WIDTH_SMALL, DISPLAY_HEIGHT_SMALL);
+                case HolographicDisplaySize.Large:
+                    return new Vector2(DISPLAY_WIDTH_LARGE, DISPLAY_HEIGHT_LARGE);
+                case HolographicDisplaySize.Medium:
+                default:
+                    return new Vector2(DISPLAY_WIDTH_MEDIUM, DISPLAY_HEIGHT_MEDIUM);
+            }
+        }
+
+        /// <summary>
+        /// Get font size for the selected display size
+        /// </summary>
+        public static float GetFontSize(HolographicDisplaySize size)
+        {
+            switch (size)
+            {
+                case HolographicDisplaySize.Small:
+                    return FONT_SIZE_SMALL;
+                case HolographicDisplaySize.Large:
+                    return FONT_SIZE_LARGE;
+                case HolographicDisplaySize.Medium:
+                default:
+                    return FONT_SIZE_MEDIUM;
+            }
+        }
+
+        /// <summary>
+        /// Get line spacing for the selected display size
+        /// </summary>
+        public static float GetLineSpacing(HolographicDisplaySize size)
+        {
+            switch (size)
+            {
+                case HolographicDisplaySize.Small:
+                    return LINE_SPACING_SMALL;
+                case HolographicDisplaySize.Large:
+                    return LINE_SPACING_LARGE;
+                case HolographicDisplaySize.Medium:
+                default:
+                    return LINE_SPACING_MEDIUM;
+            }
+        }
 
         // ASCII border characters
         public const char BORDER_TOP_LEFT = '╔';
@@ -69,53 +138,5 @@ namespace CinematicShaders.UI
             return new Rect(380, 120 + (index * 32), 200, 32);
         }
 
-        // Scaling helper
-        public static float GetScaleFactor()
-        {
-            float scale = Screen.height / BASE_HEIGHT;
-            return Mathf.Clamp(scale, 0.33f, 1.5f);  // Min 720p, max 150%
-        }
-
-        /// <summary>
-        /// Scale a rect from 4K reference coordinates to target resolution
-        /// </summary>
-        public static Rect ScaleRect(Rect rect4K, float scaleFactor)
-        {
-            return new Rect(
-                rect4K.x * scaleFactor,
-                rect4K.y * scaleFactor,
-                rect4K.width * scaleFactor,
-                rect4K.height * scaleFactor
-            );
-        }
-
-        /// <summary>
-        /// Get display rect at current scale positioned at x, y
-        /// </summary>
-        public static Rect GetDisplayRect(float x, float y, float scaleFactor)
-        {
-            return new Rect(
-                x,
-                y,
-                DISPLAY_WIDTH_4K * scaleFactor,
-                DISPLAY_HEIGHT_4K * scaleFactor
-            );
-        }
-
-        /// <summary>
-        /// Get scaled font size for current resolution
-        /// </summary>
-        public static float GetScaledFontSize(float scaleFactor)
-        {
-            return FONT_SIZE_4K * scaleFactor;
-        }
-
-        /// <summary>
-        /// Get scaled line spacing for current resolution
-        /// </summary>
-        public static float GetScaledLineSpacing(float scaleFactor)
-        {
-            return LINE_SPACING_4K * scaleFactor;
-        }
     }
 }
