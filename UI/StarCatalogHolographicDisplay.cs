@@ -285,7 +285,7 @@ namespace CinematicShaders.UI
         
         private void OnGUI()
         {
-            ModFileLogger.Log($"[DRAW-FLOW] OnGUI called, _isVisible={_isVisible}");
+            // DEBUG: ModFileLogger.Log($"[DRAW-FLOW] OnGUI called, _isVisible={_isVisible}");
             if (!_isVisible) return;
             
             InitStyles();
@@ -387,7 +387,7 @@ namespace CinematicShaders.UI
         
         private void DrawCRTDisplay()
         {
-            ModFileLogger.Log("[DRAW-FLOW] DrawCRTDisplay called");
+            // DEBUG: ModFileLogger.Log("[DRAW-FLOW] DrawCRTDisplay called");
             // Draw black background for CRT area
             GUI.color = Color.black;
             Rect crtRect = new Rect(
@@ -414,10 +414,10 @@ namespace CinematicShaders.UI
                 DrawASCIIBorder();
                 
                 // Update and draw text elements
-                ModFileLogger.Log("[DRAW-FLOW] About to call UpdateElements and DrawElements");
+                // DEBUG: ModFileLogger.Log("[DRAW-FLOW] About to call UpdateElements and DrawElements");
                 UpdateElements();
                 DrawElements();
-                ModFileLogger.Log("[DRAW-FLOW] Back from DrawElements");
+                // DEBUG: ModFileLogger.Log("[DRAW-FLOW] Back from DrawElements");
             }
         }
         
@@ -431,7 +431,7 @@ namespace CinematicShaders.UI
                 _windowRect.width - BORDER_THICKNESS * 2,
                 _windowRect.height - TITLE_BAR_HEIGHT - BORDER_THICKNESS * 2
             );
-            ModFileLogger.Log($"[DRAW] UpdateDisplayRect: _windowRect={_windowRect}, _displayRect={_displayRect}");
+            // DEBUG: ModFileLogger.Log($"[DRAW] UpdateDisplayRect: _windowRect={_windowRect}, _displayRect={_displayRect}");
         }
         
         private void ClampWindowToScreen()
@@ -475,9 +475,9 @@ namespace CinematicShaders.UI
 
         private void UpdateElements()
         {
-            ModFileLogger.Log($"[DIAG] UpdateElements: _displayPowered={_displayPowered}, element count={_elements?.Count}");
+            // DEBUG: ModFileLogger.Log($"[DIAG] UpdateElements: _displayPowered={_displayPowered}, element count={_elements?.Count}");
             if (!_displayPowered) {
-                ModFileLogger.Log("[DIAG] FAIL: not powered on");
+                // DEBUG: ModFileLogger.Log("[DIAG] FAIL: not powered on");
                 return;
             }
 
@@ -492,7 +492,7 @@ namespace CinematicShaders.UI
 
             foreach (var element in _elements.Values)
             {
-                ModFileLogger.Log($"[DIAG] Element {element.ElementId}: IsDirty={element.IsDirty}, IsVisible={element.IsVisible}, TypeOnProgress={element.TypeOnProgress}");
+                // DEBUG: ModFileLogger.Log($"[DIAG] Element {element.ElementId}: IsDirty={element.IsDirty}, IsVisible={element.IsVisible}, TypeOnProgress={element.TypeOnProgress}");
 
                 // Update type-on animation
                 if (_powerOnTime >= element.TypeOnDelay && element.TypeOnProgress < 1f)
@@ -521,24 +521,24 @@ namespace CinematicShaders.UI
 
         private void RenderElement(HolographicTextElement element)
         {
-            ModFileLogger.Log($"[RENDER] RenderElement called for {element.ElementId}");
-            ModFileLogger.Log($"[DIAG] RenderElement {element.ElementId}: _textSystem={_textSystem != IntPtr.Zero}");
+            // DEBUG: ModFileLogger.Log($"[RENDER] RenderElement called for {element.ElementId}");
+            // DEBUG: ModFileLogger.Log($"[DIAG] RenderElement {element.ElementId}: _textSystem={_textSystem != IntPtr.Zero}");
             if (_textSystem == IntPtr.Zero) {
-                ModFileLogger.Log($"[DIAG] FAIL: _textSystem is null");
+                // DEBUG: ModFileLogger.Log($"[DIAG] FAIL: _textSystem is null");
                 return;
             }
             
-            ModFileLogger.Log($"[DIAG] {element.ElementId}: TextTexture={element.TextTexture != null}");
+            // DEBUG: ModFileLogger.Log($"[DIAG] {element.ElementId}: TextTexture={element.TextTexture != null}");
             if (element.TextTexture == null) {
-                ModFileLogger.Log($"[DIAG] FAIL: TextTexture is null");
+                // DEBUG: ModFileLogger.Log($"[DIAG] FAIL: TextTexture is null");
                 return;
             }
 
             // Get text to render (with type-on truncation)
             string text = GetDisplayText(element);
-            ModFileLogger.Log($"[DIAG] {element.ElementId}: text='{text}', length={text?.Length}");
+            // DEBUG: ModFileLogger.Log($"[DIAG] {element.ElementId}: text='{text}', length={text?.Length}");
             if (string.IsNullOrEmpty(text)) {
-                ModFileLogger.Log($"[DIAG] FAIL: text is empty");
+                // DEBUG: ModFileLogger.Log($"[DIAG] FAIL: text is empty");
                 return;
             }
 
@@ -547,13 +547,13 @@ namespace CinematicShaders.UI
 
             // Layout text in native system
             int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, text, _fontSize, color);
-            ModFileLogger.Log($"[DIAG] {element.ElementId}: glyphCount={glyphCount}");
+            // DEBUG: ModFileLogger.Log($"[DIAG] {element.ElementId}: glyphCount={glyphCount}");
             if (glyphCount <= 0) {
-                ModFileLogger.Log($"[DIAG] FAIL: glyphCount <= 0");
+                // DEBUG: ModFileLogger.Log($"[DIAG] FAIL: glyphCount <= 0");
                 return;
             }
 
-            ModFileLogger.Log($"[DIAG] {element.ElementId}: Calling CR_TextDispatch");
+            // DEBUG: ModFileLogger.Log($"[DIAG] {element.ElementId}: Calling CR_TextDispatch");
 
             // Clear texture
             RenderTexture.active = element.TextTexture;
@@ -592,11 +592,11 @@ namespace CinematicShaders.UI
         private void DrawElements()
         {
             // DIAGNOSTIC: Log entry point
-            ModFileLogger.Log($"[DRAW] DrawElements called, _elements count={_elements?.Count}, _displayRect={_displayRect}");
-            ModFileLogger.Log($"[DRAW] GUI.matrix={GUI.matrix}");
+            // DEBUG: ModFileLogger.Log($"[DRAW] DrawElements called, _elements count={_elements?.Count}, _displayRect={_displayRect}");
+            // DEBUG: ModFileLogger.Log($"[DRAW] GUI.matrix={GUI.matrix}");
             
             if (!_displayPowered) {
-                ModFileLogger.Log("[DRAW] DrawElements: not powered, returning");
+                // DEBUG: ModFileLogger.Log("[DRAW] DrawElements: not powered, returning");
                 return;
             }
             
@@ -604,7 +604,7 @@ namespace CinematicShaders.UI
             foreach (var element in _elements.Values)
             {
                 // DIAGNOSTIC: Log element state
-                ModFileLogger.Log($"[DRAW] Element {element.ElementId}: Position4K={element.Position4K}, IsVisible={element.IsVisible}, IsDirty={element.IsDirty}");
+                // DEBUG: ModFileLogger.Log($"[DRAW] Element {element.ElementId}: Position4K={element.Position4K}, IsVisible={element.IsVisible}, IsDirty={element.IsDirty}");
                 
                 if (!element.IsVisible) continue;
                 if (element.TextTexture == null) continue;
@@ -628,8 +628,8 @@ namespace CinematicShaders.UI
                 );
                 
                 // DIAGNOSTIC: Log final screen position before draw
-                ModFileLogger.Log($"[DRAW] Drawing {element.ElementId} at screenPos={screenPos}, correctPos SHOULD BE={correctScreenPos}, textureSize={element.TextTexture.width}x{element.TextTexture.height}");
-                ModFileLogger.Log($"[DRAW] _displayRect.x={_displayRect.x}, _displayRect.y={_displayRect.y}, Position4K.x={element.Position4K.x}, Position4K.y={element.Position4K.y}");
+                // DEBUG: ModFileLogger.Log($"[DRAW] Drawing {element.ElementId} at screenPos={screenPos}, correctPos SHOULD BE={correctScreenPos}, textureSize={element.TextTexture.width}x{element.TextTexture.height}");
+                // DEBUG: ModFileLogger.Log($"[DRAW] _displayRect.x={_displayRect.x}, _displayRect.y={_displayRect.y}, Position4K.x={element.Position4K.x}, Position4K.y={element.Position4K.y}");
 
                 // Flip texture vertically via UV coordinates
                 Graphics.DrawTexture(
@@ -642,7 +642,7 @@ namespace CinematicShaders.UI
                 );
             }
             
-            ModFileLogger.Log($"[DRAW] DrawElements complete, drew {visibleCount} visible elements");
+            // DEBUG: ModFileLogger.Log($"[DRAW] DrawElements complete, drew {visibleCount} visible elements");
         }
         #endregion
 
@@ -1144,7 +1144,7 @@ namespace CinematicShaders.UI
 
         private void TogglePower()
         {
-            ModFileLogger.Log($"[DIAG] TogglePower: current={_displayPowered}");
+            // DEBUG: ModFileLogger.Log($"[DIAG] TogglePower: current={_displayPowered}");
             if (_displayPowered)
             {
                 PowerOff();
@@ -1157,7 +1157,7 @@ namespace CinematicShaders.UI
 
         private void PowerOn()
         {
-            ModFileLogger.Log("[DIAG] PowerOn() called");
+            // DEBUG: ModFileLogger.Log("[DIAG] PowerOn() called");
             _displayPowered = true;
             _powerOnTime = 0f;
             _borderTypeOnProgress = 0f;
