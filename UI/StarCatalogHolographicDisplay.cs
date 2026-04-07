@@ -1385,13 +1385,16 @@ namespace CinematicShaders.UI
             GL.Clear(true, true, Color.clear);
             // REMOVED: RenderTexture.active = null;  // Keep active for compositing
 
-            // First draw the highlight background (now renders to active RT)
-            Graphics.DrawTexture(
-                new Rect(0, 0, element.TextTexture.width, element.TextTexture.height),
-                highlightTex,
-                new Rect(0, 0, 1, 1),
-                0, 0, 0, 0,
-                new Color(1, 1, 1, 1));
+            // First draw the highlight background (now renders to active RT) - only during Repaint
+            if (Event.current.type == EventType.Repaint)
+            {
+                Graphics.DrawTexture(
+                    new Rect(0, 0, element.TextTexture.width, element.TextTexture.height),
+                    highlightTex,
+                    new Rect(0, 0, 1, 1),
+                    0, 0, 0, 0,
+                    new Color(1, 1, 1, 1));
+            }
 
             // Then render black text on top (also uses active RT via native UAV)
             StarfieldNative.CR_TextDispatch(
@@ -1738,7 +1741,7 @@ namespace CinematicShaders.UI
             }
 
             // Draw the border texture - type-on effect is in the text content itself
-            if (_borderTexture != null)
+            if (_borderTexture != null && Event.current.type == EventType.Repaint)
             {
                 // Remove alpha fade - border types on, doesn't fade
                 // Use full color, the type-on effect is in the text content itself
