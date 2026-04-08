@@ -1070,7 +1070,7 @@ namespace CinematicShaders.Core
             
             // Check holographic display
             var holographic = FindHolographicDisplay();
-            if (holographic != null && holographic.IsVisible && holographic.DisplayRect.Contains(mousePos))
+            if (holographic != null && holographic.IsVisible && holographic.WindowRect.Contains(mousePos))
             {
                 return true;
             }

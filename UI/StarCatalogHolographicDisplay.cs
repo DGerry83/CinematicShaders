@@ -410,41 +410,6 @@ namespace CinematicShaders.UI
             
             // Make window draggable
             GUI.DragWindow();
-            
-            // Consume unhandled mouse events to prevent click-through to game world
-            // This must be called AFTER all window controls have processed events
-            ConsumeMouseEventsIfOverWindow();
-        }
-        
-        /// <summary>
-        /// Consume mouse events when over the window to prevent click-through to game.
-        /// This matches the behavior of GUILayout.Window which consumes events automatically.
-        /// Must be called AFTER window controls (buttons, drag) have processed events.
-        /// </summary>
-        private void ConsumeMouseEventsIfOverWindow()
-        {
-            // Skip if event was already used by a control (button, drag, etc.)
-            if (Event.current.type == EventType.Used)
-                return;
-            
-            EventType eventType = Event.current.type;
-            bool isMouseEvent = (eventType == EventType.MouseDown || 
-                                 eventType == EventType.MouseUp || 
-                                 eventType == EventType.MouseDrag || 
-                                 eventType == EventType.ScrollWheel);
-            
-            if (!isMouseEvent) return;
-            
-            // Event.mousePosition is window-relative inside GUI.Window
-            Vector2 mousePos = Event.current.mousePosition;
-            
-            // Check against window rect (window-relative coordinates)
-            // _windowRect inside GUI.Window is effectively (0, 0, width, height)
-            if (mousePos.x >= 0 && mousePos.x <= _windowRect.width &&
-                mousePos.y >= 0 && mousePos.y <= _windowRect.height)
-            {
-                Event.current.Use();
-            }
         }
         
         private void DrawTitleBar()
