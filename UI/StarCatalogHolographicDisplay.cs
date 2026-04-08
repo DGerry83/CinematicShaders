@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using static FinePrint.ContractDefs;
 
 namespace CinematicShaders.UI
 {
@@ -91,13 +92,13 @@ namespace CinematicShaders.UI
         private static readonly string[] MAIN_LAYER2_LINES = new string[]
         {
             "                                                           ",
-            "                                                           ",
             "  HIP:                                                     ",
             "  NAME:                                                    ",
             "  DISTANCE:                                                ",
             "  SPECTRAL:                                                ",
             "  MAG:                                                     ",
             "  CONST:                                                   ",
+            "                                                           ",
             "                                                           ",
             "                                                           ",
             "  SEARCH                                                   ",
@@ -1857,6 +1858,41 @@ namespace CinematicShaders.UI
             "║                                  ║║                     ║",
             "║                                  ║║                     ║",
             "╚══════════════════════════════════╩╩═════════════════════╝"
+        };
+
+        // CONFIRM layer 1
+        private static readonly string[] ASCII_BORDER_LINES_CONFIRM = new string[]
+        {
+            "╔════════════════════[ARE YOU SURE?]══════════════════════╗",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "╚═════════════════════════════════════════════════════════╝"
+        };
+        // SCAN layer 1
+        private static readonly string[] ASCII_BORDER_LINES_SCAN = new string[]
+        {
+            "╔═══════════════════════[NO DATA]═════════════════════════╗",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "╚═════════════════════════════════════════════════════════╝"
         };
 
         // Render texture for the border - uses native text system
