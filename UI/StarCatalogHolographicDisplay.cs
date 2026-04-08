@@ -238,9 +238,6 @@ namespace CinematicShaders.UI
             AddElement("rescan_button", TextElementType.Label, "", "[RESCAN]", HolographicLayoutConfig.RESCAN_BUTTON_POS, 1.7f);
             AddElement("selected_star", TextElementType.Value, "", "", HolographicLayoutConfig.SELECTED_STAR_POS, 1.8f);
 
-            // Results header
-            AddElement("results_header", TextElementType.Header, "", "RESULTS", HolographicLayoutConfig.RESULTS_HEADER_POS, 2.0f);
-
             // Add SAVE and RESET buttons (if not already present)
             if (!_elements.ContainsKey("save_button"))
             {
@@ -1378,14 +1375,6 @@ namespace CinematicShaders.UI
                     elem.IsDirty = true;
                     currentDelay += 0.1f;
                 }
-            }
-            
-            // Results header and rows
-            if (_elements.TryGetValue("results_header", out var headerElem))
-            {
-                headerElem.TypeOnDelay = currentDelay;
-                headerElem.TypeOnProgress = 0f;
-                headerElem.IsDirty = true;
             }
             
             Debug.Log("[HolographicDisplay] Power ON - type-on animation started");
