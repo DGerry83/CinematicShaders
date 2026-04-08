@@ -223,28 +223,17 @@ namespace CinematicShaders.UI
         private void CreateElements()
         {
             // FIELD ORDER: HIP, NAME, DISTANCE, SPECTRAL, MAGNITUDE, CONSTELLATION
-            // All labels and values in ALL CAPS
+            // NOTE: Labels are now rendered in Layer 2 (combined border+labels texture)
+            // Only value fields and interactive elements are created here (Layer 3)
 
-            AddElement("hip_label", TextElementType.Label, "HIP:", "", HolographicLayoutConfig.HIP_LABEL_POS, 0f);
             AddElement("hip_value", TextElementType.Value, "", "", HolographicLayoutConfig.HIP_VALUE_POS, 0.1f);
-
-            AddElement("name_label", TextElementType.Label, "NAME:", "", HolographicLayoutConfig.NAME_LABEL_POS, 0.2f);
             AddElement("name_value", TextElementType.Editable, "", "", HolographicLayoutConfig.NAME_VALUE_POS, 0.3f);
-
-            AddElement("distance_label", TextElementType.Label, "DISTANCE:", "", HolographicLayoutConfig.DISTANCE_LABEL_POS, 0.4f);
             AddElement("distance_value", TextElementType.Value, "", "", HolographicLayoutConfig.DISTANCE_VALUE_POS, 0.5f);
-
-            AddElement("spectral_label", TextElementType.Label, "SPECTRAL:", "", HolographicLayoutConfig.SPECTRAL_LABEL_POS, 0.6f);
             AddElement("spectral_value", TextElementType.Value, "", "", HolographicLayoutConfig.SPECTRAL_VALUE_POS, 0.7f);
-
-            AddElement("mag_label", TextElementType.Label, "MAG:", "", HolographicLayoutConfig.MAG_LABEL_POS, 0.8f);
             AddElement("mag_value", TextElementType.Value, "", "", HolographicLayoutConfig.MAG_VALUE_POS, 0.9f);
-
-            AddElement("const_label", TextElementType.Label, "CONST:", "", HolographicLayoutConfig.CONST_LABEL_POS, 1.0f);
             AddElement("const_value", TextElementType.Value, "", "", HolographicLayoutConfig.CONST_VALUE_POS, 1.1f);
 
-            // Search elements
-            AddElement("search_label", TextElementType.Label, "SEARCH", "", HolographicLayoutConfig.SEARCH_LABEL_POS, 1.5f);
+            // Search elements (Layer 3 - interactive)
             AddElement("search_input", TextElementType.Input, "", "...", HolographicLayoutConfig.SEARCH_INPUT_POS, 1.6f);
             AddElement("rescan_button", TextElementType.Label, "", "[RESCAN]", HolographicLayoutConfig.RESCAN_BUTTON_POS, 1.7f);
             AddElement("selected_star", TextElementType.Value, "", "", HolographicLayoutConfig.SELECTED_STAR_POS, 1.8f);
@@ -525,7 +514,10 @@ namespace CinematicShaders.UI
                 default: // ScreenState.Main
                     if (_displayPowered)
                     {
-                        // Layer 2: Border + labels
+                        // Layer 1: Border only (from ASCII_BORDER_LINES)
+                        DrawASCIIBorder();
+                        
+                        // Layer 2: Labels only (from MAIN_LAYER2_LINES)
                         DrawLayer2(_mainBorderLabelsTexture, MAIN_LAYER2_LINES, ref _mainBorderLabelsDirty);
                         
                         // Layer 3: Value fields (existing elements)
@@ -1310,19 +1302,9 @@ namespace CinematicShaders.UI
             // First: Border (if we had it as an element - currently it's a separate texture)
             // Border renders immediately when powered on
             
-            // Second: Labels (HIP, NAME, DISTANCE, etc.)
-            string[] labelIds = { "hip_label", "name_label", "distance_label", 
-                                  "spectral_label", "mag_label", "const_label" };
-            foreach (var id in labelIds)
-            {
-                if (_elements.TryGetValue(id, out var elem))
-                {
-                    elem.TypeOnDelay = currentDelay;
-                    elem.TypeOnProgress = 0f;
-                    elem.IsDirty = true;
-                    currentDelay += 0.15f;  // 150ms between labels
-                }
-            }
+            // Second: Labels (HIP, NAME, DISTANCE, etc.) are now in Layer 2 texture
+            // They type on as part of the combined border+labels texture
+            // No individual element animation needed
             
             // Third: Values (only if we have a selected star)
             if (_selectedStar != null)
@@ -1351,7 +1333,7 @@ namespace CinematicShaders.UI
             
             // Search elements come after
             currentDelay += 0.3f;
-            string[] searchIds = { "search_label", "search_input", "rescan_button" };
+            string[] searchIds = { "search_input", "rescan_button" };
             foreach (var id in searchIds)
             {
                 if (_elements.TryGetValue(id, out var elem))
