@@ -501,6 +501,9 @@ namespace CinematicShaders.UI
                 case ScreenState.Scan:
                     if (_displayPowered)
                     {
+                        // Layer 1: Border only
+                        DrawASCIIBorder(ASCII_BORDER_LINES_SCAN);
+                        
                         // Layer 2: Border + SCAN ASCII art
                         DrawLayer2(_scanBorderLabelsTexture, SCAN_LAYER2_LINES, ref _scanBorderLabelsDirty);
                         
@@ -512,6 +515,9 @@ namespace CinematicShaders.UI
                 case ScreenState.ConfirmRescan:
                     if (_displayPowered)
                     {
+                        // Layer 1: Border only
+                        DrawASCIIBorder(ASCII_BORDER_LINES_CONFIRM);
+                        
                         // Layer 2: Border + labels
                         DrawLayer2(_confirmBorderLabelsTexture, CONFIRM_LAYER2_LINES, ref _confirmBorderLabelsDirty);
                         // Layer 3: YES/NO buttons with highlight
@@ -524,7 +530,7 @@ namespace CinematicShaders.UI
                     if (_displayPowered)
                     {
                         // Layer 1: Border only (from ASCII_BORDER_LINES)
-                        DrawASCIIBorder();
+                        DrawASCIIBorder(ASCII_BORDER_LINES);
                         
                         // Layer 2: Labels only (from MAIN_LAYER2_LINES)
                         DrawLayer2(_mainBorderLabelsTexture, MAIN_LAYER2_LINES, ref _mainBorderLabelsDirty);
@@ -1937,7 +1943,7 @@ namespace CinematicShaders.UI
         /// <summary>
         /// Render the ASCII border using native text system
         /// </summary>
-        private void RenderBorderTexture()
+        private void RenderBorderTexture(string[] borderLines)
         {
             if (_textSystem == IntPtr.Zero) return;
             if (_borderTexture == null) InitializeBorderTexture();
@@ -1946,7 +1952,7 @@ namespace CinematicShaders.UI
             _borderDirty = false;
 
             // Build border text from lines
-            string borderText = string.Join("\n", ASCII_BORDER_LINES);
+            string borderText = string.Join("\n", borderLines);
 
             // Apply type-on: only show portion based on progress (with cursor)
             // Spaces skip - they appear immediately without consuming type-on time
@@ -1986,12 +1992,12 @@ namespace CinematicShaders.UI
         /// <summary>
         /// Draw the full ASCII border with native text rendering
         /// </summary>
-        private void DrawASCIIBorder()
+        private void DrawASCIIBorder(string[] borderLines)
         {
             // Ensure border is rendered (only during Repaint to avoid GPU sync issues)
             if (_borderDirty && Event.current.type == EventType.Repaint)
             {
-                RenderBorderTexture();
+                RenderBorderTexture(borderLines);
             }
 
             // Draw the border texture - type-on effect is in the text content itself
@@ -2130,6 +2136,9 @@ namespace CinematicShaders.UI
             
             // 4. Reset element animations
             ResetAllElementAnimations();
+            
+            // 5. Mark border as needing re-render for new screen
+            _borderDirty = true;
             
             // 5. Mark new screen's Layer 2 dirty and set visibility flags
             switch (newScreen)
