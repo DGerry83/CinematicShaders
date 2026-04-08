@@ -19,15 +19,16 @@ namespace CinematicShaders.UI
     /// </summary>
     public static class HolographicLayoutConfig
     {
-        // Fixed display sizes (no auto-scaling)
-        public const float DISPLAY_WIDTH_SMALL = 450f;
-        public const float DISPLAY_HEIGHT_SMALL = 525f;
+        // Fixed display sizes (all same aspect ratio as Large)
+        // Large is the reference: 825x450 = 1.833 ratio
+        public const float DISPLAY_WIDTH_SMALL = 550f;     // 300x1.833
+        public const float DISPLAY_HEIGHT_SMALL = 300f;    // Compact height
         
-        public const float DISPLAY_WIDTH_MEDIUM = 600f;
-        public const float DISPLAY_HEIGHT_MEDIUM = 700f;
+        public const float DISPLAY_WIDTH_MEDIUM = 733f;    // 400x1.833
+        public const float DISPLAY_HEIGHT_MEDIUM = 400f;   // Medium height
         
-        public const float DISPLAY_WIDTH_LARGE = 825f;   // +25px wider
-        public const float DISPLAY_HEIGHT_LARGE = 450f;  // 450px tall target
+        public const float DISPLAY_WIDTH_LARGE = 825f;     // Reference
+        public const float DISPLAY_HEIGHT_LARGE = 450f;    // Reference
 
         // Font sizes for each display size
         public const float FONT_SIZE_SMALL = 18f;

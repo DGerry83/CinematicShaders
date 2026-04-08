@@ -1,5 +1,7 @@
 using CinematicShaders.Core;
 using CinematicShaders.Native;
+using CinematicShaders.UI.Screens;
+using CinematicShaders.UI.Screens.Layers;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -70,12 +72,13 @@ namespace CinematicShaders.UI
 
         // Render textures for composite output
         private RenderTexture _displayTexture = null;
+        
+        // Screen manager for screen state handling
+        private ScreenManager _screenManager;
         #endregion
 
-        #region Screen State
-        private enum ScreenState { Main, Scan, ConfirmRescan }
-        private ScreenState _currentScreen = ScreenState.Main;
-        #endregion
+        // Note: ScreenState enum is now in CinematicShaders.UI.Screens namespace
+        // Screen state is managed by ScreenManager
 
         #region Layer 2 Textures (Border + Labels)
         // Layer 2: Combined border + labels textures per screen
@@ -162,31 +165,23 @@ namespace CinematicShaders.UI
             HolographicDisplaySize size = HolographicDisplaySize.Medium,
             string customJsonPath = "", string defaultJsonPath = "")
         {
-            // DEBUG: Assign instance ID
             _instanceId = ++s_instanceCount;
-            Debug.Log($"[HolographicDisplay] Instance #{_instanceId} initialized");
-            
             _textSystem = sharedTextSystem;
-            _displaySize = size;
             
-            // Get fixed dimensions for the selected size
+            // Calculate display dimensions based on size
             Vector2 dimensions = HolographicLayoutConfig.GetDisplayDimensions(size);
+            _displayRect = new Rect(x, y, dimensions.x, dimensions.y);
+            
+            // Set window size including border
+            _windowRect = new Rect(
+                x, y,
+                dimensions.x + BORDER_THICKNESS * 2,
+                dimensions.y + TITLE_BAR_HEIGHT + BORDER_THICKNESS * 2
+            );
+            
             _fontSize = HolographicLayoutConfig.GetFontSize(size);
             _lineSpacing = HolographicLayoutConfig.GetLineSpacing(size);
-            
-            // Set window position
-            _windowRect.x = x;
-            _windowRect.y = y;
-            
-            // Calculate window size based on display size plus borders
-            float displayWidth = dimensions.x;
-            float displayHeight = dimensions.y;
-            _windowRect.width = displayWidth + BORDER_THICKNESS * 2;
-            _windowRect.height = displayHeight + TITLE_BAR_HEIGHT + BORDER_THICKNESS * 2;
-            
-            // Initial display rect (will be updated in DrawWindow)
-            _displayRect = new Rect(x + BORDER_THICKNESS, y + TITLE_BAR_HEIGHT + BORDER_THICKNESS,
-                displayWidth, displayHeight);
+            _displaySize = size;
             
             _customJsonPath = customJsonPath;
             _defaultJsonPath = defaultJsonPath;
@@ -194,9 +189,51 @@ namespace CinematicShaders.UI
             CreateElements();
             InitializeTextures();
             InitializeBorderTexture();
-
+            
+            // NEW: Initialize ScreenManager
+            _screenManager = new ScreenManager(_textSystem);
+            _screenManager.InitializeTextures(
+                Mathf.RoundToInt(dimensions.x), 
+                Mathf.RoundToInt(dimensions.y));
+            InitializeScreens();
+            
+            // NEW: Detect JSON and set initial screen
+            bool hasValidData = !string.IsNullOrEmpty(customJsonPath) && 
+                                System.IO.File.Exists(customJsonPath);
+            var initialState = hasValidData ? ScreenState.Main : ScreenState.Scan;
+            _screenManager.TransitionTo(initialState, new ScreenTransitionContext { 
+                IsInitialStartup = true 
+            });
+            
             Debug.Log($"[HolographicDisplay] Initialized at ({x}, {y}), size: {size}, " +
-                      $"window: {_windowRect.width}x{_windowRect.height}");
+                      $"dataAvailable: {hasValidData}, initialScreen: {initialState}");
+        }
+        
+        private void InitializeScreens()
+        {
+            float aspectRatio = 0.667f; // 2:3 aspect ratio for text rendering
+            
+            // Main screen
+            var mainScreen = new MainScreen(ASCII_BORDER_LINES, MAIN_LAYER2_LINES, _fontSize, aspectRatio);
+            _screenManager.RegisterScreen(mainScreen);
+            
+            // Scan screen
+            var scanScreen = new ScanScreen(ASCII_BORDER_LINES_SCAN, SCAN_LAYER2_LINES, _fontSize, aspectRatio);
+            scanScreen.OnScanClicked += () => {
+                ShowRescanConfirmation();
+            };
+            _screenManager.RegisterScreen(scanScreen);
+            
+            // Confirm screen
+            var confirmScreen = new ConfirmRescanScreen(ASCII_BORDER_LINES_CONFIRM, CONFIRM_LAYER2_LINES, _fontSize, aspectRatio);
+            confirmScreen.OnYesClicked += () => {
+                OnRescanConfirmed?.Invoke();
+                _screenManager.TransitionTo(ScreenState.Main);
+            };
+            confirmScreen.OnNoClicked += () => {
+                _screenManager.TransitionTo(ScreenState.Main);
+            };
+            _screenManager.RegisterScreen(confirmScreen);
         }
         
         /// <summary>
@@ -484,7 +521,7 @@ namespace CinematicShaders.UI
         private void DrawCRTDisplay()
         {
             // DEBUG: ModFileLogger.Log("[DRAW-FLOW] DrawCRTDisplay called");
-            // Draw black background for CRT area (Layer 1)
+            // Draw black background for CRT area (Layer 0)
             GUI.color = Color.black;
             Rect crtRect = new Rect(
                 BORDER_THICKNESS, 
@@ -495,50 +532,39 @@ namespace CinematicShaders.UI
             GUI.DrawTexture(crtRect, Texture2D.whiteTexture);
             GUI.color = Color.white;
             
-            // 3-Layer rendering based on current screen state
-            switch (_currentScreen)
+            // Render current screen via ScreenManager
+            if (_displayPowered && _screenManager != null)
+            {
+                _screenManager.Render(_displayRect);
+                
+                // Handle screen-specific interactions
+                HandleScreenInteractions();
+            }
+        }
+        
+        private void HandleScreenInteractions()
+        {
+            if (_screenManager?.CurrentScreen == null) return;
+            
+            var currentState = _screenManager.CurrentScreen.State;
+            Vector2 mousePos = Event.current.mousePosition;
+            bool mouseDown = Event.current.type == EventType.MouseDown && Event.current.button == 0;
+            bool mouseUp = Event.current.type == EventType.MouseUp && Event.current.button == 0;
+            
+            switch (currentState)
             {
                 case ScreenState.Scan:
-                    if (_displayPowered)
-                    {
-                        // Layer 1: Border only
-                        DrawASCIIBorder(ASCII_BORDER_LINES_SCAN);
-                        
-                        // Layer 2: Border + SCAN ASCII art
-                        DrawLayer2(_scanBorderLabelsTexture, SCAN_LAYER2_LINES, ref _scanBorderLabelsDirty);
-                        
-                        // Handle click detection on SCAN art during Layout event
-                        HandleScanScreenClick();
-                    }
+                    var scanScreen = _screenManager.CurrentScreen as ScanScreen;
+                    scanScreen?.HandleClick(mousePos, _displayRect);
                     break;
                     
                 case ScreenState.ConfirmRescan:
-                    if (_displayPowered)
-                    {
-                        // Layer 1: Border only
-                        DrawASCIIBorder(ASCII_BORDER_LINES_CONFIRM);
-                        
-                        // Layer 2: Border + labels
-                        DrawLayer2(_confirmBorderLabelsTexture, CONFIRM_LAYER2_LINES, ref _confirmBorderLabelsDirty);
-                        // Layer 3: YES/NO buttons with highlight
-                        RenderConfirmButtons();
-                        HandleConfirmScreenInteraction();
-                    }
+                    var confirmScreen = _screenManager.CurrentScreen as ConfirmRescanScreen;
+                    confirmScreen?.UpdateInteraction(mousePos, _displayRect, mouseDown, mouseUp);
                     break;
                     
-                default: // ScreenState.Main
-                    if (_displayPowered)
-                    {
-                        // Layer 1: Border only (from ASCII_BORDER_LINES)
-                        DrawASCIIBorder(ASCII_BORDER_LINES);
-                        
-                        // Layer 2: Labels only (from MAIN_LAYER2_LINES)
-                        DrawLayer2(_mainBorderLabelsTexture, MAIN_LAYER2_LINES, ref _mainBorderLabelsDirty);
-                        
-                        // Layer 3: Value fields (existing elements)
-                        UpdateElements();
-                        DrawElements();
-                    }
+                case ScreenState.Main:
+                    // Main screen interactions handled separately via element system
                     break;
             }
         }
@@ -1335,27 +1361,23 @@ namespace CinematicShaders.UI
 
         private void PowerOn()
         {
-            // DEBUG: ModFileLogger.Log("[DIAG] PowerOn() called");
             _displayPowered = true;
             
             // Check if JSON catalog exists - if not, show SCAN screen
             if (!HasJsonCatalog())
             {
-                TransitionToScreen(ScreenState.Scan);
+                _screenManager?.TransitionTo(ScreenState.Scan);
                 Debug.Log("[HolographicDisplay] Power ON - No JSON catalog found, showing SCAN screen");
                 return;
             }
             
             // Transition to Main screen with animation reset
-            TransitionToScreen(ScreenState.Main);
+            _screenManager?.TransitionTo(ScreenState.Main);
 
             // Reset type-on animation with proper sequence:
             // 1. Border (Layer 1): 0s - 2s
             // 2. Labels (Layer 2): 2s - 4s  
             // 3. Values (Layer 3): 4s+ (only if star selected)
-            
-            // Layer 1 & 2 are handled by _layer1TypeOnProgress and _layer2TypeOnProgress
-            // They are already reset in TransitionToScreen()
             
             // Layer 3: Values (only if we have a selected star) - start after Layer 2
             float currentDelay = LAYER_3_DELAY;
@@ -1548,6 +1570,10 @@ namespace CinematicShaders.UI
                 Destroy(_confirmBorderLabelsTexture);
                 _confirmBorderLabelsTexture = null;
             }
+
+            // Shutdown ScreenManager
+            _screenManager?.Shutdown();
+            _screenManager = null;
 
             // Note: We don't shut down _textSystem here because it's shared
         }
@@ -1788,7 +1814,6 @@ namespace CinematicShaders.UI
                     EnterEditMode();
                     break;
                 case "rescan_button":
-                case "scan_ascii":
                     ShowRescanConfirmation();
                     break;
                 case "save_button":
@@ -2116,92 +2141,21 @@ namespace CinematicShaders.UI
 
         #region Screen Transition
 
+        /*
+         * NOTE: Screen transition logic is now handled by ScreenManager.
+         * The following methods have been replaced:
+         * - TransitionToScreen() -> _screenManager.TransitionTo()
+         * - HideCurrentScreenElements() -> Handled in individual screen OnExit()
+         * - ResetAllElementAnimations() -> Handled in BaseScreen.OnEnter()
+         * 
+         * Obsolete fields removed:
+         * - _currentScreen -> Use _screenManager.CurrentState
+         * - _showingScanScreen -> Check _screenManager.CurrentState == ScreenState.Scan
+         * - _showingConfirmation -> Check _screenManager.CurrentState == ScreenState.ConfirmRescan
+         */
+        
         /// <summary>
-        /// Transition to a new screen with proper animation reset.
-        /// This is the ONLY way to change screens - never set _currentScreen directly.
-        /// </summary>
-        private void TransitionToScreen(ScreenState newScreen)
-        {
-            // 1. Hide current screen elements
-            HideCurrentScreenElements();
-            
-            // 2. Switch screen state
-            _currentScreen = newScreen;
-            
-            // 3. Reset animation timers
-            _powerOnTime = 0f;
-            _layer1TypeOnProgress = 0f;
-            _layer2TypeOnProgress = 0f;
-            _borderTypeOnProgress = 0f;
-            
-            // 4. Reset element animations
-            ResetAllElementAnimations();
-            
-            // 5. Mark border as needing re-render for new screen
-            _borderDirty = true;
-            
-            // 5. Mark new screen's Layer 2 dirty and set visibility flags
-            switch (newScreen)
-            {
-                case ScreenState.Main:
-                    _mainBorderLabelsDirty = true;
-                    _showingScanScreen = false;
-                    _showingConfirmation = false;
-                    // Show main elements
-                    foreach (var element in _elements.Values)
-                    {
-                        element.IsVisible = true;
-                    }
-                    break;
-                case ScreenState.Scan:
-                    _scanBorderLabelsDirty = true;
-                    _showingScanScreen = true;
-                    _showingConfirmation = false;
-                    // Hide all main elements for scan screen
-                    foreach (var element in _elements.Values)
-                    {
-                        element.IsVisible = false;
-                    }
-                    break;
-                case ScreenState.ConfirmRescan:
-                    _confirmBorderLabelsDirty = true;
-                    _showingConfirmation = true;
-                    // Scan screen may be showing underneath confirmation
-                    // Don't change _showingScanScreen - confirmation is a dialog overlay
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// Hide current screen elements before transitioning
-        /// </summary>
-        private void HideCurrentScreenElements()
-        {
-            switch (_currentScreen)
-            {
-                case ScreenState.Main:
-                    // Hide all main screen value elements
-                    foreach (var element in _elements.Values)
-                    {
-                        element.IsVisible = false;
-                        element.TypeOnProgress = 0f;
-                    }
-                    break;
-                case ScreenState.Scan:
-                    // Scan screen has no value elements to hide
-                    // Just reset the pressed state
-                    _scanPressed = false;
-                    break;
-                case ScreenState.ConfirmRescan:
-                    // Hide confirm buttons
-                    _confirmYesSelected = false;
-                    _confirmNoSelected = false;
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// Reset all element animations for fresh type-on effect
+        /// Reset all element animations for fresh type-on effect (kept for PowerOn)
         /// </summary>
         private void ResetAllElementAnimations()
         {
@@ -2211,10 +2165,6 @@ namespace CinematicShaders.UI
                 element.TypeOnProgress = 0f;
                 element.IsDirty = true;
             }
-            
-            // Reset confirm screen state
-            _confirmYesSelected = false;
-            _confirmNoSelected = false;
         }
 
         #endregion
@@ -2249,7 +2199,7 @@ namespace CinematicShaders.UI
         /// </summary>
         public void ShowScanScreen()
         {
-            TransitionToScreen(ScreenState.Scan);
+            _screenManager?.TransitionTo(ScreenState.Scan);
             Debug.Log("[HolographicDisplay] Showing SCAN screen with animation reset");
         }
 
@@ -2258,104 +2208,23 @@ namespace CinematicShaders.UI
         /// </summary>
         public void HideScanScreen()
         {
-            TransitionToScreen(ScreenState.Main);
+            _screenManager?.TransitionTo(ScreenState.Main);
             Debug.Log("[HolographicDisplay] Hiding SCAN screen, returning to Main");
         }
 
-        /// <summary>
-        /// Draw SCAN screen if active
-        /// </summary>
+        /* OBSOLETE: Scan screen drawing is now handled by ScanScreen class
         private void DrawScanScreen()
         {
-            if (!_showingScanScreen) return;
-
-            // Draw centered SCAN ASCII art
-            Color borderColor = GetGridColor();
-            GUI.color = borderColor;
-
-            float lineHeight = _lineSpacing;
-            float charWidth = 14f;  // Approximate monospace char width
-            float artWidth = SCAN_ASCII_ART[0].Length * charWidth;
-            float artHeight = SCAN_ASCII_ART.Length * lineHeight;
-
-            float startX = _displayRect.x + (_displayRect.width - artWidth) * 0.5f;
-            float startY = _displayRect.y + (_displayRect.height - artHeight) * 0.5f;
-
-            GUIStyle scanStyle = new GUIStyle();
-            scanStyle.fontSize = Mathf.RoundToInt(_fontSize * 0.9f);
-            scanStyle.normal.textColor = borderColor;
-
-            for (int i = 0; i < SCAN_ASCII_ART.Length; i++)
-            {
-                Rect lineRect = new Rect(
-                    startX,
-                    startY + (i * lineHeight),
-                    artWidth,
-                    lineHeight
-                );
-                GUI.Label(lineRect, SCAN_ASCII_ART[i], scanStyle);
-            }
-
-            // Make the ASCII art clickable
-            Rect artRect = new Rect(startX, startY, artWidth, artHeight);
-            if (GUI.Button(artRect, "", GUIStyle.none))
-            {
-                ShowRescanConfirmation();
-            }
-
-            GUI.color = Color.white;
+            // Handled by ScanScreen class via ScreenManager
         }
+        */
 
-        /// <summary>
-        /// Handle click detection on SCAN screen - triggers rescan when SCAN art is clicked
-        /// </summary>
+        /* OBSOLETE: Scan screen click handling is now done in ScanScreen.HandleClick()
         private void HandleScanScreenClick()
         {
-            // Calculate SCAN box bounds (centered 38x8 character box)
-            float lineHeight = _lineSpacing;
-            float charWidth = 14f;  // Approximate monospace char width
-            int scanWidthChars = 38;  // Width of SCAN_LAYER2_LINES[0]
-            int scanHeightLines = 8;  // Number of lines in SCAN_LAYER2_LINES
-            
-            float artWidth = scanWidthChars * charWidth;
-            float artHeight = scanHeightLines * lineHeight;
-
-            float startX = _displayRect.x + (_displayRect.width - artWidth) * 0.5f;
-            float startY = _displayRect.y + (_displayRect.height - artHeight) * 0.5f;
-
-            Rect scanBoxRect = new Rect(startX, startY, artWidth, artHeight);
-            
-            // Check if mouse is within SCAN box bounds (during non-repaint events for responsiveness)
-            Vector2 mousePos = Event.current.mousePosition;
-            if (scanBoxRect.Contains(mousePos))
-            {
-                // Handle mouse down/up for click detection
-                if (Event.current.type == EventType.MouseDown && Event.current.button == 0)
-                {
-                    _scanPressed = true;
-                }
-                else if (Event.current.type == EventType.MouseUp && Event.current.button == 0)
-                {
-                    if (_scanPressed)
-                    {
-                        // Click detected on SCAN art - trigger rescan and transition to Main
-                        Debug.Log("[HolographicDisplay] SCAN art clicked - triggering rescan");
-                        OnRescanConfirmed?.Invoke();
-                        // Transition to Main screen after triggering rescan
-                        TransitionToScreen(ScreenState.Main);
-                    }
-                    _scanPressed = false;
-                }
-            }
-            else
-            {
-                // Mouse outside SCAN box - cancel press
-                if (Event.current.type == EventType.MouseUp)
-                {
-                    _scanPressed = false;
-                }
-            }
+            // Handled by ScanScreen class
         }
+        */
 
         #endregion
 
@@ -2383,194 +2252,31 @@ namespace CinematicShaders.UI
             return new Rect(startX, startY, boxWidth, boxHeight);
         }
         
-        /// <summary>
-        /// Handle YES/NO button interaction on Confirm screen
-        /// </summary>
+        /* OBSOLETE: Confirm screen interaction is now handled by ConfirmRescanScreen.UpdateInteraction()
         private void HandleConfirmScreenInteraction()
         {
-            Rect confirmBoxRect = GetConfirmBoxRect();
-            Vector2 mousePos = Event.current.mousePosition;
-            
-            // Calculate button positions within the confirm box
-            float lineHeight = _lineSpacing;
-            float charWidth = CONFIRM_CHAR_WIDTH;
-            
-            // YES button at character position (3, 10) within the box
-            float yesX = confirmBoxRect.x + (charWidth * 3);
-            float yesY = confirmBoxRect.y + (lineHeight * 10);
-            float buttonWidth = charWidth * 6;  // "[YES]" is 6 chars
-            float buttonHeight = lineHeight;
-            
-            Rect yesRect = new Rect(yesX, yesY, buttonWidth, buttonHeight);
-            
-            // NO button at character position (47, 10) within the box
-            float noX = confirmBoxRect.x + (charWidth * 47);
-            float noY = confirmBoxRect.y + (lineHeight * 10);
-            Rect noRect = new Rect(noX, noY, buttonWidth, buttonHeight);
-            
-            // Check hover states
-            bool wasYesSelected = _confirmYesSelected;
-            bool wasNoSelected = _confirmNoSelected;
-            
-            _confirmYesSelected = yesRect.Contains(mousePos);
-            _confirmNoSelected = noRect.Contains(mousePos);
-            
-            // Mark for re-render if hover state changed
-            if (_confirmYesSelected != wasYesSelected || _confirmNoSelected != wasNoSelected)
-            {
-                // Buttons are rendered as part of Layer 3 (handled separately)
-            }
-            
-            // Handle mouse clicks
-            if (Event.current.type == EventType.MouseDown && Event.current.button == 0)
-            {
-                if (_confirmYesSelected)
-                {
-                    ConfirmRescan();
-                }
-                else if (_confirmNoSelected)
-                {
-                    HideRescanConfirmation();
-                }
-            }
+            // Handled by ConfirmRescanScreen class
         }
+        */
         
-        /// <summary>
-        /// Render YES/NO buttons with highlight state (Layer 3)
-        /// </summary>
+        /* OBSOLETE: Confirm buttons rendering is now handled by ConfirmRescanScreen
         private void RenderConfirmButtons()
         {
-            // Only render during Repaint event
-            if (Event.current.type != EventType.Repaint) return;
-            
-            Rect confirmBoxRect = GetConfirmBoxRect();
-            float lineHeight = _lineSpacing;
-            float charWidth = CONFIRM_CHAR_WIDTH;
-            
-            // YES button position
-            float yesX = confirmBoxRect.x + (charWidth * 3);
-            float yesY = confirmBoxRect.y + (lineHeight * 10);
-            float buttonWidth = charWidth * 6;
-            float buttonHeight = lineHeight;
-            
-            Rect yesRect = new Rect(yesX, yesY, buttonWidth, buttonHeight);
-            
-            // NO button position
-            float noX = confirmBoxRect.x + (charWidth * 47);
-            float noY = confirmBoxRect.y + (lineHeight * 10);
-            Rect noRect = new Rect(noX, noY, buttonWidth, buttonHeight);
-            
-            // Render YES button with highlight if selected
-            if (_confirmYesSelected)
-            {
-                RenderConfirmButtonHighlighted(yesRect, "[YES]");
-            }
-            else
-            {
-                RenderConfirmButtonNormal(yesRect, "[YES]");
-            }
-            
-            // Render NO button with highlight if selected
-            if (_confirmNoSelected)
-            {
-                RenderConfirmButtonHighlighted(noRect, "[NO]");
-            }
-            else
-            {
-                RenderConfirmButtonNormal(noRect, "[NO]");
-            }
+            // Handled by ConfirmRescanScreen class
         }
+        */
         
-        /// <summary>
-        /// Render a confirmation button in normal state
-        /// </summary>
+        /* OBSOLETE: Button rendering is now handled by ConfirmRescanScreen
         private void RenderConfirmButtonNormal(Rect rect, string text)
         {
-            if (_textSystem == IntPtr.Zero) return;
-            
-            // Use temporary texture for button
-            RenderTexture buttonTexture = RenderTexture.GetTemporary(
-                Mathf.RoundToInt(rect.width), 
-                Mathf.RoundToInt(rect.height), 
-                0, 
-                RenderTextureFormat.ARGB32);
-            buttonTexture.enableRandomWrite = true;
-            
-            uint color = GetGridColorUint();
-            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, text, _fontSize, 
-                color, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
-            if (glyphCount > 0)
-            {
-                RenderTexture.active = buttonTexture;
-                GL.Clear(true, true, Color.clear);
-                RenderTexture.active = null;
-                
-                StarfieldNative.CR_TextDispatch(
-                    _textSystem,
-                    buttonTexture.GetNativeTexturePtr(),
-                    glyphCount,
-                    buttonTexture.width,
-                    buttonTexture.height);
-                
-                Graphics.DrawTexture(
-                    rect,
-                    buttonTexture,
-                    new Rect(0, 1, 1, -1),
-                    0, 0, 0, 0,
-                    Color.white,
-                    null);
-            }
-            
-            RenderTexture.ReleaseTemporary(buttonTexture);
+            // Handled by ConfirmRescanScreen class
         }
         
-        /// <summary>
-        /// Render a confirmation button with highlight background (2-pass selection rendering)
-        /// </summary>
         private void RenderConfirmButtonHighlighted(Rect rect, string text)
         {
-            if (_textSystem == IntPtr.Zero) return;
-            
-            // Use temporary texture for button
-            RenderTexture buttonTexture = RenderTexture.GetTemporary(
-                Mathf.RoundToInt(rect.width), 
-                Mathf.RoundToInt(rect.height), 
-                0, 
-                RenderTextureFormat.ARGB32);
-            buttonTexture.enableRandomWrite = true;
-            
-            // Pass 1: Render highlight background
-            RenderTexture.active = buttonTexture;
-            Color highlightColor = GetGridColor();
-            highlightColor.a = 0.3f;
-            GL.Clear(true, true, highlightColor);
-            RenderTexture.active = null;
-            
-            // Pass 2: Render black text on top
-            uint blackColor = 0xFF000000;  // ARGB black
-            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, text, _fontSize, 
-                blackColor, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
-            if (glyphCount > 0)
-            {
-                StarfieldNative.CR_TextDispatch(
-                    _textSystem,
-                    buttonTexture.GetNativeTexturePtr(),
-                    glyphCount,
-                    buttonTexture.width,
-                    buttonTexture.height);
-            }
-            
-            // Draw to screen
-            Graphics.DrawTexture(
-                rect,
-                buttonTexture,
-                new Rect(0, 1, 1, -1),
-                0, 0, 0, 0,
-                Color.white,
-                null);
-            
-            RenderTexture.ReleaseTemporary(buttonTexture);
+            // Handled by ConfirmRescanScreen class
         }
+        */
         
         #endregion
 
@@ -2606,7 +2312,7 @@ namespace CinematicShaders.UI
         /// </summary>
         private void ShowRescanConfirmation()
         {
-            TransitionToScreen(ScreenState.ConfirmRescan);
+            _screenManager?.TransitionTo(ScreenState.ConfirmRescan);
             Debug.Log("[HolographicDisplay] Showing rescan confirmation dialog");
         }
 
@@ -2615,7 +2321,7 @@ namespace CinematicShaders.UI
         /// </summary>
         private void HideRescanConfirmation()
         {
-            TransitionToScreen(ScreenState.Main);
+            _screenManager?.TransitionTo(ScreenState.Main);
             Debug.Log("[HolographicDisplay] Hiding confirmation dialog, returning to Main");
         }
 
@@ -2624,76 +2330,17 @@ namespace CinematicShaders.UI
         /// </summary>
         private void ConfirmRescan()
         {
-            // Trigger rescan
             OnRescanConfirmed?.Invoke();
-            // Transition to Main screen with animation reset
-            TransitionToScreen(ScreenState.Main);
+            _screenManager?.TransitionTo(ScreenState.Main);
             Debug.Log("[HolographicDisplay] Rescan confirmed - transitioning to Main");
         }
 
-        /// <summary>
-        /// Draw confirmation dialog if active
-        /// </summary>
+        /* OBSOLETE: Confirmation dialog drawing is now handled by ConfirmRescanScreen class
         private void DrawConfirmationDialog()
         {
-            if (!_showingConfirmation) return;
-
-            // Draw semi-transparent overlay
-            GUI.color = new Color(0, 0, 0, 0.8f);
-            GUI.DrawTexture(_displayRect, Texture2D.whiteTexture);
-            GUI.color = Color.white;
-
-            // Draw confirmation ASCII art
-            Color borderColor = GetGridColor();
-            GUI.color = borderColor;
-
-            float lineHeight = _lineSpacing;
-            float charWidth = 14f;
-            float artWidth = CONFIRM_ASCII_ART[0].Length * charWidth;
-            float artHeight = CONFIRM_ASCII_ART.Length * lineHeight;
-
-            float startX = _displayRect.x + (_displayRect.width - artWidth) * 0.5f;
-            float startY = _displayRect.y + (_displayRect.height - artHeight) * 0.5f;
-
-            GUIStyle confirmStyle = new GUIStyle();
-            confirmStyle.fontSize = Mathf.RoundToInt(_fontSize * 0.85f);
-            confirmStyle.normal.textColor = borderColor;
-
-            for (int i = 0; i < CONFIRM_ASCII_ART.Length; i++)
-            {
-                Rect lineRect = new Rect(
-                    startX,
-                    startY + (i * lineHeight),
-                    artWidth,
-                    lineHeight
-                );
-                GUI.Label(lineRect, CONFIRM_ASCII_ART[i], confirmStyle);
-            }
-
-            // Draw YES/NO buttons (hit areas over the [YES] and [NO] text)
-            float buttonY = startY + (6 * lineHeight);
-            float yesX = startX + (charWidth * 3);
-            float noX = startX + artWidth - (charWidth * 6);
-            float buttonWidth = charWidth * 6;
-            float buttonHeight = lineHeight;
-
-            Rect yesRect = new Rect(yesX, buttonY, buttonWidth, buttonHeight);
-            Rect noRect = new Rect(noX, buttonY, buttonWidth, buttonHeight);
-
-            // Handle YES click
-            if (GUI.Button(yesRect, "", GUIStyle.none))
-            {
-                ConfirmRescan();
-            }
-
-            // Handle NO click  
-            if (GUI.Button(noRect, "", GUIStyle.none))
-            {
-                HideRescanConfirmation();
-            }
-
-            GUI.color = Color.white;
+            // Handled by ConfirmRescanScreen class via ScreenManager
         }
+        */
 
         #endregion
 
@@ -2945,16 +2592,16 @@ namespace CinematicShaders.UI
             // Handle ESC to clear selection/close dialogs
             if (e.keyCode == KeyCode.Escape)
             {
-                if (_showingConfirmation)
+                if (_screenManager?.CurrentState == ScreenState.ConfirmRescan)
                 {
                     HideRescanConfirmation();
                     e.Use();
                     return;
                 }
                 
-                if (_showingScanScreen)
+                if (_screenManager?.CurrentState == ScreenState.Scan)
                 {
-                    HideScanScreen();
+                    _screenManager?.TransitionTo(ScreenState.Main);
                     e.Use();
                     return;
                 }
@@ -3029,6 +2676,9 @@ namespace CinematicShaders.UI
             
             // Update cursor blink in edit mode
             UpdateCursorBlink();
+            
+            // Update screen manager animations
+            _screenManager?.Update(Time.deltaTime);
         }
         
         #endregion
