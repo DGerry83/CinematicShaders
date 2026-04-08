@@ -683,20 +683,54 @@ namespace CinematicShaders.UI
         {
             string fullText = element.FullDisplayText;
 
-            // Apply type-on truncation
+            // Apply type-on truncation (spaces skip - they appear immediately)
             if (element.TypeOnProgress < 1f && !string.IsNullOrEmpty(fullText))
             {
-                int visibleChars = Mathf.RoundToInt(fullText.Length * element.TypeOnProgress);
-                visibleChars = Mathf.Clamp(visibleChars, 0, fullText.Length);
+                int endIndex = GetTypeOnEndIndex(fullText, element.TypeOnProgress);
                 
                 // FIX: Return space when no characters visible, cursor only when text has started
-                if (visibleChars == 0)
+                if (endIndex <= 0)
                     return " ";  // Space = nothing visible
                 else
-                    return fullText.Substring(0, visibleChars) + "^|";
+                    return fullText.Substring(0, endIndex) + "^|";
             }
 
             return fullText;
+        }
+
+        /// <summary>
+        /// Calculate the end index for type-on animation, counting only non-space characters.
+        /// Spaces are included in the result but don't consume type-on time.
+        /// </summary>
+        private int GetTypeOnEndIndex(string text, float progress)
+        {
+            if (progress <= 0f) return 0;
+            if (progress >= 1f || string.IsNullOrEmpty(text)) return text?.Length ?? 0;
+            
+            // Count non-space characters
+            int totalNonSpace = 0;
+            for (int i = 0; i < text.Length; i++)
+                if (text[i] != ' ') totalNonSpace++;
+            
+            // All spaces = show all immediately
+            if (totalNonSpace == 0) return text.Length;
+            
+            // How many non-space chars should be visible?
+            int targetNonSpace = Mathf.Max(1, Mathf.RoundToInt(totalNonSpace * progress));
+            
+            // Find the index that includes targetNonSpace non-space characters
+            int seenNonSpace = 0;
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (text[i] != ' ')
+                {
+                    seenNonSpace++;
+                    if (seenNonSpace >= targetNonSpace)
+                        return i + 1; // Include this character
+                }
+            }
+            
+            return text.Length;
         }
 
         private void DrawElements()
@@ -1837,17 +1871,16 @@ namespace CinematicShaders.UI
             string borderText = string.Join("\n", ASCII_BORDER_LINES);
 
             // Apply type-on: only show portion based on progress (with cursor)
+            // Spaces skip - they appear immediately without consuming type-on time
             if (_borderTypeOnProgress < 1f)
             {
-                int totalChars = borderText.Length;
-                int visibleChars = Mathf.RoundToInt(totalChars * _borderTypeOnProgress);
-                visibleChars = Mathf.Clamp(visibleChars, 0, totalChars);
+                int endIndex = GetTypeOnEndIndex(borderText, _borderTypeOnProgress);
                 
                 // Add cursor when typing is in progress (like text elements)
-                if (visibleChars == 0)
+                if (endIndex <= 0)
                     borderText = " ";  // Space when nothing visible yet
                 else
-                    borderText = borderText.Substring(0, visibleChars) + "^|";
+                    borderText = borderText.Substring(0, endIndex) + "^|";
             }
 
             uint color = GetGridColorUint();
@@ -1933,17 +1966,16 @@ namespace CinematicShaders.UI
             string text = string.Join("\n", textLines);
 
             // Apply type-on: only show portion based on progress (with cursor)
+            // Spaces skip - they appear immediately without consuming type-on time
             if (_borderTypeOnProgress < 1f)
             {
-                int totalChars = text.Length;
-                int visibleChars = Mathf.RoundToInt(totalChars * _borderTypeOnProgress);
-                visibleChars = Mathf.Clamp(visibleChars, 0, totalChars);
+                int endIndex = GetTypeOnEndIndex(text, _borderTypeOnProgress);
                 
                 // Add cursor when typing is in progress
-                if (visibleChars == 0)
+                if (endIndex <= 0)
                     text = " ";  // Space when nothing visible yet
                 else
-                    text = text.Substring(0, visibleChars) + "^|";
+                    text = text.Substring(0, endIndex) + "^|";
             }
 
             uint color = GetGridColorUint();
