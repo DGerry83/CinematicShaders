@@ -60,6 +60,72 @@ namespace CinematicShaders.UI
         private RenderTexture _displayTexture = null;
         #endregion
 
+        #region Screen State
+        private enum ScreenState { Main, Scan, ConfirmRescan }
+        private ScreenState _currentScreen = ScreenState.Main;
+        #endregion
+
+        #region Layer 2 Textures (Border + Labels)
+        // Layer 2: Combined border + labels textures per screen
+        private RenderTexture _mainBorderLabelsTexture;
+        private RenderTexture _scanBorderLabelsTexture;
+        private RenderTexture _confirmBorderLabelsTexture;
+        private bool _mainBorderLabelsDirty = true;
+        private bool _scanBorderLabelsDirty = true;
+        private bool _confirmBorderLabelsDirty = true;
+        #endregion
+
+        #region Layer 2 Content Strings
+        // Main screen Layer 2 content (border + labels)
+        private static readonly string[] MAIN_LAYER2_LINES = new string[]
+        {
+            "╔════[STAR DATA]═══════════════════╦╦═════[RESULTS]═══════╗",
+            "║                                  ║║                     ║",
+            "║ HIP:                             ║║                     ║",
+            "║ NAME:                            ║║                     ║",
+            "║ DISTANCE:                        ║║                     ║",
+            "║ SPECTRAL:                        ║║                     ║",
+            "║ MAG:                             ║║                     ║",
+            "║ CONST:                           ║║                     ║",
+            "║                                  ║║                     ║",
+            "╟──────────────────────────────────╢║                     ║",
+            "║ SEARCH                           ║║                     ║",
+            "║ ►                                ║║                     ║",
+            "╚══════════════════════════════════╩╩═════════════════════╝"
+        };
+
+        // SCAN screen Layer 2 content (border + SCAN ASCII art)
+        private static readonly string[] SCAN_LAYER2_LINES = new string[]
+        {
+            "╔════════════════════════════════════╗",
+            "║ ███████╗ ██████╗ █████╗ ███╗   ██║ ║",
+            "║ ██╔════╝██╔════╝██╔══██╗████╗  ██║ ║",
+            "║ ███████╗██║     ███████║██╔██╗ ██║ ║",
+            "║ ╚════██║██║     ██╔══██║██║╚██╗██║ ║",
+            "║ ███████║╚██████╗██║  ██║██║ ╚████║ ║",
+            "║ ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═══╝ ║",
+            "╚════════════════════════════════════╝"
+        };
+
+        // Confirm screen Layer 2 content (border + text)
+        private static readonly string[] CONFIRM_LAYER2_LINES = new string[]
+        {
+            "╔════════════════════[ARE YOU SURE?]══════════════════════╗",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║               !STAR NAMES WILL BE RESET!                ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║                                                         ║",
+            "║  [YES]                                            [NO]  ║",
+            "║                                                         ║",
+            "╚═════════════════════════════════════════════════════════╝"
+        };
+        #endregion
+
         #region JSON Paths
         private string _customJsonPath = "";
         private string _defaultJsonPath = "";
@@ -286,6 +352,25 @@ namespace CinematicShaders.UI
                 Destroy(_borderTexture);
                 _borderTexture = null;
             }
+
+            // Release Layer 2 textures
+            ReleaseLayer2Texture(ref _mainBorderLabelsTexture, ref _mainBorderLabelsDirty);
+            ReleaseLayer2Texture(ref _scanBorderLabelsTexture, ref _scanBorderLabelsDirty);
+            ReleaseLayer2Texture(ref _confirmBorderLabelsTexture, ref _confirmBorderLabelsDirty);
+        }
+
+        /// <summary>
+        /// Release a single Layer 2 texture
+        /// </summary>
+        private void ReleaseLayer2Texture(ref RenderTexture texture, ref bool dirtyFlag)
+        {
+            if (texture != null)
+            {
+                texture.Release();
+                Destroy(texture);
+                texture = null;
+                dirtyFlag = true;
+            }
         }
         #endregion
 
@@ -396,7 +481,7 @@ namespace CinematicShaders.UI
         private void DrawCRTDisplay()
         {
             // DEBUG: ModFileLogger.Log("[DRAW-FLOW] DrawCRTDisplay called");
-            // Draw black background for CRT area
+            // Draw black background for CRT area (Layer 1)
             GUI.color = Color.black;
             Rect crtRect = new Rect(
                 BORDER_THICKNESS, 
@@ -407,27 +492,43 @@ namespace CinematicShaders.UI
             GUI.DrawTexture(crtRect, Texture2D.whiteTexture);
             GUI.color = Color.white;
             
-            // Draw appropriate screen content
-            if (_showingConfirmation)
+            // 3-Layer rendering based on current screen state
+            switch (_currentScreen)
             {
-                DrawConfirmationDialog();
+                case ScreenState.Scan:
+                    if (_displayPowered)
+                    {
+                        // Layer 2: Border + SCAN ASCII art
+                        DrawLayer2(_scanBorderLabelsTexture, SCAN_LAYER2_LINES, ref _scanBorderLabelsDirty);
+                        
+                        // Handle click detection on SCAN art during Layout event
+                        HandleScanScreenClick();
+                    }
+                    break;
+                    
+                case ScreenState.ConfirmRescan:
+                    if (_displayPowered)
+                    {
+                        // Layer 2: Border + labels
+                        DrawLayer2(_confirmBorderLabelsTexture, CONFIRM_LAYER2_LINES, ref _confirmBorderLabelsDirty);
+                        // Layer 3: YES/NO buttons with highlight
+                        RenderConfirmButtons();
+                        HandleConfirmScreenInteraction();
+                    }
+                    break;
+                    
+                default: // ScreenState.Main
+                    if (_displayPowered)
+                    {
+                        // Layer 2: Border + labels
+                        DrawLayer2(_mainBorderLabelsTexture, MAIN_LAYER2_LINES, ref _mainBorderLabelsDirty);
+                        
+                        // Layer 3: Value fields (existing elements)
+                        UpdateElements();
+                        DrawElements();
+                    }
+                    break;
             }
-            else if (_showingScanScreen)
-            {
-                DrawScanScreen();
-            }
-            else if (_displayPowered)
-            {
-                // Draw ASCII border (only when powered on)
-                DrawASCIIBorder();
-                
-                // Update and draw text elements
-                // DEBUG: ModFileLogger.Log("[DRAW-FLOW] About to call UpdateElements and DrawElements");
-                UpdateElements();
-                DrawElements();
-                // DEBUG: ModFileLogger.Log("[DRAW-FLOW] Back from DrawElements");
-            }
-            // When power is off, just show black background (already drawn above)
         }
         
         private void UpdateDisplayRect()
@@ -497,14 +598,16 @@ namespace CinematicShaders.UI
             {
                 _borderTypeOnProgress = Mathf.Clamp01(_powerOnTime / BORDER_TYPE_ON_DURATION);
                 InvalidateBorder();  // Mark border dirty to re-render
+                // Also invalidate all Layer 2 textures as they use the same type-on progress
+                InvalidateLayer2();
             }
 
             foreach (var element in _elements.Values)
             {
                 // DEBUG: ModFileLogger.Log($"[DIAG] Element {element.ElementId}: IsDirty={element.IsDirty}, IsVisible={element.IsVisible}, TypeOnProgress={element.TypeOnProgress}");
 
-                // Update type-on animation
-                if (_powerOnTime >= element.TypeOnDelay && element.TypeOnProgress < 1f)
+                // Update type-on animation (only for visible elements)
+                if (element.IsVisible && _powerOnTime >= element.TypeOnDelay && element.TypeOnProgress < 1f)
                 {
                     float localTime = _powerOnTime - element.TypeOnDelay;
                     element.TypeOnProgress = Mathf.Clamp01(localTime / TYPE_ON_DURATION);
@@ -1168,21 +1271,29 @@ namespace CinematicShaders.UI
             }
         }
 
+        /// <summary>
+        /// Check if the custom JSON catalog file exists
+        /// </summary>
+        private bool HasJsonCatalog()
+        {
+            return !string.IsNullOrEmpty(_customJsonPath) && File.Exists(_customJsonPath);
+        }
+
         private void PowerOn()
         {
             // DEBUG: ModFileLogger.Log("[DIAG] PowerOn() called");
             _displayPowered = true;
-            _powerOnTime = 0f;
-            _borderTypeOnProgress = 0f;
             
-            // Show all elements for type-on animation
-            foreach (var element in _elements.Values)
+            // Check if JSON catalog exists - if not, show SCAN screen
+            if (!HasJsonCatalog())
             {
-                element.IsVisible = true;
+                TransitionToScreen(ScreenState.Scan);
+                Debug.Log("[HolographicDisplay] Power ON - No JSON catalog found, showing SCAN screen");
+                return;
             }
             
-            // Mark border as dirty to re-render
-            InvalidateBorder();
+            // Transition to Main screen with animation reset
+            TransitionToScreen(ScreenState.Main);
 
             // Reset type-on animation with proper sequence:
             // 1. Border first (lowest delay)
@@ -1345,6 +1456,26 @@ namespace CinematicShaders.UI
                 _borderTexture.Release();
                 Destroy(_borderTexture);
                 _borderTexture = null;
+            }
+
+            // Release Layer 2 textures
+            if (_mainBorderLabelsTexture != null)
+            {
+                _mainBorderLabelsTexture.Release();
+                Destroy(_mainBorderLabelsTexture);
+                _mainBorderLabelsTexture = null;
+            }
+            if (_scanBorderLabelsTexture != null)
+            {
+                _scanBorderLabelsTexture.Release();
+                Destroy(_scanBorderLabelsTexture);
+                _scanBorderLabelsTexture = null;
+            }
+            if (_confirmBorderLabelsTexture != null)
+            {
+                _confirmBorderLabelsTexture.Release();
+                Destroy(_confirmBorderLabelsTexture);
+                _confirmBorderLabelsTexture = null;
             }
 
             // Note: We don't shut down _textSystem here because it's shared
@@ -1668,7 +1799,7 @@ namespace CinematicShaders.UI
         private bool _borderDirty = true;
 
         /// <summary>
-        /// Initialize the border render texture
+        /// Initialize the border render texture and Layer 2 textures
         /// </summary>
         private void InitializeBorderTexture()
         {
@@ -1682,6 +1813,24 @@ namespace CinematicShaders.UI
             _borderTexture.enableRandomWrite = true;
             _borderTexture.Create();
             _borderDirty = true;
+
+            // Initialize Layer 2 textures for all screens
+            InitializeLayer2Texture(ref _mainBorderLabelsTexture, width, height, ref _mainBorderLabelsDirty);
+            InitializeLayer2Texture(ref _scanBorderLabelsTexture, width, height, ref _scanBorderLabelsDirty);
+            InitializeLayer2Texture(ref _confirmBorderLabelsTexture, width, height, ref _confirmBorderLabelsDirty);
+        }
+
+        /// <summary>
+        /// Initialize a single Layer 2 texture
+        /// </summary>
+        private void InitializeLayer2Texture(ref RenderTexture texture, int width, int height, ref bool dirtyFlag)
+        {
+            if (texture != null) return;
+
+            texture = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32);
+            texture.enableRandomWrite = true;
+            texture.Create();
+            dirtyFlag = true;
         }
 
         /// <summary>
@@ -1768,6 +1917,194 @@ namespace CinematicShaders.UI
             _borderDirty = true;
         }
 
+        /// <summary>
+        /// Mark all Layer 2 textures as dirty (e.g., on color change)
+        /// </summary>
+        public void InvalidateLayer2()
+        {
+            _mainBorderLabelsDirty = true;
+            _scanBorderLabelsDirty = true;
+            _confirmBorderLabelsDirty = true;
+        }
+
+        #endregion
+
+        #region Layer 2 Rendering Methods
+
+        /// <summary>
+        /// Render Layer 2 texture (border + labels) for a specific screen
+        /// </summary>
+        private void RenderLayer2Texture(string[] textLines, RenderTexture targetTexture)
+        {
+            if (_textSystem == IntPtr.Zero) return;
+            if (targetTexture == null) return;
+
+            // Join lines with newlines
+            string text = string.Join("\n", textLines);
+
+            // Apply type-on: only show portion based on progress (with cursor)
+            if (_borderTypeOnProgress < 1f)
+            {
+                int totalChars = text.Length;
+                int visibleChars = Mathf.RoundToInt(totalChars * _borderTypeOnProgress);
+                visibleChars = Mathf.Clamp(visibleChars, 0, totalChars);
+                
+                // Add cursor when typing is in progress
+                if (visibleChars == 0)
+                    text = " ";  // Space when nothing visible yet
+                else
+                    text = text.Substring(0, visibleChars) + "^|";
+            }
+
+            uint color = GetGridColorUint();
+
+            // Layout the text
+            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, text, _fontSize, color);
+            if (glyphCount <= 0) return;
+
+            // Clear texture
+            RenderTexture.active = targetTexture;
+            GL.Clear(true, true, Color.clear);
+            RenderTexture.active = null;
+
+            // Dispatch to render
+            StarfieldNative.CR_TextDispatch(
+                _textSystem,
+                targetTexture.GetNativeTexturePtr(),
+                glyphCount,
+                targetTexture.width,
+                targetTexture.height);
+        }
+
+        /// <summary>
+        /// Draw Layer 2 texture (border + labels) for the current screen
+        /// </summary>
+        private void DrawLayer2(RenderTexture layer2Texture, string[] contentLines, ref bool dirtyFlag)
+        {
+            // Only draw during Repaint event
+            if (Event.current.type != EventType.Repaint) return;
+
+            // Re-render if dirty
+            if (dirtyFlag && layer2Texture != null && contentLines != null)
+            {
+                RenderLayer2Texture(contentLines, layer2Texture);
+                dirtyFlag = false;
+            }
+
+            // Draw the texture with UV flip for correct orientation
+            if (layer2Texture != null)
+            {
+                Graphics.DrawTexture(
+                    _displayRect,           // dest rect (screen position)
+                    layer2Texture,          // source texture
+                    new Rect(0, 1, 1, -1),  // source UVs: flip Y
+                    0, 0, 0, 0,             // border widths
+                    Color.white,            // Full color - texture has grid color baked in
+                    null                    // material
+                );
+            }
+        }
+
+        #endregion
+
+        #region Screen Transition
+
+        /// <summary>
+        /// Transition to a new screen with proper animation reset.
+        /// This is the ONLY way to change screens - never set _currentScreen directly.
+        /// </summary>
+        private void TransitionToScreen(ScreenState newScreen)
+        {
+            // 1. Hide current screen elements
+            HideCurrentScreenElements();
+            
+            // 2. Switch screen state
+            _currentScreen = newScreen;
+            
+            // 3. Reset animation timers
+            _powerOnTime = 0f;
+            _borderTypeOnProgress = 0f;
+            
+            // 4. Reset element animations
+            ResetAllElementAnimations();
+            
+            // 5. Mark new screen's Layer 2 dirty and set visibility flags
+            switch (newScreen)
+            {
+                case ScreenState.Main:
+                    _mainBorderLabelsDirty = true;
+                    _showingScanScreen = false;
+                    _showingConfirmation = false;
+                    // Show main elements
+                    foreach (var element in _elements.Values)
+                    {
+                        element.IsVisible = true;
+                    }
+                    break;
+                case ScreenState.Scan:
+                    _scanBorderLabelsDirty = true;
+                    _showingScanScreen = true;
+                    _showingConfirmation = false;
+                    // Hide all main elements for scan screen
+                    foreach (var element in _elements.Values)
+                    {
+                        element.IsVisible = false;
+                    }
+                    break;
+                case ScreenState.ConfirmRescan:
+                    _confirmBorderLabelsDirty = true;
+                    _showingConfirmation = true;
+                    // Scan screen may be showing underneath confirmation
+                    // Don't change _showingScanScreen - confirmation is a dialog overlay
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Hide current screen elements before transitioning
+        /// </summary>
+        private void HideCurrentScreenElements()
+        {
+            switch (_currentScreen)
+            {
+                case ScreenState.Main:
+                    // Hide all main screen value elements
+                    foreach (var element in _elements.Values)
+                    {
+                        element.IsVisible = false;
+                        element.TypeOnProgress = 0f;
+                    }
+                    break;
+                case ScreenState.Scan:
+                    // Scan screen has no value elements to hide
+                    // Just reset the pressed state
+                    _scanPressed = false;
+                    break;
+                case ScreenState.ConfirmRescan:
+                    // Hide confirm buttons
+                    _confirmYesSelected = false;
+                    _confirmNoSelected = false;
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Reset all element animations for fresh type-on effect
+        /// </summary>
+        private void ResetAllElementAnimations()
+        {
+            // Reset main screen elements
+            foreach (var element in _elements.Values)
+            {
+                element.TypeOnProgress = 0f;
+                element.IsDirty = true;
+            }
+            
+            // Reset confirm screen state
+            _confirmYesSelected = false;
+            _confirmNoSelected = false;
+        }
+
         #endregion
 
         #region SCAN Screen
@@ -1775,6 +2112,7 @@ namespace CinematicShaders.UI
         // State
         private bool _showingScanScreen = false;
         private HolographicTextElement[] _scanScreenElements;
+        private bool _scanPressed = false;  // Track mouse press state for SCAN screen click
 
         // ASCII art for SCAN
         private static readonly string[] SCAN_ASCII_ART = new string[]
@@ -1794,13 +2132,8 @@ namespace CinematicShaders.UI
         /// </summary>
         public void ShowScanScreen()
         {
-            _showingScanScreen = true;
-
-            // Hide main elements
-            foreach (var element in _elements.Values)
-            {
-                element.IsVisible = false;
-            }
+            TransitionToScreen(ScreenState.Scan);
+            Debug.Log("[HolographicDisplay] Showing SCAN screen with animation reset");
         }
 
         /// <summary>
@@ -1808,13 +2141,8 @@ namespace CinematicShaders.UI
         /// </summary>
         public void HideScanScreen()
         {
-            _showingScanScreen = false;
-
-            // Show main elements
-            foreach (var element in _elements.Values)
-            {
-                element.IsVisible = true;
-            }
+            TransitionToScreen(ScreenState.Main);
+            Debug.Log("[HolographicDisplay] Hiding SCAN screen, returning to Main");
         }
 
         /// <summary>
@@ -1861,12 +2189,280 @@ namespace CinematicShaders.UI
             GUI.color = Color.white;
         }
 
+        /// <summary>
+        /// Handle click detection on SCAN screen - triggers rescan when SCAN art is clicked
+        /// </summary>
+        private void HandleScanScreenClick()
+        {
+            // Calculate SCAN box bounds (centered 38x8 character box)
+            float lineHeight = _lineSpacing;
+            float charWidth = 14f;  // Approximate monospace char width
+            int scanWidthChars = 38;  // Width of SCAN_LAYER2_LINES[0]
+            int scanHeightLines = 8;  // Number of lines in SCAN_LAYER2_LINES
+            
+            float artWidth = scanWidthChars * charWidth;
+            float artHeight = scanHeightLines * lineHeight;
+
+            float startX = _displayRect.x + (_displayRect.width - artWidth) * 0.5f;
+            float startY = _displayRect.y + (_displayRect.height - artHeight) * 0.5f;
+
+            Rect scanBoxRect = new Rect(startX, startY, artWidth, artHeight);
+            
+            // Check if mouse is within SCAN box bounds (during non-repaint events for responsiveness)
+            Vector2 mousePos = Event.current.mousePosition;
+            if (scanBoxRect.Contains(mousePos))
+            {
+                // Handle mouse down/up for click detection
+                if (Event.current.type == EventType.MouseDown && Event.current.button == 0)
+                {
+                    _scanPressed = true;
+                }
+                else if (Event.current.type == EventType.MouseUp && Event.current.button == 0)
+                {
+                    if (_scanPressed)
+                    {
+                        // Click detected on SCAN art - trigger rescan and transition to Main
+                        Debug.Log("[HolographicDisplay] SCAN art clicked - triggering rescan");
+                        OnRescanConfirmed?.Invoke();
+                        // Transition to Main screen after triggering rescan
+                        TransitionToScreen(ScreenState.Main);
+                    }
+                    _scanPressed = false;
+                }
+            }
+            else
+            {
+                // Mouse outside SCAN box - cancel press
+                if (Event.current.type == EventType.MouseUp)
+                {
+                    _scanPressed = false;
+                }
+            }
+        }
+
+        #endregion
+
+        #region Confirm Screen Interaction
+
+        // Confirm box dimensions (54 chars wide x 13 lines tall)
+        private const int CONFIRM_BOX_WIDTH_CHARS = 54;
+        private const int CONFIRM_BOX_HEIGHT_LINES = 13;
+        private const float CONFIRM_CHAR_WIDTH = 14f;  // Approximate monospace char width
+        
+        /// <summary>
+        /// Calculate the centered confirm box rectangle in screen coordinates
+        /// </summary>
+        private Rect GetConfirmBoxRect()
+        {
+            float lineHeight = _lineSpacing;
+            float charWidth = CONFIRM_CHAR_WIDTH;
+            
+            float boxWidth = CONFIRM_BOX_WIDTH_CHARS * charWidth;
+            float boxHeight = CONFIRM_BOX_HEIGHT_LINES * lineHeight;
+            
+            float startX = _displayRect.x + (_displayRect.width - boxWidth) * 0.5f;
+            float startY = _displayRect.y + (_displayRect.height - boxHeight) * 0.5f;
+            
+            return new Rect(startX, startY, boxWidth, boxHeight);
+        }
+        
+        /// <summary>
+        /// Handle YES/NO button interaction on Confirm screen
+        /// </summary>
+        private void HandleConfirmScreenInteraction()
+        {
+            Rect confirmBoxRect = GetConfirmBoxRect();
+            Vector2 mousePos = Event.current.mousePosition;
+            
+            // Calculate button positions within the confirm box
+            float lineHeight = _lineSpacing;
+            float charWidth = CONFIRM_CHAR_WIDTH;
+            
+            // YES button at character position (3, 10) within the box
+            float yesX = confirmBoxRect.x + (charWidth * 3);
+            float yesY = confirmBoxRect.y + (lineHeight * 10);
+            float buttonWidth = charWidth * 6;  // "[YES]" is 6 chars
+            float buttonHeight = lineHeight;
+            
+            Rect yesRect = new Rect(yesX, yesY, buttonWidth, buttonHeight);
+            
+            // NO button at character position (47, 10) within the box
+            float noX = confirmBoxRect.x + (charWidth * 47);
+            float noY = confirmBoxRect.y + (lineHeight * 10);
+            Rect noRect = new Rect(noX, noY, buttonWidth, buttonHeight);
+            
+            // Check hover states
+            bool wasYesSelected = _confirmYesSelected;
+            bool wasNoSelected = _confirmNoSelected;
+            
+            _confirmYesSelected = yesRect.Contains(mousePos);
+            _confirmNoSelected = noRect.Contains(mousePos);
+            
+            // Mark for re-render if hover state changed
+            if (_confirmYesSelected != wasYesSelected || _confirmNoSelected != wasNoSelected)
+            {
+                // Buttons are rendered as part of Layer 3 (handled separately)
+            }
+            
+            // Handle mouse clicks
+            if (Event.current.type == EventType.MouseDown && Event.current.button == 0)
+            {
+                if (_confirmYesSelected)
+                {
+                    ConfirmRescan();
+                }
+                else if (_confirmNoSelected)
+                {
+                    HideRescanConfirmation();
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Render YES/NO buttons with highlight state (Layer 3)
+        /// </summary>
+        private void RenderConfirmButtons()
+        {
+            // Only render during Repaint event
+            if (Event.current.type != EventType.Repaint) return;
+            
+            Rect confirmBoxRect = GetConfirmBoxRect();
+            float lineHeight = _lineSpacing;
+            float charWidth = CONFIRM_CHAR_WIDTH;
+            
+            // YES button position
+            float yesX = confirmBoxRect.x + (charWidth * 3);
+            float yesY = confirmBoxRect.y + (lineHeight * 10);
+            float buttonWidth = charWidth * 6;
+            float buttonHeight = lineHeight;
+            
+            Rect yesRect = new Rect(yesX, yesY, buttonWidth, buttonHeight);
+            
+            // NO button position
+            float noX = confirmBoxRect.x + (charWidth * 47);
+            float noY = confirmBoxRect.y + (lineHeight * 10);
+            Rect noRect = new Rect(noX, noY, buttonWidth, buttonHeight);
+            
+            // Render YES button with highlight if selected
+            if (_confirmYesSelected)
+            {
+                RenderConfirmButtonHighlighted(yesRect, "[YES]");
+            }
+            else
+            {
+                RenderConfirmButtonNormal(yesRect, "[YES]");
+            }
+            
+            // Render NO button with highlight if selected
+            if (_confirmNoSelected)
+            {
+                RenderConfirmButtonHighlighted(noRect, "[NO]");
+            }
+            else
+            {
+                RenderConfirmButtonNormal(noRect, "[NO]");
+            }
+        }
+        
+        /// <summary>
+        /// Render a confirmation button in normal state
+        /// </summary>
+        private void RenderConfirmButtonNormal(Rect rect, string text)
+        {
+            if (_textSystem == IntPtr.Zero) return;
+            
+            // Use temporary texture for button
+            RenderTexture buttonTexture = RenderTexture.GetTemporary(
+                Mathf.RoundToInt(rect.width), 
+                Mathf.RoundToInt(rect.height), 
+                0, 
+                RenderTextureFormat.ARGB32);
+            buttonTexture.enableRandomWrite = true;
+            
+            uint color = GetGridColorUint();
+            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, text, _fontSize, color);
+            if (glyphCount > 0)
+            {
+                RenderTexture.active = buttonTexture;
+                GL.Clear(true, true, Color.clear);
+                RenderTexture.active = null;
+                
+                StarfieldNative.CR_TextDispatch(
+                    _textSystem,
+                    buttonTexture.GetNativeTexturePtr(),
+                    glyphCount,
+                    buttonTexture.width,
+                    buttonTexture.height);
+                
+                Graphics.DrawTexture(
+                    rect,
+                    buttonTexture,
+                    new Rect(0, 1, 1, -1),
+                    0, 0, 0, 0,
+                    Color.white,
+                    null);
+            }
+            
+            RenderTexture.ReleaseTemporary(buttonTexture);
+        }
+        
+        /// <summary>
+        /// Render a confirmation button with highlight background (2-pass selection rendering)
+        /// </summary>
+        private void RenderConfirmButtonHighlighted(Rect rect, string text)
+        {
+            if (_textSystem == IntPtr.Zero) return;
+            
+            // Use temporary texture for button
+            RenderTexture buttonTexture = RenderTexture.GetTemporary(
+                Mathf.RoundToInt(rect.width), 
+                Mathf.RoundToInt(rect.height), 
+                0, 
+                RenderTextureFormat.ARGB32);
+            buttonTexture.enableRandomWrite = true;
+            
+            // Pass 1: Render highlight background
+            RenderTexture.active = buttonTexture;
+            Color highlightColor = GetGridColor();
+            highlightColor.a = 0.3f;
+            GL.Clear(true, true, highlightColor);
+            RenderTexture.active = null;
+            
+            // Pass 2: Render black text on top
+            uint blackColor = 0xFF000000;  // ARGB black
+            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, text, _fontSize, blackColor);
+            if (glyphCount > 0)
+            {
+                StarfieldNative.CR_TextDispatch(
+                    _textSystem,
+                    buttonTexture.GetNativeTexturePtr(),
+                    glyphCount,
+                    buttonTexture.width,
+                    buttonTexture.height);
+            }
+            
+            // Draw to screen
+            Graphics.DrawTexture(
+                rect,
+                buttonTexture,
+                new Rect(0, 1, 1, -1),
+                0, 0, 0, 0,
+                Color.white,
+                null);
+            
+            RenderTexture.ReleaseTemporary(buttonTexture);
+        }
+        
         #endregion
 
         #region Rescan Confirmation
 
         // State
         private bool _showingConfirmation = false;
+        
+        // Confirm screen state
+        private bool _confirmYesSelected = false;
+        private bool _confirmNoSelected = false;
 
         // ASCII art for confirmation dialog
         private static readonly string[] CONFIRM_ASCII_ART = new string[]
@@ -1887,7 +2483,8 @@ namespace CinematicShaders.UI
         /// </summary>
         private void ShowRescanConfirmation()
         {
-            _showingConfirmation = true;
+            TransitionToScreen(ScreenState.ConfirmRescan);
+            Debug.Log("[HolographicDisplay] Showing rescan confirmation dialog");
         }
 
         /// <summary>
@@ -1895,7 +2492,8 @@ namespace CinematicShaders.UI
         /// </summary>
         private void HideRescanConfirmation()
         {
-            _showingConfirmation = false;
+            TransitionToScreen(ScreenState.Main);
+            Debug.Log("[HolographicDisplay] Hiding confirmation dialog, returning to Main");
         }
 
         /// <summary>
@@ -1903,8 +2501,11 @@ namespace CinematicShaders.UI
         /// </summary>
         private void ConfirmRescan()
         {
-            HideRescanConfirmation();
+            // Trigger rescan
             OnRescanConfirmed?.Invoke();
+            // Transition to Main screen with animation reset
+            TransitionToScreen(ScreenState.Main);
+            Debug.Log("[HolographicDisplay] Rescan confirmed - transitioning to Main");
         }
 
         /// <summary>
