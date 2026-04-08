@@ -19,6 +19,9 @@ namespace CinematicShaders.UI.Screens
         private int _textureWidth;
         private int _textureHeight;
         
+        // Track which screen has textures assigned to avoid redundant SetTextures calls
+        private IScreen _screenWithAssignedTextures;
+        
         public IScreen CurrentScreen => _currentScreen;
         public ScreenState? CurrentState => _currentScreen?.State;
         
@@ -99,6 +102,7 @@ namespace CinematicShaders.UI.Screens
             
             // Switch to new screen
             _currentScreen = newScreen;
+            _screenWithAssignedTextures = null;  // Force texture reassignment for new screen
             _currentScreen.OnEnter(context);
             
             Debug.Log($"[ScreenManager] Transitioned to {state}");
@@ -119,14 +123,29 @@ namespace CinematicShaders.UI.Screens
         {
             if (_currentScreen == null) return;
             
-            // Pass shared textures to concrete screen classes before rendering
+            // Only assign textures when screen changes, not every frame
+            if (_screenWithAssignedTextures != _currentScreen)
+            {
+                AssignTexturesToCurrentScreen();
+                _screenWithAssignedTextures = _currentScreen;
+            }
+            
+            _currentScreen.Render(displayRect, _textSystem);
+        }
+        
+        /// <summary>
+        /// Assign shared textures to the current screen.
+        /// Called only when screen changes.
+        /// </summary>
+        private void AssignTexturesToCurrentScreen()
+        {
             var layer1Texture = GetLayerTexture(1);
             var layer2Texture = GetLayerTexture(2);
             
             switch (_currentScreen.State)
             {
                 case ScreenState.Main:
-                    ( _currentScreen as MainScreen)?.SetTextures(layer1Texture, layer2Texture);
+                    (_currentScreen as MainScreen)?.SetTextures(layer1Texture, layer2Texture);
                     break;
                 case ScreenState.Scan:
                     (_currentScreen as ScanScreen)?.SetTextures(layer1Texture, layer2Texture);
@@ -135,8 +154,6 @@ namespace CinematicShaders.UI.Screens
                     (_currentScreen as ConfirmRescanScreen)?.SetTextures(layer1Texture, layer2Texture);
                     break;
             }
-            
-            _currentScreen.Render(displayRect, _textSystem);
         }
         
         /// <summary>
@@ -154,6 +171,7 @@ namespace CinematicShaders.UI.Screens
         {
             _currentScreen?.OnExit();
             _currentScreen = null;
+            _screenWithAssignedTextures = null;
             
             foreach (var texture in _layerTextures.Values)
             {

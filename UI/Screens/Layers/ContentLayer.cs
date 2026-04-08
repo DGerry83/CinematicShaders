@@ -16,6 +16,9 @@ namespace CinematicShaders.UI.Screens.Layers
         private readonly string[] _contentLines;
         private RenderTexture _targetTexture;
         
+        // Track last rendered progress to avoid redundant renders
+        private float _lastRenderedProgress = -1f;
+        
         public ContentLayer(string[] contentLines)
         {
             _contentLines = contentLines;
@@ -37,9 +40,11 @@ namespace CinematicShaders.UI.Screens.Layers
         public void RenderToTexture(IntPtr textSystem, uint color, float fontSize, float aspectRatio, float typeOnProgress)
         {
             if (_targetTexture == null) return;
-            if (!IsDirty && typeOnProgress >= 1f) return;
             
-            IsDirty = false;
+            // Skip if not dirty and progress hasn't changed (for animations)
+            // Always render if progress is changing (animation in progress)
+            bool progressChanged = Mathf.Abs(typeOnProgress - _lastRenderedProgress) > 0.001f;
+            if (!IsDirty && typeOnProgress >= 1f && !progressChanged) return;
             
             // Join lines with newlines
             string text = string.Join("\n", _contentLines);
@@ -62,18 +67,32 @@ namespace CinematicShaders.UI.Screens.Layers
             
             if (glyphCount <= 0) return;
             
-            // Clear texture
-            RenderTexture.active = _targetTexture;
-            GL.Clear(true, true, Color.clear);
-            RenderTexture.active = null;
+            // Render to texture with proper active texture handling
+            RenderTexture prevActive = RenderTexture.active;
+            try
+            {
+                RenderTexture.active = _targetTexture;
+                
+                // Clear texture
+                GL.Clear(true, true, Color.clear);
+                
+                // Dispatch to render - texture must be active for this
+                StarfieldNative.CR_TextDispatch(
+                    textSystem,
+                    _targetTexture.GetNativeTexturePtr(),
+                    glyphCount,
+                    _targetTexture.width,
+                    _targetTexture.height);
+            }
+            finally
+            {
+                // Always reset active render texture, even if an exception occurred
+                RenderTexture.active = prevActive;
+            }
             
-            // Dispatch to render
-            StarfieldNative.CR_TextDispatch(
-                textSystem,
-                _targetTexture.GetNativeTexturePtr(),
-                glyphCount,
-                _targetTexture.width,
-                _targetTexture.height);
+            // Update tracking state
+            IsDirty = false;
+            _lastRenderedProgress = typeOnProgress;
         }
         
         /// <summary>
@@ -83,6 +102,7 @@ namespace CinematicShaders.UI.Screens.Layers
         {
             _targetTexture = texture;
             IsDirty = true;
+            _lastRenderedProgress = -1f;  // Force re-render on texture change
         }
         
         public void MarkDirty()

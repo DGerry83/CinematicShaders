@@ -50,6 +50,10 @@ namespace CinematicShaders.UI.Screens
         {
             if (textSystem == IntPtr.Zero) return;
             
+            // Only render during Repaint events and when Event.current is valid
+            if (Event.current == null || Event.current.type != EventType.Repaint)
+                return;
+            
             uint color = GetGridColorUint();
             
             // Render Layer 1: Border
@@ -59,17 +63,14 @@ namespace CinematicShaders.UI.Screens
                 borderLayer.RenderToTexture(textSystem, color, _fontSize, _aspectRatio, Layer1Progress);
                 
                 // Draw the texture to screen
-                if (Event.current.type == EventType.Repaint)
-                {
-                    Graphics.DrawTexture(
-                        displayRect,
-                        _layer1Texture,
-                        new Rect(0, 1, 1, -1),  // Flip Y
-                        0, 0, 0, 0,
-                        Color.white,
-                        null
-                    );
-                }
+                Graphics.DrawTexture(
+                    displayRect,
+                    _layer1Texture,
+                    new Rect(0, 1, 1, -1),  // Flip Y
+                    0, 0, 0, 0,
+                    Color.white,
+                    null
+                );
             }
             
             // Render Layer 2: SCAN art
@@ -79,17 +80,14 @@ namespace CinematicShaders.UI.Screens
                 contentLayer.RenderToTexture(textSystem, color, _fontSize, _aspectRatio, Layer2Progress);
                 
                 // Draw the texture to screen
-                if (Event.current.type == EventType.Repaint)
-                {
-                    Graphics.DrawTexture(
-                        displayRect,
-                        _layer2Texture,
-                        new Rect(0, 1, 1, -1),  // Flip Y
-                        0, 0, 0, 0,
-                        Color.white,
-                        null
-                    );
-                }
+                Graphics.DrawTexture(
+                    displayRect,
+                    _layer2Texture,
+                    new Rect(0, 1, 1, -1),  // Flip Y
+                    0, 0, 0, 0,
+                    Color.white,
+                    null
+                );
             }
         }
         
