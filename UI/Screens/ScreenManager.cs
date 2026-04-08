@@ -35,8 +35,10 @@ namespace CinematicShaders.UI.Screens
         /// </summary>
         public void InitializeTextures(int width, int height)
         {
-            _textureWidth = width;
-            _textureHeight = height;
+            // IGNORE passed dimensions - always use Large size
+            // This ensures 1:1 pixel mapping at all presets
+            _textureWidth = 825;  // Large width
+            _textureHeight = 450; // Large height
             
             // Create shared textures for layers 1, 2, and 3
             EnsureTexture(1);

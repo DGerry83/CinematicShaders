@@ -259,14 +259,14 @@ namespace CinematicShaders.UI
             InitializeTextures();
             InitializeBorderTexture();
             
-            // FIX: Also recreate ScreenManager textures
+            // ScreenManager textures stay at Large size (825x450)
+            // Font size changes provide the "scaling" for different presets
             if (_screenManager != null)
             {
-                _screenManager.Shutdown();
-                _screenManager = new ScreenManager(_textSystem);
-                _screenManager.InitializeTextures(
-                    Mathf.RoundToInt(dimensions.x), 
-                    Mathf.RoundToInt(dimensions.y));
+                // Just mark layers dirty so they re-render with new font size
+                _screenManager.MarkAllLayersDirty();
+                
+                // Re-initialize screens with new font size
                 InitializeScreens();
             }
             
