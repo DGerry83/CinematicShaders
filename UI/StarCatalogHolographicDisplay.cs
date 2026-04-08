@@ -259,6 +259,17 @@ namespace CinematicShaders.UI
             InitializeTextures();
             InitializeBorderTexture();
             
+            // FIX: Also recreate ScreenManager textures
+            if (_screenManager != null)
+            {
+                _screenManager.Shutdown();
+                _screenManager = new ScreenManager(_textSystem);
+                _screenManager.InitializeTextures(
+                    Mathf.RoundToInt(dimensions.x), 
+                    Mathf.RoundToInt(dimensions.y));
+                InitializeScreens();
+            }
+            
             // Mark all elements dirty for re-render
             foreach (var element in _elements.Values)
             {
@@ -266,7 +277,7 @@ namespace CinematicShaders.UI
             }
             _borderDirty = true;
             
-            Debug.Log($"[HolographicDisplay] Size changed to: {size}");
+            Debug.Log($"[HolographicDisplay] Size changed to: {size}: {dimensions.x}x{dimensions.y}");
         }
 
         private void CreateElements()
