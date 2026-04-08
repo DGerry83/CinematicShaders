@@ -13,6 +13,8 @@ namespace CinematicShaders.UI.Screens
     {
         private readonly float _fontSize;
         private readonly float _aspectRatio;
+        private RenderTexture _layer1Texture;
+        private RenderTexture _layer2Texture;
         
         public MainScreen(string[] borderLines, string[] labelLines, float fontSize, float aspectRatio = 0.667f)
         {
@@ -26,40 +28,66 @@ namespace CinematicShaders.UI.Screens
             AddLayer(new ContentLayer(labelLines));
         }
         
+        /// <summary>
+        /// Set the shared textures for rendering
+        /// </summary>
+        public void SetTextures(RenderTexture layer1Texture, RenderTexture layer2Texture)
+        {
+            _layer1Texture = layer1Texture;
+            _layer2Texture = layer2Texture;
+            
+            // Set textures on layers
+            if (Layers.Count > 0 && Layers[0] is BorderLayer bl)
+                bl.SetTargetTexture(layer1Texture);
+            if (Layers.Count > 1 && Layers[1] is ContentLayer cl)
+                cl.SetTargetTexture(layer2Texture);
+        }
+        
         public override void Render(Rect displayRect, IntPtr textSystem)
         {
             if (textSystem == IntPtr.Zero) return;
             
             uint color = GetGridColorUint();
             
-            // Render Layer 1: Border
+            // Render Layer 1: Border to texture, then draw
             var borderLayer = Layers[0] as BorderLayer;
-            if (borderLayer != null)
+            if (borderLayer != null && _layer1Texture != null)
             {
-                string text = borderLayer.GetTextForProgress(Layer1Progress);
-                RenderLayer(textSystem, text, color, 0);
+                // Render with type-on progress
+                borderLayer.RenderToTexture(textSystem, color, _fontSize, _aspectRatio, Layer1Progress);
+                
+                // Draw the texture to screen
+                if (Event.current.type == EventType.Repaint)
+                {
+                    Graphics.DrawTexture(
+                        displayRect,
+                        _layer1Texture,
+                        new Rect(0, 1, 1, -1),  // Flip Y
+                        0, 0, 0, 0,
+                        Color.white,
+                        null
+                    );
+                }
             }
             
-            // Render Layer 2: Labels
+            // Render Layer 2: Labels to texture, then draw
             var contentLayer = Layers[1] as ContentLayer;
-            if (contentLayer != null)
+            if (contentLayer != null && _layer2Texture != null && Layer2Progress > 0)
             {
                 contentLayer.RenderToTexture(textSystem, color, _fontSize, _aspectRatio, Layer2Progress);
-            }
-        }
-        
-        private void RenderLayer(IntPtr textSystem, string text, uint color, int layerIndex)
-        {
-            if (textSystem == IntPtr.Zero || string.IsNullOrEmpty(text)) return;
-            
-            // Note: This is a simplified render - actual implementation will use
-            // the screen manager's shared texture. For now, this demonstrates the pattern.
-            int glyphCount = StarfieldNative.CR_TextLayoutEx(textSystem, text, _fontSize, 
-                color, 0f, 0f, 0f, _aspectRatio);
-            
-            if (glyphCount > 0)
-            {
-                // Rendering happens via the layer's RenderToTexture in full implementation
+                
+                // Draw the texture to screen
+                if (Event.current.type == EventType.Repaint)
+                {
+                    Graphics.DrawTexture(
+                        displayRect,
+                        _layer2Texture,
+                        new Rect(0, 1, 1, -1),  // Flip Y
+                        0, 0, 0, 0,
+                        Color.white,
+                        null
+                    );
+                }
             }
         }
         

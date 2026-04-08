@@ -117,7 +117,26 @@ namespace CinematicShaders.UI.Screens
         /// </summary>
         public void Render(Rect displayRect)
         {
-            _currentScreen?.Render(displayRect, _textSystem);
+            if (_currentScreen == null) return;
+            
+            // Pass shared textures to concrete screen classes before rendering
+            var layer1Texture = GetLayerTexture(1);
+            var layer2Texture = GetLayerTexture(2);
+            
+            switch (_currentScreen.State)
+            {
+                case ScreenState.Main:
+                    ( _currentScreen as MainScreen)?.SetTextures(layer1Texture, layer2Texture);
+                    break;
+                case ScreenState.Scan:
+                    (_currentScreen as ScanScreen)?.SetTextures(layer1Texture, layer2Texture);
+                    break;
+                case ScreenState.ConfirmRescan:
+                    (_currentScreen as ConfirmRescanScreen)?.SetTextures(layer1Texture, layer2Texture);
+                    break;
+            }
+            
+            _currentScreen.Render(displayRect, _textSystem);
         }
         
         /// <summary>

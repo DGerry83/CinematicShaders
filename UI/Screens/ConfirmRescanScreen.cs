@@ -13,6 +13,8 @@ namespace CinematicShaders.UI.Screens
     {
         private readonly float _fontSize;
         private readonly float _aspectRatio;
+        private RenderTexture _layer1Texture;
+        private RenderTexture _layer2Texture;
         
         public bool YesSelected { get; private set; }
         public bool NoSelected { get; private set; }
@@ -32,6 +34,21 @@ namespace CinematicShaders.UI.Screens
             AddLayer(new ContentLayer(textLines));
         }
         
+        /// <summary>
+        /// Set the shared textures for rendering
+        /// </summary>
+        public void SetTextures(RenderTexture layer1Texture, RenderTexture layer2Texture)
+        {
+            _layer1Texture = layer1Texture;
+            _layer2Texture = layer2Texture;
+            
+            // Set textures on layers
+            if (Layers.Count > 0 && Layers[0] is BorderLayer bl)
+                bl.SetTargetTexture(layer1Texture);
+            if (Layers.Count > 1 && Layers[1] is ContentLayer cl)
+                cl.SetTargetTexture(layer2Texture);
+        }
+        
         public override void Render(Rect displayRect, IntPtr textSystem)
         {
             if (textSystem == IntPtr.Zero) return;
@@ -40,17 +57,42 @@ namespace CinematicShaders.UI.Screens
             
             // Render Layer 1: Border
             var borderLayer = Layers[0] as BorderLayer;
-            if (borderLayer != null)
+            if (borderLayer != null && _layer1Texture != null)
             {
-                string text = borderLayer.GetTextForProgress(Layer1Progress);
-                RenderLayerText(textSystem, text, color);
+                borderLayer.RenderToTexture(textSystem, color, _fontSize, _aspectRatio, Layer1Progress);
+                
+                // Draw the texture to screen
+                if (Event.current.type == EventType.Repaint)
+                {
+                    Graphics.DrawTexture(
+                        displayRect,
+                        _layer1Texture,
+                        new Rect(0, 1, 1, -1),  // Flip Y
+                        0, 0, 0, 0,
+                        Color.white,
+                        null
+                    );
+                }
             }
             
             // Render Layer 2: Warning text
             var contentLayer = Layers[1] as ContentLayer;
-            if (contentLayer != null)
+            if (contentLayer != null && _layer2Texture != null && Layer2Progress > 0)
             {
                 contentLayer.RenderToTexture(textSystem, color, _fontSize, _aspectRatio, Layer2Progress);
+                
+                // Draw the texture to screen
+                if (Event.current.type == EventType.Repaint)
+                {
+                    Graphics.DrawTexture(
+                        displayRect,
+                        _layer2Texture,
+                        new Rect(0, 1, 1, -1),  // Flip Y
+                        0, 0, 0, 0,
+                        Color.white,
+                        null
+                    );
+                }
             }
             
             // Layer 3: YES/NO buttons are rendered separately by the display
@@ -64,28 +106,23 @@ namespace CinematicShaders.UI.Screens
         public void UpdateInteraction(Vector2 mousePos, Rect displayRect, bool mouseDown, bool mouseUp)
         {
             // Calculate YES/NO button positions
-            // These positions should match the [YES] and [NO] positions in CONFIRM_LAYER2_LINES
-            float lineHeight = _fontSize * 1.33f; // Approximate line height
-            float charWidth = _fontSize * 0.6f;   // Approximate char width
+            float lineHeight = _fontSize * 1.33f;
+            float charWidth = _fontSize * 0.6f;
             
-            // YES at position (3, 10) - approx
             float yesX = displayRect.x + (charWidth * 3);
             float yesY = displayRect.y + (lineHeight * 10);
             Rect yesRect = new Rect(yesX, yesY, charWidth * 6, lineHeight);
             
-            // NO at position (47, 10) - approx
             float noX = displayRect.x + displayRect.width - (charWidth * 8);
             float noY = displayRect.y + (lineHeight * 10);
             Rect noRect = new Rect(noX, noY, charWidth * 6, lineHeight);
             
-            // Update hover states
             bool wasYesSelected = YesSelected;
             bool wasNoSelected = NoSelected;
             
             YesSelected = yesRect.Contains(mousePos);
             NoSelected = noRect.Contains(mousePos);
             
-            // Handle clicks
             if (mouseUp)
             {
                 if (YesSelected && wasYesSelected)
@@ -103,19 +140,6 @@ namespace CinematicShaders.UI.Screens
         {
             YesSelected = false;
             NoSelected = false;
-        }
-        
-        private void RenderLayerText(IntPtr textSystem, string text, uint color)
-        {
-            if (textSystem == IntPtr.Zero || string.IsNullOrEmpty(text)) return;
-            
-            int glyphCount = StarfieldNative.CR_TextLayoutEx(textSystem, text, _fontSize, 
-                color, 0f, 0f, 0f, _aspectRatio);
-            
-            if (glyphCount > 0)
-            {
-                // Rendering happens via the layer's RenderToTexture in full implementation
-            }
         }
         
         private uint GetGridColorUint()

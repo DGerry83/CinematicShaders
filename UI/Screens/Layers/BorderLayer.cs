@@ -52,15 +52,15 @@ namespace CinematicShaders.UI.Screens.Layers
         /// Render to the target texture using the native text system.
         /// Called by the screen with proper setup.
         /// </summary>
-        public void RenderToTexture(IntPtr textSystem, uint color, float fontSize, float aspectRatio)
+        public void RenderToTexture(IntPtr textSystem, uint color, float fontSize, float aspectRatio, float typeOnProgress = 1f)
         {
             if (_targetTexture == null) return;
-            if (!IsDirty) return;
+            if (!IsDirty && typeOnProgress >= 1f) return;
             
             IsDirty = false;
             
-            // Build border text from lines
-            string borderText = string.Join("\n", _borderLines);
+            // Build border text from lines and apply type-on
+            string borderText = GetTextForProgress(typeOnProgress);
             
             // Layout the border text using native text system
             int glyphCount = StarfieldNative.CR_TextLayoutEx(textSystem, borderText, fontSize, 
