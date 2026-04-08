@@ -655,7 +655,8 @@ namespace CinematicShaders.UI
             uint color = GetGridColorUint();
 
             // Layout text in native system
-            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, text, _fontSize, color);
+            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, text, _fontSize, 
+                color, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
             // DEBUG: ModFileLogger.Log($"[DIAG] {element.ElementId}: glyphCount={glyphCount}");
             if (glyphCount <= 0) {
                 // DEBUG: ModFileLogger.Log($"[DIAG] FAIL: glyphCount <= 0");
@@ -1494,7 +1495,8 @@ namespace CinematicShaders.UI
             // Pass 2: Render text in BLACK color
             uint blackColor = 0xFF000000;  // ARGB black
 
-            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, text, _fontSize, blackColor);
+            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, text, _fontSize, 
+                blackColor, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
             if (glyphCount <= 0) return;
 
             // Clear element texture
@@ -1852,7 +1854,8 @@ namespace CinematicShaders.UI
             float fontSize = _fontSize;
 
             // Layout the border text
-            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, borderText, fontSize, color);
+            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, borderText, fontSize, 
+                color, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
             if (glyphCount <= 0) return;
 
             // Clear texture
@@ -1946,7 +1949,8 @@ namespace CinematicShaders.UI
             uint color = GetGridColorUint();
 
             // Layout the text
-            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, text, _fontSize, color);
+            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, text, _fontSize, 
+                color, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
             if (glyphCount <= 0) return;
 
             // Clear texture
@@ -2372,7 +2376,8 @@ namespace CinematicShaders.UI
             buttonTexture.enableRandomWrite = true;
             
             uint color = GetGridColorUint();
-            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, text, _fontSize, color);
+            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, text, _fontSize, 
+                color, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
             if (glyphCount > 0)
             {
                 RenderTexture.active = buttonTexture;
@@ -2422,7 +2427,8 @@ namespace CinematicShaders.UI
             
             // Pass 2: Render black text on top
             uint blackColor = 0xFF000000;  // ARGB black
-            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, text, _fontSize, blackColor);
+            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, text, _fontSize, 
+                blackColor, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
             if (glyphCount > 0)
             {
                 StarfieldNative.CR_TextDispatch(

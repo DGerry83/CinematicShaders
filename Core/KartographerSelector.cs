@@ -413,7 +413,8 @@ namespace CinematicShaders.Core
 
             // Layout text in native code
             uint color = 0xFFFFFFFF; // White ARGB
-            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, text, FONT_SIZE, color);
+            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, text, FONT_SIZE, 
+                color, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
 
             if (glyphCount <= 0)
             {
@@ -595,7 +596,8 @@ namespace CinematicShaders.Core
             uint color = 0xFFFFFFFF; // White ARGB
 
             // Layout and render text
-            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, gridLabelText, GRID_LABEL_BASE_SIZE, color);
+            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, gridLabelText, GRID_LABEL_BASE_SIZE, 
+                color, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
             
             Debug.Log($"[KartographerSelector] Grid label layout: {glyphCount} glyphs for text '{gridLabelText.Replace('\n', '|')}' at size {GRID_LABEL_BASE_SIZE}px");
             

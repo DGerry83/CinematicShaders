@@ -63,7 +63,8 @@ public:
     int LayoutString(const char* text, float fontSize, uint32_t color);
     
     // Layout a string with explicit origin offset. Returns glyph count.
-    int LayoutStringEx(const char* text, float fontSize, uint32_t color, float originX, float originY, float lineSpacing = 0.0f);
+    int LayoutStringEx(const char* text, float fontSize, uint32_t color, float originX, float originY, float lineSpacing = 0.0f,
+                       float aspectRatio = 1.0f);
     
     // Get bounds of last laid-out text. Returns width/height via out params.
     // This is the ACTUAL rendered size based on glyph positions, not estimates.
@@ -154,7 +155,8 @@ typedef void* TextSystemHandle;
     
     // Layout text
     __declspec(dllexport) int CR_TextLayout(TextSystemHandle handle, const char* text, float fontSize, uint32_t color);
-    __declspec(dllexport) int CR_TextLayoutEx(TextSystemHandle handle, const char* text, float fontSize, uint32_t color, float originX, float originY, float lineSpacing);
+    __declspec(dllexport) int CR_TextLayoutEx(TextSystemHandle handle, const char* text, float fontSize, uint32_t color, float originX, float originY, float lineSpacing,
+                    float aspectRatio = 1.0f);
     
     // Get actual bounds of laid-out text (width/height via out params)
     __declspec(dllexport) void CR_TextGetBounds(TextSystemHandle handle, float* outWidth, float* outHeight);

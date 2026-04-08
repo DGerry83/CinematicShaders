@@ -300,7 +300,8 @@ int TextSystem::LayoutString(const char* text, float fontSize, uint32_t color) {
     return LayoutStringEx(text, fontSize, color, 0.0f, 0.0f);
 }
 
-int TextSystem::LayoutStringEx(const char* text, float fontSize, uint32_t color, float originX, float originY, float lineSpacing) {
+int TextSystem::LayoutStringEx(const char* text, float fontSize, uint32_t color, float originX, float originY, float lineSpacing,
+                               float aspectRatio) {
     if (!m_initialized || !text) {
         return 0;
     }
@@ -375,10 +376,10 @@ int TextSystem::LayoutStringEx(const char* text, float fontSize, uint32_t color,
         GlyphInstance inst;
         // xOffset/yOffset are pixel offsets from baseline to bitmap top-left
         // Snap to integers for pixel-perfect rendering (critical for pixel fonts)
-        inst.posX = std::round(cursorX + m.xOffset);
+        inst.posX = std::round(cursorX + (m.xOffset * aspectRatio));
         inst.posY = std::round(cursorY + (m_ascent * m_fontScale) + m.yOffset);
         
-        inst.sizeX = static_cast<float>(m.width);
+        inst.sizeX = static_cast<float>(m.width) * aspectRatio;
         inst.sizeY = static_cast<float>(m.height);
         inst.uvX = m.u0;
         inst.uvY = m.v0;
@@ -391,7 +392,7 @@ int TextSystem::LayoutStringEx(const char* text, float fontSize, uint32_t color,
         m_instances.push_back(inst);
         
         // Advance cursor by glyph advance
-        cursorX += m.advance;
+        cursorX += m.advance * aspectRatio;
         
         // Apply kerning with next character (peek next UTF-8 codepoint)
         if (*p && *p != '\n') {
@@ -409,7 +410,7 @@ int TextSystem::LayoutStringEx(const char* text, float fontSize, uint32_t color,
             }
             
             if (nextCodepoint > 0) {
-                cursorX += stbtt_GetCodepointKernAdvance(m_fontInfo, codepoint, nextCodepoint) * m_fontScale;
+                cursorX += stbtt_GetCodepointKernAdvance(m_fontInfo, codepoint, nextCodepoint) * m_fontScale * aspectRatio;
             }
         }
     }
@@ -693,12 +694,11 @@ int CR_TextLayout(TextSystemHandle handle, const char* text, float fontSize, uin
 }
 
 extern "C" __declspec(dllexport)
-int CR_TextLayoutEx(TextSystemHandle handle, const char* text, float fontSize, uint32_t color, float originX, float originY, float lineSpacing) {
-    if (!handle) {
-        return 0;
-    }
-    TextSystem* ts = static_cast<TextSystem*>(handle);
-    return ts->LayoutStringEx(text, fontSize, color, originX, originY, lineSpacing);
+int CR_TextLayoutEx(TextSystemHandle handle, const char* text, float fontSize, uint32_t color, float originX, float originY, float lineSpacing,
+                    float aspectRatio) {
+    auto* ts = static_cast<TextSystem*>(handle);
+    if (!ts || !text) return 0;
+    return ts->LayoutStringEx(text, fontSize, color, originX, originY, lineSpacing, aspectRatio);
 }
 
 extern "C" __declspec(dllexport)

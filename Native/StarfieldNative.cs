@@ -83,7 +83,8 @@ namespace CinematicShaders.Native
             uint color,
             float originX,
             float originY,
-            float lineSpacing);
+            float lineSpacing,
+            float aspectRatio);  // NEW: aspect ratio parameter
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_TextDispatchEx(
