@@ -87,6 +87,8 @@
     <Compile Include="UI\Screens\ILayer.cs" />
     <Compile Include="UI\Screens\IScreen.cs" />
     <Compile Include="UI\Screens\ScreenTransitionContext.cs" />
+    <Compile Include="UI\Screens\ScreenManager.cs" />
+    <Compile Include="UI\Screens\BaseScreen.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="KSPBuildTools">
