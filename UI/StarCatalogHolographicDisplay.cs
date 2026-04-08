@@ -543,10 +543,16 @@ namespace CinematicShaders.UI
             GUI.DrawTexture(crtRect, Texture2D.whiteTexture);
             GUI.color = Color.white;
             
-            // Render current screen via ScreenManager
+            // Render current screen via ScreenManager (Layers 1 and 2)
             if (_displayPowered && _screenManager != null)
             {
                 _screenManager.Render(_displayRect);
+            }
+            
+            // Render Layer 3 elements (value fields, buttons) - only for Main screen
+            if (_displayPowered && _screenManager?.CurrentScreen?.State == ScreenState.Main)
+            {
+                DrawElements();
                 
                 // Handle screen-specific interactions
                 HandleScreenInteractions();
@@ -2690,6 +2696,12 @@ namespace CinematicShaders.UI
             
             // Update screen manager animations
             _screenManager?.Update(Time.deltaTime);
+            
+            // Update Layer 3 elements (value fields, buttons)
+            if (_displayPowered)
+            {
+                UpdateElements();
+            }
         }
         
         #endregion
