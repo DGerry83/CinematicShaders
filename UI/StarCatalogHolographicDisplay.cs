@@ -393,9 +393,6 @@ namespace CinematicShaders.UI
         
         private void DrawWindow(int windowId)
         {
-            // Consume mouse events to prevent click-through to game world
-            ConsumeMouseEventsIfOverWindow();
-            
             // Draw title bar with PWR button and X
             DrawTitleBar();
             
@@ -413,14 +410,23 @@ namespace CinematicShaders.UI
             
             // Make window draggable
             GUI.DragWindow();
+            
+            // Consume unhandled mouse events to prevent click-through to game world
+            // This must be called AFTER all window controls have processed events
+            ConsumeMouseEventsIfOverWindow();
         }
         
         /// <summary>
         /// Consume mouse events when over the window to prevent click-through to game.
         /// This matches the behavior of GUILayout.Window which consumes events automatically.
+        /// Must be called AFTER window controls (buttons, drag) have processed events.
         /// </summary>
         private void ConsumeMouseEventsIfOverWindow()
         {
+            // Skip if event was already used by a control (button, drag, etc.)
+            if (Event.current.type == EventType.Used)
+                return;
+            
             EventType eventType = Event.current.type;
             bool isMouseEvent = (eventType == EventType.MouseDown || 
                                  eventType == EventType.MouseUp || 
