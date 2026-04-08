@@ -242,12 +242,12 @@ namespace CinematicShaders.UI
             if (!_elements.ContainsKey("save_button"))
             {
                 AddElement("save_button", TextElementType.Label, "", "[SAVE]",
-                    new Rect(1240, 720, 160, 64), 1.4f);
+                    HolographicLayoutConfig.SAVE_BUTTON_POS, 1.4f);
             }
             if (!_elements.ContainsKey("reset_button"))
             {
                 AddElement("reset_button", TextElementType.Label, "", "[RESET]",
-                    new Rect(1480, 720, 160, 64), 1.45f);
+                    HolographicLayoutConfig.RESET_BUTTON_POS, 1.45f);
             }
 
             // Results rows (10 max)
