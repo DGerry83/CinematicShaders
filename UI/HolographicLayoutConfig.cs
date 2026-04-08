@@ -126,11 +126,12 @@ namespace CinematicShaders.UI
         public static readonly Rect SELECTED_STAR_POS = new Rect(72, 310, 400, 27);   // row 11.5 × 27 ≈ 310
 
         // Results rows (10 max, calculated positions)
+        // Height changed to 27 to match button/text field height for consistent rendering
         public static Rect GetResultRowPos(int index)
         {
             if (index < 0 || index >= 10)
-                return new Rect(380, 120, 200, 32);
-            return new Rect(380, 120 + (index * 32), 200, 32);
+                return new Rect(380, 120, 200, 27);
+            return new Rect(380, 120 + (index * 27), 200, 27);
         }
 
     }
