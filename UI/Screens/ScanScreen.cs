@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using CinematicShaders.UI.Screens.Layers;
 using CinematicShaders.Native;
+using CinematicShaders.Core;
 
 namespace CinematicShaders.UI.Screens
 {
@@ -105,13 +106,27 @@ namespace CinematicShaders.UI.Screens
             return false;
         }
         
+        private Color GetGridColor()
+        {
+            // Use Kartographer grid colors from settings
+            int colorIndex = StarfieldSettings.KartographerGridColor;
+            switch (colorIndex)
+            {
+                case 0: return new Color(0.1f, 0.9f, 0.7f);  // Seafoam
+                case 1: return new Color(1.0f, 0.65f, 0.0f); // Amber
+                case 2: return new Color(0.85f, 0.95f, 1.0f); // White
+                case 3: return new Color(0.25f, 1.0f, 0.0f);  // Green
+                default: return new Color(0.1f, 0.9f, 0.7f);  // Default seafoam
+            }
+        }
+        
         private uint GetGridColorUint()
         {
-            Color color = new Color(0.1f, 0.9f, 0.7f);
-            return ((uint)(color.a * 255) << 24) |
-                   ((uint)(color.b * 255) << 16) |
-                   ((uint)(color.g * 255) << 8) |
-                   (uint)(color.r * 255);
+            Color c = GetGridColor();
+            uint r = (uint)(c.r * 255) & 0xFF;
+            uint g = (uint)(c.g * 255) & 0xFF;
+            uint b = (uint)(c.b * 255) & 0xFF;
+            return 0xFF000000 | (r << 16) | (g << 8) | b;  // ARGB format (A=FF)
         }
     }
 }
