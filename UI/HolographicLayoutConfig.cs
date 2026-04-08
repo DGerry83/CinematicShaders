@@ -32,7 +32,7 @@ namespace CinematicShaders.UI
         // Font sizes for each display size
         public const float FONT_SIZE_SMALL = 18f;
         public const float FONT_SIZE_MEDIUM = 24f;
-        public const float FONT_SIZE_LARGE = 32f;
+        public const float FONT_SIZE_LARGE = 35f;  // 35pt for integer scaled width (12px) at 2:3 aspect
         
         public const float LINE_SPACING_SMALL = 24f;
         public const float LINE_SPACING_MEDIUM = 32f;
@@ -102,33 +102,26 @@ namespace CinematicShaders.UI
         public const char BORDER_T_DOWN = '╦';
         public const char BORDER_CROSS = '╬';
 
-        // Element positions (4K coordinates) - MATCH ASCII ART EXACTLY
-        // Main panel left column
-        public static readonly Rect HIP_LABEL_POS = new Rect(80, 180, 80, 32);
-        public static readonly Rect HIP_VALUE_POS = new Rect(160, 180, 200, 32);
-        public static readonly Rect NAME_LABEL_POS = new Rect(80, 212, 80, 32);
-        public static readonly Rect NAME_VALUE_POS = new Rect(160, 212, 200, 32);
-        public static readonly Rect DISTANCE_LABEL_POS = new Rect(80, 244, 80, 32);
-        public static readonly Rect DISTANCE_VALUE_POS = new Rect(160, 244, 200, 32);
-        public static readonly Rect SPECTRAL_LABEL_POS = new Rect(80, 276, 80, 32);
-        public static readonly Rect SPECTRAL_VALUE_POS = new Rect(160, 276, 200, 32);
-        public static readonly Rect MAG_LABEL_POS = new Rect(80, 308, 80, 32);
-        public static readonly Rect MAG_VALUE_POS = new Rect(160, 308, 200, 32);
-        public static readonly Rect CONST_LABEL_POS = new Rect(80, 340, 80, 32);
-        public static readonly Rect CONST_VALUE_POS = new Rect(160, 340, 200, 32);
+        // Element positions - GRID BASED (font grid coordinates × glyph size)
+        // 35pt Large: glyph = 12×27px (scaled 2:3), grid = 59×13
+        // Field positions align with Layer 2 labels from font_layout_guide.json
+        
+        // Main panel left column - VALUE positions (grid-based for 35pt)
+        public static readonly Rect HIP_VALUE_POS = new Rect(72, 54, 300, 27);      // grid (6,2)
+        public static readonly Rect NAME_VALUE_POS = new Rect(84, 81, 300, 27);     // grid (7,3)
+        public static readonly Rect DISTANCE_VALUE_POS = new Rect(132, 108, 250, 27); // grid (11,4)
+        public static readonly Rect SPECTRAL_VALUE_POS = new Rect(132, 135, 200, 27); // grid (11,5)
+        public static readonly Rect MAG_VALUE_POS = new Rect(72, 162, 200, 27);     // grid (6,6)
+        public static readonly Rect CONST_VALUE_POS = new Rect(96, 189, 250, 27);   // grid (8,7)
 
         // Buttons
-        public static readonly Rect SAVE_BUTTON_POS = new Rect(280, 380, 80, 32);
-        public static readonly Rect RESET_BUTTON_POS = new Rect(360, 380, 80, 32);
+        public static readonly Rect SAVE_BUTTON_POS = new Rect(280, 240, 100, 27);
+        public static readonly Rect RESET_BUTTON_POS = new Rect(400, 240, 100, 27);
 
-        // Search area (bottom left)
-        public static readonly Rect SEARCH_LABEL_POS = new Rect(80, 600, 80, 32);
-        public static readonly Rect SEARCH_INPUT_POS = new Rect(160, 600, 200, 32);
-        public static readonly Rect RESCAN_BUTTON_POS = new Rect(360, 600, 80, 32);
-        public static readonly Rect SELECTED_STAR_POS = new Rect(80, 632, 400, 32);
-
-        // Results column header
-        public static readonly Rect RESULTS_HEADER_POS = new Rect(380, 80, 200, 32);
+        // Search area
+        public static readonly Rect SEARCH_INPUT_POS = new Rect(96, 270, 300, 27);  // grid (8,10)
+        public static readonly Rect RESCAN_BUTTON_POS = new Rect(420, 270, 120, 27);
+        public static readonly Rect SELECTED_STAR_POS = new Rect(72, 310, 400, 27);
 
         // Results rows (10 max, calculated positions)
         public static Rect GetResultRowPos(int index)
