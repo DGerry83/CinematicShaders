@@ -956,6 +956,13 @@ namespace CinematicShaders.UI.Tabs
             }
             
             GUILayout.EndHorizontal();
+            
+            // Debug: Export textures button
+            GUILayout.Space(5);
+            if (GUILayout.Button("Export Textures (Debug)", HighLogic.Skin.button))
+            {
+                ExportHolographicTextures();
+            }
         }
 
         /// <summary>
@@ -1160,6 +1167,21 @@ namespace CinematicShaders.UI.Tabs
             Debug.Log("[KartographerTab] Holographic display closed via X button");
             // Window closed itself, just clean up reference if needed
             // The component will be destroyed by the GameObject cleanup
+        }
+
+        /// <summary>
+        /// Export all holographic display textures to PNG for debugging/layout
+        /// Files are saved to PluginData/TextureExports/
+        /// </summary>
+        private void ExportHolographicTextures()
+        {
+            if (_holographicDisplay == null)
+            {
+                Debug.Log("[KartographerTab] No holographic display to export");
+                return;
+            }
+            
+            _holographicDisplay.ExportAllTexturesToPng();
         }
 
         /// <summary>

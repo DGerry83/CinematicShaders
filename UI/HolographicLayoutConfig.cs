@@ -26,8 +26,8 @@ namespace CinematicShaders.UI
         public const float DISPLAY_WIDTH_MEDIUM = 600f;
         public const float DISPLAY_HEIGHT_MEDIUM = 700f;
         
-        public const float DISPLAY_WIDTH_LARGE = 800f;
-        public const float DISPLAY_HEIGHT_LARGE = 933f;
+        public const float DISPLAY_WIDTH_LARGE = 825f;   // +25px wider
+        public const float DISPLAY_HEIGHT_LARGE = 450f;  // 450px tall target
 
         // Font sizes for each display size
         public const float FONT_SIZE_SMALL = 18f;

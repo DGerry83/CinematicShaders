@@ -3015,6 +3015,96 @@ namespace CinematicShaders.UI
             return _filteredResults?.Count ?? 0;
         }
 
+        /// <summary>
+        /// Export all display textures to PNG files for debugging/layout.
+        /// Files are saved to PluginData/TextureExports/
+        /// </summary>
+        public void ExportAllTexturesToPng()
+        {
+            try
+            {
+                string exportDir = Path.Combine(KSPUtil.ApplicationRootPath, "GameData", "CinematicShaders", "PluginData", "TextureExports");
+                if (!Directory.Exists(exportDir))
+                {
+                    Directory.CreateDirectory(exportDir);
+                }
+                
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                int exportedCount = 0;
+                
+                // Export Layer 1 (Border)
+                if (_borderTexture != null)
+                {
+                    ExportRenderTextureToPng(_borderTexture, Path.Combine(exportDir, $"Layer1_Border_{timestamp}.png"));
+                    exportedCount++;
+                }
+                
+                // Export Layer 2 (Labels)
+                if (_mainBorderLabelsTexture != null)
+                {
+                    ExportRenderTextureToPng(_mainBorderLabelsTexture, Path.Combine(exportDir, $"Layer2_MainLabels_{timestamp}.png"));
+                    exportedCount++;
+                }
+                if (_scanBorderLabelsTexture != null)
+                {
+                    ExportRenderTextureToPng(_scanBorderLabelsTexture, Path.Combine(exportDir, $"Layer2_ScanLabels_{timestamp}.png"));
+                    exportedCount++;
+                }
+                if (_confirmBorderLabelsTexture != null)
+                {
+                    ExportRenderTextureToPng(_confirmBorderLabelsTexture, Path.Combine(exportDir, $"Layer2_ConfirmLabels_{timestamp}.png"));
+                    exportedCount++;
+                }
+                
+                // Export Layer 3 (Element textures)
+                int elemIndex = 0;
+                foreach (var kvp in _elements)
+                {
+                    if (kvp.Value.TextTexture != null)
+                    {
+                        string safeName = kvp.Key.Replace("_", "");
+                        ExportRenderTextureToPng(kvp.Value.TextTexture, Path.Combine(exportDir, $"Layer3_{safeName}_{timestamp}.png"));
+                        elemIndex++;
+                    }
+                }
+                exportedCount += elemIndex;
+                
+                // Export main display texture
+                if (_displayTexture != null)
+                {
+                    ExportRenderTextureToPng(_displayTexture, Path.Combine(exportDir, $"DisplayTexture_{timestamp}.png"));
+                    exportedCount++;
+                }
+                
+                Debug.Log($"[HolographicDisplay] Exported {exportedCount} textures to: {exportDir}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[HolographicDisplay] Failed to export textures: {ex.Message}");
+            }
+        }
+        
+        /// <summary>
+        /// Helper to export a single RenderTexture to PNG
+        /// </summary>
+        private void ExportRenderTextureToPng(RenderTexture rt, string filePath)
+        {
+            if (rt == null) return;
+            
+            // Create temporary Texture2D to read the RenderTexture
+            RenderTexture.active = rt;
+            Texture2D tex = new Texture2D(rt.width, rt.height, TextureFormat.RGBA32, false);
+            tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+            tex.Apply();
+            RenderTexture.active = null;
+            
+            // Encode to PNG and save
+            byte[] pngData = tex.EncodeToPNG();
+            File.WriteAllBytes(filePath, pngData);
+            
+            UnityEngine.Object.Destroy(tex);
+        }
+
         #endregion
     }
 }
