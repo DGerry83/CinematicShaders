@@ -29,8 +29,19 @@ namespace CinematicShaders.UI
         private bool _isVisible = false;
         private bool _displayPowered = false;
         private float _powerOnTime = 0f;
+        
+        // Layer animation progress (sequential type-on)
+        private float _layer1TypeOnProgress = 0f;  // Border (Layer 1)
+        private float _layer2TypeOnProgress = 0f;  // Labels (Layer 2)
+        private const float LAYER_1_DURATION = 2.0f;   // 2.0s for border
+        private const float LAYER_2_DURATION = 2.0f;   // 2.0s for labels
+        private const float LAYER_2_DELAY = 2.0f;      // Start after Layer 1
+        private const float LAYER_3_DELAY = 4.0f;      // Start after Layer 2
+        
+        // Legacy variable - keep for compatibility but use _layer1TypeOnProgress
         private float _borderTypeOnProgress = 0f;
-        private const float BORDER_TYPE_ON_DURATION = 2.0f;  // 2.0s for Layer 1 & 2 (border + labels) - slower to match visible typing speed
+        private const float BORDER_TYPE_ON_DURATION = 2.0f;
+        
         private HolographicDisplaySize _displaySize = HolographicDisplaySize.Medium;
         private float _fontSize = 24f;
         private float _lineSpacing = 32f;
@@ -587,13 +598,20 @@ namespace CinematicShaders.UI
 
             _powerOnTime += Time.deltaTime;
             
-            // Update border type-on animation
-            if (_borderTypeOnProgress < 1f)
+            // Update Layer 1 (Border) type-on animation
+            if (_layer1TypeOnProgress < 1f)
             {
-                _borderTypeOnProgress = Mathf.Clamp01(_powerOnTime / BORDER_TYPE_ON_DURATION);
+                _layer1TypeOnProgress = Mathf.Clamp01(_powerOnTime / LAYER_1_DURATION);
+                _borderTypeOnProgress = _layer1TypeOnProgress;  // Keep legacy in sync
                 InvalidateBorder();  // Mark border dirty to re-render
-                // Also invalidate all Layer 2 textures as they use the same type-on progress
-                InvalidateLayer2();
+            }
+            
+            // Update Layer 2 (Labels) type-on animation - starts after Layer 1
+            if (_powerOnTime >= LAYER_2_DELAY && _layer2TypeOnProgress < 1f)
+            {
+                float layer2LocalTime = _powerOnTime - LAYER_2_DELAY;
+                _layer2TypeOnProgress = Mathf.Clamp01(layer2LocalTime / LAYER_2_DURATION);
+                InvalidateLayer2();  // Mark Layer 2 dirty to re-render
             }
 
             foreach (var element in _elements.Values)
@@ -1325,20 +1343,15 @@ namespace CinematicShaders.UI
             TransitionToScreen(ScreenState.Main);
 
             // Reset type-on animation with proper sequence:
-            // 1. Border first (lowest delay)
-            // 2. Labels second
-            // 3. Values third (only if star selected)
+            // 1. Border (Layer 1): 0s - 2s
+            // 2. Labels (Layer 2): 2s - 4s  
+            // 3. Values (Layer 3): 4s+ (only if star selected)
             
-            float currentDelay = 0f;
+            // Layer 1 & 2 are handled by _layer1TypeOnProgress and _layer2TypeOnProgress
+            // They are already reset in TransitionToScreen()
             
-            // First: Border (if we had it as an element - currently it's a separate texture)
-            // Border renders immediately when powered on
-            
-            // Second: Labels (HIP, NAME, DISTANCE, etc.) are now in Layer 2 texture
-            // They type on as part of the combined border+labels texture
-            // No individual element animation needed
-            
-            // Third: Values (only if we have a selected star)
+            // Layer 3: Values (only if we have a selected star) - start after Layer 2
+            float currentDelay = LAYER_3_DELAY;
             if (_selectedStar != null)
             {
                 string[] valueIds = { "hip_value", "name_value", "distance_value", 
@@ -1363,7 +1376,7 @@ namespace CinematicShaders.UI
                 }
             }
             
-            // Search elements come after
+            // Search elements come after values
             currentDelay += 0.3f;
             string[] searchIds = { "search_input", "rescan_button" };
             foreach (var id in searchIds)
@@ -1396,7 +1409,7 @@ namespace CinematicShaders.UI
         }
 
         /// <summary>
-        /// Update display data with star information
+        /// Update display data with star information and trigger type-on animation
         /// </summary>
         public void SetStarData(NamedStar star)
         {
@@ -1409,6 +1422,43 @@ namespace CinematicShaders.UI
             SetElementText("mag_value", star.Magnitude.ToString("F2"));
             SetElementText("const_value", star.Constellation);
             SetElementText("selected_star", $"{star.Name}");
+            
+            // Trigger type-on animation for value fields (Layer 3)
+            // This creates a nice "typing" effect when a new star is selected
+            TriggerValueTypeOnAnimation();
+        }
+        
+        /// <summary>
+        /// Trigger type-on animation for value fields when star data changes
+        /// </summary>
+        private void TriggerValueTypeOnAnimation()
+        {
+            if (!_displayPowered) return;
+            
+            float currentDelay = 0f;
+            string[] valueIds = { "hip_value", "name_value", "distance_value", 
+                                  "spectral_value", "mag_value", "const_value" };
+            
+            foreach (var id in valueIds)
+            {
+                if (_elements.TryGetValue(id, out var elem))
+                {
+                    elem.TypeOnDelay = currentDelay;
+                    elem.TypeOnProgress = 0f;  // Reset to start
+                    elem.IsVisible = true;
+                    elem.IsDirty = true;
+                    currentDelay += 0.15f;
+                }
+            }
+            
+            // Selected star indicator last
+            if (_elements.TryGetValue("selected_star", out var selElem))
+            {
+                selElem.TypeOnDelay = currentDelay;
+                selElem.TypeOnProgress = 0f;
+                selElem.IsVisible = true;
+                selElem.IsDirty = true;
+            }
         }
 
         private void SetElementText(string elementId, string text)
@@ -1861,9 +1911,9 @@ namespace CinematicShaders.UI
 
             // Apply type-on: only show portion based on progress (with cursor)
             // Spaces skip - they appear immediately without consuming type-on time
-            if (_borderTypeOnProgress < 1f)
+            if (_layer1TypeOnProgress < 1f)
             {
-                int endIndex = GetTypeOnEndIndex(borderText, _borderTypeOnProgress);
+                int endIndex = GetTypeOnEndIndex(borderText, _layer1TypeOnProgress);
                 
                 // Add cursor when typing is in progress (like text elements)
                 if (endIndex <= 0)
@@ -1956,9 +2006,9 @@ namespace CinematicShaders.UI
 
             // Apply type-on: only show portion based on progress (with cursor)
             // Spaces skip - they appear immediately without consuming type-on time
-            if (_borderTypeOnProgress < 1f)
+            if (_layer2TypeOnProgress < 1f)
             {
-                int endIndex = GetTypeOnEndIndex(text, _borderTypeOnProgress);
+                int endIndex = GetTypeOnEndIndex(text, _layer2TypeOnProgress);
                 
                 // Add cursor when typing is in progress
                 if (endIndex <= 0)
@@ -2035,6 +2085,8 @@ namespace CinematicShaders.UI
             
             // 3. Reset animation timers
             _powerOnTime = 0f;
+            _layer1TypeOnProgress = 0f;
+            _layer2TypeOnProgress = 0f;
             _borderTypeOnProgress = 0f;
             
             // 4. Reset element animations
