@@ -2738,27 +2738,41 @@ namespace CinematicShaders.UI
                 string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 int exportedCount = 0;
                 
-                // Export Layer 1 (Border)
+                // Export ScreenManager Layer 1 (Border - shared texture)
+                if (_screenManager != null)
+                {
+                    var layerTextures = _screenManager.GetAllLayerTextures();
+                    foreach (var kvp in layerTextures)
+                    {
+                        if (kvp.Value != null)
+                        {
+                            ExportRenderTextureToPng(kvp.Value, Path.Combine(exportDir, $"ScreenManager_Layer{kvp.Key}_{timestamp}.png"));
+                            exportedCount++;
+                        }
+                    }
+                }
+                
+                // Export legacy Layer 1 (Border) - for comparison
                 if (_borderTexture != null)
                 {
-                    ExportRenderTextureToPng(_borderTexture, Path.Combine(exportDir, $"Layer1_Border_{timestamp}.png"));
+                    ExportRenderTextureToPng(_borderTexture, Path.Combine(exportDir, $"Legacy_Layer1_Border_{timestamp}.png"));
                     exportedCount++;
                 }
                 
-                // Export Layer 2 (Labels)
+                // Export legacy Layer 2 (Labels) - for comparison
                 if (_mainBorderLabelsTexture != null)
                 {
-                    ExportRenderTextureToPng(_mainBorderLabelsTexture, Path.Combine(exportDir, $"Layer2_MainLabels_{timestamp}.png"));
+                    ExportRenderTextureToPng(_mainBorderLabelsTexture, Path.Combine(exportDir, $"Legacy_Layer2_MainLabels_{timestamp}.png"));
                     exportedCount++;
                 }
                 if (_scanBorderLabelsTexture != null)
                 {
-                    ExportRenderTextureToPng(_scanBorderLabelsTexture, Path.Combine(exportDir, $"Layer2_ScanLabels_{timestamp}.png"));
+                    ExportRenderTextureToPng(_scanBorderLabelsTexture, Path.Combine(exportDir, $"Legacy_Layer2_ScanLabels_{timestamp}.png"));
                     exportedCount++;
                 }
                 if (_confirmBorderLabelsTexture != null)
                 {
-                    ExportRenderTextureToPng(_confirmBorderLabelsTexture, Path.Combine(exportDir, $"Layer2_ConfirmLabels_{timestamp}.png"));
+                    ExportRenderTextureToPng(_confirmBorderLabelsTexture, Path.Combine(exportDir, $"Legacy_Layer2_ConfirmLabels_{timestamp}.png"));
                     exportedCount++;
                 }
                 

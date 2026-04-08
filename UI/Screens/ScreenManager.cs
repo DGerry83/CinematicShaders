@@ -140,6 +140,14 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
+        /// Get all layer textures for debugging/export
+        /// </summary>
+        public Dictionary<int, RenderTexture> GetAllLayerTextures()
+        {
+            return new Dictionary<int, RenderTexture>(_layerTextures);
+        }
+        
+        /// <summary>
         /// Clean up all resources
         /// </summary>
         public void Shutdown()
