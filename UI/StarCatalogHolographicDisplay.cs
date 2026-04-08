@@ -30,7 +30,7 @@ namespace CinematicShaders.UI
         private bool _displayPowered = false;
         private float _powerOnTime = 0f;
         private float _borderTypeOnProgress = 0f;
-        private const float BORDER_TYPE_ON_DURATION = 0.5f;
+        private const float BORDER_TYPE_ON_DURATION = 2.0f;  // 2.0s for Layer 1 & 2 (border + labels) - slower to match visible typing speed
         private HolographicDisplaySize _displaySize = HolographicDisplaySize.Medium;
         private float _fontSize = 24f;
         private float _lineSpacing = 32f;
