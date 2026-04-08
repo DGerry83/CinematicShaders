@@ -344,7 +344,7 @@ namespace CinematicShaders.Core
 
             uint white = 0xFFFFFFFF;
             int glyphCount = StarfieldNative.CR_TextLayoutEx(
-                textSystem, text, MANEUVER_FONT_SIZE, white, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
+                textSystem, text, MANEUVER_FONT_SIZE, white, 0f, 0f, 0f, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
 
             StarfieldNative.CR_TextDispatchEx(
                 textSystem,

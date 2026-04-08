@@ -761,13 +761,13 @@ namespace CinematicShaders.Core
                 float vPadding = 2.0f;
                 
                 // First, layout initials to get actual bounds (not advances)
-                int g1 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.InitialsText, initialsSize, color, 0.0f, TEXTURE_SIZE * 0.5f, 0.0f, 0.667f);  // 0.667f = 2:3 aspect ratio
+                int g1 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.InitialsText, initialsSize, color, 0.0f, TEXTURE_SIZE * 0.5f, 0.0f, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
                 StarfieldNative.CR_TextGetBounds(_textSystem, out float iw, out float ih);
                 
                 // Layout body to get its bounds
                 int bodyLineCount = label.Text.Split('\n').Length;
                 float bodyExtraHeight = (bodyLineCount - 1) * label.LineSpacing;
-                int g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing, 0.667f);  // 0.667f = 2:3 aspect ratio
+                int g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
                 StarfieldNative.CR_TextGetBounds(_textSystem, out float bw, out float bh);
                 
                 // Align first body line with first initial
@@ -778,7 +778,7 @@ namespace CinematicShaders.Core
                 float originY = TEXTURE_SIZE - boundsHeight - vPadding;
                 
                 // Pass 1: render initials (clears texture), aligned to bottom-left of texture
-                g1 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.InitialsText, initialsSize, color, 0.0f, originY, 0.0f, 0.667f);  // 0.667f = 2:3 aspect ratio
+                g1 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.InitialsText, initialsSize, color, 0.0f, originY, 0.0f, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
                 if (g1 > 0)
                 {
                     StarfieldNative.CR_TextDispatchEx(
@@ -791,7 +791,7 @@ namespace CinematicShaders.Core
                 }
                 
                 // Pass 2: render body next to initials (no clear)
-                g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, iw + hPadding, originY + bodyOriginY, label.LineSpacing, 0.667f);  // 0.667f = 2:3 aspect ratio
+                g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, iw + hPadding, originY + bodyOriginY, label.LineSpacing, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
                 if (g2 > 0)
                 {
                     StarfieldNative.CR_TextDispatchEx(
@@ -838,12 +838,12 @@ namespace CinematicShaders.Core
                 string displayText = anyCompressed ? string.Join("\n", processedLines) : label.Text;
                 
                 // Final layout with compressed text
-                int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, displayText, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing, 0.667f);  // 0.667f = 2:3 aspect ratio
+                int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, displayText, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
                 StarfieldNative.CR_TextGetBounds(_textSystem, out boundsWidth, out boundsHeight);
                 
                 // Re-layout with correct origin for final render
                 float originY = TEXTURE_SIZE - boundsHeight - vPadding;
-                glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, displayText, label.FontSizePixels, color, 0.0f, originY, label.LineSpacing, 0.667f);  // 0.667f = 2:3 aspect ratio
+                glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, displayText, label.FontSizePixels, color, 0.0f, originY, label.LineSpacing, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
                 
                 // Render glyphs (clears texture)
                 StarfieldNative.CR_TextDispatchEx(

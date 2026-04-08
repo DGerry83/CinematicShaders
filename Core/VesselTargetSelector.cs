@@ -492,7 +492,7 @@ namespace CinematicShaders.Core
 
             uint color = 0xFFFFFFFF; // White ARGB
             int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, displayText, FONT_SIZE, 
-                color, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
+                color, 0f, 0f, 0f, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
             if (glyphCount <= 0) return;
 
             // Get actual rendered bounds
