@@ -66,8 +66,11 @@ namespace CinematicShaders.UI.Screens
                 _elementLayer.SetElementVisibility(true);
                 
                 // Set up type-on animation for elements
-                // Layer 3 starts after Layer 2 completes (at Layer3Delay)
-                _elementLayer.SetupMainScreenAnimation(Layer3Delay, hasStarSelected: true);
+                // Element delays are relative to Layer3Delay (0 = starts at Layer3Delay)
+                _elementLayer.SetupMainScreenAnimation(0f, hasStarSelected: true);
+                
+                // Set the Layer 3 base delay for element timing calculations
+                _elementLayer.SetLayer3Delay(Layer3Delay);
             }
         }
         
@@ -125,9 +128,10 @@ namespace CinematicShaders.UI.Screens
             }
             
             // Render Layer 3: Elements (value fields, buttons)
+            // Pass PowerOnTime so elements can calculate their individual type-on progress
             if (_elementLayer != null && Layer3Progress > 0)
             {
-                _elementLayer.RenderToTexture(textSystem, displayRect, Layer3Progress);
+                _elementLayer.RenderToTexture(textSystem, displayRect, PowerOnTime);
             }
         }
         

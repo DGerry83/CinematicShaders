@@ -34,15 +34,26 @@ namespace CinematicShaders.UI.Screens.Layers
             _textSystem = textSystem;
         }
         
+        // Base delay for Layer 3 (when elements start animating)
+        private float _layer3Delay = 3.5f;
+        
         public void Render(float typeOnProgress)
         {
             // Element rendering is done per-element in RenderToTexture
         }
         
         /// <summary>
+        /// Set the Layer 3 delay for calculating element start times.
+        /// </summary>
+        public void SetLayer3Delay(float delay)
+        {
+            _layer3Delay = delay;
+        }
+        
+        /// <summary>
         /// Render all visible elements to their textures and draw them to the screen.
         /// </summary>
-        public void RenderToTexture(IntPtr textSystem, Rect displayRect, float typeOnProgress)
+        public void RenderToTexture(IntPtr textSystem, Rect displayRect, float powerOnTime)
         {
             if (textSystem == IntPtr.Zero) return;
             _textSystem = textSystem;
@@ -53,8 +64,8 @@ namespace CinematicShaders.UI.Screens.Layers
                 if (!element.IsVisible) continue;
                 if (element.TextTexture == null) continue;
                 
-                // Update type-on animation
-                UpdateElementTypeOn(element, typeOnProgress);
+                // Update type-on animation (element starts after its TypeOnDelay)
+                UpdateElementTypeOn(element, powerOnTime);
                 
                 // Re-render if dirty (only during Repaint to avoid GPU sync issues)
                 if (element.IsDirty && Event.current.type == EventType.Repaint)
@@ -76,25 +87,34 @@ namespace CinematicShaders.UI.Screens.Layers
         }
         
         /// <summary>
-        /// Update type-on animation for an element based on layer progress.
+        /// Update type-on animation for an element based on power-on time and individual delay.
+        /// Each element types on sequentially after its TypeOnDelay.
         /// </summary>
-        private void UpdateElementTypeOn(HolographicTextElement element, float layerProgress)
+        private void UpdateElementTypeOn(HolographicTextElement element, float powerOnTime)
         {
-            // Element type-on is relative to layer progress
-            // element.TypeOnDelay is in seconds from power-on
-            // We need to map this to the layer progress
+            // Element type-on starts at: _layer3Delay + element.TypeOnDelay
+            // Each element takes 0.5 seconds to type on
+            float elementDuration = 0.5f;
+            float elementStartTime = _layer3Delay + element.TypeOnDelay;
             
-            if (layerProgress >= 1f)
+            // Calculate progress for this specific element
+            if (powerOnTime >= elementStartTime + elementDuration)
             {
+                // Element has finished typing
                 element.TypeOnProgress = 1f;
-                return;
             }
-            
-            // Calculate element's relative progress within the layer animation
-            // This is simplified - the actual delays are set up by SetupMainScreenAnimation
-            float relativeProgress = Mathf.Clamp01(layerProgress * 2f); // Speed up for visual effect
-            element.TypeOnProgress = relativeProgress;
-            element.IsDirty = true;
+            else if (powerOnTime >= elementStartTime)
+            {
+                // Element is currently typing
+                float localTime = powerOnTime - elementStartTime;
+                element.TypeOnProgress = Mathf.Clamp01(localTime / elementDuration);
+                element.IsDirty = true;
+            }
+            else
+            {
+                // Element hasn't started yet
+                element.TypeOnProgress = 0f;
+            }
         }
         
         /// <summary>
