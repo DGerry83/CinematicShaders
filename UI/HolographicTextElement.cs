@@ -53,7 +53,8 @@ namespace CinematicShaders.UI
 
         // Animation
         public float TypeOnProgress = 1.0f;  // 0.0 to 1.0 (1.0 = fully typed)
-        public float TypeOnDelay = 0f;       // Seconds before starting
+        public float TypeOnDelay = 0f;       // Seconds before starting (relative to layer start)
+        public float TypeOnDuration = 0.5f;  // How long the type-on takes (default 0.5s)
 
         // Cursor
         public bool ShowCursor;

@@ -64,6 +64,9 @@ namespace CinematicShaders.UI.Screens.Layers
                 if (!element.IsVisible) continue;
                 if (element.TextTexture == null) continue;
                 
+                // Check if content changed and trigger re-type-on
+                CheckContentChangedAndRetype(element, powerOnTime);
+                
                 // Update type-on animation (element starts after its TypeOnDelay)
                 UpdateElementTypeOn(element, powerOnTime);
                 
@@ -87,15 +90,51 @@ namespace CinematicShaders.UI.Screens.Layers
         }
         
         /// <summary>
+        /// Check if element content changed and reset type-on animation if so.
+        /// This makes elements "re-type" when their content changes.
+        /// </summary>
+        private void CheckContentChangedAndRetype(HolographicTextElement element, float powerOnTime)
+        {
+            string currentText = element.FullDisplayText;
+            
+            // Initialize tracking for this element
+            if (!_lastRenderedTexts.ContainsKey(element.ElementId))
+            {
+                _lastRenderedTexts[element.ElementId] = currentText;
+                return;
+            }
+            
+            string lastText = _lastRenderedTexts[element.ElementId];
+            
+            // If content changed (and not just the cursor), trigger re-type-on
+            if (lastText != currentText)
+            {
+                // Don't re-type for cursor blink changes (^| added/removed)
+                string lastWithoutCursor = lastText.Replace("^|", "").Trim();
+                string currentWithoutCursor = currentText.Replace("^|", "").Trim();
+                
+                if (lastWithoutCursor != currentWithoutCursor)
+                {
+                    // Content actually changed - reset type-on animation
+                    element.TypeOnDelay = powerOnTime - _layer3Delay;  // Start "now"
+                    element.TypeOnProgress = 0f;
+                    element.IsDirty = true;
+                }
+                
+                // Update tracking
+                _lastRenderedTexts[element.ElementId] = currentText;
+            }
+        }
+        
+        /// <summary>
         /// Update type-on animation for an element based on power-on time and individual delay.
         /// Each element types on sequentially after its TypeOnDelay.
         /// </summary>
         private void UpdateElementTypeOn(HolographicTextElement element, float powerOnTime)
         {
             // Element type-on starts at: _layer3Delay + element.TypeOnDelay
-            // Each element takes 0.5 seconds to type on
-            float elementDuration = 0.5f;
             float elementStartTime = _layer3Delay + element.TypeOnDelay;
+            float elementDuration = element.TypeOnDuration;
             
             // Calculate progress for this specific element
             if (powerOnTime >= elementStartTime + elementDuration)
@@ -417,15 +456,20 @@ namespace CinematicShaders.UI.Screens.Layers
             }
         }
         
+        // Track previous text for content change detection
+        private Dictionary<string, string> _lastRenderedTexts = new Dictionary<string, string>();
+        
         /// <summary>
         /// Set up type-on delays for Main screen elements.
         /// Called when powering on the display.
+        /// Uses strict sequential timing (0.5s per element, no overlap).
         /// </summary>
         public void SetupMainScreenAnimation(float baseDelay, bool hasStarSelected)
         {
             float currentDelay = baseDelay;
             
             // Value fields (only if star selected)
+            // Sequential delays - each waits 0.5s for previous to finish (no overlap)
             if (hasStarSelected)
             {
                 string[] valueIds = { "hip_value", "name_value", "distance_value", 
@@ -436,9 +480,10 @@ namespace CinematicShaders.UI.Screens.Layers
                     if (elem != null)
                     {
                         elem.TypeOnDelay = currentDelay;
-                        elem.TypeOnProgress = 0f;
+                        elem.TypeOnDuration = 0.5f;   // How long it takes
+                        elem.TypeOnProgress = 0f;     // Start from beginning
                         elem.IsDirty = true;
-                        currentDelay += 0.15f;
+                        currentDelay += 0.5f;         // Next element starts after this one finishes
                     }
                 }
                 
@@ -447,14 +492,14 @@ namespace CinematicShaders.UI.Screens.Layers
                 if (selElem != null)
                 {
                     selElem.TypeOnDelay = currentDelay;
+                    selElem.TypeOnDuration = 0.5f;
                     selElem.TypeOnProgress = 0f;
                     selElem.IsDirty = true;
+                    currentDelay += 0.5f;
                 }
-                
-                currentDelay += 0.3f;
             }
             
-            // Search elements
+            // Search elements (sequential after value fields)
             string[] searchIds = { "search_input", "rescan_button" };
             foreach (var id in searchIds)
             {
@@ -462,10 +507,11 @@ namespace CinematicShaders.UI.Screens.Layers
                 if (elem != null)
                 {
                     elem.TypeOnDelay = currentDelay;
+                    elem.TypeOnDuration = 0.5f;
                     elem.TypeOnProgress = 0f;
                     elem.IsVisible = true;
                     elem.IsDirty = true;
-                    currentDelay += 0.1f;
+                    currentDelay += 0.5f;
                 }
             }
             
@@ -477,10 +523,11 @@ namespace CinematicShaders.UI.Screens.Layers
                 if (elem != null)
                 {
                     elem.TypeOnDelay = currentDelay;
+                    elem.TypeOnDuration = 0.5f;
                     elem.TypeOnProgress = 0f;
                     elem.IsVisible = true;
                     elem.IsDirty = true;
-                    currentDelay += 0.1f;
+                    currentDelay += 0.5f;
                 }
             }
             

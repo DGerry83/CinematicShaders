@@ -1408,6 +1408,7 @@ namespace CinematicShaders.UI
             // 3. Values (Layer 3): 4s+ (only if star selected)
             
             // Layer 3: Values (only if we have a selected star) - start after Layer 2
+            // Sequential timing: 0.5s per element, no overlap
             float currentDelay = LAYER_3_DELAY;
             if (_selectedStar != null)
             {
@@ -1418,9 +1419,10 @@ namespace CinematicShaders.UI
                     if (_elements.TryGetValue(id, out var elem))
                     {
                         elem.TypeOnDelay = currentDelay;
+                        elem.TypeOnDuration = 0.5f;
                         elem.TypeOnProgress = 0f;
                         elem.IsDirty = true;
-                        currentDelay += 0.15f;
+                        currentDelay += 0.5f;  // Next element starts after this one finishes
                     }
                 }
                 
@@ -1428,13 +1430,15 @@ namespace CinematicShaders.UI
                 if (_elements.TryGetValue("selected_star", out var selElem))
                 {
                     selElem.TypeOnDelay = currentDelay;
+                    selElem.TypeOnDuration = 0.5f;
                     selElem.TypeOnProgress = 0f;
                     selElem.IsDirty = true;
+                    currentDelay += 0.5f;
                 }
             }
             
-            // Search elements come after values
-            currentDelay += 0.3f;
+            // Search elements come after values (sequential)
+            currentDelay += 0.5f;
             string[] searchIds = { "search_input", "rescan_button" };
             foreach (var id in searchIds)
             {
@@ -1501,7 +1505,8 @@ namespace CinematicShaders.UI
         }
         
         /// <summary>
-        /// Trigger type-on animation for value fields when star data changes
+        /// Trigger type-on animation for value fields when star data changes.
+        /// Sequential timing: 0.5s per element, no overlap.
         /// </summary>
         private void TriggerValueTypeOnAnimation()
         {
@@ -1519,10 +1524,11 @@ namespace CinematicShaders.UI
                 if (_elements.TryGetValue(id, out var elem))
                 {
                     elem.TypeOnDelay = startTime + currentDelay;  // Delay relative to "now"
+                    elem.TypeOnDuration = 0.5f;
                     elem.TypeOnProgress = 0f;  // Reset to start
                     elem.IsVisible = true;
                     elem.IsDirty = true;
-                    currentDelay += 0.15f;
+                    currentDelay += 0.5f;  // Next element starts after this one finishes
                 }
             }
             
@@ -1530,6 +1536,7 @@ namespace CinematicShaders.UI
             if (_elements.TryGetValue("selected_star", out var selElem))
             {
                 selElem.TypeOnDelay = startTime + currentDelay;
+                selElem.TypeOnDuration = 0.5f;
                 selElem.TypeOnProgress = 0f;
                 selElem.IsVisible = true;
                 selElem.IsDirty = true;
