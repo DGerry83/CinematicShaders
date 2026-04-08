@@ -91,6 +91,9 @@
     <Compile Include="UI\Screens\BaseScreen.cs" />
     <Compile Include="UI\Screens\Layers\BorderLayer.cs" />
     <Compile Include="UI\Screens\Layers\ContentLayer.cs" />
+    <Compile Include="UI\Screens\MainScreen.cs" />
+    <Compile Include="UI\Screens\ScanScreen.cs" />
+    <Compile Include="UI\Screens\ConfirmRescanScreen.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="KSPBuildTools">
