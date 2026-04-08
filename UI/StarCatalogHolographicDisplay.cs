@@ -215,6 +215,11 @@ namespace CinematicShaders.UI
             
             // Main screen
             var mainScreen = new MainScreen(ASCII_BORDER_LINES, MAIN_LAYER2_LINES, _fontSize, aspectRatio);
+            
+            // Pass elements to MainScreen for Layer 3 rendering
+            var mainElements = new List<HolographicTextElement>(_elements.Values);
+            mainScreen.SetElements(mainElements);
+            
             _screenManager.RegisterScreen(mainScreen);
             
             // Scan screen
@@ -543,18 +548,15 @@ namespace CinematicShaders.UI
             GUI.DrawTexture(crtRect, Texture2D.whiteTexture);
             GUI.color = Color.white;
             
-            // Render current screen via ScreenManager (Layers 1 and 2)
+            // Render current screen via ScreenManager (Layers 1, 2, and 3)
             if (_displayPowered && _screenManager != null)
             {
                 _screenManager.Render(_displayRect);
             }
             
-            // Render Layer 3 elements (value fields, buttons) - only for Main screen
-            if (_displayPowered && _screenManager?.CurrentScreen?.State == ScreenState.Main)
+            // Handle screen-specific interactions (Layer 3 interactions are handled by MainScreen)
+            if (_displayPowered && _screenManager?.CurrentScreen?.State != ScreenState.Main)
             {
-                DrawElements();
-                
-                // Handle screen-specific interactions
                 HandleScreenInteractions();
             }
         }
@@ -2718,14 +2720,8 @@ namespace CinematicShaders.UI
             // Update cursor blink in edit mode
             UpdateCursorBlink();
             
-            // Update screen manager animations
+            // Update screen manager animations (includes Layer 3 via MainScreen)
             _screenManager?.Update(Time.deltaTime);
-            
-            // Update Layer 3 elements (value fields, buttons)
-            if (_displayPowered)
-            {
-                UpdateElements();
-            }
         }
         
         #endregion

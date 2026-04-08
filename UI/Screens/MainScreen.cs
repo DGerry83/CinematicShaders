@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using CinematicShaders.UI.Screens.Layers;
 using CinematicShaders.Native;
@@ -8,7 +9,7 @@ namespace CinematicShaders.UI.Screens
 {
     /// <summary>
     /// Main screen showing star data with search results.
-    /// Layers: 1 (border), 2 (labels), 3 (value fields - handled separately)
+    /// Layers: 1 (border), 2 (labels), 3 (value fields, buttons)
     /// </summary>
     public class MainScreen : BaseScreen
     {
@@ -16,6 +17,7 @@ namespace CinematicShaders.UI.Screens
         private readonly float _aspectRatio;
         private RenderTexture _layer1Texture;
         private RenderTexture _layer2Texture;
+        private ElementLayer _elementLayer;
         
         public MainScreen(string[] borderLines, string[] labelLines, float fontSize, float aspectRatio = 0.667f)
         {
@@ -27,10 +29,20 @@ namespace CinematicShaders.UI.Screens
             // Add layers
             AddLayer(new BorderLayer(borderLines));
             AddLayer(new ContentLayer(labelLines));
+            // ElementLayer is added separately via SetElements
         }
         
         /// <summary>
-        /// Set the shared textures for rendering
+        /// Set the elements for Layer 3 rendering.
+        /// </summary>
+        public void SetElements(List<HolographicTextElement> elements)
+        {
+            _elementLayer = new ElementLayer(elements, _fontSize);
+            AddLayer(_elementLayer);
+        }
+        
+        /// <summary>
+        /// Set the shared textures for rendering Layers 1 and 2.
         /// </summary>
         public void SetTextures(RenderTexture layer1Texture, RenderTexture layer2Texture)
         {
@@ -42,6 +54,29 @@ namespace CinematicShaders.UI.Screens
                 bl.SetTargetTexture(layer1Texture);
             if (Layers.Count > 1 && Layers[1] is ContentLayer cl)
                 cl.SetTargetTexture(layer2Texture);
+        }
+        
+        public override void OnEnter(ScreenTransitionContext context)
+        {
+            base.OnEnter(context);
+            
+            // Show elements when entering Main screen
+            if (_elementLayer != null)
+            {
+                _elementLayer.SetElementVisibility(true);
+                
+                // Set up type-on animation for elements
+                // Layer 3 starts after Layer 2 completes (at Layer3Delay)
+                _elementLayer.SetupMainScreenAnimation(Layer3Delay, hasStarSelected: true);
+            }
+        }
+        
+        public override void OnExit()
+        {
+            base.OnExit();
+            
+            // Hide elements when leaving Main screen
+            _elementLayer?.SetElementVisibility(false);
         }
         
         public override void Render(Rect displayRect, IntPtr textSystem)
@@ -88,6 +123,36 @@ namespace CinematicShaders.UI.Screens
                     null
                 );
             }
+            
+            // Render Layer 3: Elements (value fields, buttons)
+            if (_elementLayer != null && Layer3Progress > 0)
+            {
+                _elementLayer.RenderToTexture(textSystem, displayRect, Layer3Progress);
+            }
+        }
+        
+        /// <summary>
+        /// Update Layer 3 element visibility based on star selection state.
+        /// </summary>
+        public void UpdateElementVisibility(bool hasStarSelected)
+        {
+            if (_elementLayer == null) return;
+            
+            // Value fields are only visible when a star is selected
+            string[] valueIds = { "hip_value", "name_value", "distance_value", 
+                                  "spectral_value", "mag_value", "const_value", "selected_star" };
+            foreach (var id in valueIds)
+            {
+                _elementLayer.SetElementVisibility(id, hasStarSelected);
+            }
+        }
+        
+        /// <summary>
+        /// Trigger type-on animation for value fields when star data changes.
+        /// </summary>
+        public void TriggerValueTypeOnAnimation(float startTime)
+        {
+            _elementLayer?.SetupMainScreenAnimation(startTime + Layer3Delay, hasStarSelected: true);
         }
         
         private Color GetGridColor()
