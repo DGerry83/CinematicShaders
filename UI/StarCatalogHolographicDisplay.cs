@@ -1419,7 +1419,7 @@ namespace CinematicShaders.UI
             SetElementText("spectral_value", star.SpectralType);
             SetElementText("mag_value", star.Magnitude.ToString("F2"));
             SetElementText("const_value", star.Constellation);
-            SetElementText("selected_star", $"►{star.Name}");
+            SetElementText("selected_star", $"{star.Name}");
         }
 
         private void SetElementText(string elementId, string text)
