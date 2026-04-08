@@ -730,18 +730,27 @@ namespace CinematicShaders.UI
 
             // DEBUG: ModFileLogger.Log($"[DIAG] {element.ElementId}: Calling CR_TextDispatch");
 
-            // Clear texture
-            RenderTexture.active = element.TextTexture;
-            GL.Clear(true, true, Color.clear);
-            RenderTexture.active = null;
-
-            // Dispatch to render
-            StarfieldNative.CR_TextDispatch(
-                _textSystem,
-                element.TextTexture.GetNativeTexturePtr(),
-                glyphCount,
-                element.TextTexture.width,
-                element.TextTexture.height);
+            // Render to texture with proper active texture handling
+            RenderTexture prevActive = RenderTexture.active;
+            try
+            {
+                RenderTexture.active = element.TextTexture;
+                
+                // Clear texture
+                GL.Clear(true, true, Color.clear);
+                
+                // Dispatch to render - texture must be active for this
+                StarfieldNative.CR_TextDispatch(
+                    _textSystem,
+                    element.TextTexture.GetNativeTexturePtr(),
+                    glyphCount,
+                    element.TextTexture.width,
+                    element.TextTexture.height);
+            }
+            finally
+            {
+                RenderTexture.active = prevActive;
+            }
         }
 
         private string GetDisplayText(HolographicTextElement element)
@@ -1431,6 +1440,21 @@ namespace CinematicShaders.UI
                 {
                     elem.TypeOnDelay = currentDelay;
                     elem.TypeOnProgress = 0f;
+                    elem.IsVisible = true;  // Make visible
+                    elem.IsDirty = true;
+                    currentDelay += 0.1f;
+                }
+            }
+            
+            // Buttons (always visible)
+            string[] buttonIds = { "save_button", "reset_button" };
+            foreach (var id in buttonIds)
+            {
+                if (_elements.TryGetValue(id, out var elem))
+                {
+                    elem.TypeOnDelay = currentDelay;
+                    elem.TypeOnProgress = 0f;
+                    elem.IsVisible = true;  // Make visible
                     elem.IsDirty = true;
                     currentDelay += 0.1f;
                 }
