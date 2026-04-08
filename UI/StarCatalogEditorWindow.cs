@@ -42,7 +42,6 @@ namespace CinematicShaders.UI
         private string _originalName = "";
         
         // JSON cache
-        private string _cachedJson = null;
         private Dictionary<int, string> _starJsonSnippets = new Dictionary<int, string>();
         
         // Reference to selector (passed from KartographerTab)

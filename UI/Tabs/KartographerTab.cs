@@ -82,11 +82,7 @@ namespace CinematicShaders.UI.Tabs
             }
         }
 
-        // Debug shapes state (not persisted to settings file)
-        private bool _debugShapesEnabled = false;
-        
-        // Debug label visualization (shows solid color instead of texture)
-        private bool _labelDebugMode = false;
+        // Star tracking
         
         // Star tracking
         private KartographerSelector _selector;
@@ -1113,8 +1109,6 @@ namespace CinematicShaders.UI.Tabs
                 _holographicDisplay.SetSelector(_selector);
                 
                 // Subscribe to events
-                _holographicDisplay.OnSaveClicked += OnHolographicSave;
-                _holographicDisplay.OnResetClicked += OnHolographicReset;
                 _holographicDisplay.OnRescanConfirmed += OnHolographicRescan;
                 _holographicDisplay.OnWindowClosed += OnHolographicWindowClosed;
             }
@@ -1143,19 +1137,6 @@ namespace CinematicShaders.UI.Tabs
         /// <summary>
         /// Event handlers for holographic display
         /// </summary>
-        private void OnHolographicSave()
-        {
-            Debug.Log("[KartographerTab] Holographic display save triggered");
-            // The holographic display handles the actual save
-            // This is just for any additional UI updates needed
-        }
-
-        private void OnHolographicReset()
-        {
-            Debug.Log("[KartographerTab] Holographic display reset triggered");
-            // The holographic display handles the actual reset
-        }
-
         private void OnHolographicRescan()
         {
             Debug.Log("[KartographerTab] Holographic display rescan triggered");

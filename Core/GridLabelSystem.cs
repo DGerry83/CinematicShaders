@@ -118,7 +118,6 @@ namespace CinematicShaders.Core
         
         // Debug tracking
         private int _lastEnabledCount = -1;
-        private uint _lastEnabledMask = 0;
         private int _lastGridPreset = -1;
         
         // Font configuration
@@ -126,8 +125,7 @@ namespace CinematicShaders.Core
         private const int TEXTURE_SIZE = 256;
         private const string FONT_NAME = "Ac437_Rainbow100_re_66.ttf";
         
-        // Debug frame counter for measurement logging
-        private static int s_measureFrameCounter = 0;
+
         
         /// <summary>
         /// Initializes the text system and registers built-in labels.

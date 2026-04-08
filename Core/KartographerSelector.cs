@@ -110,7 +110,6 @@ namespace CinematicShaders.Core
         
         // Padding around text inside the box (pixels)
         private static readonly float BOX_PADDING_PIXELS = 20f;
-        private static readonly float BOX_PADDING_BOTTOM_PIXELS = 72f;  // Extra padding on bottom
 
         // ============================================================================
         // Grid Label Text (HUCK) - Grid-Fixed Type (rotates with grid)
@@ -118,7 +117,6 @@ namespace CinematicShaders.Core
         private RenderTexture _gridLabelTexture = null;
         private bool _gridLabelDirty = true;
         private static readonly float GRID_LABEL_BASE_SIZE = 18f;  // Regular text size (was 12)
-        private static readonly float GRID_LABEL_LARGE_SIZE = 27f;  // First letter size (1.5x base)
         private static readonly int GRID_LABEL_TEXTURE_SIZE = 256;
 
         // ============================================================================

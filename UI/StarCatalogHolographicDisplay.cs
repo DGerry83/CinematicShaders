@@ -52,7 +52,6 @@ namespace CinematicShaders.UI
         // IMGUI Window
         private Rect _windowRect = new Rect(0, 0, 616, 746);  // Will be set based on display size
         private bool _stylesInitialized = false;
-        private GUIStyle _titleBarStyle;
         private GUIStyle _closeButtonStyle;
         private GUIStyle _pwrButtonStyle;
         private GUIStyle _pwrButtonActiveStyle;
@@ -65,7 +64,6 @@ namespace CinematicShaders.UI
 
         // Native text system reference (shared from KartographerSelector)
         private IntPtr _textSystem = IntPtr.Zero;
-        private bool _ownsTextSystem = false;
 
         // Display position (set by parent)
         private Rect _displayRect;
@@ -2221,10 +2219,7 @@ namespace CinematicShaders.UI
 
         #region SCAN Screen
 
-        // State
-        private bool _showingScanScreen = false;
-        private HolographicTextElement[] _scanScreenElements;
-        private bool _scanPressed = false;  // Track mouse press state for SCAN screen click
+        // Scan screen ASCII art
 
         // ASCII art for SCAN
         private static readonly string[] SCAN_ASCII_ART = new string[]
@@ -2332,12 +2327,7 @@ namespace CinematicShaders.UI
 
         #region Rescan Confirmation
 
-        // State
-        private bool _showingConfirmation = false;
-        
-        // Confirm screen state
-        private bool _confirmYesSelected = false;
-        private bool _confirmNoSelected = false;
+        // Confirmation dialog ASCII art
 
         // ASCII art for confirmation dialog
         private static readonly string[] CONFIRM_ASCII_ART = new string[]
@@ -2620,7 +2610,6 @@ namespace CinematicShaders.UI
         // Input state
         private bool _capturingInput = false;
         private string _inputBuffer = "";
-        private HolographicTextElement _inputElement = null;
 
         /// <summary>
         /// Process keyboard events (updated for edit mode)
