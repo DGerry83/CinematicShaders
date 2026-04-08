@@ -1435,6 +1435,9 @@ namespace CinematicShaders.UI
         {
             if (!_displayPowered) return;
             
+            // Delays are relative to _powerOnTime, so we need to add _powerOnTime
+            // to make the animation start "now" rather than at time 0
+            float startTime = _powerOnTime;
             float currentDelay = 0f;
             string[] valueIds = { "hip_value", "name_value", "distance_value", 
                                   "spectral_value", "mag_value", "const_value" };
@@ -1443,7 +1446,7 @@ namespace CinematicShaders.UI
             {
                 if (_elements.TryGetValue(id, out var elem))
                 {
-                    elem.TypeOnDelay = currentDelay;
+                    elem.TypeOnDelay = startTime + currentDelay;  // Delay relative to "now"
                     elem.TypeOnProgress = 0f;  // Reset to start
                     elem.IsVisible = true;
                     elem.IsDirty = true;
@@ -1454,7 +1457,7 @@ namespace CinematicShaders.UI
             // Selected star indicator last
             if (_elements.TryGetValue("selected_star", out var selElem))
             {
-                selElem.TypeOnDelay = currentDelay;
+                selElem.TypeOnDelay = startTime + currentDelay;
                 selElem.TypeOnProgress = 0f;
                 selElem.IsVisible = true;
                 selElem.IsDirty = true;
