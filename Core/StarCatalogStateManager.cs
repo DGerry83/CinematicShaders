@@ -39,13 +39,17 @@ namespace CinematicShaders.Core
         public string GetActiveJsonPath()
         {
             var availability = GetAvailability();
-            return availability switch
+            switch (availability)
             {
-                JsonAvailability.CustomOnly => CustomJsonPath,
-                JsonAvailability.DefaultOnly => DefaultJsonPath,
-                JsonAvailability.Both => CustomJsonPath, // Prefer custom
-                _ => null
-            };
+                case JsonAvailability.CustomOnly:
+                    return CustomJsonPath;
+                case JsonAvailability.DefaultOnly:
+                    return DefaultJsonPath;
+                case JsonAvailability.Both:
+                    return CustomJsonPath; // Prefer custom
+                default:
+                    return null;
+            }
         }
     }
 

@@ -40,20 +40,13 @@ namespace CinematicShaders.Core
     /// </summary>
     public class KartographerSelector
     {
-        private Dictionary<int, NamedStar> _namedStars = new Dictionary<int, NamedStar>();
-        private bool _jsonLoaded = false;
-        private string _lastCatalogPath = "";
 
-        // Path tracking for _Custom.json support
-        private string _loadedJsonPath = "";
-        private string _defaultJsonPath = "";
-        private string _customJsonPath = "";
 
-        // Public accessors for editor (future Phase 2)
-        public string LoadedJsonPath => _loadedJsonPath;
-        public string DefaultJsonPath => _defaultJsonPath;
-        public string CustomJsonPath => _customJsonPath;
-        public string CurrentCatalogBasePath => Path.ChangeExtension(_lastCatalogPath, null);
+        // Public accessors for editor (Phase 2 - delegated to StarCatalogStateManager)
+        public string LoadedJsonPath => StarCatalogStateManager.ActiveJsonPath;
+        public string DefaultJsonPath => StarCatalogStateManager.CurrentJsonPaths.DefaultJsonPath;
+        public string CustomJsonPath => StarCatalogStateManager.CurrentJsonPaths.CustomJsonPath;
+        public string CurrentCatalogBasePath => Path.GetDirectoryName(StarCatalogStateManager.CurrentCatalogPath);
 
         // Tracking state
         public NamedStar TrackedStar { get; private set; }
@@ -118,6 +111,66 @@ namespace CinematicShaders.Core
         private bool _gridLabelDirty = true;
         private static readonly float GRID_LABEL_BASE_SIZE = 18f;  // Regular text size (was 12)
         private static readonly int GRID_LABEL_TEXTURE_SIZE = 256;
+
+        // ============================================================================
+        // Constructor
+        // ============================================================================
+        public KartographerSelector()
+        {
+            // Subscribe to state manager events
+            StarCatalogStateManager.OnCatalogChanged += HandleCatalogChanged;
+            StarCatalogStateManager.OnJsonStateChanged += HandleJsonStateChanged;
+            StarCatalogStateManager.OnStarDataChanged += HandleStarDataChanged;
+        }
+
+        private void HandleCatalogChanged(CatalogChangedEventArgs args)
+        {
+            Debug.Log($"[KartographerSelector] Catalog changed: {Path.GetFileName(args.NewCatalogPath)}");
+            // Clear selection when catalog changes
+            if (_hoveredStar != null || _lockedStar != null)
+            {
+                StopTracking();
+            }
+        }
+
+        private void HandleJsonStateChanged(JsonStateChangedEventArgs args)
+        {
+            Debug.Log($"[KartographerSelector] JSON state: {args.OldAvailability} -> {args.NewAvailability}");
+        }
+
+        private void HandleStarDataChanged(StarDataChangedEventArgs args)
+        {
+            Debug.Log($"[KartographerSelector] Loaded {args.StarCount} stars");
+        }
+
+        // ============================================================================
+        // Utility Methods
+        // ============================================================================
+
+        /// <summary>
+        /// Strips directional suffixes from full_designation for display purposes.
+        /// "Epsilon Triangulum Australe" -> "EPSILON TRIANGULUM"
+        /// "Asellus Borealis" -> "ASELLUS"
+        /// </summary>
+        public static string StripDirectionalSuffix(string fullDesignation)
+        {
+            if (string.IsNullOrEmpty(fullDesignation))
+                return fullDesignation;
+            
+            string[] suffixes = new[] { " Australe", " Australis", " Borealis", " Posterior", " Prior" };
+            string result = fullDesignation;
+            
+            foreach (var suffix in suffixes)
+            {
+                if (result.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                {
+                    result = result.Substring(0, result.Length - suffix.Length);
+                    break;  // Only strip one suffix
+                }
+            }
+            
+            return result.ToUpper();
+        }
 
         // ============================================================================
 
@@ -498,43 +551,14 @@ namespace CinematicShaders.Core
                 return;
             }
 
-            if (_jsonLoaded && _lastCatalogPath == binPath)
-                return; // Already loaded
+            string absolutePath = Path.IsPathRooted(binPath) 
+                ? binPath 
+                : Path.Combine(KSPUtil.ApplicationRootPath, binPath);
 
-            // Check for _Custom.json first, fallback to .json
-            string basePath = Path.ChangeExtension(binPath, null);  // Remove .bin
-            string customPath = basePath + "_Custom.json";
-            string defaultPath = basePath + ".json";
-
-            string jsonPath = File.Exists(customPath) ? customPath : defaultPath;
-
-            // Store which file we loaded for potential editor use
-            _loadedJsonPath = jsonPath;
-            _defaultJsonPath = defaultPath;
-            _customJsonPath = customPath;
-
-            if (!File.Exists(jsonPath))
+            // Delegate to state manager
+            if (StarCatalogStateManager.CurrentCatalogPath != absolutePath)
             {
-                Debug.Log($"[KartographerSelector] No JSON sidecar found: {jsonPath}");
-                // Clear any old data since there's no JSON for this catalog
-                _namedStars.Clear();
-                _jsonLoaded = false;
-                _lastCatalogPath = binPath;
-                return;
-            }
-
-            try
-            {
-                string json = File.ReadAllText(jsonPath);
-                ParseJsonStars(json);
-                
-                _jsonLoaded = true;
-                _lastCatalogPath = binPath;
-                Debug.Log($"[KartographerSelector] Loaded {_namedStars.Count} named stars from {jsonPath}");
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogError($"[KartographerSelector] Failed to load JSON: {ex.Message}");
+                StarCatalogStateManager.SetCatalog(absolutePath);
             }
         }
 
@@ -544,15 +568,7 @@ namespace CinematicShaders.Core
         /// </summary>
         public void ForceReloadJson()
         {
-            if (string.IsNullOrEmpty(_lastCatalogPath))
-            {
-                Debug.LogWarning("[KartographerSelector] Cannot force reload - no catalog path set");
-                return;
-            }
-            
-            Debug.Log("[KartographerSelector] Force reloading JSON from disk...");
-            _jsonLoaded = false;  // Clear cache flag
-            LoadJsonForCatalog(_lastCatalogPath);  // Will reload due to _jsonLoaded = false
+            StarCatalogStateManager.ReloadStarData();
         }
 
         // ============================================================================
@@ -746,200 +762,17 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
-        /// Simple JSON parsing for star entries - extracts HIP ID and x,y,z
-        /// </summary>
-        private void ParseJsonStars(string json)
-        {
-            _namedStars.Clear();
-
-            // Find the "stars" object in the JSON
-            int starsStart = json.IndexOf("\"stars\":");
-            if (starsStart < 0) return;
-
-            int braceStart = json.IndexOf('{', starsStart);
-            if (braceStart < 0) return;
-
-            // Parse each star entry: "HIP_ID": { ... }
-            int pos = braceStart + 1;
-            int depth = 1;
-
-            while (pos < json.Length && depth > 0)
-            {
-                // Find next quoted key (HIP ID)
-                int quoteStart = json.IndexOf('"', pos);
-                if (quoteStart < 0) break;
-
-                int quoteEnd = json.IndexOf('"', quoteStart + 1);
-                if (quoteEnd < 0) break;
-
-                string hipIdStr = json.Substring(quoteStart + 1, quoteEnd - quoteStart - 1);
-                if (!int.TryParse(hipIdStr, out int hipId))
-                {
-                    pos = quoteEnd + 1;
-                    continue;
-                }
-
-                // Find the star object for this HIP ID
-                int starBraceStart = json.IndexOf('{', quoteEnd);
-                if (starBraceStart < 0) break;
-
-                // Extract star properties
-                int starBraceEnd = FindMatchingBrace(json, starBraceStart);
-                if (starBraceEnd < 0) break;
-
-                string starJson = json.Substring(starBraceStart, starBraceEnd - starBraceStart + 1);
-                NamedStar star = ParseStarEntry(hipId, starJson);
-                if (star != null)
-                {
-                    _namedStars[hipId] = star;
-                }
-
-                pos = starBraceEnd + 1;
-
-                // Check for closing of stars object
-                int nextChar = pos;
-                while (nextChar < json.Length && char.IsWhiteSpace(json[nextChar])) nextChar++;
-                if (nextChar < json.Length && json[nextChar] == '}')
-                    break; // End of stars object
-            }
-        }
-
-        /// <summary>
-        /// Strips directional suffixes from full_designation for display purposes.
-        /// "Epsilon Triangulum Australe" -> "EPSILON TRIANGULUM"
-        /// "Asellus Borealis" -> "ASELLUS"
-        /// </summary>
-        public static string StripDirectionalSuffix(string fullDesignation)
-        {
-            if (string.IsNullOrEmpty(fullDesignation))
-                return fullDesignation;
-            
-            string[] suffixes = new[] { " Australe", " Australis", " Borealis", " Posterior", " Prior" };
-            string result = fullDesignation;
-            
-            foreach (var suffix in suffixes)
-            {
-                if (result.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-                {
-                    result = result.Substring(0, result.Length - suffix.Length);
-                    break;  // Only strip one suffix
-                }
-            }
-            
-            return result.ToUpper();
-        }
-
-        /// <summary>
-        /// Find the matching closing brace for an opening brace at startIndex
-        /// </summary>
-        private int FindMatchingBrace(string json, int startIndex)
-        {
-            int depth = 1;
-            int pos = startIndex + 1;
-            bool inString = false;
-
-            while (pos < json.Length && depth > 0)
-            {
-                char c = json[pos];
-                if (c == '"' && (pos == 0 || json[pos - 1] != '\\'))
-                {
-                    inString = !inString;
-                }
-                else if (!inString)
-                {
-                    if (c == '{') depth++;
-                    else if (c == '}') depth--;
-                }
-                pos++;
-            }
-
-            return depth == 0 ? pos - 1 : -1;
-        }
-
-        /// <summary>
-        /// Parse individual star properties from JSON snippet
-        /// </summary>
-        private NamedStar ParseStarEntry(int hipId, string starJson)
-        {
-            string rawName = ExtractStringValue(starJson, "proper") ?? ExtractStringValue(starJson, "full_designation");
-            var star = new NamedStar
-            {
-                HipparcosID = hipId,
-                Name = StripDirectionalSuffix(rawName) ?? $"HIP {hipId}",
-                SpectralType = ExtractStringValue(starJson, "spectral") ?? "?",
-                Magnitude = ExtractFloatValue(starJson, "magnitude", 99f),
-                DistanceLy = ExtractFloatValue(starJson, "distance_ly", 0f),
-                Constellation = ExtractStringValue(starJson, "constellation") ?? "?"
-            };
-
-            // Extract direction vector
-            float x = ExtractFloatValue(starJson, "x", 0f);
-            float y = ExtractFloatValue(starJson, "y", 0f);
-            float z = ExtractFloatValue(starJson, "z", 0f);
-            star.Direction = new Vector3(x, y, z).normalized;
-
-            // Only return if we got valid direction
-            if (star.Direction.sqrMagnitude > 0.001f)
-                return star;
-
-            return null;
-        }
-
-        private string ExtractStringValue(string json, string key)
-        {
-            string pattern = "\"" + key + "\"";
-            int keyPos = json.IndexOf(pattern);
-            if (keyPos < 0) return null;
-
-            int colonPos = json.IndexOf(':', keyPos);
-            if (colonPos < 0) return null;
-
-            int quoteStart = json.IndexOf('"', colonPos);
-            if (quoteStart < 0) return null;
-
-            int quoteEnd = json.IndexOf('"', quoteStart + 1);
-            if (quoteEnd < 0) return null;
-
-            return json.Substring(quoteStart + 1, quoteEnd - quoteStart - 1);
-        }
-
-        private float ExtractFloatValue(string json, string key, float defaultVal)
-        {
-            string pattern = "\"" + key + "\"";
-            int keyPos = json.IndexOf(pattern);
-            if (keyPos < 0) return defaultVal;
-
-            int colonPos = json.IndexOf(':', keyPos);
-            if (colonPos < 0) return defaultVal;
-
-            int commaPos = json.IndexOf(',', colonPos);
-            int bracePos = json.IndexOf('}', colonPos);
-
-            int endPos = commaPos > 0 && (bracePos < 0 || commaPos < bracePos) ? commaPos : bracePos;
-            if (endPos < 0) endPos = json.Length;
-
-            string valStr = json.Substring(colonPos + 1, endPos - colonPos - 1).Trim();
-            if (float.TryParse(valStr, System.Globalization.NumberStyles.Float, 
-                System.Globalization.CultureInfo.InvariantCulture, out float result))
-            {
-                return result;
-            }
-
-            return defaultVal;
-        }
-
-        /// <summary>
         /// Find and start tracking a specific star by HIP ID
         /// </summary>
         public void TrackStarByHipId(int hipId)
         {
-            if (!_jsonLoaded)
+            if (!StarCatalogStateManager.HasValidJson())
             {
                 Debug.Log("[KartographerSelector] Cannot track star - JSON not loaded");
                 return;
             }
 
-            if (_namedStars.TryGetValue(hipId, out var star))
+            if (StarCatalogStateManager.NamedStars.TryGetValue(hipId, out var star))
             {
                 TrackedStar = star;
                 SelectionCircleEnabled = true;
@@ -973,13 +806,13 @@ namespace CinematicShaders.Core
         /// </summary>
         public void SelectStarByHipId(int hipId)
         {
-            if (!_jsonLoaded || _namedStars.Count == 0)
+            if (!StarCatalogStateManager.HasValidJson() || StarCatalogStateManager.NamedStars.Count == 0)
             {
                 Debug.LogWarning("[KartographerSelector] Cannot select star - JSON not loaded");
                 return;
             }
 
-            if (_namedStars.TryGetValue(hipId, out var star))
+            if (StarCatalogStateManager.NamedStars.TryGetValue(hipId, out var star))
             {
                 // Set as hovered (for display purposes)
                 _hoveredStar = star;
@@ -1053,7 +886,7 @@ namespace CinematicShaders.Core
             }
 
             // Skip if no star data loaded
-            if (!_jsonLoaded || _namedStars.Count == 0)
+            if (!StarCatalogStateManager.HasValidJson() || StarCatalogStateManager.NamedStars.Count == 0)
             {
                 PushToNative(false);
                 return;
@@ -1165,7 +998,7 @@ namespace CinematicShaders.Core
             // Threshold: ~0.02 UV units (~40px at 1080p, ~20px at 4K)
             const float HOVER_THRESHOLD = 0.02f;
 
-            foreach (var star in _namedStars.Values)
+            foreach (var star in StarCatalogStateManager.NamedStars.Values)
             {
                 Vector3 rotatedDir = KartographerMath.ApplyCatalogRotation(
                     star.Direction,
@@ -1604,6 +1437,11 @@ namespace CinematicShaders.Core
         /// </summary>
         public void Dispose()
         {
+            // Unsubscribe from state manager events
+            StarCatalogStateManager.OnCatalogChanged -= HandleCatalogChanged;
+            StarCatalogStateManager.OnJsonStateChanged -= HandleJsonStateChanged;
+            StarCatalogStateManager.OnStarDataChanged -= HandleStarDataChanged;
+
             if (_textSystem != IntPtr.Zero)
             {
                 StarfieldNative.CR_TextShutdown(_textSystem);
