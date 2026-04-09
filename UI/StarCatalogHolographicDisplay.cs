@@ -155,6 +155,12 @@ namespace CinematicShaders.UI
         {
             _customJsonPath = customPath ?? "";
             _defaultJsonPath = defaultPath ?? "";
+            
+            // Re-check screen state when paths change
+            if (_displayPowered)
+            {
+                OnCatalogChanged();
+            }
         }
         #endregion
 
@@ -223,7 +229,7 @@ namespace CinematicShaders.UI
             // Scan screen
             var scanScreen = new ScanScreen(ASCII_BORDER_LINES_SCAN, SCAN_LAYER2_LINES, _fontSize, aspectRatio);
             scanScreen.OnScanClicked += () => {
-                ShowRescanConfirmation();
+                OnRescanConfirmed?.Invoke();
             };
             _screenManager.RegisterScreen(scanScreen);
             
@@ -572,7 +578,7 @@ namespace CinematicShaders.UI
             {
                 case ScreenState.Scan:
                     var scanScreen = _screenManager.CurrentScreen as ScanScreen;
-                    scanScreen?.HandleClick(mousePos, _displayRect);
+                    scanScreen?.HandleClick(mousePos, _displayRect, mouseDown);
                     break;
                     
                 case ScreenState.ConfirmRescan:
@@ -1465,6 +1471,33 @@ namespace CinematicShaders.UI
             }
             
             Debug.Log("[HolographicDisplay] Power ON - type-on animation started");
+        }
+        
+        /// <summary>
+        /// Re-check JSON state and transition screens if needed.
+        /// Call this when the catalog is changed externally.
+        /// </summary>
+        public void OnCatalogChanged()
+        {
+            if (_screenManager == null) return;
+            
+            bool hasValidData = !string.IsNullOrEmpty(_customJsonPath) && 
+                                System.IO.File.Exists(_customJsonPath);
+            
+            var currentState = _screenManager.CurrentState;
+            
+            // If we have JSON but are on SCAN screen, transition to Main
+            if (hasValidData && currentState == ScreenState.Scan)
+            {
+                _screenManager.TransitionTo(ScreenState.Main);
+                Debug.Log("[HolographicDisplay] Catalog changed - transitioning to Main (JSON found)");
+            }
+            // If we don't have JSON but are on Main screen, transition to SCAN
+            else if (!hasValidData && currentState == ScreenState.Main)
+            {
+                _screenManager.TransitionTo(ScreenState.Scan);
+                Debug.Log("[HolographicDisplay] Catalog changed - transitioning to Scan (no JSON)");
+            }
         }
 
         private void PowerOff()

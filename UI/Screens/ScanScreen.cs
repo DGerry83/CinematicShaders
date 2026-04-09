@@ -95,10 +95,10 @@ namespace CinematicShaders.UI.Screens
         /// <summary>
         /// Handle click detection. Returns true if SCAN art was clicked.
         /// </summary>
-        public bool HandleClick(Vector2 mousePos, Rect displayRect)
+        public bool HandleClick(Vector2 mousePos, Rect displayRect, bool mouseDown)
         {
-            // SCAN art is centered in the display
-            if (displayRect.Contains(mousePos))
+            // Only trigger on actual click, not hover
+            if (mouseDown && displayRect.Contains(mousePos))
             {
                 OnScanClicked?.Invoke();
                 return true;
