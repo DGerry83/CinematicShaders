@@ -62,6 +62,9 @@ namespace CinematicShaders.UI.Screens
             
             _sequencer = new Sequencer(Layer3PriorityOrder);
             OnLayer2Complete += StartLayer3Animation;
+            
+            // NOTE: ScanScreen doesn't have ElementLayer currently.
+            // When ElementLayer is added in future, call _elementLayer.ResetAllAnimationStates() here.
         }
         
         public override void OnExit()

@@ -94,6 +94,9 @@ namespace CinematicShaders.UI.Screens
                 // Element delays are relative to Layer3Delay (0 = starts at Layer3Delay)
                 _elementLayer.SetupMainScreenAnimation(hasStarSelected: hasStar);
                 
+                // CRITICAL: Reset all animation states for fresh start on every screen entry
+                _elementLayer.ResetAllAnimationStates();
+                
                 // Set the Layer 3 base delay for element timing calculations
                 _elementLayer.SetLayer3Delay(Layer3Delay);
                 
