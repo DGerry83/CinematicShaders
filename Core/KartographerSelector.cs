@@ -555,10 +555,23 @@ namespace CinematicShaders.Core
                 ? binPath 
                 : Path.Combine(KSPUtil.ApplicationRootPath, binPath);
 
-            // Delegate to state manager
-            if (StarCatalogStateManager.CurrentCatalogPath != absolutePath)
+            // Normalize path for comparison
+            absolutePath = Path.GetFullPath(absolutePath);
+
+            // Initialize or update the state manager
+            if (!StarCatalogStateManager.IsInitialized)
             {
+                Debug.Log($"[KartographerSelector] Initializing StarCatalogStateManager with: {absolutePath}");
+                StarCatalogStateManager.Initialize(absolutePath);
+            }
+            else if (StarCatalogStateManager.CurrentCatalogPath != absolutePath)
+            {
+                Debug.Log($"[KartographerSelector] Switching catalog: {StarCatalogStateManager.CurrentCatalogPath} -> {absolutePath}");
                 StarCatalogStateManager.SetCatalog(absolutePath);
+            }
+            else
+            {
+                Debug.Log($"[KartographerSelector] Catalog already set: {absolutePath}");
             }
         }
 

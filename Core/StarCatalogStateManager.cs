@@ -207,8 +207,11 @@ namespace CinematicShaders.Core
             // Normalize path for comparison
             absolutePath = Path.GetFullPath(absolutePath);
             
+            // Normalize both paths for comparison to prevent false positives
+            string normalizedCurrent = string.IsNullOrEmpty(_currentCatalogPath) ? "" : Path.GetFullPath(_currentCatalogPath);
+            
             // Check if actually changing
-            if (_currentCatalogPath == absolutePath)
+            if (normalizedCurrent == absolutePath)
             {
                 Debug.Log($"[StarCatalogStateManager] Catalog already set to: {absolutePath}");
                 return;
