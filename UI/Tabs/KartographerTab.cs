@@ -64,6 +64,20 @@ namespace CinematicShaders.UI.Tabs
                 {
                     string absolutePath = Path.Combine(KSPUtil.ApplicationRootPath, catalogPath);
                     _selector.LoadJsonForCatalog(absolutePath);
+                    
+                    // CRITICAL: Also update HolographicDisplay paths
+                    if (_holographicDisplay != null)
+                    {
+                        string basePath = Path.Combine(
+                            Path.GetDirectoryName(absolutePath),
+                            Path.GetFileNameWithoutExtension(absolutePath)
+                        );
+                        string customPath = basePath + "_Custom.json";
+                        string defaultPath = basePath + ".json";
+                        _holographicDisplay.SetJsonPaths(customPath, defaultPath);
+                        Debug.Log($"[KartographerTab] Updated display paths for new catalog: {customPath}");
+                    }
+                    
                     Debug.Log("[KartographerTab] Reloaded JSON for new catalog: " + absolutePath);
                 }
             }
