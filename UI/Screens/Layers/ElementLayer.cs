@@ -37,6 +37,29 @@ namespace CinematicShaders.UI.Screens.Layers
         // Base delay for Layer 3 (when elements start animating)
         private float _layer3Delay = 3.5f;
         
+        /// <summary>
+        /// Tracks sequential animation state for Layer 3 elements.
+        /// Elements animate one at a time, each waiting for the previous to complete.
+        /// </summary>
+        private class SequentialAnimationState
+        {
+            public List<HolographicTextElement> ElementQueue { get; } = new List<HolographicTextElement>();
+            public int CurrentIndex { get; set; } = 0;
+            public float ElementDuration { get; set; } = 0.5f;
+            public bool IsRunning => CurrentIndex < ElementQueue.Count;
+            
+            public void Reset()
+            {
+                ElementQueue.Clear();
+                CurrentIndex = 0;
+            }
+            
+            public HolographicTextElement CurrentElement => 
+                IsRunning ? ElementQueue[CurrentIndex] : null;
+        }
+
+        private SequentialAnimationState _sequentialAnimation = new SequentialAnimationState();
+        
         public void Render(float typeOnProgress)
         {
             // Element rendering is done per-element in RenderToTexture
@@ -67,8 +90,17 @@ namespace CinematicShaders.UI.Screens.Layers
                 // Check if content changed and trigger re-type-on
                 CheckContentChangedAndRetype(element, powerOnTime);
                 
-                // Update type-on animation (element starts after its TypeOnDelay)
-                UpdateElementTypeOn(element, powerOnTime);
+                // Update type-on animation
+                if (_sequentialAnimation.ElementQueue.Contains(element))
+                {
+                    // This element is in the sequential queue - use sequential animation
+                    UpdateElementTypeOnSequential(element, powerOnTime);
+                }
+                else
+                {
+                    // This element animates independently (e.g., search results)
+                    UpdateElementTypeOnIndependent(element, powerOnTime);
+                }
                 
                 // Re-render if dirty (only during Repaint to avoid GPU sync issues)
                 if (element.IsDirty && Event.current.type == EventType.Repaint)
@@ -127,10 +159,50 @@ namespace CinematicShaders.UI.Screens.Layers
         }
         
         /// <summary>
-        /// Update type-on animation for an element based on power-on time and individual delay.
-        /// Each element types on sequentially after its TypeOnDelay.
+        /// Update type-on animation for elements sequentially.
+        /// Only the current element in the queue animates; when it completes, we advance to the next.
         /// </summary>
-        private void UpdateElementTypeOn(HolographicTextElement element, float powerOnTime)
+        private void UpdateElementTypeOnSequential(HolographicTextElement element, float powerOnTime)
+        {
+            // Find this element's index in the queue
+            int elementIndex = _sequentialAnimation.ElementQueue.IndexOf(element);
+            if (elementIndex < 0) return; // Not in queue
+            
+            float elementDuration = _sequentialAnimation.ElementDuration;
+            // Element type-on starts at: _layer3Delay + (index * duration)
+            float elementStartTime = _layer3Delay + (elementIndex * elementDuration);
+            
+            // Calculate progress for this specific element
+            if (powerOnTime >= elementStartTime + elementDuration)
+            {
+                // Element has finished typing - mark complete and advance queue
+                element.TypeOnProgress = 1f;
+                
+                // Advance to next element if this is the current one
+                if (_sequentialAnimation.CurrentIndex == elementIndex && _sequentialAnimation.IsRunning)
+                {
+                    _sequentialAnimation.CurrentIndex++;
+                }
+            }
+            else if (powerOnTime >= elementStartTime)
+            {
+                // Element is currently typing
+                float localTime = powerOnTime - elementStartTime;
+                element.TypeOnProgress = Mathf.Clamp01(localTime / elementDuration);
+                element.IsDirty = true;
+            }
+            else
+            {
+                // Element hasn't started yet
+                element.TypeOnProgress = 0f;
+            }
+        }
+        
+        /// <summary>
+        /// Update type-on animation for an element independently (not part of sequential queue).
+        /// Used for search results and dynamically added elements.
+        /// </summary>
+        private void UpdateElementTypeOnIndependent(HolographicTextElement element, float powerOnTime)
         {
             // Element type-on starts at: _layer3Delay + element.TypeOnDelay
             float elementStartTime = _layer3Delay + element.TypeOnDelay;
@@ -460,16 +532,18 @@ namespace CinematicShaders.UI.Screens.Layers
         private Dictionary<string, string> _lastRenderedTexts = new Dictionary<string, string>();
         
         /// <summary>
-        /// Set up type-on delays for Main screen elements.
-        /// Called when powering on the display.
-        /// Uses strict sequential timing (0.5s per element, no overlap).
+        /// Set up sequential type-on animation for Main screen elements.
+        /// Elements animate one at a time in sequence.
         /// </summary>
         public void SetupMainScreenAnimation(float baseDelay, bool hasStarSelected)
         {
-            float currentDelay = baseDelay;
+            // Reset any previous animation state
+            _sequentialAnimation.Reset();
             
-            // Value fields (only if star selected)
-            // Sequential delays - each waits 0.5s for previous to finish (no overlap)
+            // Build the queue of elements to animate in order
+            var queue = _sequentialAnimation.ElementQueue;
+            
+            // Value fields (only if star selected) - added to queue first
             if (hasStarSelected)
             {
                 string[] valueIds = { "hip_value", "name_value", "distance_value", 
@@ -479,23 +553,21 @@ namespace CinematicShaders.UI.Screens.Layers
                     var elem = _elements.Find(e => e.ElementId == id);
                     if (elem != null)
                     {
-                        elem.TypeOnDelay = currentDelay;
-                        elem.TypeOnDuration = 0.5f;   // How long it takes
-                        elem.TypeOnProgress = 0f;     // Start from beginning
+                        elem.TypeOnProgress = 0f;
                         elem.IsDirty = true;
-                        currentDelay += 0.5f;         // Next element starts after this one finishes
+                        elem.IsVisible = true;
+                        queue.Add(elem);
                     }
                 }
                 
-                // Selected star indicator last
+                // Selected star indicator
                 var selElem = _elements.Find(e => e.ElementId == "selected_star");
                 if (selElem != null)
                 {
-                    selElem.TypeOnDelay = currentDelay;
-                    selElem.TypeOnDuration = 0.5f;
                     selElem.TypeOnProgress = 0f;
                     selElem.IsDirty = true;
-                    currentDelay += 0.5f;
+                    selElem.IsVisible = true;
+                    queue.Add(selElem);
                 }
             }
             
@@ -506,32 +578,32 @@ namespace CinematicShaders.UI.Screens.Layers
                 var elem = _elements.Find(e => e.ElementId == id);
                 if (elem != null)
                 {
-                    elem.TypeOnDelay = currentDelay;
-                    elem.TypeOnDuration = 0.5f;
                     elem.TypeOnProgress = 0f;
-                    elem.IsVisible = true;
                     elem.IsDirty = true;
-                    currentDelay += 0.5f;
+                    elem.IsVisible = true;
+                    queue.Add(elem);
                 }
             }
             
-            // Buttons (always visible)
+            // Buttons (always visible, animate last)
             string[] buttonIds = { "save_button", "reset_button" };
             foreach (var id in buttonIds)
             {
                 var elem = _elements.Find(e => e.ElementId == id);
                 if (elem != null)
                 {
-                    elem.TypeOnDelay = currentDelay;
-                    elem.TypeOnDuration = 0.5f;
                     elem.TypeOnProgress = 0f;
-                    elem.IsVisible = true;
                     elem.IsDirty = true;
-                    currentDelay += 0.5f;
+                    elem.IsVisible = true;
+                    queue.Add(elem);
                 }
             }
             
-            // Result rows are hidden initially
+            // Initialize sequential animation state
+            _sequentialAnimation.CurrentIndex = 0;
+            _sequentialAnimation.ElementDuration = 0.5f;
+            
+            // Hide result rows initially
             foreach (var elem in _elements)
             {
                 if (elem.ElementId.StartsWith("result_"))
@@ -540,6 +612,19 @@ namespace CinematicShaders.UI.Screens.Layers
                     elem.TypeOnProgress = 0f;
                 }
             }
+        }
+        
+        /// <summary>
+        /// Check if the sequential animation has completed all elements.
+        /// </summary>
+        public bool IsSequentialAnimationComplete => !_sequentialAnimation.IsRunning;
+
+        /// <summary>
+        /// Reset sequential animation state.
+        /// </summary>
+        public void ResetSequentialAnimation()
+        {
+            _sequentialAnimation.Reset();
         }
         
         /// <summary>
@@ -552,6 +637,9 @@ namespace CinematicShaders.UI.Screens.Layers
                 element.TypeOnProgress = 0f;
                 element.IsDirty = true;
             }
+            
+            // Also reset sequential animation queue
+            _sequentialAnimation.Reset();
         }
         
         /// <summary>
