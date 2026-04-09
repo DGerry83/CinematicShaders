@@ -382,6 +382,13 @@ namespace CinematicShaders.Core
         /// </summary>
         private void UpdateTextTexture()
         {
+            // Defensive validation: ensure texture is valid before any operations
+            if (_textTexture == null || !_textTexture.IsCreated())
+            {
+                Debug.LogWarning("[KartographerSelector] Text texture not created, skipping update");
+                return;
+            }
+
             if (_textSystem == IntPtr.Zero)
             {
                 InitializeTextSystem();
@@ -402,7 +409,7 @@ namespace CinematicShaders.Core
 
             if (string.IsNullOrEmpty(text))
             {
-                // Clear texture
+                // Clear texture and deactivate (early return path)
                 RenderTexture.active = _textTexture;
                 GL.Clear(true, true, Color.clear);
                 RenderTexture.active = null;
@@ -461,6 +468,9 @@ namespace CinematicShaders.Core
                 _glyphBuffer = new ComputeBuffer(Mathf.Max(glyphCount, 64), System.Runtime.InteropServices.Marshal.SizeOf(typeof(StarfieldNative.GlyphData)), ComputeBufferType.Default);
             }
 
+            // Set active texture for native compositing operations
+            RenderTexture.active = _textTexture;
+            
             // Dispatch native compute shader to render text to texture
             // The glyph buffer is created/managed internally by the text system
             StarfieldNative.CR_TextDispatch(
@@ -472,6 +482,9 @@ namespace CinematicShaders.Core
             
             // Set text texture for pixel shader sampling
             StarfieldNative.CR_SetTextTexture(_textTexture.GetNativeTexturePtr());
+            
+            // NOW safe to clear - after all native operations complete
+            RenderTexture.active = null;
         }
 
         /// <summary>
