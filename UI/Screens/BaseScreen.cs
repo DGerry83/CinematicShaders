@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using CinematicShaders.UI.Animation;
 
 namespace CinematicShaders.UI.Screens
 {
@@ -26,6 +27,22 @@ namespace CinematicShaders.UI.Screens
         protected virtual float Layer3Delay => 3.5f;         // Layer 3 starts after Layer 2
         protected virtual float Layer3Duration => 1.0f;      // 3.5s+: Layer 3 types on
         
+        // Layer 1/2 completion tracking
+        public bool IsLayer1Complete => Layer1Progress >= 1.0f;
+        public bool IsLayer2Complete => Layer2Progress >= 1.0f;
+        
+        // Event for when Layer 2 completes (triggers Layer 3 start)
+        public event Action OnLayer2Complete;
+        
+        // Track if we already fired the event (so it only fires once)
+        private bool _layer2CompleteFired = false;
+        
+        // Sequencer for this screen (if it has Layer 3 elements)
+        protected Sequencer _sequencer;
+        
+        // Priority order for Layer 3 elements (override in derived classes)
+        protected virtual List<string> Layer3PriorityOrder => new List<string>();
+        
         // Expose as IReadOnlyList for interface
         IReadOnlyList<ILayer> IScreen.Layers => Layers;
         
@@ -38,6 +55,7 @@ namespace CinematicShaders.UI.Screens
             Layer1Progress = 0f;
             Layer2Progress = 0f;
             Layer3Progress = 0f;
+            _layer2CompleteFired = false;
             
             // Mark all layers as dirty for fresh render
             foreach (var layer in Layers)
@@ -73,6 +91,16 @@ namespace CinematicShaders.UI.Screens
                 Layer3Progress = Mathf.Clamp01((PowerOnTime - Layer3Delay) / Layer3Duration);
             else
                 Layer3Progress = 0f;
+            
+            // Check for Layer 2 completion and fire event
+            if (IsLayer2Complete && !_layer2CompleteFired)
+            {
+                _layer2CompleteFired = true;
+                OnLayer2Complete?.Invoke();
+            }
+            
+            // Update sequencer if we have one
+            _sequencer?.Update();
         }
         
         /// <summary>

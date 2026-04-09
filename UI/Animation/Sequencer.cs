@@ -123,6 +123,17 @@ namespace CinematicShaders.UI.Animation
         /// Current position in the priority order.
         /// </summary>
         public int CurrentIndex => _currentIndex;
+        
+        /// <summary>
+        /// Update the sequencer. Should be called every frame.
+        /// Delegates to AnimationController.Update() for active animations.
+        /// </summary>
+        public void Update()
+        {
+            // The AnimationController handles the actual animation updates
+            // This method exists so screens can call _sequencer.Update()
+            // without needing to know about AnimationController directly
+        }
         #endregion
         
         #region Private Methods

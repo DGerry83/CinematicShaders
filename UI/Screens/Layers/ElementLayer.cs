@@ -452,6 +452,18 @@ namespace CinematicShaders.UI.Screens.Layers
         }
         
         /// <summary>
+        /// Set the display text for a specific element.
+        /// </summary>
+        public void SetElementText(string elementId, string text)
+        {
+            var element = _elements.Find(e => e.ElementId == elementId);
+            if (element != null)
+            {
+                element.SetDynamicText(text);
+            }
+        }
+        
+        /// <summary>
         /// Register all elements with a sequencer.
         /// </summary>
         public void RegisterWithSequencer(Sequencer sequencer)

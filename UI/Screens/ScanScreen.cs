@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using CinematicShaders.UI.Screens.Layers;
 using CinematicShaders.Native;
 using CinematicShaders.Core;
+using CinematicShaders.UI.Animation;
 
 namespace CinematicShaders.UI.Screens
 {
@@ -17,6 +19,13 @@ namespace CinematicShaders.UI.Screens
         private readonly float _aspectRatio;
         private RenderTexture _layer1Texture;
         private RenderTexture _layer2Texture;
+        private Sequencer _sequencer;
+        
+        // Define Layer 3 priority order (simpler - for future interactive elements)
+        protected override List<string> Layer3PriorityOrder => new List<string>
+        {
+            "scan_prompt" // If we add interactive elements later
+        };
         
         public event System.Action OnScanClicked;
         
@@ -45,6 +54,35 @@ namespace CinematicShaders.UI.Screens
                 bl.SetTargetTexture(layer1Texture);
             if (Layers.Count > 1 && Layers[1] is ContentLayer cl)
                 cl.SetTargetTexture(layer2Texture);
+        }
+        
+        public override void OnEnter(ScreenTransitionContext context)
+        {
+            base.OnEnter(context);
+            
+            _sequencer = new Sequencer(Layer3PriorityOrder);
+            OnLayer2Complete += StartLayer3Animation;
+        }
+        
+        public override void OnExit()
+        {
+            base.OnExit();
+            
+            OnLayer2Complete -= StartLayer3Animation;
+            _sequencer?.StopSequence();
+            _sequencer = null;
+        }
+        
+        private void StartLayer3Animation()
+        {
+            Debug.Log("[ScanScreen] Layer 2 complete, starting Layer 3");
+            _sequencer?.StartSequence();
+        }
+        
+        public override void Update(float deltaTime)
+        {
+            base.Update(deltaTime);
+            _sequencer?.Update();
         }
         
         public override void Render(Rect displayRect, IntPtr textSystem)

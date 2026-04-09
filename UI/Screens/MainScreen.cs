@@ -4,6 +4,7 @@ using UnityEngine;
 using CinematicShaders.UI.Screens.Layers;
 using CinematicShaders.Native;
 using CinematicShaders.Core;
+using CinematicShaders.UI.Animation;
 
 namespace CinematicShaders.UI.Screens
 {
@@ -18,6 +19,22 @@ namespace CinematicShaders.UI.Screens
         private RenderTexture _layer1Texture;
         private RenderTexture _layer2Texture;
         private ElementLayer _elementLayer;
+        
+        // Layer 3 priority order - star data first, then search, then buttons
+        protected override List<string> Layer3PriorityOrder => new List<string>
+        {
+            "hip_value",
+            "name_value", 
+            "distance_value",
+            "spectral_value",
+            "mag_value",
+            "const_value",
+            "selected_star",
+            "search_input",
+            "rescan_button",
+            "save_button",
+            "reset_button"
+        };
         
         public MainScreen(string[] borderLines, string[] labelLines, float fontSize, float aspectRatio = 0.667f)
         {
@@ -60,17 +77,28 @@ namespace CinematicShaders.UI.Screens
         {
             base.OnEnter(context);
             
+            // Create sequencer with our priority order
+            _sequencer = new Sequencer(Layer3PriorityOrder);
+            
+            // Subscribe to Layer 2 completion to start Layer 3
+            OnLayer2Complete += StartLayer3Animation;
+            
             // Show elements when entering Main screen
             if (_elementLayer != null)
             {
+                bool hasStar = context?.HasStarSelected ?? false;
+                
                 _elementLayer.SetElementVisibility(true);
                 
                 // Set up type-on animation for elements
                 // Element delays are relative to Layer3Delay (0 = starts at Layer3Delay)
-                _elementLayer.SetupMainScreenAnimation(hasStarSelected: true);
+                _elementLayer.SetupMainScreenAnimation(hasStarSelected: hasStar);
                 
                 // Set the Layer 3 base delay for element timing calculations
                 _elementLayer.SetLayer3Delay(Layer3Delay);
+                
+                // Register elements with sequencer
+                _elementLayer.RegisterWithSequencer(_sequencer);
                 
                 // CRITICAL: Ensure buttons are visible even if no star selected
                 // Buttons should always be visible on Main screen
@@ -84,6 +112,19 @@ namespace CinematicShaders.UI.Screens
         public override void OnExit()
         {
             base.OnExit();
+            
+            // Unsubscribe from events
+            OnLayer2Complete -= StartLayer3Animation;
+            
+            // Unregister from sequencer
+            if (_elementLayer != null && _sequencer != null)
+            {
+                _elementLayer.UnregisterFromSequencer(_sequencer);
+            }
+            
+            // Stop sequencer
+            _sequencer?.StopSequence();
+            _sequencer = null;
             
             // Hide elements when leaving Main screen
             _elementLayer?.SetElementVisibility(false);
@@ -170,6 +211,50 @@ namespace CinematicShaders.UI.Screens
         public void TriggerValueTypeOnAnimation(float startTime)
         {
             _elementLayer?.SetupMainScreenAnimation(hasStarSelected: true);
+        }
+        
+        // Start Layer 3 animation when Layer 2 completes
+        private void StartLayer3Animation()
+        {
+            Debug.Log("[MainScreen] Layer 2 complete, starting Layer 3 animation");
+            _sequencer?.StartSequence();
+        }
+        
+        // Override Update to also update ElementLayer
+        public override void Update(float deltaTime)
+        {
+            base.Update(deltaTime);
+            
+            // Update ElementLayer animations
+            _elementLayer?.UpdateAnimations(deltaTime);
+        }
+        
+        // Add method for star selection changes
+        public void OnStarSelected()
+        {
+            // Notify ElementLayer of content changes
+            var changedIds = _elementLayer?.OnContentChanged(new[] { 
+                "hip_value", "name_value", "distance_value", 
+                "spectral_value", "mag_value", "const_value", "selected_star" 
+            });
+            
+            // Notify sequencer of changes
+            if (changedIds != null && changedIds.Count > 0 && _sequencer != null)
+            {
+                _sequencer.OnElementsChanged(changedIds);
+            }
+        }
+
+        public void OnStarDeselected()
+        {
+            // Clear value fields immediately (no animation)
+            _elementLayer?.SetElementText("hip_value", "");
+            _elementLayer?.SetElementText("name_value", "");
+            _elementLayer?.SetElementText("distance_value", "");
+            _elementLayer?.SetElementText("spectral_value", "");
+            _elementLayer?.SetElementText("mag_value", "");
+            _elementLayer?.SetElementText("const_value", "");
+            _elementLayer?.SetElementText("selected_star", "");
         }
         
         private Color GetGridColor()
