@@ -50,6 +50,10 @@ namespace CinematicShaders.UI.Tabs
             
             // Register for catalog change notifications to reload JSON when catalog changes
             StarCatalogManager.OnCatalogChanged += OnCatalogChanged;
+            
+            // Also subscribe to StarCatalogStateManager for more detailed events
+            StarCatalogStateManager.OnCatalogChanged += HandleStateManagerCatalogChanged;
+            StarCatalogStateManager.OnJsonStateChanged += HandleJsonStateChanged;
         }
         
         /// <summary>
@@ -57,29 +61,40 @@ namespace CinematicShaders.UI.Tabs
         /// </summary>
         private void OnCatalogChanged()
         {
-            if (_selector != null)
+            // State manager handles catalog changes automatically
+            // The selector and holographic display subscribe to events
+            // Just log the change for debugging
+            string catalogPath = StarfieldSettings.ActiveCatalogPath;
+            if (!string.IsNullOrEmpty(catalogPath))
             {
-                string catalogPath = StarfieldSettings.ActiveCatalogPath;
-                if (!string.IsNullOrEmpty(catalogPath))
+                string absolutePath = Path.Combine(KSPUtil.ApplicationRootPath, catalogPath);
+                Debug.Log($"[KartographerTab] Catalog changed to: {absolutePath}");
+                
+                // Ensure selector exists to receive events
+                if (_selector == null && StarfieldSettings.KartographerMouseHoverSelect)
                 {
-                    string absolutePath = Path.Combine(KSPUtil.ApplicationRootPath, catalogPath);
-                    _selector.LoadJsonForCatalog(absolutePath);
-                    
-                    // CRITICAL: Also update HolographicDisplay paths
-                    if (_holographicDisplay != null)
-                    {
-                        string basePath = Path.Combine(
-                            Path.GetDirectoryName(absolutePath),
-                            Path.GetFileNameWithoutExtension(absolutePath)
-                        );
-                        string customPath = basePath + "_Custom.json";
-                        string defaultPath = basePath + ".json";
-                        _holographicDisplay.SetJsonPaths(customPath, defaultPath);
-                        Debug.Log($"[KartographerTab] Updated display paths for new catalog: {customPath}");
-                    }
-                    
-                    Debug.Log("[KartographerTab] Reloaded JSON for new catalog: " + absolutePath);
+                    CreateSelectorAndLoadJson();
                 }
+            }
+        }
+        
+        private void HandleStateManagerCatalogChanged(CatalogChangedEventArgs args)
+        {
+            Debug.Log($"[KartographerTab] State manager catalog changed: {Path.GetFileName(args.NewCatalogPath)}");
+            // Selector and HolographicDisplay handle their own updates via events
+        }
+
+        private void HandleJsonStateChanged(JsonStateChangedEventArgs args)
+        {
+            Debug.Log($"[KartographerTab] JSON state changed: {args.OldAvailability} -> {args.NewAvailability}");
+            
+            // Update holographic display star list if JSON became available
+            if (args.NewAvailability != JsonAvailability.None && 
+                args.OldAvailability == JsonAvailability.None &&
+                _holographicDisplay != null && _holographicDisplay.IsVisible)
+            {
+                var stars = GetNamedStarsFromSelector();
+                _holographicDisplay.SetStarList(stars);
             }
         }
         
@@ -795,7 +810,7 @@ namespace CinematicShaders.UI.Tabs
         {
             var selector = new KartographerSelector();
             
-            // Load JSON for current catalog
+            // JSON loading is handled by StarCatalogStateManager
             string catalogPath = StarfieldSettings.ActiveCatalogPath;
             if (!string.IsNullOrEmpty(catalogPath))
             {
@@ -865,19 +880,19 @@ namespace CinematicShaders.UI.Tabs
             if (_selector == null)
             {
                 _selector = new KartographerSelector();
+                Debug.Log("[KartographerTab] KartographerSelector created");
             }
             
-            // Load JSON for current catalog
+            // JSON loading is now handled automatically by StarCatalogStateManager
+            // when the catalog is set. The selector subscribes to events.
+            // Just ensure the catalog is initialized if not already.
             string catalogPath = StarfieldSettings.ActiveCatalogPath;
             if (!string.IsNullOrEmpty(catalogPath))
             {
                 string absolutePath = Path.Combine(KSPUtil.ApplicationRootPath, catalogPath);
+                
+                // This will initialize the state manager if needed
                 _selector.LoadJsonForCatalog(absolutePath);
-                Debug.Log("[KartographerTab] Selector created and JSON loaded for mouse hover");
-            }
-            else
-            {
-                Debug.LogWarning("[KartographerTab] No active catalog to load star data from");
             }
         }
         
@@ -1205,19 +1220,11 @@ namespace CinematicShaders.UI.Tabs
                 {
                     Debug.Log($"[KartographerTab] Successfully scanned catalog: {binPath}");
                     
-                    // CRITICAL: Update paths in HolographicDisplay
-                    // Construct paths the same way as in CreateHolographicDisplay
-                    string basePath = Path.Combine(
-                        Path.GetDirectoryName(binPath),
-                        Path.GetFileNameWithoutExtension(binPath)
-                    );
-                    string customPath = basePath + "_Custom.json";
-                    string defaultPath = basePath + ".json";
-                    
+                    // HolographicDisplay now receives updates via StarCatalogStateManager events
+                    // No manual path updates needed
                     if (_holographicDisplay != null)
                     {
-                        _holographicDisplay.SetJsonPaths(customPath, defaultPath);
-                        Debug.Log($"[KartographerTab] Updated HolographicDisplay paths: custom={customPath}");
+                        Debug.Log("[KartographerTab] JSON created, HolographicDisplay will update via event");
                     }
                     
                     // Force reload JSON from disk
