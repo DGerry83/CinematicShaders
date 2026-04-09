@@ -225,17 +225,9 @@ namespace CinematicShaders.UI
             var scanScreen = new ScanScreen(ASCII_BORDER_LINES_SCAN, SCAN_LAYER2_LINES, _fontSize, aspectRatio);
             scanScreen.OnScanClicked += () => {
                 OnRescanConfirmed?.Invoke();
-                // After scan completes, transition to Main (ScanCatalog is synchronous)
-                if (HasJsonCatalog())
-                {
-                    var context = new ScreenTransitionContext 
-                    { 
-                        IsInitialStartup = true,
-                        HasStarSelected = _selectedStar != null 
-                    };
-                    _screenManager?.TransitionTo(ScreenState.Main, context);
-                    Debug.Log("[HolographicDisplay] Scan completed - transitioning to Main");
-                }
+                // Don't transition here - let SetJsonPaths -> OnCatalogChanged handle it
+                // after KartographerTab.ScanCatalog() generates JSON and updates paths
+                Debug.Log("[HolographicDisplay] Scan triggered, waiting for path update...");
             };
             _screenManager.RegisterScreen(scanScreen);
             
