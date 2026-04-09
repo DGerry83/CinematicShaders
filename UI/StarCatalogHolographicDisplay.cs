@@ -1592,6 +1592,7 @@ namespace CinematicShaders.UI
         /// </summary>
         public void ClearStarData()
         {
+            // Clear all value fields
             SetElementText("hip_value", "");
             SetElementText("name_value", "");
             SetElementText("distance_value", "");
@@ -1599,6 +1600,9 @@ namespace CinematicShaders.UI
             SetElementText("mag_value", "");
             SetElementText("const_value", "");
             SetElementText("selected_star", "");
+            
+            // Trigger type-on animation for the clear (elements will type-on empty)
+            TriggerValueTypeOnAnimation();
         }
         #endregion
 
@@ -2578,6 +2582,7 @@ namespace CinematicShaders.UI
             if (_selector != null)
             {
                 _selector.OnStarLockedViaClick = OnExternalStarSelected;
+                _selector.OnStarUnlocked = OnExternalStarCleared;
             }
         }
 
@@ -2616,7 +2621,31 @@ namespace CinematicShaders.UI
             _selectedStar = star;
             SetStarData(star);
             
+            // Update visibility - we have a star selected
+            if (_screenManager?.CurrentScreen is MainScreen mainScreen)
+            {
+                mainScreen.UpdateElementVisibility(hasStarSelected: true);
+            }
+            
             Debug.Log($"[HolographicDisplay] External selection synced: {star.Name} (HIP {star.HipparcosID})");
+        }
+
+        /// <summary>
+        /// Called when user deselects a star via ESC or clicking off in the game world
+        /// </summary>
+        private void OnExternalStarCleared()
+        {
+            // Clear our selection to match
+            _selectedStar = null;
+            ClearStarData();
+            
+            // Update visibility - no star selected
+            if (_screenManager?.CurrentScreen is MainScreen mainScreen)
+            {
+                mainScreen.UpdateElementVisibility(hasStarSelected: false);
+            }
+            
+            Debug.Log("[HolographicDisplay] External deselection synced - star cleared");
         }
 
         /// <summary>

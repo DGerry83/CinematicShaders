@@ -71,6 +71,13 @@ namespace CinematicShaders.UI.Screens
                 
                 // Set the Layer 3 base delay for element timing calculations
                 _elementLayer.SetLayer3Delay(Layer3Delay);
+                
+                // CRITICAL: Ensure buttons are visible even if no star selected
+                // Buttons should always be visible on Main screen
+                _elementLayer.SetElementVisibility("save_button", true);
+                _elementLayer.SetElementVisibility("reset_button", true);
+                _elementLayer.SetElementVisibility("rescan_button", true);
+                _elementLayer.SetElementVisibility("search_input", true);
             }
         }
         
@@ -149,6 +156,12 @@ namespace CinematicShaders.UI.Screens
             {
                 _elementLayer.SetElementVisibility(id, hasStarSelected);
             }
+            
+            // Buttons are always visible on Main screen
+            _elementLayer.SetElementVisibility("save_button", true);
+            _elementLayer.SetElementVisibility("reset_button", true);
+            _elementLayer.SetElementVisibility("rescan_button", true);
+            _elementLayer.SetElementVisibility("search_input", true);
         }
         
         /// <summary>

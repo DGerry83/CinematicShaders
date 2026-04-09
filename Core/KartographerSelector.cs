@@ -996,6 +996,11 @@ namespace CinematicShaders.Core
         public Action<NamedStar> OnStarLockedViaClick { get; set; }
 
         /// <summary>
+        /// Called when a star is unlocked/deselected (ESC pressed or clicked off)
+        /// </summary>
+        public Action OnStarUnlocked { get; set; }
+
+        /// <summary>
         /// Update projection and push to native plugin
         /// Handles hover/click selection for all named stars
         /// </summary>
@@ -1206,6 +1211,7 @@ namespace CinematicShaders.Core
                     // Star unlocked
                     _lockedStar = null;
                     _lastLockedStarHIP = 0;  // Clear last locked star
+                    OnStarUnlocked?.Invoke();  // Notify listeners
                 }
                 else if (_hoveredStar != null)
                 {
@@ -1240,6 +1246,7 @@ namespace CinematicShaders.Core
                 Debug.Log($"[KartographerSelector] UNLOCKED (ESC): {_lockedStar.Name}");
                 _lockedStar = null;
                 _lastLockedStarHIP = 0;  // Clear last locked star
+                OnStarUnlocked?.Invoke();  // Notify listeners
             }
 
             // Update sequential animation phases
