@@ -145,17 +145,51 @@ namespace CinematicShaders.UI
         };
         #endregion
 
-        #region JSON Paths
-        private string _customJsonPath = "";
-        private string _defaultJsonPath = "";
+        #region JSON Paths (DEPRECATED - Now managed by StarCatalogStateManager)
         
         public void SetJsonPaths(string customPath, string defaultPath)
         {
-            _customJsonPath = customPath ?? "";
-            _defaultJsonPath = defaultPath ?? "";
+            // DEPRECATED: Paths now managed by StarCatalogStateManager
+            // This method kept for backward compatibility but does nothing
+            Debug.Log("[HolographicDisplay] SetJsonPaths is deprecated, using StarCatalogStateManager");
+        }
+        
+        /// <summary>
+        /// Event handler for catalog changed events from StarCatalogStateManager
+        /// </summary>
+        private void HandleCatalogChanged(CatalogChangedEventArgs args)
+        {
+            Debug.Log($"[HolographicDisplay] Catalog changed event: {args.NewCatalogPath}");
+            // Screen transition is handled by OnCatalogChanged which is called from KartographerTab
+        }
+        
+        /// <summary>
+        /// Event handler for JSON state changed events from StarCatalogStateManager
+        /// </summary>
+        private void HandleJsonStateChanged(JsonStateChangedEventArgs args)
+        {
+            Debug.Log($"[HolographicDisplay] JSON state changed: {args.OldAvailability} -> {args.NewAvailability}");
             
-            // Re-check screen state when paths change (regardless of power state)
-            OnCatalogChanged();
+            if (_screenManager == null) return;
+            
+            var currentState = _screenManager.CurrentState;
+            
+            // React to JSON becoming available
+            if (args.NewAvailability != JsonAvailability.None && currentState == ScreenState.Scan)
+            {
+                var context = new ScreenTransitionContext 
+                { 
+                    HasStarSelected = _selectedStar != null 
+                };
+                _screenManager.TransitionTo(ScreenState.Main, context);
+                Debug.Log("[HolographicDisplay] JSON now available - transitioning to Main");
+            }
+            // React to JSON becoming unavailable
+            else if (args.NewAvailability == JsonAvailability.None && currentState == ScreenState.Main)
+            {
+                _screenManager.TransitionTo(ScreenState.Scan);
+                Debug.Log("[HolographicDisplay] JSON no longer available - transitioning to Scan");
+            }
         }
         #endregion
 
@@ -182,8 +216,10 @@ namespace CinematicShaders.UI
             _lineSpacing = HolographicLayoutConfig.GetLineSpacing(size);
             _displaySize = size;
             
-            _customJsonPath = customJsonPath;
-            _defaultJsonPath = defaultJsonPath;
+            // DEPRECATED: Paths now managed by StarCatalogStateManager
+            // Subscribe to events for reactive updates
+            StarCatalogStateManager.OnCatalogChanged += HandleCatalogChanged;
+            StarCatalogStateManager.OnJsonStateChanged += HandleJsonStateChanged;
 
             CreateElements();
             InitializeTextures();
@@ -196,9 +232,8 @@ namespace CinematicShaders.UI
                 Mathf.RoundToInt(dimensions.y));
             InitializeScreens();
             
-            // NEW: Detect JSON and set initial screen
-            bool hasValidData = !string.IsNullOrEmpty(customJsonPath) && 
-                                System.IO.File.Exists(customJsonPath);
+            // NEW: Detect JSON using centralized state manager
+            bool hasValidData = StarCatalogStateManager.HasValidJson();
             var initialState = hasValidData ? ScreenState.Main : ScreenState.Scan;
             _screenManager.TransitionTo(initialState, new ScreenTransitionContext { 
                 IsInitialStartup = true 
@@ -1052,18 +1087,22 @@ namespace CinematicShaders.UI
         private void SaveStarName(string newName)
         {
             if (_selectedStar == null) return;
-            if (string.IsNullOrEmpty(_customJsonPath)) return;
+            
+            var jsonPaths = StarCatalogStateManager.CurrentJsonPaths;
+            string customJsonPath = jsonPaths.CustomJsonPath;
+            
+            if (string.IsNullOrEmpty(customJsonPath)) return;
             
             try
             {
                 // Ensure custom JSON exists
-                if (!File.Exists(_customJsonPath))
+                if (!File.Exists(customJsonPath))
                 {
                     CreateCustomJson();
                 }
                 
                 // Modify the JSON
-                ModifyStarNameInJson(_selectedStar.HipparcosID, newName);
+                ModifyStarNameInJson(_selectedStar.HipparcosID, newName, customJsonPath);
                 
                 // Update local state
                 _selectedStar.Name = newName;
@@ -1086,7 +1125,12 @@ namespace CinematicShaders.UI
         private void ResetStarName()
         {
             if (_selectedStar == null) return;
-            if (string.IsNullOrEmpty(_defaultJsonPath) || !File.Exists(_defaultJsonPath))
+            
+            var jsonPaths = StarCatalogStateManager.CurrentJsonPaths;
+            string defaultJsonPath = jsonPaths.DefaultJsonPath;
+            string customJsonPath = jsonPaths.CustomJsonPath;
+            
+            if (string.IsNullOrEmpty(defaultJsonPath) || !File.Exists(defaultJsonPath))
             {
                 Debug.LogError("[HolographicDisplay] Cannot reset - default JSON not found");
                 return;
@@ -1095,20 +1139,20 @@ namespace CinematicShaders.UI
             try
             {
                 // Read original name from default JSON
-                string originalName = GetOriginalNameFromJson(_selectedStar.HipparcosID);
+                string originalName = GetOriginalNameFromJson(_selectedStar.HipparcosID, defaultJsonPath);
                 if (string.IsNullOrEmpty(originalName))
                 {
                     originalName = $"HIP {_selectedStar.HipparcosID}";
                 }
                 
                 // Ensure custom JSON exists
-                if (!File.Exists(_customJsonPath))
+                if (!File.Exists(customJsonPath))
                 {
                     CreateCustomJson();
                 }
                 
                 // Modify the JSON with original name
-                ModifyStarNameInJson(_selectedStar.HipparcosID, originalName);
+                ModifyStarNameInJson(_selectedStar.HipparcosID, originalName, customJsonPath);
                 
                 // Update local state
                 _selectedStar.Name = originalName;
@@ -1130,16 +1174,22 @@ namespace CinematicShaders.UI
         /// </summary>
         private void CreateCustomJson()
         {
-            if (File.Exists(_defaultJsonPath))
+            var jsonPaths = StarCatalogStateManager.CurrentJsonPaths;
+            string defaultJsonPath = jsonPaths.DefaultJsonPath;
+            string customJsonPath = jsonPaths.CustomJsonPath;
+            
+            if (string.IsNullOrEmpty(customJsonPath)) return;
+            
+            if (File.Exists(defaultJsonPath))
             {
-                File.Copy(_defaultJsonPath, _customJsonPath);
+                File.Copy(defaultJsonPath, customJsonPath);
                 Debug.Log($"[HolographicDisplay] Created _Custom.json from default");
             }
             else
             {
                 string minimalJson = "{\"metadata\":{\"version\":1,\"source_catalog\":\"Custom\",\"generated\":\"" + 
                     DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss") + "\"},\"stars\":{}}";
-                File.WriteAllText(_customJsonPath, minimalJson);
+                File.WriteAllText(customJsonPath, minimalJson);
                 Debug.Log($"[HolographicDisplay] Created minimal _Custom.json");
             }
         }
@@ -1147,9 +1197,9 @@ namespace CinematicShaders.UI
         /// <summary>
         /// Modify star name in JSON file
         /// </summary>
-        private void ModifyStarNameInJson(int hipId, string newName)
+        private void ModifyStarNameInJson(int hipId, string newName, string customJsonPath)
         {
-            string json = File.ReadAllText(_customJsonPath);
+            string json = File.ReadAllText(customJsonPath);
             
             // Find the star entry
             string hipKey = $"\"{hipId}\":";
@@ -1193,17 +1243,17 @@ namespace CinematicShaders.UI
             
             // Replace in full JSON
             string newJson = json.Substring(0, braceStart) + newStarJson + json.Substring(braceEnd + 1);
-            File.WriteAllText(_customJsonPath, newJson);
+            File.WriteAllText(customJsonPath, newJson);
         }
         
         /// <summary>
         /// Get original name from default JSON
         /// </summary>
-        private string GetOriginalNameFromJson(int hipId)
+        private string GetOriginalNameFromJson(int hipId, string defaultJsonPath)
         {
             try
             {
-                string json = File.ReadAllText(_defaultJsonPath);
+                string json = File.ReadAllText(defaultJsonPath);
                 
                 string hipKey = $"\"{hipId}\":";
                 int starStart = json.IndexOf(hipKey);
@@ -1382,20 +1432,13 @@ namespace CinematicShaders.UI
         }
 
         /// <summary>
-        /// Check if the custom JSON catalog file exists
+        /// Check if a valid JSON catalog exists
+        /// Uses centralized StarCatalogStateManager
         /// </summary>
         private bool HasJsonCatalog()
         {
-            // Check custom JSON first (contains user edits)
-            if (!string.IsNullOrEmpty(_customJsonPath) && File.Exists(_customJsonPath))
-                return true;
-            
-            // Fall back to default JSON (generated by scan)
-            if (!string.IsNullOrEmpty(_defaultJsonPath) && File.Exists(_defaultJsonPath))
-                return true;
-            
-            // Neither exists
-            return false;
+            // Use centralized state manager
+            return StarCatalogStateManager.HasValidJson();
         }
 
         private void PowerOn()
@@ -1429,12 +1472,8 @@ namespace CinematicShaders.UI
         {
             if (_screenManager == null) return;
             
-            bool hasCustom = !string.IsNullOrEmpty(_customJsonPath) && 
-                 System.IO.File.Exists(_customJsonPath);
-            bool hasDefault = !string.IsNullOrEmpty(_defaultJsonPath) && 
-                  System.IO.File.Exists(_defaultJsonPath);
-            bool hasValidData = hasCustom || hasDefault;
-            
+            // Use centralized state manager
+            bool hasValidData = StarCatalogStateManager.HasValidJson();
             var currentState = _screenManager.CurrentState;
             
             // If we have JSON but are on SCAN screen, transition to Main
@@ -1569,6 +1608,10 @@ namespace CinematicShaders.UI
         #region Cleanup
         private void OnDestroy()
         {
+            // Unsubscribe from state manager events
+            StarCatalogStateManager.OnCatalogChanged -= HandleCatalogChanged;
+            StarCatalogStateManager.OnJsonStateChanged -= HandleJsonStateChanged;
+            
             // Release render textures
             if (_displayTexture != null)
             {
