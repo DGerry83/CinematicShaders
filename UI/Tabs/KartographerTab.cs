@@ -61,19 +61,33 @@ namespace CinematicShaders.UI.Tabs
         /// </summary>
         private void OnCatalogChanged()
         {
-            // State manager handles catalog changes automatically
-            // The selector and holographic display subscribe to events
-            // Just log the change for debugging
+            // This is called via StarCatalogManager.OnCatalogChanged (old event system)
+            // We need to propagate to StarCatalogStateManager (new event system)
             string catalogPath = StarfieldSettings.ActiveCatalogPath;
             if (!string.IsNullOrEmpty(catalogPath))
             {
                 string absolutePath = Path.Combine(KSPUtil.ApplicationRootPath, catalogPath);
                 Debug.Log($"[KartographerTab] Catalog changed to: {absolutePath}");
                 
+                // CRITICAL: Update StarCatalogStateManager to trigger its events
+                // This ensures KartographerSelector and HolographicDisplay receive the event
+                if (StarCatalogStateManager.CurrentCatalogPath != absolutePath)
+                {
+                    StarCatalogStateManager.SetCatalog(absolutePath);
+                }
+                
                 // Ensure selector exists to receive events
                 if (_selector == null && StarfieldSettings.KartographerMouseHoverSelect)
                 {
                     CreateSelectorAndLoadJson();
+                }
+                
+                // Update holographic display paths via state manager
+                if (_holographicDisplay != null)
+                {
+                    // The display will receive OnCatalogChanged event from state manager
+                    // But we also call its OnCatalogChanged method directly for compatibility
+                    _holographicDisplay.OnCatalogChanged();
                 }
             }
         }
