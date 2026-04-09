@@ -499,11 +499,22 @@ namespace CinematicShaders.Core
             StarfieldNative.CR_TextMeasure(_textSystem, displayText, FONT_SIZE, out _, out _);
             StarfieldNative.CR_TextGetBounds(_textSystem, out _textWidthPixels, out _textHeightPixels);
 
-            // Dispatch to texture
-            StarfieldNative.CR_TextDispatch(_textSystem, _textTexture.GetNativeTexturePtr(), glyphCount, 1024, 1024);
-            
-            // IMPORTANT: Set texture for shader sampling (use separate slot from star selector)
-            StarfieldNative.CR_SetVesselTargetTextTexture(_textTexture.GetNativeTexturePtr());
+            // Dispatch to texture with proper active texture handling
+            RenderTexture prevActive = RenderTexture.active;
+            try
+            {
+                RenderTexture.active = _textTexture;
+                
+                StarfieldNative.CR_TextDispatch(_textSystem, _textTexture.GetNativeTexturePtr(), glyphCount, 1024, 1024);
+                
+                // IMPORTANT: Set texture for shader sampling (use separate slot from star selector)
+                StarfieldNative.CR_SetVesselTargetTextTexture(_textTexture.GetNativeTexturePtr());
+            }
+            finally
+            {
+                // Always reset active render texture, even if an exception occurred
+                RenderTexture.active = prevActive;
+            }
         }
 
         /// <summary>

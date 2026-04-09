@@ -775,30 +775,42 @@ namespace CinematicShaders.Core
                 boundsHeight = Mathf.Max(ih, bodyOriginY + bh + bodyExtraHeight);
                 float originY = TEXTURE_SIZE - boundsHeight - vPadding;
                 
-                // Pass 1: render initials (clears texture), aligned to bottom-left of texture
-                g1 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.InitialsText, initialsSize, color, 0.0f, originY, 0.0f, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
-                if (g1 > 0)
+                // Render to texture with proper active texture handling (defensive try/finally)
+                RenderTexture prevActive = RenderTexture.active;
+                try
                 {
-                    StarfieldNative.CR_TextDispatchEx(
-                        _textSystem,
-                        label.Texture.GetNativeTexturePtr(),
-                        g1,
-                        TEXTURE_SIZE,
-                        TEXTURE_SIZE,
-                        1);
+                    RenderTexture.active = label.Texture;
+                    
+                    // Pass 1: render initials (clears texture), aligned to bottom-left of texture
+                    g1 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.InitialsText, initialsSize, color, 0.0f, originY, 0.0f, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
+                    if (g1 > 0)
+                    {
+                        StarfieldNative.CR_TextDispatchEx(
+                            _textSystem,
+                            label.Texture.GetNativeTexturePtr(),
+                            g1,
+                            TEXTURE_SIZE,
+                            TEXTURE_SIZE,
+                            1);
+                    }
+                    
+                    // Pass 2: render body next to initials (no clear)
+                    g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, iw + hPadding, originY + bodyOriginY, label.LineSpacing, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
+                    if (g2 > 0)
+                    {
+                        StarfieldNative.CR_TextDispatchEx(
+                            _textSystem,
+                            label.Texture.GetNativeTexturePtr(),
+                            g2,
+                            TEXTURE_SIZE,
+                            TEXTURE_SIZE,
+                            0);
+                    }
                 }
-                
-                // Pass 2: render body next to initials (no clear)
-                g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, iw + hPadding, originY + bodyOriginY, label.LineSpacing, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
-                if (g2 > 0)
+                finally
                 {
-                    StarfieldNative.CR_TextDispatchEx(
-                        _textSystem,
-                        label.Texture.GetNativeTexturePtr(),
-                        g2,
-                        TEXTURE_SIZE,
-                        TEXTURE_SIZE,
-                        0);
+                    // Always reset active render texture, even if an exception occurred
+                    RenderTexture.active = prevActive;
                 }
             }
             else
@@ -843,14 +855,26 @@ namespace CinematicShaders.Core
                 float originY = TEXTURE_SIZE - boundsHeight - vPadding;
                 glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, displayText, label.FontSizePixels, color, 0.0f, originY, label.LineSpacing, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
                 
-                // Render glyphs (clears texture)
-                StarfieldNative.CR_TextDispatchEx(
-                    _textSystem,
-                    label.Texture.GetNativeTexturePtr(),
-                    glyphCount,
-                    TEXTURE_SIZE,
-                    TEXTURE_SIZE,
-                    1);
+                // Render to texture with proper active texture handling (defensive try/finally)
+                RenderTexture prevActive = RenderTexture.active;
+                try
+                {
+                    RenderTexture.active = label.Texture;
+                    
+                    // Render glyphs (clears texture)
+                    StarfieldNative.CR_TextDispatchEx(
+                        _textSystem,
+                        label.Texture.GetNativeTexturePtr(),
+                        glyphCount,
+                        TEXTURE_SIZE,
+                        TEXTURE_SIZE,
+                        1);
+                }
+                finally
+                {
+                    // Always reset active render texture, even if an exception occurred
+                    RenderTexture.active = prevActive;
+                }
             }
             
             // Calculate world size based on text aspect ratio

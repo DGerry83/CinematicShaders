@@ -346,15 +346,27 @@ namespace CinematicShaders.Core
             int glyphCount = StarfieldNative.CR_TextLayoutEx(
                 textSystem, text, MANEUVER_FONT_SIZE, white, 0f, 0f, 0f, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
 
-            StarfieldNative.CR_TextDispatchEx(
-                textSystem,
-                _maneuverTextTexture.GetNativeTexturePtr(),
-                glyphCount,
-                MANEUVER_TEXT_WIDTH,
-                MANEUVER_TEXT_HEIGHT,
-                1);
+            // Render to texture with proper active texture handling
+            RenderTexture prevActive = RenderTexture.active;
+            try
+            {
+                RenderTexture.active = _maneuverTextTexture;
+                
+                StarfieldNative.CR_TextDispatchEx(
+                    textSystem,
+                    _maneuverTextTexture.GetNativeTexturePtr(),
+                    glyphCount,
+                    MANEUVER_TEXT_WIDTH,
+                    MANEUVER_TEXT_HEIGHT,
+                    1);
 
-            StarfieldNative.CR_SetManeuverTextTexture(_maneuverTextTexture.GetNativeTexturePtr());
+                StarfieldNative.CR_SetManeuverTextTexture(_maneuverTextTexture.GetNativeTexturePtr());
+            }
+            finally
+            {
+                // Always reset active render texture, even if an exception occurred
+                RenderTexture.active = prevActive;
+            }
             _maneuverTextDirty = false;
         }
 

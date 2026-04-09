@@ -60,9 +60,17 @@ namespace CinematicShaders.Core
                     renderTextures[i].Create();
                     
                     // Clear to ensure texture is created
-                    RenderTexture.active = renderTextures[i];
-                    GL.Clear(true, true, Color.black);
-                    RenderTexture.active = null;
+                    // Using try/finally for consistency with other RT operations
+                    RenderTexture prevActive = RenderTexture.active;
+                    try
+                    {
+                        RenderTexture.active = renderTextures[i];
+                        GL.Clear(true, true, Color.black);
+                    }
+                    finally
+                    {
+                        RenderTexture.active = prevActive;
+                    }
                     
                     faceTextures[i] = renderTextures[i].GetNativeTexturePtr();
                 }
