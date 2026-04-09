@@ -225,6 +225,17 @@ namespace CinematicShaders.UI
             var scanScreen = new ScanScreen(ASCII_BORDER_LINES_SCAN, SCAN_LAYER2_LINES, _fontSize, aspectRatio);
             scanScreen.OnScanClicked += () => {
                 OnRescanConfirmed?.Invoke();
+                // After scan completes, transition to Main (ScanCatalog is synchronous)
+                if (HasJsonCatalog())
+                {
+                    var context = new ScreenTransitionContext 
+                    { 
+                        IsInitialStartup = true,
+                        HasStarSelected = _selectedStar != null 
+                    };
+                    _screenManager?.TransitionTo(ScreenState.Main, context);
+                    Debug.Log("[HolographicDisplay] Scan completed - transitioning to Main");
+                }
             };
             _screenManager.RegisterScreen(scanScreen);
             
