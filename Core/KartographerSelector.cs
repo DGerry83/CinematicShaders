@@ -382,18 +382,18 @@ namespace CinematicShaders.Core
         /// </summary>
         private void UpdateTextTexture()
         {
-            // Defensive validation: ensure texture is valid before any operations
-            if (_textTexture == null || !_textTexture.IsCreated())
-            {
-                Debug.LogWarning("[KartographerSelector] Text texture not created, skipping update");
-                return;
-            }
-
             if (_textSystem == IntPtr.Zero)
             {
                 InitializeTextSystem();
                 if (_textSystem == IntPtr.Zero)
                     return;
+            }
+
+            // Validate texture was created during initialization
+            if (_textTexture == null)
+            {
+                Debug.LogWarning("[KartographerSelector] Text texture creation failed");
+                return;
             }
 
             // Use the progressively built display text (with cursor) for animation
