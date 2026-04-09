@@ -67,7 +67,7 @@ namespace CinematicShaders.UI.Screens
                 
                 // Set up type-on animation for elements
                 // Element delays are relative to Layer3Delay (0 = starts at Layer3Delay)
-                _elementLayer.SetupMainScreenAnimation(0f, hasStarSelected: true);
+                _elementLayer.SetupMainScreenAnimation(hasStarSelected: true);
                 
                 // Set the Layer 3 base delay for element timing calculations
                 _elementLayer.SetLayer3Delay(Layer3Delay);
@@ -169,7 +169,7 @@ namespace CinematicShaders.UI.Screens
         /// </summary>
         public void TriggerValueTypeOnAnimation(float startTime)
         {
-            _elementLayer?.SetupMainScreenAnimation(startTime + Layer3Delay, hasStarSelected: true);
+            _elementLayer?.SetupMainScreenAnimation(hasStarSelected: true);
         }
         
         private Color GetGridColor()
