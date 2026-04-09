@@ -1191,6 +1191,21 @@ namespace CinematicShaders.UI.Tabs
                 {
                     Debug.Log($"[KartographerTab] Successfully scanned catalog: {binPath}");
                     
+                    // CRITICAL: Update paths in HolographicDisplay
+                    // Construct paths the same way as in CreateHolographicDisplay
+                    string basePath = Path.Combine(
+                        Path.GetDirectoryName(binPath),
+                        Path.GetFileNameWithoutExtension(binPath)
+                    );
+                    string customPath = basePath + "_Custom.json";
+                    string defaultPath = basePath + ".json";
+                    
+                    if (_holographicDisplay != null)
+                    {
+                        _holographicDisplay.SetJsonPaths(customPath, defaultPath);
+                        Debug.Log($"[KartographerTab] Updated HolographicDisplay paths: custom={customPath}");
+                    }
+                    
                     // Force reload JSON from disk
                     if (_selector != null)
                     {
