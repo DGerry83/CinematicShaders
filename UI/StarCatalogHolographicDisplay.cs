@@ -2,6 +2,7 @@ using CinematicShaders.Core;
 using CinematicShaders.Native;
 using CinematicShaders.UI.Screens;
 using CinematicShaders.UI.Screens.Layers;
+using CinematicShaders.UI.Animation;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -148,19 +149,13 @@ namespace CinematicShaders.UI
         private string _customJsonPath = "";
         private string _defaultJsonPath = "";
         
-        /// <summary>
-        /// Set JSON file paths for persistence
-        /// </summary>
         public void SetJsonPaths(string customPath, string defaultPath)
         {
             _customJsonPath = customPath ?? "";
             _defaultJsonPath = defaultPath ?? "";
             
-            // Re-check screen state when paths change
-            if (_displayPowered)
-            {
-                OnCatalogChanged();
-            }
+            // Re-check screen state when paths change (regardless of power state)
+            OnCatalogChanged();
         }
         #endregion
 
@@ -1394,8 +1389,12 @@ namespace CinematicShaders.UI
         private void PowerOn()
         {
             _displayPowered = true;
+            _powerOnTime = 0f; // Reset power on time
             
-            // Check if JSON catalog exists - if not, show SCAN screen
+            // Reset AnimationController for fresh animations
+            AnimationController.Instance.Reset();
+            
+            // Check if JSON catalog exists
             if (!HasJsonCatalog())
             {
                 _screenManager?.TransitionTo(ScreenState.Scan);
@@ -1403,80 +1402,17 @@ namespace CinematicShaders.UI
                 return;
             }
             
-            // Transition to Main screen with animation reset
-            _screenManager?.TransitionTo(ScreenState.Main);
-
-            // Reset type-on animation with proper sequence:
-            // 1. Border (Layer 1): 0s - 2s
-            // 2. Labels (Layer 2): 2s - 4s  
-            // 3. Values (Layer 3): 4s+ (only if star selected)
+            // Transition to Main screen
+            var context = new ScreenTransitionContext 
+            { 
+                IsInitialStartup = true,
+                HasStarSelected = _selectedStar != null 
+            };
+            _screenManager?.TransitionTo(ScreenState.Main, context);
             
-            // Layer 3: Values (only if we have a selected star) - start after Layer 2
-            // Sequential timing: 0.5s per element, no overlap
-            float currentDelay = LAYER_3_DELAY;
-            if (_selectedStar != null)
-            {
-                string[] valueIds = { "hip_value", "name_value", "distance_value", 
-                                      "spectral_value", "mag_value", "const_value" };
-                foreach (var id in valueIds)
-                {
-                    if (_elements.TryGetValue(id, out var elem))
-                    {
-                        elem.TypeOnDelay = currentDelay;
-                        elem.TypeOnDuration = 0.5f;
-                        elem.TypeOnProgress = 0f;
-                        elem.IsDirty = true;
-                        currentDelay += 0.5f;  // Next element starts after this one finishes
-                    }
-                }
-                
-                // Selected star indicator last
-                if (_elements.TryGetValue("selected_star", out var selElem))
-                {
-                    selElem.TypeOnDelay = currentDelay;
-                    selElem.TypeOnDuration = 0.5f;
-                    selElem.TypeOnProgress = 0f;
-                    selElem.IsDirty = true;
-                    currentDelay += 0.5f;
-                }
-            }
-            
-            // Search elements come after values (sequential)
-            currentDelay += 0.5f;
-            string[] searchIds = { "search_input", "rescan_button" };
-            foreach (var id in searchIds)
-            {
-                if (_elements.TryGetValue(id, out var elem))
-                {
-                    elem.TypeOnDelay = currentDelay;
-                    elem.TypeOnProgress = 0f;
-                    elem.IsVisible = true;  // Make visible
-                    elem.IsDirty = true;
-                    currentDelay += 0.1f;
-                }
-            }
-            
-            // Buttons (always visible)
-            string[] buttonIds = { "save_button", "reset_button" };
-            foreach (var id in buttonIds)
-            {
-                if (_elements.TryGetValue(id, out var elem))
-                {
-                    elem.TypeOnDelay = currentDelay;
-                    elem.TypeOnProgress = 0f;
-                    elem.IsVisible = true;  // Make visible
-                    elem.IsDirty = true;
-                    currentDelay += 0.1f;
-                }
-            }
-            
-            Debug.Log("[HolographicDisplay] Power ON - type-on animation started");
+            Debug.Log("[HolographicDisplay] Power ON - Main screen with animation");
         }
         
-        /// <summary>
-        /// Re-check JSON state and transition screens if needed.
-        /// Call this when the catalog is changed externally.
-        /// </summary>
         public void OnCatalogChanged()
         {
             if (_screenManager == null) return;
@@ -1489,7 +1425,11 @@ namespace CinematicShaders.UI
             // If we have JSON but are on SCAN screen, transition to Main
             if (hasValidData && currentState == ScreenState.Scan)
             {
-                _screenManager.TransitionTo(ScreenState.Main);
+                var context = new ScreenTransitionContext 
+                { 
+                    HasStarSelected = _selectedStar != null 
+                };
+                _screenManager.TransitionTo(ScreenState.Main, context);
                 Debug.Log("[HolographicDisplay] Catalog changed - transitioning to Main (JSON found)");
             }
             // If we don't have JSON but are on Main screen, transition to SCAN
@@ -1504,7 +1444,13 @@ namespace CinematicShaders.UI
         {
             _displayPowered = false;
             
-            // Hide all elements immediately
+            // Clear all element text (don't just hide - clear the data)
+            ClearStarData();
+            
+            // Reset AnimationController
+            AnimationController.Instance.Reset();
+            
+            // Hide all elements
             foreach (var element in _elements.Values)
             {
                 element.IsVisible = false;
@@ -1515,9 +1461,6 @@ namespace CinematicShaders.UI
             Debug.Log("[HolographicDisplay] Power OFF");
         }
 
-        /// <summary>
-        /// Update display data with star information and trigger type-on animation
-        /// </summary>
         public void SetStarData(NamedStar star)
         {
             if (star == null) return;
@@ -1530,9 +1473,11 @@ namespace CinematicShaders.UI
             SetElementText("const_value", star.Constellation);
             SetElementText("selected_star", $"{star.Name}");
             
-            // Trigger type-on animation for value fields (Layer 3)
-            // This creates a nice "typing" effect when a new star is selected
-            TriggerValueTypeOnAnimation();
+            // Notify MainScreen of star selection for animation
+            if (_screenManager?.CurrentScreen is MainScreen mainScreen)
+            {
+                mainScreen.OnStarSelected();
+            }
         }
         
         /// <summary>
@@ -2630,20 +2575,10 @@ namespace CinematicShaders.UI
             Debug.Log($"[HolographicDisplay] External selection synced: {star.Name} (HIP {star.HipparcosID})");
         }
 
-        /// <summary>
-        /// Called when user deselects a star via ESC or clicking off in the game world
-        /// </summary>
         private void OnExternalStarCleared()
         {
             // Clear our selection to match
-            _selectedStar = null;
-            ClearStarData();
-            
-            // Update visibility - no star selected
-            if (_screenManager?.CurrentScreen is MainScreen mainScreen)
-            {
-                mainScreen.UpdateElementVisibility(hasStarSelected: false);
-            }
+            ClearSelection();
             
             Debug.Log("[HolographicDisplay] External deselection synced - star cleared");
         }
@@ -2656,13 +2591,16 @@ namespace CinematicShaders.UI
             return _selectedStar;
         }
 
-        /// <summary>
-        /// Clear current selection
-        /// </summary>
         public void ClearSelection()
         {
+            // Notify MainScreen of deselection before clearing
+            if (_screenManager?.CurrentScreen is MainScreen mainScreen)
+            {
+                mainScreen.OnStarDeselected();
+            }
+            
             _selectedStar = null;
-            ClearStarData();
+            // ClearStarData called by OnStarDeselected
         }
 
         #endregion
@@ -2768,9 +2706,6 @@ namespace CinematicShaders.UI
         
         #region Unity Lifecycle
         
-        /// <summary>
-        /// Unity Update callback - cursor blink in edit mode
-        /// </summary>
         private void Update()
         {
             if (!_isVisible) return;
@@ -2778,8 +2713,11 @@ namespace CinematicShaders.UI
             // Update cursor blink in edit mode
             UpdateCursorBlink();
             
-            // Update screen manager animations (includes Layer 3 via MainScreen)
+            // Update screen manager animations
             _screenManager?.Update(Time.deltaTime);
+            
+            // Update AnimationController for type-on animations
+            AnimationController.Instance.Update(Time.deltaTime);
         }
         
         #endregion
