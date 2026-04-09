@@ -2045,18 +2045,28 @@ namespace CinematicShaders.UI
                 color, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
             if (glyphCount <= 0) return;
 
-            // Clear texture
-            RenderTexture.active = _borderTexture;
-            GL.Clear(true, true, Color.clear);
-            RenderTexture.active = null;
+            // Render to texture with proper active texture handling
+            RenderTexture prevActive = RenderTexture.active;
+            try
+            {
+                RenderTexture.active = _borderTexture;
+                
+                // Clear texture
+                GL.Clear(true, true, Color.clear);
 
-            // Dispatch to render
-            StarfieldNative.CR_TextDispatch(
-                _textSystem,
-                _borderTexture.GetNativeTexturePtr(),
-                glyphCount,
-                _borderTexture.width,
-                _borderTexture.height);
+                // Dispatch to render - texture must be active for this
+                StarfieldNative.CR_TextDispatch(
+                    _textSystem,
+                    _borderTexture.GetNativeTexturePtr(),
+                    glyphCount,
+                    _borderTexture.width,
+                    _borderTexture.height);
+            }
+            finally
+            {
+                // Always reset active render texture, even if an exception occurred
+                RenderTexture.active = prevActive;
+            }
         }
 
         /// <summary>
@@ -2139,18 +2149,28 @@ namespace CinematicShaders.UI
                 color, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
             if (glyphCount <= 0) return;
 
-            // Clear texture
-            RenderTexture.active = targetTexture;
-            GL.Clear(true, true, Color.clear);
-            RenderTexture.active = null;
+            // Render to texture with proper active texture handling
+            RenderTexture prevActive = RenderTexture.active;
+            try
+            {
+                RenderTexture.active = targetTexture;
+                
+                // Clear texture
+                GL.Clear(true, true, Color.clear);
 
-            // Dispatch to render
-            StarfieldNative.CR_TextDispatch(
-                _textSystem,
-                targetTexture.GetNativeTexturePtr(),
-                glyphCount,
-                targetTexture.width,
-                targetTexture.height);
+                // Dispatch to render - texture must be active for this
+                StarfieldNative.CR_TextDispatch(
+                    _textSystem,
+                    targetTexture.GetNativeTexturePtr(),
+                    glyphCount,
+                    targetTexture.width,
+                    targetTexture.height);
+            }
+            finally
+            {
+                // Always reset active render texture, even if an exception occurred
+                RenderTexture.active = prevActive;
+            }
         }
 
         /// <summary>

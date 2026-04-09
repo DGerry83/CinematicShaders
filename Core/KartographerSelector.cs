@@ -618,26 +618,36 @@ namespace CinematicShaders.Core
                 return;
             }
 
-            // Clear texture
-            RenderTexture.active = _gridLabelTexture;
-            GL.Clear(true, true, Color.clear);
-            RenderTexture.active = null;
-            Debug.Log("[KartographerSelector] Grid label texture cleared");
+            // Render to texture with proper active texture handling
+            RenderTexture prevActive = RenderTexture.active;
+            try
+            {
+                RenderTexture.active = _gridLabelTexture;
+                
+                // Clear texture
+                GL.Clear(true, true, Color.clear);
+                Debug.Log("[KartographerSelector] Grid label texture cleared");
 
-            // Render to texture
-            IntPtr texturePtr = _gridLabelTexture.GetNativeTexturePtr();
-            Debug.Log($"[KartographerSelector] Grid label texture native ptr: {texturePtr}");
-            
-            StarfieldNative.CR_TextDispatch(
-                _textSystem,
-                texturePtr,
-                glyphCount,
-                GRID_LABEL_TEXTURE_SIZE,
-                GRID_LABEL_TEXTURE_SIZE);
+                // Render to texture
+                IntPtr texturePtr = _gridLabelTexture.GetNativeTexturePtr();
+                Debug.Log($"[KartographerSelector] Grid label texture native ptr: {texturePtr}");
+                
+                StarfieldNative.CR_TextDispatch(
+                    _textSystem,
+                    texturePtr,
+                    glyphCount,
+                    GRID_LABEL_TEXTURE_SIZE,
+                    GRID_LABEL_TEXTURE_SIZE);
 
-            // Set the grid label texture for shader (slot 0 - legacy compatibility)
-            StarfieldNative.CR_SetGridLabelTexture(0, texturePtr);
-            Debug.Log($"[KartographerSelector] Grid label texture built and set to native. Texture: {GRID_LABEL_TEXTURE_SIZE}x{GRID_LABEL_TEXTURE_SIZE}, {glyphCount} glyphs");
+                // Set the grid label texture for shader (slot 0 - legacy compatibility)
+                StarfieldNative.CR_SetGridLabelTexture(0, texturePtr);
+                Debug.Log($"[KartographerSelector] Grid label texture built and set to native. Texture: {GRID_LABEL_TEXTURE_SIZE}x{GRID_LABEL_TEXTURE_SIZE}, {glyphCount} glyphs");
+            }
+            finally
+            {
+                // Always reset active render texture, even if an exception occurred
+                RenderTexture.active = prevActive;
+            }
         }
 
         /// <summary>
