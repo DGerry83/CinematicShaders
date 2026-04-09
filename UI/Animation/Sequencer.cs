@@ -155,15 +155,31 @@ namespace CinematicShaders.UI.Animation
                 
                 if (_elements.TryGetValue(elementId, out var element))
                 {
-                    if (element.IsVisible && element.HasContent())
+                    if (element.IsVisible)
                     {
-                        // Found the next element to animate - start it
+                        if (!element.HasContent())
+                        {
+                            // Empty content - mark as complete (no animation needed)
+                            element.SetTypeOnProgress(1.0f);
+                            _currentIndex++;
+                            continue;
+                        }
+                        
+                        if (!element.ShouldAnimate())
+                        {
+                            // Content hasn't changed - skip animation, show immediately
+                            element.SetTypeOnProgress(1.0f);
+                            _currentIndex++;
+                            continue;
+                        }
+                        
+                        // Found element with new content to animate
                         AnimationController.Instance.StartAnimation(element);
                         return;
                     }
                 }
                 
-                // Element not found, not visible, or empty - skip it
+                // Element not found or not visible - skip it
                 _currentIndex++;
             }
             

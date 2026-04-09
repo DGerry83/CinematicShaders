@@ -36,5 +36,15 @@ namespace CinematicShaders.UI.Animation
         /// Check if this element has content to animate (not empty/null)
         /// </summary>
         bool HasContent();
+        
+        /// <summary>
+        /// Check if this element should animate (content changed since last animation).
+        /// </summary>
+        bool ShouldAnimate();
+        
+        /// <summary>
+        /// Reset animation tracking state for a fresh screen start.
+        /// </summary>
+        void ResetAnimationState();
     }
 }

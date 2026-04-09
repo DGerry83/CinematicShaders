@@ -35,6 +35,8 @@ namespace CinematicShaders.UI.Screens.Layers
         {
             private readonly HolographicTextElement _element;
             private readonly ElementLayer _layer;
+            private string _lastAnimatedContent = null;
+            private bool _hasAnimatedOnce = false;
             
             public ElementAdapter(HolographicTextElement element, ElementLayer layer)
             {
@@ -60,6 +62,35 @@ namespace CinematicShaders.UI.Screens.Layers
             {
                 string text = _element.FullDisplayText;
                 return !string.IsNullOrWhiteSpace(text) && text != "...";
+            }
+            
+            public bool ShouldAnimate()
+            {
+                string current = CurrentText;
+                
+                // First time seeing this element with content
+                if (!_hasAnimatedOnce)
+                {
+                    _hasAnimatedOnce = true;
+                    _lastAnimatedContent = current;
+                    return true;  // Always animate first time
+                }
+                
+                // Content changed from last time we animated
+                if (current != _lastAnimatedContent)
+                {
+                    _lastAnimatedContent = current;
+                    return true;  // Animate because content changed
+                }
+                
+                // Same content as last time, skip animation
+                return false;
+            }
+            
+            public void ResetAnimationState()
+            {
+                _hasAnimatedOnce = false;
+                _lastAnimatedContent = null;
             }
         }
         
@@ -602,6 +633,17 @@ namespace CinematicShaders.UI.Screens.Layers
             {
                 element.TypeOnProgress = 0f;
                 element.IsDirty = true;
+            }
+        }
+        
+        /// <summary>
+        /// Reset animation state for all elements (call on screen transition).
+        /// </summary>
+        public void ResetAllAnimationStates()
+        {
+            foreach (var adapter in _elementAdapters.Values)
+            {
+                adapter.ResetAnimationState();
             }
         }
         
