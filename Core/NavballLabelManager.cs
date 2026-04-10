@@ -401,7 +401,8 @@ namespace CinematicShaders.Core
             // Only operate in Flight scene with active vessel
             if (HighLogic.LoadedScene != GameScenes.FLIGHT)
             {
-                ModFileLogger.Log("[NavballLabelManager] Update - not in FLIGHT scene, disabling icons");
+                // Spammy log removed - called every frame outside FLIGHT scene
+                // ModFileLogger.Log("[NavballLabelManager] Update - not in FLIGHT scene, disabling icons");
                 DisableAllIcons();
                 return;
             }
