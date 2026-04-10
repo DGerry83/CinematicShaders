@@ -119,11 +119,32 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
+        /// Validates all layer textures are valid. Recreates any invalid textures.
+        /// </summary>
+        public void ValidateTextures()
+        {
+            // Check and recreate layer textures if needed
+            for (int i = 1; i <= 3; i++)
+            {
+                if (!_layerTextures.TryGetValue(i, out var texture) || 
+                    texture == null || 
+                    !texture.IsCreated())
+                {
+                    Debug.Log($"[ScreenManager] Layer {i} texture invalid, recreating...");
+                    EnsureTexture(i);
+                }
+            }
+        }
+        
+        /// <summary>
         /// Render the current screen
         /// </summary>
         public void Render(Rect displayRect)
         {
             if (_currentScreen == null) return;
+            
+            // Validate textures before rendering (defensive against device loss)
+            ValidateTextures();
             
             // Only assign textures when screen changes, not every frame
             if (_screenWithAssignedTextures != _currentScreen)

@@ -1471,8 +1471,27 @@ namespace CinematicShaders.UI
             return StarCatalogStateManager.HasValidJson();
         }
 
+        /// <summary>
+        /// Validates that ScreenManager textures are ready before powering on.
+        /// </summary>
+        private bool ValidateBeforePowerOn()
+        {
+            if (_screenManager == null) return false;
+            
+            // Validate textures are ready
+            _screenManager.ValidateTextures();
+            return true;
+        }
+
         private void PowerOn()
         {
+            // Validate textures before powering on (defensive against device loss)
+            if (!ValidateBeforePowerOn())
+            {
+                Debug.LogWarning("[HolographicDisplay] PowerOn aborted - ScreenManager not ready");
+                return;
+            }
+            
             _displayPowered = true;
             _powerOnTime = 0f; // Reset power on time
             

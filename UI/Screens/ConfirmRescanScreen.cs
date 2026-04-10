@@ -104,7 +104,7 @@ namespace CinematicShaders.UI.Screens
             
             // Render Layer 1: Border
             var borderLayer = Layers[0] as BorderLayer;
-            if (borderLayer != null && _layer1Texture != null)
+            if (borderLayer != null && _layer1Texture != null && _layer1Texture.IsCreated())
             {
                 borderLayer.RenderToTexture(textSystem, color, _fontSize, _aspectRatio, Layer1Progress);
                 
@@ -121,7 +121,7 @@ namespace CinematicShaders.UI.Screens
             
             // Render Layer 2: Warning text
             var contentLayer = Layers[1] as ContentLayer;
-            if (contentLayer != null && _layer2Texture != null && Layer2Progress > 0)
+            if (contentLayer != null && _layer2Texture != null && _layer2Texture.IsCreated() && Layer2Progress > 0)
             {
                 contentLayer.RenderToTexture(textSystem, color, _fontSize, _aspectRatio, Layer2Progress);
                 
