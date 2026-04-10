@@ -168,27 +168,40 @@ namespace CinematicShaders.UI
         /// </summary>
         private void HandleJsonStateChanged(JsonStateChangedEventArgs args)
         {
-            Debug.Log($"[HolographicDisplay] JSON state changed: {args.OldAvailability} -> {args.NewAvailability}");
+            ModFileLogger.Log($"[HolographicDisplay] HandleJsonStateChanged fired - {args.OldAvailability} -> {args.NewAvailability}");
+            ModFileLogger.Log($"[HolographicDisplay] CatalogPath={args.CatalogPath}, OldActivePath={args.OldActiveJsonPath}, NewActivePath={args.NewActiveJsonPath}");
             
-            if (_screenManager == null) return;
+            if (_screenManager == null)
+            {
+                ModFileLogger.Log("[HolographicDisplay] HandleJsonStateChanged - ABORT: _screenManager is null");
+                return;
+            }
             
             var currentState = _screenManager.CurrentState;
+            ModFileLogger.Log($"[HolographicDisplay] HandleJsonStateChanged - currentState={currentState}");
             
             // React to JSON becoming available
             if (args.NewAvailability != JsonAvailability.None && currentState == ScreenState.Scan)
             {
+                ModFileLogger.Log("[HolographicDisplay] Transition condition met: JSON available and current state is Scan");
                 var context = new ScreenTransitionContext 
                 { 
                     HasStarSelected = _selectedStar != null 
                 };
+                ModFileLogger.Log($"[HolographicDisplay] Calling TransitionTo(Main) with HasStarSelected={context.HasStarSelected}");
                 _screenManager.TransitionTo(ScreenState.Main, context);
-                Debug.Log("[HolographicDisplay] JSON now available - transitioning to Main");
+                ModFileLogger.Log("[HolographicDisplay] TransitionTo(Main) completed");
             }
             // React to JSON becoming unavailable
             else if (args.NewAvailability == JsonAvailability.None && currentState == ScreenState.Main)
             {
+                ModFileLogger.Log("[HolographicDisplay] Transition condition met: JSON unavailable and current state is Main");
                 _screenManager.TransitionTo(ScreenState.Scan);
-                Debug.Log("[HolographicDisplay] JSON no longer available - transitioning to Scan");
+                ModFileLogger.Log("[HolographicDisplay] TransitionTo(Scan) completed");
+            }
+            else
+            {
+                ModFileLogger.Log($"[HolographicDisplay] No transition - conditions not met: NewAvailability={args.NewAvailability}, currentState={currentState}");
             }
         }
         #endregion
@@ -199,6 +212,7 @@ namespace CinematicShaders.UI
             string customJsonPath = "", string defaultJsonPath = "",
             string catalogPath = "")
         {
+            ModFileLogger.Log($"[HolographicDisplay] Initialize - ENTER - catalogPath={catalogPath}, size={size}");
             _instanceId = ++s_instanceCount;
             _textSystem = sharedTextSystem;
             
@@ -217,6 +231,7 @@ namespace CinematicShaders.UI
             _lineSpacing = HolographicLayoutConfig.GetLineSpacing(size);
             _displaySize = size;
             
+            ModFileLogger.Log($"[HolographicDisplay] Initialize - Subscribing to state manager events...");
             // DEPRECATED: Paths now managed by StarCatalogStateManager
             // Subscribe to events for reactive updates
             StarCatalogStateManager.OnCatalogChanged += HandleCatalogChanged;
@@ -225,14 +240,22 @@ namespace CinematicShaders.UI
             // Initialize state manager with catalog path (required for JSON state tracking)
             if (!string.IsNullOrEmpty(catalogPath))
             {
+                ModFileLogger.Log($"[HolographicDisplay] Initialize - Calling StarCatalogStateManager.Initialize({catalogPath})...");
                 StarCatalogStateManager.Initialize(catalogPath);
+                ModFileLogger.Log("[HolographicDisplay] Initialize - StarCatalogStateManager.Initialize() completed");
+            }
+            else
+            {
+                ModFileLogger.LogWarning("[HolographicDisplay] Initialize - catalogPath is empty, skipping state manager initialization!");
             }
 
+            ModFileLogger.Log("[HolographicDisplay] Initialize - Creating elements and textures...");
             CreateElements();
             InitializeTextures();
             InitializeBorderTexture();
             
             // NEW: Initialize ScreenManager
+            ModFileLogger.Log("[HolographicDisplay] Initialize - Creating ScreenManager...");
             _screenManager = new ScreenManager(_textSystem);
             _screenManager.InitializeTextures(
                 Mathf.RoundToInt(dimensions.x), 
@@ -240,11 +263,15 @@ namespace CinematicShaders.UI
             InitializeScreens();
             
             // NEW: Detect JSON using centralized state manager
+            ModFileLogger.Log("[HolographicDisplay] Initialize - Checking HasValidJson()...");
             bool hasValidData = StarCatalogStateManager.HasValidJson();
+            ModFileLogger.Log($"[HolographicDisplay] Initialize - HasValidJson() returned: {hasValidData}");
             var initialState = hasValidData ? ScreenState.Main : ScreenState.Scan;
+            ModFileLogger.Log($"[HolographicDisplay] Initialize - Transitioning to initial state: {initialState}");
             _screenManager.TransitionTo(initialState, new ScreenTransitionContext { 
                 IsInitialStartup = true 
             });
+            ModFileLogger.Log("[HolographicDisplay] Initialize - EXIT");
             
             Debug.Log($"[HolographicDisplay] Initialized at ({x}, {y}), size: {size}, " +
                       $"dataAvailable: {hasValidData}, initialScreen: {initialState}");
@@ -266,10 +293,9 @@ namespace CinematicShaders.UI
             // Scan screen
             var scanScreen = new ScanScreen(ASCII_BORDER_LINES_SCAN, SCAN_LAYER2_LINES, _fontSize, aspectRatio);
             scanScreen.OnScanClicked += () => {
+                ModFileLogger.Log("[HolographicDisplay] OnScanClicked event received from ScanScreen");
                 OnRescanConfirmed?.Invoke();
-                // Don't transition here - let SetJsonPaths -> OnCatalogChanged handle it
-                // after KartographerTab.ScanCatalog() generates JSON and updates paths
-                Debug.Log("[HolographicDisplay] Scan triggered, waiting for path update...");
+                ModFileLogger.Log("[HolographicDisplay] OnRescanConfirmed event invoked");
             };
             _screenManager.RegisterScreen(scanScreen);
             
@@ -614,11 +640,18 @@ namespace CinematicShaders.UI
             bool mouseDown = Event.current.type == EventType.MouseDown && Event.current.button == 0;
             bool mouseUp = Event.current.type == EventType.MouseUp && Event.current.button == 0;
             
+            if (mouseDown)
+            {
+                ModFileLogger.Log($"[HolographicDisplay] HandleScreenInteractions - mouseDown detected, currentState={currentState}, mousePos={mousePos}");
+            }
+            
             switch (currentState)
             {
                 case ScreenState.Scan:
+                    ModFileLogger.Log("[HolographicDisplay] HandleScreenInteractions - Calling ScanScreen.HandleClick()...");
                     var scanScreen = _screenManager.CurrentScreen as ScanScreen;
-                    scanScreen?.HandleClick(mousePos, _displayRect, mouseDown);
+                    bool clicked = scanScreen?.HandleClick(mousePos, _displayRect, mouseDown) ?? false;
+                    ModFileLogger.Log($"[HolographicDisplay] HandleScreenInteractions - ScanScreen.HandleClick() returned: {clicked}");
                     break;
                     
                 case ScreenState.ConfirmRescan:

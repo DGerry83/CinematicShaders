@@ -179,14 +179,16 @@ namespace CinematicShaders.Core
         /// </summary>
         public static void Initialize(string catalogPath)
         {
+            ModFileLogger.Log($"[StarCatalogStateManager] Initialize - ENTER - catalogPath={catalogPath}, _isInitialized={_isInitialized}");
             if (_isInitialized)
             {
-                Debug.LogWarning("[StarCatalogStateManager] Already initialized, call SetCatalog() to change catalog");
+                ModFileLogger.LogWarning("[StarCatalogStateManager] Initialize - Already initialized, call SetCatalog() to change catalog");
                 return;
             }
             
             SetCatalog(catalogPath);
             _isInitialized = true;
+            ModFileLogger.Log("[StarCatalogStateManager] Initialize - EXIT");
         }
         
         /// <summary>
@@ -194,9 +196,10 @@ namespace CinematicShaders.Core
         /// </summary>
         public static void SetCatalog(string catalogPath)
         {
+            ModFileLogger.Log($"[StarCatalogStateManager] SetCatalog - ENTER - catalogPath={catalogPath}");
             if (string.IsNullOrEmpty(catalogPath))
             {
-                Debug.LogWarning("[StarCatalogStateManager] Cannot set null/empty catalog path");
+                ModFileLogger.LogWarning("[StarCatalogStateManager] SetCatalog - ABORT: null/empty catalog path");
                 return;
             }
             
@@ -206,14 +209,16 @@ namespace CinematicShaders.Core
             
             // Normalize path for comparison
             absolutePath = Path.GetFullPath(absolutePath);
+            ModFileLogger.Log($"[StarCatalogStateManager] SetCatalog - absolutePath={absolutePath}");
             
             // Normalize both paths for comparison to prevent false positives
             string normalizedCurrent = string.IsNullOrEmpty(_currentCatalogPath) ? "" : Path.GetFullPath(_currentCatalogPath);
+            ModFileLogger.Log($"[StarCatalogStateManager] SetCatalog - normalizedCurrent={normalizedCurrent}");
             
             // Check if actually changing
             if (normalizedCurrent == absolutePath)
             {
-                Debug.Log($"[StarCatalogStateManager] Catalog already set to: {absolutePath}");
+                ModFileLogger.Log($"[StarCatalogStateManager] SetCatalog - Catalog already set to: {absolutePath}, skipping");
                 return;
             }
             
@@ -223,6 +228,7 @@ namespace CinematicShaders.Core
             var oldJsonPaths = _currentJsonPaths;
             var oldAvailability = oldJsonPaths.GetAvailability();
             var oldActiveJsonPath = oldJsonPaths.GetActiveJsonPath();
+            ModFileLogger.Log($"[StarCatalogStateManager] SetCatalog - Old state: path={oldCatalogPath}, availability={oldAvailability}");
             
             // Update catalog state
             _currentCatalogPath = absolutePath;
@@ -231,11 +237,10 @@ namespace CinematicShaders.Core
             
             var newAvailability = _currentJsonPaths.GetAvailability();
             var newActiveJsonPath = _currentJsonPaths.GetActiveJsonPath();
-            
-            Debug.Log($"[StarCatalogStateManager] Catalog changed: {oldCatalogPath} -> {absolutePath}");
-            Debug.Log($"[StarCatalogStateManager] JSON availability: {oldAvailability} -> {newAvailability}");
+            ModFileLogger.Log($"[StarCatalogStateManager] SetCatalog - New state: path={_currentCatalogPath}, availability={newAvailability}");
             
             // Fire catalog changed event
+            ModFileLogger.Log("[StarCatalogStateManager] SetCatalog - Invoking OnCatalogChanged...");
             OnCatalogChanged?.Invoke(new CatalogChangedEventArgs
             {
                 OldCatalogPath = oldCatalogPath,
@@ -245,10 +250,12 @@ namespace CinematicShaders.Core
                 OldJsonPaths = oldJsonPaths,
                 NewJsonPaths = _currentJsonPaths
             });
+            ModFileLogger.Log("[StarCatalogStateManager] SetCatalog - OnCatalogChanged invoked");
             
             // Fire JSON state changed event if availability changed
             if (oldAvailability != newAvailability)
             {
+                ModFileLogger.Log($"[StarCatalogStateManager] SetCatalog - Availability changed, invoking OnJsonStateChanged...");
                 OnJsonStateChanged?.Invoke(new JsonStateChangedEventArgs
                 {
                     CatalogPath = _currentCatalogPath,
@@ -258,13 +265,23 @@ namespace CinematicShaders.Core
                     OldActiveJsonPath = oldActiveJsonPath,
                     NewActiveJsonPath = newActiveJsonPath
                 });
+                ModFileLogger.Log("[StarCatalogStateManager] SetCatalog - OnJsonStateChanged invoked");
+            }
+            else
+            {
+                ModFileLogger.Log("[StarCatalogStateManager] SetCatalog - Availability unchanged, skipping OnJsonStateChanged");
             }
             
             // Load star data from new JSON
+            ModFileLogger.Log("[StarCatalogStateManager] SetCatalog - Calling LoadStarData()...");
             LoadStarData();
+            ModFileLogger.Log("[StarCatalogStateManager] SetCatalog - LoadStarData() completed");
             
             // Fire general state changed
+            ModFileLogger.Log("[StarCatalogStateManager] SetCatalog - Invoking OnStateChanged...");
             OnStateChanged?.Invoke();
+            ModFileLogger.Log("[StarCatalogStateManager] SetCatalog - OnStateChanged invoked");
+            ModFileLogger.Log("[StarCatalogStateManager] SetCatalog - EXIT");
         }
         
         /// <summary>
@@ -272,24 +289,33 @@ namespace CinematicShaders.Core
         /// </summary>
         public static void RefreshJsonState()
         {
+            ModFileLogger.Log("[StarCatalogStateManager] RefreshJsonState - ENTER");
+            ModFileLogger.Log($"[StarCatalogStateManager] RefreshJsonState - _currentCatalogPath={_currentCatalogPath}, IsInitialized={IsInitialized}");
+            
             if (string.IsNullOrEmpty(_currentCatalogPath))
             {
-                Debug.LogWarning("[StarCatalogStateManager] Cannot refresh - no catalog set");
+                ModFileLogger.LogWarning("[StarCatalogStateManager] RefreshJsonState - ABORT: _currentCatalogPath is null/empty");
                 return;
             }
             
             var oldAvailability = _currentJsonPaths.GetAvailability();
             var oldActiveJsonPath = _currentJsonPaths.GetActiveJsonPath();
+            ModFileLogger.Log($"[StarCatalogStateManager] RefreshJsonState - BEFORE: oldAvailability={oldAvailability}, oldActiveJsonPath={oldActiveJsonPath}");
+            ModFileLogger.Log($"[StarCatalogStateManager] RefreshJsonState - Current paths: Default={_currentJsonPaths.DefaultJsonPath}, Custom={_currentJsonPaths.CustomJsonPath}");
             
             // Re-check file existence
             _currentJsonPaths = GetJsonPathsForCatalog(_currentCatalogPath);
             
             var newAvailability = _currentJsonPaths.GetAvailability();
             var newActiveJsonPath = _currentJsonPaths.GetActiveJsonPath();
+            ModFileLogger.Log($"[StarCatalogStateManager] RefreshJsonState - AFTER: newAvailability={newAvailability}, newActiveJsonPath={newActiveJsonPath}");
             
-            if (oldAvailability != newAvailability || oldActiveJsonPath != newActiveJsonPath)
+            bool stateChanged = oldAvailability != newAvailability || oldActiveJsonPath != newActiveJsonPath;
+            ModFileLogger.Log($"[StarCatalogStateManager] RefreshJsonState - stateChanged={stateChanged}");
+            
+            if (stateChanged)
             {
-                Debug.Log($"[StarCatalogStateManager] JSON state changed: {oldAvailability} -> {newAvailability}");
+                ModFileLogger.Log($"[StarCatalogStateManager] RefreshJsonState - Invoking OnJsonStateChanged event...");
                 
                 OnJsonStateChanged?.Invoke(new JsonStateChangedEventArgs
                 {
@@ -300,15 +326,25 @@ namespace CinematicShaders.Core
                     OldActiveJsonPath = oldActiveJsonPath,
                     NewActiveJsonPath = newActiveJsonPath
                 });
+                ModFileLogger.Log("[StarCatalogStateManager] RefreshJsonState - OnJsonStateChanged event invoked");
                 
                 // Reload star data if active JSON changed
                 if (oldActiveJsonPath != newActiveJsonPath)
                 {
+                    ModFileLogger.Log("[StarCatalogStateManager] RefreshJsonState - Active JSON changed, calling LoadStarData()...");
                     LoadStarData();
+                    ModFileLogger.Log("[StarCatalogStateManager] RefreshJsonState - LoadStarData() completed");
                 }
                 
+                ModFileLogger.Log("[StarCatalogStateManager] RefreshJsonState - Invoking OnStateChanged event...");
                 OnStateChanged?.Invoke();
+                ModFileLogger.Log("[StarCatalogStateManager] RefreshJsonState - OnStateChanged event invoked");
             }
+            else
+            {
+                ModFileLogger.Log("[StarCatalogStateManager] RefreshJsonState - No state change, skipping events");
+            }
+            ModFileLogger.Log("[StarCatalogStateManager] RefreshJsonState - EXIT");
         }
         
         /// <summary>

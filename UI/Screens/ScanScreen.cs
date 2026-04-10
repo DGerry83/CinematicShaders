@@ -138,12 +138,15 @@ namespace CinematicShaders.UI.Screens
         /// </summary>
         public bool HandleClick(Vector2 mousePos, Rect displayRect, bool mouseDown)
         {
+            ModFileLogger.Log($"[ScanScreen] HandleClick called - mouseDown={mouseDown}, displayRect={displayRect}, mousePos={mousePos}");
             // Only trigger on actual click, not hover
             if (mouseDown && displayRect.Contains(mousePos))
             {
+                ModFileLogger.Log("[ScanScreen] Click detected in display rect, invoking OnScanClicked event");
                 OnScanClicked?.Invoke();
                 return true;
             }
+            ModFileLogger.Log("[ScanScreen] Click NOT detected (mouseDown or containment check failed)");
             return false;
         }
         
