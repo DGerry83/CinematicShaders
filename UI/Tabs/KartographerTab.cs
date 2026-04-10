@@ -1150,9 +1150,7 @@ namespace CinematicShaders.UI.Tabs
         /// </summary>
         private void OnHolographicRescan()
         {
-            ModFileLogger.Log("[KartographerTab] OnHolographicRescan - ENTER");
             ScanCatalog();
-            ModFileLogger.Log("[KartographerTab] OnHolographicRescan - EXIT");
         }
         
         private void OnHolographicWindowClosed()
@@ -1182,73 +1180,53 @@ namespace CinematicShaders.UI.Tabs
         /// </summary>
         private void ScanCatalog()
         {
-            ModFileLogger.Log("[KartographerTab] ScanCatalog - ENTER");
             try
             {
                 string catalogPath = StarfieldSettings.ActiveCatalogPath;
-                ModFileLogger.Log($"[KartographerTab] ScanCatalog - ActiveCatalogPath={catalogPath}");
                 if (string.IsNullOrEmpty(catalogPath))
                 {
-                    ModFileLogger.LogError("[KartographerTab] ScanCatalog - ABORT: No active catalog");
+                    Debug.LogError("[KartographerTab] No active catalog to scan");
                     return;
                 }
                 
                 string binPath = Path.Combine(KSPUtil.ApplicationRootPath, catalogPath);
-                ModFileLogger.Log($"[KartographerTab] ScanCatalog - binPath={binPath}");
                 if (!File.Exists(binPath))
                 {
-                    ModFileLogger.LogError($"[KartographerTab] ScanCatalog - ABORT: Catalog file not found: {binPath}");
+                    Debug.LogError($"[KartographerTab] Catalog file not found: {binPath}");
                     return;
                 }
                 
                 // Generate JSON
-                ModFileLogger.Log("[KartographerTab] ScanCatalog - Calling GenerateJsonForProceduralCatalog...");
                 if (StarCatalogManager.GenerateJsonForProceduralCatalog(binPath))
                 {
-                    ModFileLogger.Log($"[KartographerTab] ScanCatalog - GenerateJsonForProceduralCatalog SUCCESS");
+                    Debug.Log($"[KartographerTab] Successfully scanned catalog: {binPath}");
                     
-                    // CRITICAL: Notify StarCatalogStateManager that JSON is now available
+                    // Notify StarCatalogStateManager that JSON is now available
                     // This triggers OnJsonStateChanged event which causes Scan->Main transition
-                    ModFileLogger.Log("[KartographerTab] ScanCatalog - Calling StarCatalogStateManager.RefreshJsonState()...");
-                    ModFileLogger.Log($"[KartographerTab] ScanCatalog - StateManager.IsInitialized={StarCatalogStateManager.IsInitialized}, CurrentCatalogPath={StarCatalogStateManager.CurrentCatalogPath}");
                     StarCatalogStateManager.RefreshJsonState();
-                    ModFileLogger.Log("[KartographerTab] ScanCatalog - RefreshJsonState() completed");
                     
                     // Force reload JSON from disk
                     if (_selector != null)
                     {
-                        ModFileLogger.Log("[KartographerTab] ScanCatalog - Calling _selector.ForceReloadJson()...");
                         _selector.ForceReloadJson();
-                        ModFileLogger.Log("[KartographerTab] ScanCatalog - ForceReloadJson() completed");
-                    }
-                    else
-                    {
-                        ModFileLogger.Log("[KartographerTab] ScanCatalog - _selector is null, skipping ForceReloadJson");
                     }
                     
                     // Refresh holographic display if active
                     if (_holographicDisplay != null && _holographicDisplay.IsVisible)
                     {
-                        ModFileLogger.Log("[KartographerTab] ScanCatalog - Refreshing holographic display star list...");
                         var stars = GetNamedStarsFromSelector();
                         _holographicDisplay.SetStarList(stars);
-                        ModFileLogger.Log($"[KartographerTab] ScanCatalog - SetStarList completed with {stars?.Count ?? 0} stars");
-                    }
-                    else
-                    {
-                        ModFileLogger.Log($"[KartographerTab] ScanCatalog - HolographicDisplay not active (_holographicDisplay={_holographicDisplay != null}, IsVisible={_holographicDisplay?.IsVisible})");
                     }
                 }
                 else
                 {
-                    ModFileLogger.LogWarning($"[KartographerTab] ScanCatalog - GenerateJsonForProceduralCatalog FAILED (may not be procedural)");
+                    Debug.LogWarning($"[KartographerTab] Failed to scan catalog (may not be procedural): {binPath}");
                 }
             }
             catch (Exception ex)
             {
-                ModFileLogger.LogError($"[KartographerTab] ScanCatalog - EXCEPTION: {ex.Message}\n{ex.StackTrace}");
+                Debug.LogError($"[KartographerTab] Error scanning catalog: {ex.Message}");
             }
-            ModFileLogger.Log("[KartographerTab] ScanCatalog - EXIT");
         }
         
         /// <summary>
