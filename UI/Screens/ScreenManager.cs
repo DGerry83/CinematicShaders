@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using CinematicShaders.Core;
 
 namespace CinematicShaders.UI.Screens
 {
@@ -182,6 +183,7 @@ namespace CinematicShaders.UI.Screens
             
             // Assign Layer 3 via interface (extensible - any screen can implement)
             _currentScreen?.SetLayer3Texture(layer3Texture);
+            ModFileLogger.Log($"[ScreenManager] Layer 3 texture assigned to {_currentScreen.State}");
         }
         
         /// <summary>

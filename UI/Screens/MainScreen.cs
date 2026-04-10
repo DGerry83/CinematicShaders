@@ -87,6 +87,7 @@ namespace CinematicShaders.UI.Screens
         /// </summary>
         public void SetLayer3Texture(RenderTexture layer3Texture)
         {
+            ModFileLogger.Log($"[MainScreen] SetLayer3Texture called, texture is {(layer3Texture != null ? "valid" : "NULL")}");
             _elementLayer?.SetLayer3Texture(layer3Texture);
         }
         
@@ -298,6 +299,7 @@ namespace CinematicShaders.UI.Screens
             
             // Render Layer 3: Elements (value fields, buttons)
             // Pass PowerOnTime so elements can calculate their individual type-on progress
+            ModFileLogger.Log($"[MainScreen] Render - Layer3Progress={Layer3Progress}, _elementLayer is {(_elementLayer != null ? "valid" : "NULL")}");
             if (_elementLayer != null && Layer3Progress > 0)
             {
                 _elementLayer.RenderToTexture(textSystem, displayRect, PowerOnTime);
@@ -362,6 +364,7 @@ namespace CinematicShaders.UI.Screens
         // Add method for star selection changes
         public void OnStarSelected(NamedStar star)
         {
+            ModFileLogger.Log($"[MainScreen] OnStarSelected called for HIP {star.HipparcosID}");
             if (star == null) return;
             
             // Update ElementLayer element values with star data

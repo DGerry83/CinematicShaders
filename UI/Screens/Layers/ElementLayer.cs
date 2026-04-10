@@ -125,6 +125,7 @@ namespace CinematicShaders.UI.Screens.Layers
         /// </summary>
         public void SetLayer3Texture(RenderTexture texture)
         {
+            ModFileLogger.Log($"[ElementLayer] SetLayer3Texture called, texture is {(texture != null ? "valid" : "NULL")}");
             _layer3Texture = texture;
         }
         
@@ -171,6 +172,7 @@ namespace CinematicShaders.UI.Screens.Layers
         /// </summary>
         private void RenderLayer3ToTexture()
         {
+            ModFileLogger.Log($"[ElementLayer] RenderLayer3ToTexture - _layer3Texture is {(_layer3Texture != null ? "valid" : "NULL")}, _textSystem is {(_textSystem != IntPtr.Zero ? "valid" : "ZERO")}");
             if (_layer3Texture == null || _textSystem == IntPtr.Zero) return;
             
             BuildLayer3Content();
@@ -187,8 +189,11 @@ namespace CinematicShaders.UI.Screens.Layers
                 color, 
                 0f, 0f, 0f, 0.667f
             );
+            ModFileLogger.Log($"[ElementLayer] CR_TextLayoutEx returned glyphCount={glyphCount}");
             
             if (glyphCount <= 0) return;
+            
+            ModFileLogger.Log($"[ElementLayer] Calling CR_TextDispatch with _layer3Texture.IsCreated()={_layer3Texture.IsCreated()}");
             
             // Render to single texture
             RenderTexture prevActive = RenderTexture.active;
@@ -352,6 +357,7 @@ namespace CinematicShaders.UI.Screens.Layers
         private string GetElementValue(string elementId)
         {
             var element = _elements.Find(e => e.ElementId == elementId);
+            ModFileLogger.Log($"[ElementLayer] GetElementValue({elementId}) - element found: {(element != null)}, visible: {(element?.IsVisible ?? false)}, text: '{(element?.FullDisplayText ?? "NULL")}'");
             if (element == null || !element.IsVisible) return "";
             
             return GetDisplayText(element);
@@ -429,6 +435,7 @@ namespace CinematicShaders.UI.Screens.Layers
         /// </summary>
         public void RenderToTexture(IntPtr textSystem, Rect displayRect, float powerOnTime)
         {
+            ModFileLogger.Log($"[ElementLayer] RenderToTexture called, _isTextureDirty={_isTextureDirty}");
             if (textSystem == IntPtr.Zero) return;
             _textSystem = textSystem;
             
@@ -586,6 +593,7 @@ namespace CinematicShaders.UI.Screens.Layers
         public void SetElementText(string elementId, string text)
         {
             var element = _elements.Find(e => e.ElementId == elementId);
+            ModFileLogger.Log($"[ElementLayer] SetElementText({elementId}, '{text}') - element found: {(element != null)}");
             if (element != null)
             {
                 element.SetDynamicText(text);

@@ -1670,6 +1670,7 @@ namespace CinematicShaders.UI
 
         public void SetStarData(NamedStar star)
         {
+            ModFileLogger.Log($"[HolographicDisplay] SetStarData called for HIP {star.HipparcosID}");
             if (star == null) return;
 
             SetElementText("hip_value", star.HipparcosID.ToString());
@@ -1683,6 +1684,7 @@ namespace CinematicShaders.UI
             // Notify MainScreen of star selection for animation
             if (_screenManager?.CurrentScreen is MainScreen mainScreen)
             {
+                ModFileLogger.Log($"[HolographicDisplay] Calling mainScreen.OnStarSelected(), _screenManager.CurrentScreen is {(_screenManager?.CurrentScreen?.GetType().Name ?? "NULL")}");
                 mainScreen.OnStarSelected(star);
             }
         }
