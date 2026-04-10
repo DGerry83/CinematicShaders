@@ -571,6 +571,10 @@ namespace CinematicShaders.UI.Tabs
                     {
                         StarCatalogManager.LoadCatalog(path);
                         StarfieldSettings.ActiveCatalogPath = path;
+                        
+                        // CRITICAL: Notify StarCatalogStateManager of new catalog
+                        StarCatalogStateManager.SetCatalog(path);
+                        
                         StarfieldSettings.IsReadOnly = false;
                     }
                     _showSaveAsDialog = false;
@@ -608,6 +612,10 @@ namespace CinematicShaders.UI.Tabs
                 return;
 
             StarfieldSettings.ActiveCatalogPath = filePath;
+            
+            // CRITICAL: Notify StarCatalogStateManager of catalog change
+            StarCatalogStateManager.SetCatalog(filePath);
+            
             if (StarCatalogManager.ActiveCatalog != null)
                 StarfieldSettings.IsReadOnly = StarCatalogManager.ActiveCatalog.IsReadOnly;
 

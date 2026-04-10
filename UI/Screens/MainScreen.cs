@@ -250,6 +250,7 @@ namespace CinematicShaders.UI.Screens
 
         public void OnStarDeselected()
         {
+            // CRITICAL: Clear the star data display
             // Clear value fields immediately (no animation)
             _elementLayer?.SetElementText("hip_value", "");
             _elementLayer?.SetElementText("name_value", "");
@@ -258,6 +259,9 @@ namespace CinematicShaders.UI.Screens
             _elementLayer?.SetElementText("mag_value", "");
             _elementLayer?.SetElementText("const_value", "");
             _elementLayer?.SetElementText("selected_star", "");
+            
+            // Update element visibility to hide star-specific fields
+            UpdateElementVisibility(hasStarSelected: false);
         }
         
         private Color GetGridColor()
