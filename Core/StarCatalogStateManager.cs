@@ -106,6 +106,7 @@ namespace CinematicShaders.Core
         private static JsonPaths _currentJsonPaths;
         private static Dictionary<int, NamedStar> _namedStars = new Dictionary<int, NamedStar>();
         private static bool _isInitialized = false;
+        private static JsonAvailability _cachedAvailability = JsonAvailability.None; // Cache for detecting state changes
         
         // ============================================================================
         // Public State Properties (Read-only)
@@ -236,6 +237,7 @@ namespace CinematicShaders.Core
             _currentJsonPaths = GetJsonPathsForCatalog(absolutePath);
             
             var newAvailability = _currentJsonPaths.GetAvailability();
+            _cachedAvailability = newAvailability; // Cache the current availability for future change detection
             var newActiveJsonPath = _currentJsonPaths.GetActiveJsonPath();
             ModFileLogger.Log($"[StarCatalogStateManager] SetCatalog - New state: path={_currentCatalogPath}, availability={newAvailability}");
             
@@ -272,6 +274,9 @@ namespace CinematicShaders.Core
                 ModFileLogger.Log("[StarCatalogStateManager] SetCatalog - Availability unchanged, skipping OnJsonStateChanged");
             }
             
+            // Update cache after processing events
+            _cachedAvailability = newAvailability;
+            
             // Load star data from new JSON
             ModFileLogger.Log("[StarCatalogStateManager] SetCatalog - Calling LoadStarData()...");
             LoadStarData();
@@ -298,9 +303,11 @@ namespace CinematicShaders.Core
                 return;
             }
             
-            var oldAvailability = _currentJsonPaths.GetAvailability();
+            // Use cached availability as the "before" state - this allows detection of changes
+            // that happened between calls (e.g., file created by external operation like scan)
+            var oldAvailability = _cachedAvailability;
             var oldActiveJsonPath = _currentJsonPaths.GetActiveJsonPath();
-            ModFileLogger.Log($"[StarCatalogStateManager] RefreshJsonState - BEFORE: oldAvailability={oldAvailability}, oldActiveJsonPath={oldActiveJsonPath}");
+            ModFileLogger.Log($"[StarCatalogStateManager] RefreshJsonState - CACHED oldAvailability={oldAvailability}");
             ModFileLogger.Log($"[StarCatalogStateManager] RefreshJsonState - Current paths: Default={_currentJsonPaths.DefaultJsonPath}, Custom={_currentJsonPaths.CustomJsonPath}");
             
             // Re-check file existence
@@ -308,10 +315,10 @@ namespace CinematicShaders.Core
             
             var newAvailability = _currentJsonPaths.GetAvailability();
             var newActiveJsonPath = _currentJsonPaths.GetActiveJsonPath();
-            ModFileLogger.Log($"[StarCatalogStateManager] RefreshJsonState - AFTER: newAvailability={newAvailability}, newActiveJsonPath={newActiveJsonPath}");
+            ModFileLogger.Log($"[StarCatalogStateManager] RefreshJsonState - NEW newAvailability={newAvailability}, newActiveJsonPath={newActiveJsonPath}");
             
             bool stateChanged = oldAvailability != newAvailability || oldActiveJsonPath != newActiveJsonPath;
-            ModFileLogger.Log($"[StarCatalogStateManager] RefreshJsonState - stateChanged={stateChanged}");
+            ModFileLogger.Log($"[StarCatalogStateManager] RefreshJsonState - stateChanged={stateChanged} (cached:{oldAvailability} vs new:{newAvailability})");
             
             if (stateChanged)
             {
@@ -339,6 +346,10 @@ namespace CinematicShaders.Core
                 ModFileLogger.Log("[StarCatalogStateManager] RefreshJsonState - Invoking OnStateChanged event...");
                 OnStateChanged?.Invoke();
                 ModFileLogger.Log("[StarCatalogStateManager] RefreshJsonState - OnStateChanged event invoked");
+                
+                // Update cache to reflect new state
+                _cachedAvailability = newAvailability;
+                ModFileLogger.Log($"[StarCatalogStateManager] RefreshJsonState - Updated _cachedAvailability to {newAvailability}");
             }
             else
             {
