@@ -332,15 +332,23 @@ namespace CinematicShaders.Native
         public static extern int CR_SetManeuverTextTexture(IntPtr texture);
         
         /// <summary>
-        /// Set box outline for hover feedback on interactive elements.
+        /// STUB: Sets the box outline for click zone highlighting.
+        /// This function is not yet implemented in the native plugin.
+        /// Calls are silently ignored to prevent EntryPointNotFoundException.
+        /// TODO: Implement proper native function in C++ plugin.
+        /// See: ReferenceNotes/StarConsoleLayer3Debug/BOX_OUTLINE_FEATURE_SPEC.md
         /// </summary>
         /// <param name="enabled">1 to enable, 0 to disable</param>
-        /// <param name="topLeftX">UV x-coordinate of top-left corner</param>
-        /// <param name="topLeftY">UV y-coordinate of top-left corner</param>
-        /// <param name="bottomRightX">UV x-coordinate of bottom-right corner</param>
-        /// <param name="bottomRightY">UV y-coordinate of bottom-right corner</param>
-        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CR_SetBoxOutline(int enabled, float topLeftX, float topLeftY, float bottomRightX, float bottomRightY);
+        /// <param name="xMin">Left coordinate (UV space)</param>
+        /// <param name="yMin">Top coordinate (UV space)</param>
+        /// <param name="xMax">Right coordinate (UV space)</param>
+        /// <param name="yMax">Bottom coordinate (UV space)</param>
+        public static void CR_SetBoxOutline(int enabled, float xMin, float yMin, float xMax, float yMax)
+        {
+            // STUB IMPLEMENTATION
+            // Native function not yet built. Feature deferred to dedicated implementation session.
+            // This prevents EntryPointNotFoundException while the feature is pending.
+        }
         
         /// <summary>
         /// Uploads 7 navball icon textures to the GPU as a texture array.

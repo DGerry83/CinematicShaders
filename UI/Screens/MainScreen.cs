@@ -19,6 +19,7 @@ namespace CinematicShaders.UI.Screens
         private RenderTexture _layer1Texture;
         private RenderTexture _layer2Texture;
         private ElementLayer _elementLayer;
+        private RenderTexture _deferredLayer3Texture;  // Stores texture if SetLayer3Texture called before SetElements
         
         // Click zone tracking for grid-based hit detection
         private List<ClickZone> _clickZones = new List<ClickZone>();
@@ -65,6 +66,14 @@ namespace CinematicShaders.UI.Screens
         {
             _elementLayer = new ElementLayer(elements, _fontSize);
             AddLayer(_elementLayer);
+            
+            // Apply deferred texture if SetLayer3Texture was called before we had elements
+            if (_deferredLayer3Texture != null)
+            {
+                ModFileLogger.Log("[MainScreen] SetElements - applying deferred Layer 3 texture");
+                _elementLayer.SetLayer3Texture(_deferredLayer3Texture);
+                _deferredLayer3Texture = null;
+            }
         }
         
         /// <summary>
@@ -84,11 +93,19 @@ namespace CinematicShaders.UI.Screens
         
         /// <summary>
         /// Set the Layer 3 texture for single-texture rendering.
+        /// Supports deferred assignment if called before SetElements.
         /// </summary>
         public void SetLayer3Texture(RenderTexture layer3Texture)
         {
-            ModFileLogger.Log($"[MainScreen] SetLayer3Texture called, texture is {(layer3Texture != null ? "valid" : "NULL")}");
-            _elementLayer?.SetLayer3Texture(layer3Texture);
+            if (_elementLayer == null)
+            {
+                ModFileLogger.Log($"[MainScreen] SetLayer3Texture - DEFERRED, _elementLayer is null");
+                _deferredLayer3Texture = layer3Texture;
+                return;
+            }
+            
+            ModFileLogger.Log($"[MainScreen] SetLayer3Texture - applying immediately");
+            _elementLayer.SetLayer3Texture(layer3Texture);
         }
         
         public override void OnEnter(ScreenTransitionContext context)

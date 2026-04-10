@@ -291,10 +291,12 @@ namespace CinematicShaders.UI
             
             // Main screen
             var mainScreen = new MainScreen(ASCII_BORDER_LINES, MAIN_LAYER2_LINES, _fontSize, aspectRatio);
+            ModFileLogger.Log($"[HolographicDisplay] Creating MainScreen instance {mainScreen.GetHashCode()}");
             
             // Pass elements to MainScreen for Layer 3 rendering
             var mainElements = new List<HolographicTextElement>(_elements.Values);
             mainScreen.SetElements(mainElements);
+            ModFileLogger.Log($"[HolographicDisplay] MainScreen elements set, instance {mainScreen.GetHashCode()}");
             
             _screenManager.RegisterScreen(mainScreen);
             
@@ -2992,8 +2994,11 @@ namespace CinematicShaders.UI
             // Update cursor blink in edit mode
             UpdateCursorBlink();
             
-            // Update screen manager animations
-            _screenManager?.Update(Time.deltaTime);
+            // Update screen manager animations ONLY when powered on
+            if (_displayPowered)
+            {
+                _screenManager?.Update(Time.deltaTime);
+            }
             
             // Update AnimationController for type-on animations
             AnimationController.Instance.Update(Time.deltaTime);

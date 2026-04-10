@@ -165,7 +165,10 @@ namespace CinematicShaders.UI.Screens
         {
             var layer1Texture = GetLayerTexture(1);
             var layer2Texture = GetLayerTexture(2);
-            var layer3Texture = GetLayerTexture(3);  // Get Layer 3
+            var layer3Texture = GetLayerTexture(3);
+            
+            // DEBUG: Log instance info
+            ModFileLogger.Log($"[ScreenManager] AssignTextures - _currentScreen type: {_currentScreen?.GetType().Name}, hash: {_currentScreen?.GetHashCode()}");
             
             // Assign layers 1 and 2 via SetTextures
             switch (_currentScreen.State)
