@@ -44,7 +44,7 @@ namespace CinematicShaders.UI.Screens
         
         // Click zones for YES/NO buttons
         private List<ClickZone> _clickZones = new List<ClickZone>();
-        private ClickZone? _hoveredZone = null;
+        private ClickZone _hoveredZone = null;
         
         /// <summary>
         /// Layer 3 priority order for button appearance sequence.
@@ -192,7 +192,7 @@ namespace CinematicShaders.UI.Screens
         {
             Vector2 gridPos = MouseToGrid(mousePos, displayRect);
             
-            ClickZone? newHovered = null;
+            ClickZone newHovered = null;
             foreach (var zone in _clickZones)
             {
                 if (zone.IsEnabled && zone.Contains(gridPos))
@@ -206,9 +206,9 @@ namespace CinematicShaders.UI.Screens
             {
                 _hoveredZone = newHovered;
                 
-                if (_hoveredZone.HasValue)
+                if (_hoveredZone != null)
                 {
-                    Rect uvRect = _hoveredZone.Value.GetUVRect();
+                    Rect uvRect = _hoveredZone.GetUVRect();
                     StarfieldNative.CR_SetBoxOutline(1, uvRect.xMin, uvRect.yMin, uvRect.xMax, uvRect.yMax);
                 }
                 else
@@ -217,11 +217,11 @@ namespace CinematicShaders.UI.Screens
                 }
             }
             
-            if (mouseUp && _hoveredZone.HasValue)
+            if (mouseUp && _hoveredZone != null)
             {
-                if (_hoveredZone.Value.ElementId == "yes_button")
+                if (_hoveredZone.ElementId == "yes_button")
                     OnYesClicked?.Invoke();
-                else if (_hoveredZone.Value.ElementId == "no_button")
+                else if (_hoveredZone.ElementId == "no_button")
                     OnNoClicked?.Invoke();
             }
         }

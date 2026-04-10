@@ -1187,7 +1187,7 @@ void CR_GTAOSetSettings(const GTAOUserSettings* settings)
     g_UserSettings = *settings;
 }
 
-// Box outline parameters for hover feedback
+// Box outline parameters for hover feedback (DEPRECATED - kept for compatibility)
 static float g_BoxTopLeftX = 0.0f;
 static float g_BoxTopLeftY = 0.0f;
 static float g_BoxBottomRightX = 0.0f;
@@ -1196,13 +1196,8 @@ static int g_BoxOutlineEnabled = 0;
 
 /// <summary>
 /// Set box outline parameters for hover highlight effect.
-/// Called from C# when mouse hovers over clickable element.
+/// DEPRECATED: Use CR_DrawCRTBox instead for CRT UI rendering.
 /// </summary>
-/// <param name="enabled">1 to show box, 0 to hide</param>
-/// <param name="topLeftX">UV x-coordinate of top-left corner (0-1)</param>
-/// <param name="topLeftY">UV y-coordinate of top-left corner (0-1)</param>
-/// <param name="bottomRightX">UV x-coordinate of bottom-right corner (0-1)</param>
-/// <param name="bottomRightY">UV y-coordinate of bottom-right corner (0-1)</param>
 __declspec(dllexport) void CR_SetBoxOutline(int enabled, float topLeftX, float topLeftY, 
                                               float bottomRightX, float bottomRightY)
 {
@@ -1213,6 +1208,53 @@ __declspec(dllexport) void CR_SetBoxOutline(int enabled, float topLeftX, float t
         g_BoxTopLeftY = topLeftY;
         g_BoxBottomRightX = bottomRightX;
         g_BoxBottomRightY = bottomRightY;
+    }
+}
+
+// ============================================================================
+// CRT UI Box Drawing (Layer 3 overlay)
+// ============================================================================
+
+extern "C" {
+    float g_CRTBoxTopLeftX = 0.0f;
+    float g_CRTBoxTopLeftY = 0.0f;
+    float g_CRTBoxBottomRightX = 0.0f;
+    float g_CRTBoxBottomRightY = 0.0f;
+    uint32_t g_CRTBoxColor = 0;
+    float g_CRTBoxThickness = 0.0f;
+    int g_CRTBoxEnabled = 0;
+}
+
+/// <summary>
+/// Draw a box outline on the CRT UI surface.
+/// Call every frame while hovering. No persistent state.
+/// This draws on the CRT UI texture, NOT the Kartographer grid.
+/// </summary>
+/// <param name="enabled">1 to show box, 0 to hide</param>
+/// <param name="topLeftX">UV x-coordinate of top-left corner (0-1)</param>
+/// <param name="topLeftY">UV y-coordinate of top-left corner (0-1)</param>
+/// <param name="bottomRightX">UV x-coordinate of bottom-right corner (0-1)</param>
+/// <param name="bottomRightY">UV y-coordinate of bottom-right corner (0-1)</param>
+/// <param name="color">ARGB color value</param>
+/// <param name="thickness">Line thickness in UV space</param>
+__declspec(dllexport) void CR_DrawCRTBox(
+    int enabled,
+    float topLeftX,
+    float topLeftY,
+    float bottomRightX,
+    float bottomRightY,
+    uint32_t color,
+    float thickness)
+{
+    g_CRTBoxEnabled = enabled;
+    if (enabled)
+    {
+        g_CRTBoxTopLeftX = topLeftX;
+        g_CRTBoxTopLeftY = topLeftY;
+        g_CRTBoxBottomRightX = bottomRightX;
+        g_CRTBoxBottomRightY = bottomRightY;
+        g_CRTBoxColor = color;
+        g_CRTBoxThickness = thickness;
     }
 }
 

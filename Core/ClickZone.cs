@@ -3,23 +3,32 @@ using UnityEngine;
 namespace CinematicShaders.Core
 {
     /// <summary>
-    /// Defines a clickable zone in grid coordinates for the CRT UI.
-    /// Grid cell size: 12px wide × 27px tall (for 35pt font at 2:3 aspect)
+    /// Defines a clickable zone for the CRT UI.
+    /// Supports both grid-based (legacy) and UV-based (Contract 7) coordinate systems.
     /// </summary>
-    public struct ClickZone
+    public class ClickZone
     {
         /// <summary>Element identifier (e.g., "name_value", "save_button")</summary>
-        public string ElementId;
+        public string ElementId { get; set; }
         
-        /// <summary>Position in grid coordinates (col, row, width in chars, height in rows)</summary>
-        public Rect GridRect;
+        /// <summary>Position in grid coordinates (col, row, width in chars, height in rows) - LEGACY</summary>
+        public Rect GridRect { get; set; }
+        
+        /// <summary>Position in UV coordinates (0-1 range) - Contract 7</summary>
+        public Rect UVRect { get; set; }
         
         /// <summary>Whether this zone is currently clickable</summary>
-        public bool IsEnabled;
+        public bool IsEnabled { get; set; } = true;
         
-        /// <summary>Screen state this zone belongs to</summary>
-        public string ScreenState;
+        /// <summary>Screen state this zone belongs to - LEGACY</summary>
+        public string ScreenState { get; set; }
         
+        /// <summary>Category of zone: "button", "value", "input", "result" - Contract 7</summary>
+        public string Category { get; set; }
+        
+        /// <summary>
+        /// Legacy constructor for grid-based zones.
+        /// </summary>
         public ClickZone(string elementId, Rect gridRect, bool isEnabled = true, string screenState = "")
         {
             ElementId = elementId;
@@ -29,7 +38,14 @@ namespace CinematicShaders.Core
         }
         
         /// <summary>
-        /// Check if grid coordinates are within this zone
+        /// Default constructor for UV-based zones (Contract 7).
+        /// </summary>
+        public ClickZone()
+        {
+        }
+        
+        /// <summary>
+        /// Check if grid coordinates are within this zone (legacy).
         /// </summary>
         public bool Contains(Vector2 gridPos)
         {
@@ -37,7 +53,15 @@ namespace CinematicShaders.Core
         }
         
         /// <summary>
-        /// Convert grid rectangle to screen pixels
+        /// Check if UV coordinates are within this zone (Contract 7).
+        /// </summary>
+        public bool ContainsUV(Vector2 uv)
+        {
+            return UVRect.Contains(uv);
+        }
+        
+        /// <summary>
+        /// Convert grid rectangle to screen pixels.
         /// </summary>
         public Rect GetScreenRect(float cellWidth = 12f, float cellHeight = 27f)
         {
@@ -50,7 +74,7 @@ namespace CinematicShaders.Core
         }
         
         /// <summary>
-        /// Convert grid rectangle to UV coordinates (0-1 range)
+        /// Convert grid rectangle to UV coordinates (0-1 range).
         /// </summary>
         public Rect GetUVRect(float textureWidth = 825f, float textureHeight = 450f, 
                               float cellWidth = 12f, float cellHeight = 27f)

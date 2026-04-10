@@ -299,6 +299,9 @@ namespace CinematicShaders.UI
             mainScreen.SetElements(mainElements);
             ModFileLogger.Log($"[HolographicDisplay] MainScreen elements set, instance {mainScreen.GetHashCode()}");
             
+            // Subscribe to MainScreen click events (NEW: ClickHandler-based)
+            mainScreen.OnElementClicked += OnMainScreenElementClicked;
+            
             _screenManager.RegisterScreen(mainScreen);
             
             // Scan screen
@@ -2044,7 +2047,7 @@ namespace CinematicShaders.UI
         }
 
         /// <summary>
-        /// Handle element click
+        /// Handle element click (legacy - from HolographicDisplay's own hit detection)
         /// </summary>
         private void OnElementClicked(HolographicTextElement element)
         {
@@ -2086,6 +2089,60 @@ namespace CinematicShaders.UI
                     if (element.ElementId.StartsWith("result_"))
                     {
                         OnSearchResultClicked(element);
+                    }
+                    break;
+            }
+        }
+        
+        /// <summary>
+        /// Handle element click from MainScreen's ClickHandler (NEW: Contract 7)
+        /// </summary>
+        private void OnMainScreenElementClicked(string elementId)
+        {
+            Debug.Log($"[HolographicDisplay] MainScreen clicked: {elementId}");
+            
+            switch (elementId)
+            {
+                case "name_value":
+                    EnterEditMode("name_value");
+                    break;
+                case "hip_value":
+                case "distance_value":
+                case "spectral_value":
+                case "mag_value":
+                case "const_value":
+                    // Value fields - could implement copy-to-clipboard or other actions
+                    Debug.Log($"[HolographicDisplay] Value field clicked: {elementId}");
+                    break;
+                case "search_input":
+                    EnterEditMode("search_input");
+                    break;
+                case "rescan_button":
+                    ShowRescanConfirmation();
+                    break;
+                case "save_button":
+                    if (!string.IsNullOrEmpty(_editingElementId))
+                    {
+                        ExitEditMode(save: true);
+                    }
+                    else
+                    {
+                        SaveStarName(_selectedStar?.Name);
+                    }
+                    break;
+                case "reset_button":
+                    ResetStarName();
+                    break;
+                default:
+                    // Check for result row clicks
+                    if (elementId.StartsWith("result_"))
+                    {
+                        int resultIndex = int.Parse(elementId.Substring(7));
+                        var resultElement = _resultElements.Find(r => r.ElementId == elementId);
+                        if (resultElement != null)
+                        {
+                            OnSearchResultClicked(resultElement);
+                        }
                     }
                     break;
             }
