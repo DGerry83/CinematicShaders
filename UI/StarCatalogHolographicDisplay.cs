@@ -1683,7 +1683,7 @@ namespace CinematicShaders.UI
             // Notify MainScreen of star selection for animation
             if (_screenManager?.CurrentScreen is MainScreen mainScreen)
             {
-                mainScreen.OnStarSelected();
+                mainScreen.OnStarSelected(star);
             }
         }
         

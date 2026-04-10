@@ -352,9 +352,20 @@ namespace CinematicShaders.UI.Screens
         }
         
         // Add method for star selection changes
-        public void OnStarSelected()
+        public void OnStarSelected(NamedStar star)
         {
-            // Notify ElementLayer of content changes
+            if (star == null) return;
+            
+            // Update ElementLayer element values with star data
+            _elementLayer?.SetElementText("hip_value", star.HipparcosID.ToString());
+            _elementLayer?.SetElementText("name_value", star.Name);
+            _elementLayer?.SetElementText("distance_value", $"{star.DistanceLy:F1} LY");
+            _elementLayer?.SetElementText("spectral_value", star.SpectralType);
+            _elementLayer?.SetElementText("mag_value", star.Magnitude.ToString("F2"));
+            _elementLayer?.SetElementText("const_value", star.Constellation);
+            _elementLayer?.SetElementText("selected_star", star.Name);
+            
+            // Notify ElementLayer of content changes for animation
             var changedIds = _elementLayer?.OnContentChanged(new[] { 
                 "hip_value", "name_value", "distance_value", 
                 "spectral_value", "mag_value", "const_value", "selected_star" 

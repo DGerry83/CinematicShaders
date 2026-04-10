@@ -214,38 +214,97 @@ namespace CinematicShaders.UI.Screens.Layers
         }
         
         /// <summary>
-        /// Build Layer 3 content with current element values
-        /// Format: leading spaces + value, with adjustable spacing per line
+        /// Build Layer 3 content with current element values.
+        /// Spacing specification:
+        /// - Regular fields: 12 leading spaces
+        /// - Selected star: 4 leading spaces
+        /// - Search results: 38 leading spaces (dynamic when sharing line)
         /// </summary>
         private void BuildLayer3Content()
         {
+            _layer3ContentLines = new string[LAYER_3_LINE_COUNT];
+            
             // Rows 0-1: Empty (border area)
             _layer3ContentLines[0] = "";
             _layer3ContentLines[1] = "";
             
-            // Row 2: HIP value (6 leading spaces)
+            // Row 2: HIP value (12 leading spaces) + optional result 0
             string hipValue = GetElementValue("hip_value");
-            _layer3ContentLines[2] = "      " + hipValue;
+            string result0 = GetResultValue(0);
+            if (!string.IsNullOrEmpty(result0))
+            {
+                int spacesAfter = 38 - hipValue.Length;
+                _layer3ContentLines[2] = "            " + hipValue + new string(' ', spacesAfter) + "• " + result0;
+            }
+            else
+            {
+                _layer3ContentLines[2] = "            " + hipValue;
+            }
             
-            // Row 3: NAME value (6 leading spaces)
+            // Row 3: NAME value (12 leading spaces) + optional result 1
             string nameValue = GetElementValue("name_value");
-            _layer3ContentLines[3] = "      " + nameValue;
+            string result1 = GetResultValue(1);
+            if (!string.IsNullOrEmpty(result1))
+            {
+                int spacesAfter = 38 - nameValue.Length;
+                _layer3ContentLines[3] = "            " + nameValue + new string(' ', spacesAfter) + "• " + result1;
+            }
+            else
+            {
+                _layer3ContentLines[3] = "            " + nameValue;
+            }
             
-            // Row 4: DISTANCE value (11 leading spaces)
+            // Row 4: DISTANCE value (12 leading spaces) + optional result 2
             string distValue = GetElementValue("distance_value");
-            _layer3ContentLines[4] = "           " + distValue;
+            string result2 = GetResultValue(2);
+            if (!string.IsNullOrEmpty(result2))
+            {
+                int spacesAfter = 38 - distValue.Length;
+                _layer3ContentLines[4] = "            " + distValue + new string(' ', spacesAfter) + "• " + result2;
+            }
+            else
+            {
+                _layer3ContentLines[4] = "            " + distValue;
+            }
             
-            // Row 5: SPECTRAL value (15 leading spaces - aligned with DISTANCE)
+            // Row 5: SPECTRAL value (12 leading spaces) + optional result 3
             string specValue = GetElementValue("spectral_value");
-            _layer3ContentLines[5] = "               " + specValue;
+            string result3 = GetResultValue(3);
+            if (!string.IsNullOrEmpty(result3))
+            {
+                int spacesAfter = 38 - specValue.Length;
+                _layer3ContentLines[5] = "            " + specValue + new string(' ', spacesAfter) + "• " + result3;
+            }
+            else
+            {
+                _layer3ContentLines[5] = "            " + specValue;
+            }
             
-            // Row 6: MAG value (11 leading spaces)
+            // Row 6: MAG value (12 leading spaces) + optional result 4
             string magValue = GetElementValue("mag_value");
-            _layer3ContentLines[6] = "           " + magValue;
+            string result4 = GetResultValue(4);
+            if (!string.IsNullOrEmpty(result4))
+            {
+                int spacesAfter = 38 - magValue.Length;
+                _layer3ContentLines[6] = "            " + magValue + new string(' ', spacesAfter) + "• " + result4;
+            }
+            else
+            {
+                _layer3ContentLines[6] = "            " + magValue;
+            }
             
-            // Row 7: CONST value (6 leading spaces)
+            // Row 7: CONST value (12 leading spaces) + optional result 5
             string constValue = GetElementValue("const_value");
-            _layer3ContentLines[7] = "      " + constValue;
+            string result5 = GetResultValue(5);
+            if (!string.IsNullOrEmpty(result5))
+            {
+                int spacesAfter = 38 - constValue.Length;
+                _layer3ContentLines[7] = "            " + constValue + new string(' ', spacesAfter) + "• " + result5;
+            }
+            else
+            {
+                _layer3ContentLines[7] = "            " + constValue;
+            }
             
             // Row 8: Empty (buttons in Layer 2)
             _layer3ContentLines[8] = "";
@@ -256,36 +315,34 @@ namespace CinematicShaders.UI.Screens.Layers
             // Row 10: Empty (SEARCH/RESCAN in Layer 2)
             _layer3ContentLines[10] = "";
             
-            // Row 11: Search input with cursor (4 leading spaces + "► " + input + cursor)
+            // Row 11: Search input with cursor (4 leading spaces + "► ") + optional result 9
             string searchInput = GetElementValue("search_input");
             bool showCursor = IsElementEditing("search_input") && IsCursorVisible();
-            _layer3ContentLines[11] = "    ► " + searchInput + (showCursor ? "▌" : "");
-            
-            // Rows 12-16: Not used (results are overlaid on rows 2-11 in right column)
-            // Actually, let's put results in right column by using spacing
-            // Row 2 right: Result 0 (32 leading spaces from right column start)
-            string result0 = GetResultValue(0);
-            if (!string.IsNullOrEmpty(result0))
+            string result9 = GetResultValue(9);
+            if (!string.IsNullOrEmpty(result9))
             {
-                _layer3ContentLines[2] = _layer3ContentLines[2].PadRight(52) + "• " + result0;
+                string inputWithCursor = searchInput + (showCursor ? "▌" : "");
+                int spacesAfter = 38 - inputWithCursor.Length - 3; // -3 for "► "
+                _layer3ContentLines[11] = "    ► " + inputWithCursor + new string(' ', spacesAfter) + "• " + result9;
+            }
+            else
+            {
+                _layer3ContentLines[11] = "    ► " + searchInput + (showCursor ? "▌" : "");
             }
             
-            // Continue pattern for results 1-9
-            for (int i = 1; i < 10; i++)
+            // Rows 12-16: Additional results on their own lines (38 leading spaces)
+            for (int i = 6; i < 10; i++)
             {
                 string result = GetResultValue(i);
-                int row = 2 + i;
+                int row = 12 + (i - 6);
                 if (!string.IsNullOrEmpty(result) && row < LAYER_3_LINE_COUNT)
                 {
-                    _layer3ContentLines[row] = "".PadRight(52) + "• " + result;
+                    _layer3ContentLines[row] = "                                      " + result; // 38 spaces
                 }
-            }
-            
-            // Fill remaining rows
-            for (int i = 12; i < LAYER_3_LINE_COUNT; i++)
-            {
-                if (_layer3ContentLines[i] == null)
-                    _layer3ContentLines[i] = "";
+                else if (row < LAYER_3_LINE_COUNT)
+                {
+                    _layer3ContentLines[row] = "";
+                }
             }
         }
         
