@@ -9,10 +9,27 @@ using CinematicShaders.UI.Animation;
 namespace CinematicShaders.UI.Screens
 {
     /// <summary>
-    /// Scan screen shown when no JSON data is available.
-    /// Layers: 1 (border), 2 (SCAN ASCII art)
-    /// Interaction: Clicking SCAN art triggers rescan.
+    /// Scan screen displayed when no star catalog JSON data is available.
+    /// Shows a large ASCII art "SCAN" prompt that the user can click to trigger rescan.
     /// </summary>
+    /// <remarks>
+    /// <para><b>Layer Configuration:</b></para>
+    /// - Layer 1: Border frame
+    /// - Layer 2: Large "SCAN" ASCII art
+    /// - Layer 3: Not used (reserved for future interactive elements)
+    /// 
+    /// <para><b>Purpose:</b></para>
+    /// This screen appears when the star catalog metadata JSON file is missing
+    /// or cannot be loaded. It prompts the user to click the SCAN area to
+    /// regenerate the catalog data.
+    /// 
+    /// <para><b>Interactions:</b></para>
+    /// - Hover over SCAN art: Box outline appears
+    /// - Click SCAN art: Triggers OnScanClicked event
+    /// 
+    /// Unlike other screens, ScanScreen does not use Layer 3 because it has
+    /// no dynamic value fields or buttons - just the clickable SCAN art.
+    /// </remarks>
     public class ScanScreen : BaseScreen
     {
         private readonly float _fontSize;
@@ -25,14 +42,28 @@ namespace CinematicShaders.UI.Screens
         private ClickZone _scanZone;
         private bool _scanHovered = false;
         
-        // Define Layer 3 priority order (simpler - for future interactive elements)
+        /// <summary>
+        /// Layer 3 priority order (reserved for future interactive elements).
+        /// Currently only contains scan_prompt for potential future use.
+        /// </summary>
         protected override List<string> Layer3PriorityOrder => new List<string>
         {
             "scan_prompt" // If we add interactive elements later
         };
         
+        /// <summary>
+        /// Event fired when the SCAN art is clicked.
+        /// Subscribe to this to trigger catalog rescan.
+        /// </summary>
         public event System.Action OnScanClicked;
         
+        /// <summary>
+        /// Initializes a new ScanScreen with the specified content and styling.
+        /// </summary>
+        /// <param name="borderLines">ASCII art lines for the border frame</param>
+        /// <param name="artLines">ASCII art lines for the SCAN graphic</param>
+        /// <param name="fontSize">Font size for text rendering</param>
+        /// <param name="aspectRatio">Aspect ratio for layout (default 0.667 = 2:3)</param>
         public ScanScreen(string[] borderLines, string[] artLines, float fontSize, float aspectRatio = 0.667f)
         {
             ScreenName = "Scan";
@@ -45,8 +76,16 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
-        /// Set the shared textures for rendering. ScanScreen uses l1/l2, ignores l3.
+        /// Sets the shared textures for rendering.
+        /// ScanScreen uses l1 and l2, ignores l3.
         /// </summary>
+        /// <param name="l1">Layer 1 texture (border)</param>
+        /// <param name="l2">Layer 2 texture (SCAN art)</param>
+        /// <param name="l3">Layer 3 texture (ignored)</param>
+        /// <remarks>
+        /// This is an example of a two-layer screen that ignores the third texture.
+        /// The unused l3 parameter is documented to show the design pattern.
+        /// </remarks>
         public override void SetTextures(RenderTexture l1, RenderTexture l2, RenderTexture l3)
         {
             _layer1Texture = l1;
@@ -59,6 +98,10 @@ namespace CinematicShaders.UI.Screens
                 cl.SetTargetTexture(l2);
         }
         
+        /// <summary>
+        /// Called when entering this screen. Initializes animations and click zone.
+        /// </summary>
+        /// <param name="context">Transition context</param>
         public override void OnEnter(ScreenTransitionContext context)
         {
             base.OnEnter(context);
@@ -71,6 +114,9 @@ namespace CinematicShaders.UI.Screens
             _scanHovered = false;
         }
         
+        /// <summary>
+        /// Called when exiting this screen. Cleans up animations and hover state.
+        /// </summary>
         public override void OnExit()
         {
             base.OnExit();
@@ -85,8 +131,16 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
-        /// Handle mouse interaction for SCAN area
+        /// Handles mouse interaction for the SCAN area.
         /// </summary>
+        /// <param name="mousePos">Current mouse position in screen coordinates</param>
+        /// <param name="displayRect">Display rectangle in screen coordinates</param>
+        /// <param name="mouseDown">True if left mouse button was pressed this frame</param>
+        /// <param name="mouseUp">True if left mouse button was released this frame</param>
+        /// <remarks>
+        /// Detects hover over the SCAN zone, updates the box outline visual,
+        /// and fires OnScanClicked when clicked.
+        /// </remarks>
         public void HandleMouse(Vector2 mousePos, Rect displayRect, bool mouseDown, bool mouseUp)
         {
             Vector2 gridPos = MouseToGrid(mousePos, displayRect);
@@ -115,18 +169,35 @@ namespace CinematicShaders.UI.Screens
             }
         }
         
+        /// <summary>
+        /// Starts Layer 3 animation when Layer 2 completes.
+        /// </summary>
         private void StartLayer3Animation()
         {
             Debug.Log("[ScanScreen] Layer 2 complete, starting Layer 3");
             _sequencer?.StartSequence();
         }
         
+        /// <summary>
+        /// Updates this screen's animations.
+        /// </summary>
+        /// <param name="deltaTime">Time elapsed since last frame</param>
         public override void Update(float deltaTime)
         {
             base.Update(deltaTime);
             _sequencer?.Update();
         }
         
+        /// <summary>
+        /// Renders this screen.
+        /// </summary>
+        /// <param name="displayRect">Screen rectangle for rendering</param>
+        /// <param name="textSystem">Native text system pointer</param>
+        /// <remarks>
+        /// Renders Layer 1 (border) and Layer 2 (SCAN art).
+        /// Layer 2 only renders once its progress is greater than 0.
+        /// Also handles mouse interaction during repaint events.
+        /// </remarks>
         public override void Render(Rect displayRect, IntPtr textSystem)
         {
             if (textSystem == IntPtr.Zero) return;
@@ -182,8 +253,16 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
-        /// Handle click detection. Returns true if SCAN art was clicked.
+        /// Legacy click detection method. Returns true if SCAN art was clicked.
         /// </summary>
+        /// <param name="mousePos">Mouse position in screen coordinates</param>
+        /// <param name="displayRect">Display rectangle</param>
+        /// <param name="mouseDown">True if mouse button is pressed</param>
+        /// <returns>True if the SCAN area was clicked</returns>
+        /// <remarks>
+        /// This method is kept for backwards compatibility.
+        /// New code should use HandleMouse() for consistency with other screens.
+        /// </remarks>
         public bool HandleClick(Vector2 mousePos, Rect displayRect, bool mouseDown)
         {
             // Only trigger on actual click, not hover

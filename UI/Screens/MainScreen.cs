@@ -9,9 +9,31 @@ using CinematicShaders.UI.Animation;
 namespace CinematicShaders.UI.Screens
 {
     /// <summary>
-    /// Main screen showing star data with search results.
-    /// Layers: 1 (border), 2 (labels), 3 (value fields, buttons)
+    /// The main data display screen for the holographic console.
+    /// Shows star information including HIP ID, name, distance, spectral type, magnitude, and constellation.
     /// </summary>
+    /// <remarks>
+    /// <para><b>Layer Configuration:</b></para>
+    /// - Layer 1: Border frame and static header elements
+    /// - Layer 2: Field labels ("HIP:", "NAME:", "DISTANCE:", etc.)
+    /// - Layer 3: Dynamic value fields, buttons, and search input
+    /// 
+    /// <para><b>Animation Sequence:</b></para>
+    /// 1. Border types on (0-2s)
+    /// 2. Labels type on (2-3.5s)
+    /// 3. Value fields and buttons appear in priority order (3.5s+)
+    /// 
+    /// <para><b>Interactions:</b></para>
+    /// - Click on value fields to edit (name field is editable)
+    /// - Click buttons (SAVE, RESET, RESCAN) for actions
+    /// - Type in search box to find stars
+    /// - Click search results to select stars
+    /// 
+    /// <para><b>Click Zone System:</b></para>
+    /// Uses grid-based hit detection with ClickZone objects defined in
+    /// HolographicLayoutConfig. Zones are enabled/disabled based on
+    /// whether a star is currently selected.
+    /// </remarks>
     public class MainScreen : BaseScreen
     {
         private readonly float _fontSize;
@@ -26,11 +48,19 @@ namespace CinematicShaders.UI.Screens
         private ClickZone? _hoveredZone = null;
         
         /// <summary>
-        /// Event fired when an interactive element is clicked
+        /// Event fired when an interactive element is clicked.
+        /// String parameter is the element ID (e.g., "name_value", "save_button").
         /// </summary>
         public event Action<string> OnElementClicked;
         
-        // Layer 3 priority order - star data first, then search, then buttons
+        /// <summary>
+        /// Layer 3 priority order for type-on animation sequence.
+        /// Elements appear in this order after Layer 2 completes.
+        /// </summary>
+        /// <remarks>
+        /// Star data fields appear first, followed by search and action buttons.
+        /// Elements not in this list use default priority (appear last).
+        /// </remarks>
         protected override List<string> Layer3PriorityOrder => new List<string>
         {
             "hip_value",
@@ -46,6 +76,13 @@ namespace CinematicShaders.UI.Screens
             "reset_button"
         };
         
+        /// <summary>
+        /// Initializes a new MainScreen with the specified content and styling.
+        /// </summary>
+        /// <param name="borderLines">ASCII art lines for the border frame</param>
+        /// <param name="labelLines">Label text lines for Layer 2</param>
+        /// <param name="fontSize">Font size for text rendering</param>
+        /// <param name="aspectRatio">Aspect ratio for layout (default 0.667 = 2:3)</param>
         public MainScreen(string[] borderLines, string[] labelLines, float fontSize, float aspectRatio = 0.667f)
         {
             ScreenName = "Main";
@@ -59,8 +96,15 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
-        /// Set the elements for Layer 3 rendering.
+        /// Sets the elements for Layer 3 rendering.
+        /// Must be called before the screen is shown to initialize value fields and buttons.
         /// </summary>
+        /// <param name="elements">List of text elements for value fields and buttons</param>
+        /// <remarks>
+        /// This creates the ElementLayer which manages dynamic content.
+        /// If SetTextures() was called before this method, the Layer 3 texture
+        /// is applied automatically once elements are available.
+        /// </remarks>
         public void SetElements(List<HolographicTextElement> elements)
         {
             _elementLayer = new ElementLayer(elements, _fontSize);
@@ -76,32 +120,52 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
-        /// Get the ElementLayer for external access (e.g., cursor state management).
+        /// Gets the ElementLayer for external access to cursor state management.
         /// </summary>
+        /// <returns>The ElementLayer instance, or null if not yet initialized</returns>
         public ElementLayer GetElementLayer()
         {
             return _elementLayer;
         }
         
         /// <summary>
-        /// Set cursor state in ElementLayer. Passes through to ElementLayer.SetCursorState().
+        /// Sets the cursor visibility state in the ElementLayer.
         /// </summary>
+        /// <param name="elementId">The element ID to set cursor for</param>
+        /// <param name="visible">True to show cursor, false to hide</param>
+        /// <remarks>
+        /// Used by HolographicDisplay to synchronize cursor blink state
+        /// with the currently focused text input element.
+        /// </remarks>
         public void SetCursorState(string elementId, bool visible)
         {
             _elementLayer?.SetCursorState(elementId, visible);
         }
         
         /// <summary>
-        /// Mark the ElementLayer as dirty to trigger a redraw.
+        /// Marks the ElementLayer as dirty, forcing a redraw on next render.
         /// </summary>
+        /// <remarks>
+        /// Call this when element content changes (e.g., during typing)
+        /// to ensure the texture is updated.
+        /// </remarks>
         public void MarkElementLayerDirty()
         {
             _elementLayer?.MarkLayer3Dirty();
         }
         
         /// <summary>
-        /// Set the shared textures for rendering Layers 1, 2, and 3.
+        /// Sets the shared textures for rendering all three layers.
         /// </summary>
+        /// <param name="l1">Layer 1 texture (border)</param>
+        /// <param name="l2">Layer 2 texture (labels)</param>
+        /// <param name="l3">Layer 3 texture (elements)</param>
+        /// <remarks>
+        /// Textures are assigned to their respective layers:
+        /// - l1 → BorderLayer
+        /// - l2 → ContentLayer  
+        /// - l3 → ElementLayer (or deferred if elements not ready)
+        /// </remarks>
         public override void SetTextures(RenderTexture l1, RenderTexture l2, RenderTexture l3)
         {
             _layer1Texture = l1;
@@ -124,6 +188,15 @@ namespace CinematicShaders.UI.Screens
                 cl.SetTargetTexture(l2);
         }
         
+        /// <summary>
+        /// Called when entering this screen. Initializes animations and click zones.
+        /// </summary>
+        /// <param name="context">Transition context with star selection state</param>
+        /// <remarks>
+        /// Sets up the sequencer for Layer 3 animations, initializes click zones
+        /// based on whether a star is selected, and configures element visibility.
+        /// Always call base.OnEnter() first when overriding.
+        /// </remarks>
         public override void OnEnter(ScreenTransitionContext context)
         {
             base.OnEnter(context);
@@ -166,6 +239,13 @@ namespace CinematicShaders.UI.Screens
             }
         }
         
+        /// <summary>
+        /// Called when exiting this screen. Cleans up animations and click zones.
+        /// </summary>
+        /// <remarks>
+        /// Unsubscribes from events, stops the sequencer, hides elements,
+        /// and clears the box outline. Always call base.OnExit() when overriding.
+        /// </remarks>
         public override void OnExit()
         {
             base.OnExit();
@@ -193,9 +273,17 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
-        /// Initialize click zones for grid-based hit detection.
-        /// These are approximate positions - user will tune via debug exports.
+        /// Initializes click zones for grid-based hit detection.
+        /// Zones are defined in HolographicLayoutConfig.
         /// </summary>
+        /// <param name="hasStarSelected">Whether a star is currently selected</param>
+        /// <remarks>
+        /// Creates zones for:
+        /// - Value fields (enabled only when star selected)
+        /// - Action buttons (always enabled)
+        /// - Search input (always enabled)
+        /// - Search results (enabled only when star selected)
+        /// </remarks>
         private void InitializeClickZones(bool hasStarSelected)
         {
             _clickZones.Clear();
@@ -224,8 +312,16 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
-        /// Handle mouse interaction for click zones
+        /// Handles mouse interaction for click zones.
         /// </summary>
+        /// <param name="mousePos">Current mouse position in screen coordinates</param>
+        /// <param name="displayRect">Display rectangle in screen coordinates</param>
+        /// <param name="mouseDown">True if left mouse button was pressed this frame</param>
+        /// <param name="mouseUp">True if left mouse button was released this frame</param>
+        /// <remarks>
+        /// Converts mouse position to grid coordinates, detects hover over click zones,
+        /// updates the box outline visual, and fires OnElementClicked when a zone is clicked.
+        /// </remarks>
         public void HandleMouse(Vector2 mousePos, Rect displayRect, bool mouseDown, bool mouseUp)
         {
             // Convert mouse position to grid coordinates
@@ -266,12 +362,29 @@ namespace CinematicShaders.UI.Screens
             }
         }
         
+        /// <summary>
+        /// Called when a click zone is clicked.
+        /// </summary>
+        /// <param name="elementId">ID of the clicked element</param>
         private void OnZoneClicked(string elementId)
         {
             Debug.Log($"[MainScreen] Clicked: {elementId}");
             OnElementClicked?.Invoke(elementId);
         }
         
+        /// <summary>
+        /// Renders this screen.
+        /// </summary>
+        /// <param name="displayRect">Screen rectangle for rendering</param>
+        /// <param name="textSystem">Native text system pointer</param>
+        /// <remarks>
+        /// Renders all three layers in order:
+        /// 1. Border (Layer 1) - always rendered
+        /// 2. Labels (Layer 2) - only if progress > 0
+        /// 3. Elements (Layer 3) - only if progress > 0
+        /// 
+        /// Also handles mouse interaction during repaint events.
+        /// </remarks>
         public override void Render(Rect displayRect, IntPtr textSystem)
         {
             if (textSystem == IntPtr.Zero) return;
@@ -318,8 +431,6 @@ namespace CinematicShaders.UI.Screens
             }
             
             // Render Layer 3: Elements (value fields, buttons)
-            // Pass PowerOnTime so elements can calculate their individual type-on progress
-            // DEBUG: ModFileLogger.Log($"[MainScreen] Render - Layer3Progress={Layer3Progress}, _elementLayer is {(_elementLayer != null ? "valid" : "NULL")}");
             if (_elementLayer != null && Layer3Progress > 0)
             {
                 _elementLayer.RenderToTexture(textSystem, displayRect, PowerOnTime);
@@ -336,8 +447,13 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
-        /// Update Layer 3 element visibility based on star selection state.
+        /// Updates element visibility based on whether a star is selected.
         /// </summary>
+        /// <param name="hasStarSelected">True if a star is currently selected</param>
+        /// <remarks>
+        /// Value fields are only visible when a star is selected.
+        /// Buttons and search input are always visible on the Main screen.
+        /// </remarks>
         public void UpdateElementVisibility(bool hasStarSelected)
         {
             if (_elementLayer == null) return;
@@ -358,21 +474,31 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
-        /// Trigger type-on animation for value fields when star data changes.
+        /// Triggers type-on animation for value fields when star data changes.
         /// </summary>
+        /// <param name="startTime">Time offset for animation start</param>
         public void TriggerValueTypeOnAnimation(float startTime)
         {
             _elementLayer?.SetupMainScreenAnimation(hasStarSelected: true);
         }
         
-        // Start Layer 3 animation when Layer 2 completes
+        /// <summary>
+        /// Starts the Layer 3 animation sequence when Layer 2 completes.
+        /// </summary>
         private void StartLayer3Animation()
         {
             Debug.Log("[MainScreen] Layer 2 complete, starting Layer 3 animation");
             _sequencer?.StartSequence();
         }
         
-        // Override Update to also update ElementLayer
+        /// <summary>
+        /// Updates this screen's animations.
+        /// </summary>
+        /// <param name="deltaTime">Time elapsed since last frame</param>
+        /// <remarks>
+        /// Also updates ElementLayer animations. Call base.Update() to maintain
+        /// proper layer progress timing.
+        /// </remarks>
         public override void Update(float deltaTime)
         {
             base.Update(deltaTime);
@@ -381,7 +507,14 @@ namespace CinematicShaders.UI.Screens
             _elementLayer?.UpdateAnimations(deltaTime);
         }
         
-        // Add method for star selection changes
+        /// <summary>
+        /// Called when a star is selected. Updates display with star data.
+        /// </summary>
+        /// <param name="star">The selected star data</param>
+        /// <remarks>
+        /// Updates all value fields with the star's properties and notifies
+        /// the sequencer of content changes for animation retriggering.
+        /// </remarks>
         public void OnStarSelected(NamedStar star)
         {
             ModFileLogger.Log($"[MainScreen] OnStarSelected called for HIP {star.HipparcosID}");
@@ -409,9 +542,15 @@ namespace CinematicShaders.UI.Screens
             }
         }
 
+        /// <summary>
+        /// Called when the star selection is cleared. Clears all value fields.
+        /// </summary>
+        /// <remarks>
+        /// Clears all value field text and updates visibility to hide star-specific fields.
+        /// Buttons remain visible.
+        /// </remarks>
         public void OnStarDeselected()
         {
-            // CRITICAL: Clear the star data display
             // Clear value fields immediately (no animation)
             _elementLayer?.SetElementText("hip_value", "");
             _elementLayer?.SetElementText("name_value", "");

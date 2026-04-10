@@ -9,9 +9,30 @@ using CinematicShaders.UI.Animation;
 namespace CinematicShaders.UI.Screens
 {
     /// <summary>
-    /// Confirmation dialog for rescan operation.
-    /// Layers: 1 (border), 2 (warning text), 3 (YES/NO buttons)
+    /// Confirmation dialog screen for rescan operations.
+    /// Displays a warning message with YES/NO buttons for user confirmation.
     /// </summary>
+    /// <remarks>
+    /// <para><b>Layer Configuration:</b></para>
+    /// - Layer 1: Border frame
+    /// - Layer 2: Warning text and dialog content
+    /// - Layer 3: YES/NO buttons (appear after content)
+    /// 
+    /// <para><b>Purpose:</b></para>
+    /// This screen appears when the user initiates a catalog rescan while
+    /// star data already exists. It confirms the user's intention to
+    /// overwrite existing data before proceeding.
+    /// 
+    /// <para><b>Interactions:</b></para>
+    /// - Click YES: Triggers OnYesClicked, proceeds with rescan
+    /// - Click NO: Triggers OnNoClicked, returns to previous screen
+    /// - Hover over buttons: Box outline appears
+    /// 
+    /// <para><b>Visual Design:</b></para>
+    /// The dialog uses the standard border with warning text centered.
+    /// Buttons appear in sequence after the warning text types on,
+    /// following the Layer3PriorityOrder.
+    /// </remarks>
     public class ConfirmRescanScreen : BaseScreen
     {
         private readonly float _fontSize;
@@ -24,19 +45,45 @@ namespace CinematicShaders.UI.Screens
         private List<ClickZone> _clickZones = new List<ClickZone>();
         private ClickZone? _hoveredZone = null;
         
-        // Define Layer 3 priority order - buttons appear in sequence
+        /// <summary>
+        /// Layer 3 priority order for button appearance sequence.
+        /// YES button appears first, followed by NO button.
+        /// </summary>
         protected override List<string> Layer3PriorityOrder => new List<string>
         {
             "yes_button",
             "no_button"
         };
         
+        /// <summary>
+        /// Gets whether the YES button is currently selected (hovered).
+        /// </summary>
         public bool YesSelected { get; private set; }
+        
+        /// <summary>
+        /// Gets whether the NO button is currently selected (hovered).
+        /// </summary>
         public bool NoSelected { get; private set; }
         
+        /// <summary>
+        /// Event fired when the YES button is clicked.
+        /// Subscribe to proceed with the rescan operation.
+        /// </summary>
         public event System.Action OnYesClicked;
+        
+        /// <summary>
+        /// Event fired when the NO button is clicked.
+        /// Subscribe to cancel and return to the previous screen.
+        /// </summary>
         public event System.Action OnNoClicked;
         
+        /// <summary>
+        /// Initializes a new ConfirmRescanScreen with the specified content and styling.
+        /// </summary>
+        /// <param name="borderLines">ASCII art lines for the border frame</param>
+        /// <param name="textLines">Warning text lines for the dialog</param>
+        /// <param name="fontSize">Font size for text rendering</param>
+        /// <param name="aspectRatio">Aspect ratio for layout (default 0.667 = 2:3)</param>
         public ConfirmRescanScreen(string[] borderLines, string[] textLines, float fontSize, float aspectRatio = 0.667f)
         {
             ScreenName = "ConfirmRescan";
@@ -49,8 +96,16 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
-        /// Set the shared textures for rendering. ConfirmRescanScreen uses l1/l2, ignores l3.
+        /// Sets the shared textures for rendering.
+        /// ConfirmRescanScreen uses l1 and l2, ignores l3.
         /// </summary>
+        /// <param name="l1">Layer 1 texture (border)</param>
+        /// <param name="l2">Layer 2 texture (warning text)</param>
+        /// <param name="l3">Layer 3 texture (ignored)</param>
+        /// <remarks>
+        /// Layer 3 is not used because buttons are rendered through
+        /// the native shader system rather than to a texture.
+        /// </remarks>
         public override void SetTextures(RenderTexture l1, RenderTexture l2, RenderTexture l3)
         {
             _layer1Texture = l1;
@@ -63,6 +118,10 @@ namespace CinematicShaders.UI.Screens
                 cl.SetTargetTexture(l2);
         }
         
+        /// <summary>
+        /// Called when entering this screen. Initializes animations and click zones.
+        /// </summary>
+        /// <param name="context">Transition context</param>
         public override void OnEnter(ScreenTransitionContext context)
         {
             base.OnEnter(context);
@@ -77,6 +136,9 @@ namespace CinematicShaders.UI.Screens
             _hoveredZone = null;
         }
         
+        /// <summary>
+        /// Called when exiting this screen. Cleans up animations and hover state.
+        /// </summary>
         public override void OnExit()
         {
             base.OnExit();
@@ -92,8 +154,16 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
-        /// Handle mouse interaction for YES/NO buttons
+        /// Handles mouse interaction for YES/NO buttons.
         /// </summary>
+        /// <param name="mousePos">Current mouse position in screen coordinates</param>
+        /// <param name="displayRect">Display rectangle in screen coordinates</param>
+        /// <param name="mouseDown">True if left mouse button was pressed this frame</param>
+        /// <param name="mouseUp">True if left mouse button was released this frame</param>
+        /// <remarks>
+        /// Detects hover over button zones, updates the box outline visual,
+        /// and fires OnYesClicked or OnNoClicked when a button is clicked.
+        /// </remarks>
         public void HandleMouse(Vector2 mousePos, Rect displayRect, bool mouseDown, bool mouseUp)
         {
             Vector2 gridPos = MouseToGrid(mousePos, displayRect);
@@ -132,18 +202,37 @@ namespace CinematicShaders.UI.Screens
             }
         }
         
+        /// <summary>
+        /// Starts Layer 3 animation when Layer 2 completes.
+        /// </summary>
         private void StartLayer3Animation()
         {
             Debug.Log("[ConfirmRescanScreen] Layer 2 complete, starting Layer 3");
             _sequencer?.StartSequence();
         }
         
+        /// <summary>
+        /// Updates this screen's animations.
+        /// </summary>
+        /// <param name="deltaTime">Time elapsed since last frame</param>
         public override void Update(float deltaTime)
         {
             base.Update(deltaTime);
             _sequencer?.Update();
         }
         
+        /// <summary>
+        /// Renders this screen.
+        /// </summary>
+        /// <param name="displayRect">Screen rectangle for rendering</param>
+        /// <param name="textSystem">Native text system pointer</param>
+        /// <remarks>
+        /// Renders Layer 1 (border) and Layer 2 (warning text).
+        /// YES/NO buttons are rendered separately by the native system
+        /// to support interactive hover states.
+        /// 
+        /// Also handles mouse interaction during repaint events.
+        /// </remarks>
         public override void Render(Rect displayRect, IntPtr textSystem)
         {
             if (textSystem == IntPtr.Zero) return;
@@ -202,9 +291,18 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
-        /// Update hover states and handle clicks for YES/NO buttons.
-        /// Call this from the display's interaction handling.
+        /// Legacy method for updating button hover states and handling clicks.
         /// </summary>
+        /// <param name="mousePos">Mouse position in screen coordinates</param>
+        /// <param name="displayRect">Display rectangle</param>
+        /// <param name="mouseDown">True if mouse button pressed</param>
+        /// <param name="mouseUp">True if mouse button released</param>
+        /// <remarks>
+        /// This method uses pixel-based positioning rather than grid-based.
+        /// New code should use HandleMouse() for consistency with other screens.
+        /// 
+        /// Kept for backwards compatibility and potential external callers.
+        /// </remarks>
         public void UpdateInteraction(Vector2 mousePos, Rect displayRect, bool mouseDown, bool mouseUp)
         {
             // Calculate YES/NO button positions
@@ -238,6 +336,13 @@ namespace CinematicShaders.UI.Screens
             }
         }
         
+        /// <summary>
+        /// Resets the YES/NO selection state.
+        /// </summary>
+        /// <remarks>
+        /// Call this when transitioning away to ensure clean state
+        /// for the next time this screen is shown.
+        /// </remarks>
         public void ResetSelection()
         {
             YesSelected = false;
