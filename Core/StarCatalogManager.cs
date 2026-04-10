@@ -30,20 +30,6 @@ namespace CinematicShaders.Core
         }
         
         /// <summary>
-        /// Raised when the active catalog changes
-        /// </summary>
-        public static event Action OnCatalogChanged;
-        
-        /// <summary>
-        /// Triggers the OnCatalogChanged event. Call this after generating a new catalog
-        /// to notify listeners (e.g., Kartographer) to reload/clear their data.
-        /// </summary>
-        public static void TriggerCatalogChanged()
-        {
-            OnCatalogChanged?.Invoke();
-        }
-        
-        /// <summary>
         /// Currently active/loaded catalog metadata
         /// </summary>
         public static StarCatalogInfo ActiveCatalog { get; set; }
@@ -274,7 +260,6 @@ namespace CinematicShaders.Core
                 ActiveCatalog = info;
                 StarfieldSettings.IsReadOnly = info.IsReadOnly; // Per-catalog flag, not per-save
                 IsDirty = false;
-                OnCatalogChanged?.Invoke();
                 
                 Debug.Log($"[CinematicShaders] Loaded catalog: {info.GetDisplayName()} ({info.StarCount} stars)");
                 
@@ -398,7 +383,6 @@ namespace CinematicShaders.Core
                 // Update active catalog info
                 ActiveCatalog = ReadCatalogHeader(filePath);
                 IsDirty = false;
-                OnCatalogChanged?.Invoke();
                 
                 Debug.Log($"[CinematicShaders] Saved catalog: {filePath}");
                 
@@ -522,7 +506,6 @@ namespace CinematicShaders.Core
                     if (ActiveCatalog != null && ActiveCatalog.FilePath == filePath)
                     {
                         ActiveCatalog = null;
-                        OnCatalogChanged?.Invoke();
                     }
                     
                     return true;
