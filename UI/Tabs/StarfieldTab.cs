@@ -530,6 +530,10 @@ namespace CinematicShaders.UI.Tabs
                 StarCatalogManager.ActiveCatalog = null;
                 StarfieldSettings.InvalidateCatalog();
                 PushSettingsToNative();
+                
+                // CRITICAL: Clear StarCatalogStateManager to remove stale JSON data
+                // Pass empty string to indicate no catalog / no JSON available
+                StarCatalogStateManager.SetCatalog("");
 
                 _showSaveAsDialog = true;
                 _newFileName = CinematicShadersUIStrings.Starfield.DefaultCatalogFileName;

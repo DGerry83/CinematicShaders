@@ -1206,6 +1206,10 @@ namespace CinematicShaders.UI.Tabs
                         Debug.Log("[KartographerTab] JSON created, HolographicDisplay will update via event");
                     }
                     
+                    // CRITICAL: Notify StarCatalogStateManager that JSON is now available
+                    // This triggers OnJsonStateChanged event which causes Scan->Main transition
+                    StarCatalogStateManager.RefreshJsonState();
+                    
                     // Force reload JSON from disk
                     if (_selector != null)
                     {
