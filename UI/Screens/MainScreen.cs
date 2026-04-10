@@ -590,6 +590,9 @@ namespace CinematicShaders.UI.Screens
             
             // Update element visibility to hide star-specific fields
             UpdateElementVisibility(hasStarSelected: false);
+            
+            // Reset animation states so next selection (even same star) animates fresh
+            _elementLayer?.ResetAllAnimationStates();
         }
     }
 }
