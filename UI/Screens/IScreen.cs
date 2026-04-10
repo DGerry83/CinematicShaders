@@ -19,5 +19,11 @@ namespace CinematicShaders.UI.Screens
         void OnExit();
         void Update(float deltaTime);
         void Render(Rect displayRect, IntPtr textSystem);
+        
+        /// <summary>
+        /// Set the Layer 3 texture for screens that use single-texture Layer 3.
+        /// Called by ScreenManager when screen becomes active.
+        /// </summary>
+        void SetLayer3Texture(RenderTexture layer3Texture);
     }
 }

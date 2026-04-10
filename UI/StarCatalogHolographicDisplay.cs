@@ -3036,14 +3036,12 @@ namespace CinematicShaders.UI
             {
                 string exportDir = Path.Combine(KSPUtil.ApplicationRootPath, "GameData", "CinematicShaders", "PluginData", "TextureExports");
                 if (!Directory.Exists(exportDir))
-                {
                     Directory.CreateDirectory(exportDir);
-                }
                 
                 string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 int exportedCount = 0;
                 
-                // Export ScreenManager Layer 1 (Border - shared texture)
+                // Export ScreenManager layers (1, 2, 3)
                 if (_screenManager != null)
                 {
                     var layerTextures = _screenManager.GetAllLayerTextures();
@@ -3051,20 +3049,21 @@ namespace CinematicShaders.UI
                     {
                         if (kvp.Value != null)
                         {
-                            ExportRenderTextureToPng(kvp.Value, Path.Combine(exportDir, $"ScreenManager_Layer{kvp.Key}_{timestamp}.png"));
+                            string layerName = kvp.Key == 1 ? "Layer1" : kvp.Key == 2 ? "Layer2" : "Layer3";
+                            ExportRenderTextureToPng(kvp.Value, Path.Combine(exportDir, $"ScreenManager_{layerName}_{timestamp}.png"));
                             exportedCount++;
                         }
                     }
                 }
                 
-                // Export legacy Layer 1 (Border) - for comparison
+                // Export legacy border texture (Layer 1)
                 if (_borderTexture != null)
                 {
                     ExportRenderTextureToPng(_borderTexture, Path.Combine(exportDir, $"Legacy_Layer1_Border_{timestamp}.png"));
                     exportedCount++;
                 }
                 
-                // Export legacy Layer 2 (Labels) - for comparison
+                // Export per-screen Layer 2 textures
                 if (_mainBorderLabelsTexture != null)
                 {
                     ExportRenderTextureToPng(_mainBorderLabelsTexture, Path.Combine(exportDir, $"Legacy_Layer2_MainLabels_{timestamp}.png"));
@@ -3081,28 +3080,10 @@ namespace CinematicShaders.UI
                     exportedCount++;
                 }
                 
-                // Export Layer 3 (Element textures)
-                int elemIndex = 0;
-                foreach (var kvp in _elements)
-                {
-                    if (kvp.Value.TextTexture != null)
-                    {
-                        string safeName = kvp.Key.Replace("_", "");
-                        ExportRenderTextureToPng(kvp.Value.TextTexture, Path.Combine(exportDir, $"Layer3_{safeName}_{timestamp}.png"));
-                        elemIndex++;
-                    }
-                }
-                exportedCount += elemIndex;
+                // REMOVED: Per-element texture export loop (old system)
+                // The single Layer 3 texture is now exported via ScreenManager above
                 
-                // Export main display texture
-                if (_displayTexture != null)
-                {
-                    ExportRenderTextureToPng(_displayTexture, Path.Combine(exportDir, $"DisplayTexture_{timestamp}.png"));
-                    exportedCount++;
-                }
-                
-                // Export dummy Layer 3 texture (for layout calibration)
-                // Create a temporary texture at the same size as the display
+                // Export dummy Layer 3 texture (for layout calibration reference)
                 RenderTexture dummyLayer3Texture = new RenderTexture(
                     Mathf.RoundToInt(HolographicLayoutConfig.DISPLAY_WIDTH_LARGE),
                     Mathf.RoundToInt(HolographicLayoutConfig.DISPLAY_HEIGHT_LARGE),
@@ -3110,16 +3091,20 @@ namespace CinematicShaders.UI
                 dummyLayer3Texture.enableRandomWrite = true;
                 dummyLayer3Texture.Create();
                 
-                // Render the dummy Layer 3 content
                 RenderDummyLayer3ToTexture(dummyLayer3Texture);
                 
-                // Export it
                 ExportRenderTextureToPng(dummyLayer3Texture, Path.Combine(exportDir, $"DummyLayer3_{timestamp}.png"));
                 exportedCount++;
                 
-                // Clean up temporary texture
                 dummyLayer3Texture.Release();
                 Destroy(dummyLayer3Texture);
+                
+                // Export display texture (composite)
+                if (_displayTexture != null)
+                {
+                    ExportRenderTextureToPng(_displayTexture, Path.Combine(exportDir, $"DisplayTexture_{timestamp}.png"));
+                    exportedCount++;
+                }
                 
                 Debug.Log($"[HolographicDisplay] Exported {exportedCount} textures to: {exportDir}");
             }

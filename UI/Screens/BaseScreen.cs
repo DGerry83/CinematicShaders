@@ -123,6 +123,15 @@ namespace CinematicShaders.UI.Screens
         public abstract void Render(Rect displayRect, IntPtr textSystem);
         
         /// <summary>
+        /// Set the Layer 3 texture for single-texture rendering.
+        /// Override in derived classes that use Layer 3.
+        /// </summary>
+        public virtual void SetLayer3Texture(RenderTexture layer3Texture)
+        {
+            // Default: no-op. Override in screens that use Layer 3.
+        }
+        
+        /// <summary>
         /// Helper to add a layer and keep list sorted by Order
         /// </summary>
         protected void AddLayer(ILayer layer)

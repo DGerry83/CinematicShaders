@@ -1187,6 +1187,35 @@ void CR_GTAOSetSettings(const GTAOUserSettings* settings)
     g_UserSettings = *settings;
 }
 
+// Box outline parameters for hover feedback
+static float g_BoxTopLeftX = 0.0f;
+static float g_BoxTopLeftY = 0.0f;
+static float g_BoxBottomRightX = 0.0f;
+static float g_BoxBottomRightY = 0.0f;
+static int g_BoxOutlineEnabled = 0;
+
+/// <summary>
+/// Set box outline parameters for hover highlight effect.
+/// Called from C# when mouse hovers over clickable element.
+/// </summary>
+/// <param name="enabled">1 to show box, 0 to hide</param>
+/// <param name="topLeftX">UV x-coordinate of top-left corner (0-1)</param>
+/// <param name="topLeftY">UV y-coordinate of top-left corner (0-1)</param>
+/// <param name="bottomRightX">UV x-coordinate of bottom-right corner (0-1)</param>
+/// <param name="bottomRightY">UV y-coordinate of bottom-right corner (0-1)</param>
+__declspec(dllexport) void CR_SetBoxOutline(int enabled, float topLeftX, float topLeftY, 
+                                              float bottomRightX, float bottomRightY)
+{
+    g_BoxOutlineEnabled = enabled;
+    if (enabled)
+    {
+        g_BoxTopLeftX = topLeftX;
+        g_BoxTopLeftY = topLeftY;
+        g_BoxBottomRightX = bottomRightX;
+        g_BoxBottomRightY = bottomRightY;
+    }
+}
+
 extern "C" __declspec(dllexport)
 void CR_GTAOShutdown()
 {

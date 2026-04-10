@@ -164,7 +164,9 @@ namespace CinematicShaders.UI.Screens
         {
             var layer1Texture = GetLayerTexture(1);
             var layer2Texture = GetLayerTexture(2);
+            var layer3Texture = GetLayerTexture(3);  // Get Layer 3
             
+            // Assign layers 1 and 2 via SetTextures
             switch (_currentScreen.State)
             {
                 case ScreenState.Main:
@@ -177,6 +179,9 @@ namespace CinematicShaders.UI.Screens
                     (_currentScreen as ConfirmRescanScreen)?.SetTextures(layer1Texture, layer2Texture);
                     break;
             }
+            
+            // Assign Layer 3 via interface (extensible - any screen can implement)
+            _currentScreen?.SetLayer3Texture(layer3Texture);
         }
         
         /// <summary>

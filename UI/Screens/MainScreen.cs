@@ -82,6 +82,14 @@ namespace CinematicShaders.UI.Screens
                 cl.SetTargetTexture(layer2Texture);
         }
         
+        /// <summary>
+        /// Set the Layer 3 texture for single-texture rendering.
+        /// </summary>
+        public void SetLayer3Texture(RenderTexture layer3Texture)
+        {
+            _elementLayer?.SetLayer3Texture(layer3Texture);
+        }
+        
         public override void OnEnter(ScreenTransitionContext context)
         {
             base.OnEnter(context);

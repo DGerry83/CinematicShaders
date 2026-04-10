@@ -64,6 +64,11 @@ namespace CinematicShaders.UI.Screens
                 cl.SetTargetTexture(layer2Texture);
         }
         
+        public void SetLayer3Texture(RenderTexture layer3Texture)
+        {
+            // ConfirmRescanScreen doesn't use dynamic Layer 3 content, but implements interface
+        }
+        
         public override void OnEnter(ScreenTransitionContext context)
         {
             base.OnEnter(context);

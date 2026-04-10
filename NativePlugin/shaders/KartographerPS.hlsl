@@ -568,29 +568,25 @@ float3 DrawBoxOutline(float2 uv, float3 baseColor, float3 outlineColor)
     if (!params.BoxOutlineEnabled)
         return baseColor;
     
-    float2 topLeft = params.BoxTopLeft;
-    float2 bottomRight = params.BoxBottomRight;
-    
     // 2 pixel thickness in UV space
     float thickX = 2.0 / params.Resolution.x;
     float thickY = 2.0 / params.Resolution.y;
     
     // Check edges
-    bool leftEdge = abs(uv.x - topLeft.x) < thickX;
-    bool rightEdge = abs(uv.x - bottomRight.x) < thickX;
-    bool topEdge = abs(uv.y - topLeft.y) < thickY;
-    bool bottomEdge = abs(uv.y - bottomRight.y) < thickY;
+    bool onLeftEdge = abs(uv.x - params.BoxTopLeft.x) < thickX;
+    bool onRightEdge = abs(uv.x - params.BoxBottomRight.x) < thickX;
+    bool onTopEdge = abs(uv.y - params.BoxTopLeft.y) < thickY;
+    bool onBottomEdge = abs(uv.y - params.BoxBottomRight.y) < thickY;
     
-    // Check if within bounds
-    bool inX = uv.x >= topLeft.x - thickX && uv.x <= bottomRight.x + thickX;
-    bool inY = uv.y >= topLeft.y - thickY && uv.y <= bottomRight.y + thickY;
+    bool insideX = uv.x >= params.BoxTopLeft.x && uv.x <= params.BoxBottomRight.x;
+    bool insideY = uv.y >= params.BoxTopLeft.y && uv.y <= params.BoxBottomRight.y;
     
     // Draw outline (hard corners, single line)
-    if ((leftEdge || rightEdge) && inY && uv.y >= topLeft.y && uv.y <= bottomRight.y)
+    if ((onLeftEdge || onRightEdge) && insideY)
     {
         return outlineColor;
     }
-    if ((topEdge || bottomEdge) && inX && uv.x >= topLeft.x && uv.x <= bottomRight.x)
+    if ((onTopEdge || onBottomEdge) && insideX)
     {
         return outlineColor;
     }
