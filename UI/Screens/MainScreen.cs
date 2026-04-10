@@ -201,7 +201,8 @@ namespace CinematicShaders.UI.Screens
             
             // Clear click zones and box outline
             _clickHandler.SetZones(new List<ClickZone>());
-            StarfieldNative.CR_DrawCRTBox(0, 0, 0, 0, 0, 0, 0);
+            // Box drawing disabled - needs proper struct toolkit implementation
+            // StarfieldNative.CR_DrawCRTBox(0, 0, 0, 0, 0, 0, 0);
         }
         
         /// <summary>

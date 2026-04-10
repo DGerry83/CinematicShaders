@@ -7,7 +7,7 @@
 //   u0: Output texture (RGBA8 UAV)
 //
 // Constant Buffer:
-//   b0: TextParams (glyph count, output size, box params)
+//   b0: TextParams (glyph count, output size)
 
 struct GlyphData
 {
@@ -23,16 +23,6 @@ cbuffer TextParams : register(b0)
     int GlyphCount;
     float2 OutputSize;
     float Pad;
-    
-    // Box drawing parameters (CRT UI overlay)
-    int BoxEnabled;
-    uint BoxColor;
-    float BoxTopLeftX;
-    float BoxTopLeftY;
-    float BoxBottomRightX;
-    float BoxBottomRightY;
-    float BoxThickness;
-    float2 BoxPad;
 };
 
 Texture2D<float> Atlas : register(t0);
@@ -76,49 +66,6 @@ bool IsInsideBoxOutline(int2 pixel, float2 tl, float2 br, float thickness)
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
     uint idx = id.x;
-    
-    // Special case: last thread draws the box outline
-    if (BoxEnabled && idx == (uint)GlyphCount)
-    {
-        // Draw box by iterating over all pixels in the box region
-        int2 minPixel = int2(BoxTopLeftX * OutputSize.x, BoxTopLeftY * OutputSize.y);
-        int2 maxPixel = int2(BoxBottomRightX * OutputSize.x, BoxBottomRightY * OutputSize.y);
-        
-        minPixel = clamp(minPixel, int2(0, 0), int2(OutputSize));
-        maxPixel = clamp(maxPixel, int2(0, 0), int2(OutputSize));
-        
-        float4 boxCol = UnpackColor(BoxColor);
-        
-        // Convert thickness to pixels (use average of width/height)
-        float pixelThickness = BoxThickness * (OutputSize.x + OutputSize.y) * 0.5f;
-        pixelThickness = max(pixelThickness, 1.0f); // At least 1 pixel
-        
-        // Draw box outline pixel by pixel
-        for (int y = minPixel.y; y < maxPixel.y; y++)
-        {
-            for (int x = minPixel.x; x < maxPixel.x; x++)
-            {
-                float2 p = float2(x, y);
-                
-                // Check if this pixel is on the outline
-                bool onLeft = p.x >= minPixel.x && p.x < minPixel.x + pixelThickness;
-                bool onRight = p.x <= maxPixel.x && p.x > maxPixel.x - pixelThickness;
-                bool onTop = p.y >= minPixel.y && p.y < minPixel.y + pixelThickness;
-                bool onBottom = p.y <= maxPixel.y && p.y > maxPixel.y - pixelThickness;
-                
-                // Pixel is on outline if it's on any edge
-                if ((onLeft || onRight) && p.y >= minPixel.y && p.y <= maxPixel.y ||
-                    (onTop || onBottom) && p.x >= minPixel.x && p.x <= maxPixel.x)
-                {
-                    uint2 coord = uint2(x, y);
-                    float4 dst = Output[coord];
-                    Output[coord] = boxCol + dst * (1.0 - boxCol.a);
-                }
-            }
-        }
-        
-        return;
-    }
     
     // Normal glyph rendering
     if (idx >= (uint)GlyphCount)

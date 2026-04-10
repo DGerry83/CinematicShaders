@@ -61,8 +61,8 @@ namespace CinematicShaders.UI.ClickZones
             }
             else
             {
-                // Clear box
-                StarfieldNative.CR_DrawCRTBox(0, 0, 0, 0, 0, 0, 0);
+                // Clear box - DISABLED: Box drawing needs proper struct toolkit implementation
+                // StarfieldNative.CR_DrawCRTBox(0, 0, 0, 0, 0, 0, 0);
             }
             
             // Handle click
@@ -84,11 +84,13 @@ namespace CinematicShaders.UI.ClickZones
         
         private void DrawHighlightBox(Rect uvRect)
         {
-            uint color = GetGridColorUint();
-            float thickness = 0.003f; // ~2-3px
+            // DISABLED: Box drawing needs proper struct toolkit implementation
+            // TODO: Implement using CRTOverlayParams via struct generator
             
-            StarfieldNative.CR_DrawCRTBox(1, uvRect.x, uvRect.y, 
-                uvRect.xMax, uvRect.yMax, color, thickness);
+            // uint color = GetGridColorUint();
+            // float thickness = 0.003f; // ~2-3px
+            // StarfieldNative.CR_DrawCRTBox(1, uvRect.x, uvRect.y, 
+            //     uvRect.xMax, uvRect.yMax, color, thickness);
         }
         
         private uint GetGridColorUint()
