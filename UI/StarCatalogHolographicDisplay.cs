@@ -143,6 +143,36 @@ namespace CinematicShaders.UI
             "                                                           ",
             "                                                           "
         };
+
+        /// <summary>
+        /// LAYER 3 DUMMY CONTENT - For layout calibration in design software
+        /// 
+        /// INSTRUCTIONS FOR MANUAL FILL-IN:
+        /// 1. Replace the placeholder values below with data from a known star
+        /// 2. Build and run the mod
+        /// 3. Open the Star Console and click "Export Textures (Debug)"
+        /// 4. Find DummyLayer3_{timestamp}.png in TextureExports folder
+        /// 5. Load this PNG in your design software along with Layer1 and Layer2
+        /// 6. Position Layer 3 elements to match the text positions
+        /// 7. Record the top-left pixel coordinates of each element
+        /// 8. Provide coordinates for conversion to UV/screen space
+        /// </summary>
+        private static readonly string[] LAYER3_DUMMY_LINES = new string[]
+        {
+            "╔════[STAR DATA]═══════════════════╦╦═════[RESULTS]═══════╗",
+            "║ HIP:      32349                  ║║ •Star 1             ║",
+            "║ NAME:     Sirius                 ║║ •Star 2             ║",
+            "║ DISTANCE: 8.6 LY                 ║║ •Star 3             ║",
+            "║ SPECTRAL: A                      ║║ •Star 4             ║",
+            "║ MAG:      -1.44                  ║║ •Star 5             ║",
+            "║ CONST:    Canis Major            ║║ •Star 6             ║",
+            "║                                  ║║ •Star 7             ║",
+            "║                [SAVE]   [RESET]  ║║ •Star 8             ║",
+            "╟──────────────────────────────────╢║ •Star 9             ║",
+            "║ SEARCH                  [RESCAN] ║║ •Star 10            ║",
+            "║ ► Sirius                         ║║ •Star 11            ║",
+            "╚══════════════════════════════════╩╩═════════════════════╝"
+        };
         #endregion
 
         #region JSON Paths (DEPRECATED - Now managed by StarCatalogStateManager)
@@ -2245,6 +2275,49 @@ namespace CinematicShaders.UI
             }
         }
 
+        /// <summary>
+        /// Render the dummy Layer 3 content to a texture for layout calibration.
+        /// This allows exporting a reference image showing where values should appear.
+        /// </summary>
+        private void RenderDummyLayer3ToTexture(RenderTexture targetTexture)
+        {
+            if (_textSystem == IntPtr.Zero) return;
+            if (targetTexture == null) return;
+
+            // Join lines with newlines
+            string text = string.Join("\n", LAYER3_DUMMY_LINES);
+
+            uint color = GetGridColorUint();
+
+            // Layout the text
+            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, text, _fontSize, 
+                color, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
+            if (glyphCount <= 0) return;
+
+            // Render to texture with proper active texture handling
+            RenderTexture prevActive = RenderTexture.active;
+            try
+            {
+                RenderTexture.active = targetTexture;
+                
+                // Clear texture
+                GL.Clear(true, true, Color.clear);
+
+                // Dispatch to render - texture must be active for this
+                StarfieldNative.CR_TextDispatch(
+                    _textSystem,
+                    targetTexture.GetNativeTexturePtr(),
+                    glyphCount,
+                    targetTexture.width,
+                    targetTexture.height);
+            }
+            finally
+            {
+                // Always reset active render texture, even if an exception occurred
+                RenderTexture.active = prevActive;
+            }
+        }
+
         #endregion
 
         #region Screen Transition
@@ -2901,6 +2974,26 @@ namespace CinematicShaders.UI
                     ExportRenderTextureToPng(_displayTexture, Path.Combine(exportDir, $"DisplayTexture_{timestamp}.png"));
                     exportedCount++;
                 }
+                
+                // Export dummy Layer 3 texture (for layout calibration)
+                // Create a temporary texture at the same size as the display
+                RenderTexture dummyLayer3Texture = new RenderTexture(
+                    Mathf.RoundToInt(HolographicLayoutConfig.DISPLAY_WIDTH_LARGE),
+                    Mathf.RoundToInt(HolographicLayoutConfig.DISPLAY_HEIGHT_LARGE),
+                    0, RenderTextureFormat.ARGB32);
+                dummyLayer3Texture.enableRandomWrite = true;
+                dummyLayer3Texture.Create();
+                
+                // Render the dummy Layer 3 content
+                RenderDummyLayer3ToTexture(dummyLayer3Texture);
+                
+                // Export it
+                ExportRenderTextureToPng(dummyLayer3Texture, Path.Combine(exportDir, $"DummyLayer3_{timestamp}.png"));
+                exportedCount++;
+                
+                // Clean up temporary texture
+                dummyLayer3Texture.Release();
+                Destroy(dummyLayer3Texture);
                 
                 Debug.Log($"[HolographicDisplay] Exported {exportedCount} textures to: {exportDir}");
             }
