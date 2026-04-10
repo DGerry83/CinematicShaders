@@ -101,9 +101,9 @@ namespace CinematicShaders.UI
             "  MAG:                                                     ",
             "  CONST:                                                   ",
             "                                                           ",
+            "                 [SAVE]   [RESET]                          ",
             "                                                           ",
-            "                                                           ",
-            "  SEARCH                                                   ",
+            "  SEARCH                  [RESCAN]                         ",
             "  ►                                                        ",
             "                                                           "
         };
