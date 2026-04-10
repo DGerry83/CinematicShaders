@@ -901,7 +901,8 @@ float4 PSMain(PSInput input) : SV_Target {
     // BOX OUTLINE FOR HOVER FEEDBACK (Layer 3 Single-Texture Refactor)
     // ============================================================================
     float3 gridColorBase = kGridColors[params.GridColorIndex];
-    col = DrawBoxOutline(input.uv, col, gridColorBase);
+    // Box outline disabled for Kartographer - feature is CRT UI only
+    // col = DrawBoxOutline(input.uv, col, gridColorBase);
     
     float phase = frac(fragCoord.x / 3.0);
     float3 phosphor;
