@@ -50,6 +50,7 @@ namespace CinematicShaders.UI
         // Selection state (for editable)
         public bool IsSelected;
         public bool IsSelecting { get; set; }
+        public bool IsEditing { get; set; }  // True when user is actively editing this element
 
         // Animation
         public float TypeOnProgress = 1.0f;  // 0.0 to 1.0 (1.0 = fully typed)

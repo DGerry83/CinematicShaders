@@ -558,6 +558,47 @@ float3 RenderManeuverText(float2 origin, float2 size, float intensity, float2 uv
 }
 
 // ============================================================================
+// Box Outline Drawing (Layer 3 Single-Texture Refactor)
+// ============================================================================
+
+// Draw a box outline for hover feedback on interactive elements
+// Uses grid color for the outline, hard corners, 2px thickness
+float3 DrawBoxOutline(float2 uv, float3 baseColor, float3 outlineColor)
+{
+    if (!params.BoxOutlineEnabled)
+        return baseColor;
+    
+    float2 topLeft = params.BoxTopLeft;
+    float2 bottomRight = params.BoxBottomRight;
+    
+    // 2 pixel thickness in UV space
+    float thickX = 2.0 / params.Resolution.x;
+    float thickY = 2.0 / params.Resolution.y;
+    
+    // Check edges
+    bool leftEdge = abs(uv.x - topLeft.x) < thickX;
+    bool rightEdge = abs(uv.x - bottomRight.x) < thickX;
+    bool topEdge = abs(uv.y - topLeft.y) < thickY;
+    bool bottomEdge = abs(uv.y - bottomRight.y) < thickY;
+    
+    // Check if within bounds
+    bool inX = uv.x >= topLeft.x - thickX && uv.x <= bottomRight.x + thickX;
+    bool inY = uv.y >= topLeft.y - thickY && uv.y <= bottomRight.y + thickY;
+    
+    // Draw outline (hard corners, single line)
+    if ((leftEdge || rightEdge) && inY && uv.y >= topLeft.y && uv.y <= bottomRight.y)
+    {
+        return outlineColor;
+    }
+    if ((topEdge || bottomEdge) && inX && uv.x >= topLeft.x && uv.x <= bottomRight.x)
+    {
+        return outlineColor;
+    }
+    
+    return baseColor;
+}
+
+// ============================================================================
 // Main Pixel Shader
 // ============================================================================
 
@@ -859,6 +900,12 @@ float4 PSMain(PSInput input) : SV_Target {
         float2 size = float2(params.ManeuverTextWidth, params.ManeuverTextHeight);
         col += RenderManeuverText(origin, size, params.ManeuverTextIntensity, uv, gridColor);
     }
+    
+    // ============================================================================
+    // BOX OUTLINE FOR HOVER FEEDBACK (Layer 3 Single-Texture Refactor)
+    // ============================================================================
+    float3 gridColorBase = kGridColors[params.GridColorIndex];
+    col = DrawBoxOutline(input.uv, col, gridColorBase);
     
     float phase = frac(fragCoord.x / 3.0);
     float3 phosphor;

@@ -62,6 +62,7 @@
     <Compile Include="Core\KSPCubemapInjector.cs" />
     <Compile Include="Core\CubemapGenerationScheduler.cs" />
     <Compile Include="Core\GridLabelSystem.cs" />
+    <Compile Include="Core\ClickZone.cs" />
     <Compile Include="Native\DllLoader.cs" />
     <Compile Include="Native\GTAONative.cs" />
 

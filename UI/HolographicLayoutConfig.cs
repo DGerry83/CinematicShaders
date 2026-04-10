@@ -137,5 +137,63 @@ namespace CinematicShaders.UI
             return new Rect(380, 120 + (index * 32), 200, 32);
         }
 
+        // ============================================================================
+        // Grid-Based Click Zones for Single-Texture Layer 3
+        // Grid cell: 12px wide × 27px tall (35pt font at 2:3 aspect)
+        // ============================================================================
+        
+        public const float GRID_CELL_WIDTH = 12f;
+        public const float GRID_CELL_HEIGHT = 27f;
+        public const int GRID_COLUMNS = 69;  // 828px / 12px
+        public const int GRID_ROWS = 17;     // 459px / 27px
+        
+        // Main Screen Click Zones (grid coordinates: x, y, width, height)
+        // These are approximate - user will tune via debug exports
+        public static readonly Rect ZONE_HIP_VALUE = new Rect(6, 2, 25, 1);
+        public static readonly Rect ZONE_NAME_VALUE = new Rect(6, 3, 25, 1);
+        public static readonly Rect ZONE_DISTANCE_VALUE = new Rect(11, 4, 20, 1);
+        public static readonly Rect ZONE_SPECTRAL_VALUE = new Rect(11, 5, 20, 1);
+        public static readonly Rect ZONE_MAG_VALUE = new Rect(11, 6, 20, 1);
+        public static readonly Rect ZONE_CONST_VALUE = new Rect(6, 7, 25, 1);
+        public static readonly Rect ZONE_SAVE_BUTTON = new Rect(17, 8, 7, 1);
+        public static readonly Rect ZONE_RESET_BUTTON = new Rect(27, 8, 8, 1);
+        public static readonly Rect ZONE_RESCAN_BUTTON = new Rect(27, 10, 8, 1);
+        public static readonly Rect ZONE_SEARCH_INPUT = new Rect(8, 11, 30, 1);
+        
+        // Search result zones (rows 2-11, right column)
+        public static Rect GetResultZone(int index)
+        {
+            if (index < 0 || index >= 10)
+                return new Rect(32, 2, 20, 1);
+            return new Rect(32, 2 + index, 20, 1);
+        }
+        
+        // Scan Screen Click Zones
+        public static readonly Rect ZONE_SCAN_AREA = new Rect(10, 3, 49, 9);
+        
+        // ConfirmRescan Screen Click Zones
+        public static readonly Rect ZONE_YES_BUTTON = new Rect(15, 11, 6, 1);
+        public static readonly Rect ZONE_NO_BUTTON = new Rect(55, 11, 5, 1);
+        
+        /// <summary>
+        /// Convert grid position to pixel position
+        /// </summary>
+        public static Vector2 GridToPixel(int col, int row)
+        {
+            return new Vector2(col * GRID_CELL_WIDTH, row * GRID_CELL_HEIGHT);
+        }
+        
+        /// <summary>
+        /// Convert grid rectangle to pixel rectangle
+        /// </summary>
+        public static Rect GridRectToPixel(Rect gridRect)
+        {
+            return new Rect(
+                gridRect.x * GRID_CELL_WIDTH,
+                gridRect.y * GRID_CELL_HEIGHT,
+                gridRect.width * GRID_CELL_WIDTH,
+                gridRect.height * GRID_CELL_HEIGHT
+            );
+        }
     }
 }

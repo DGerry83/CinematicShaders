@@ -9,6 +9,7 @@ namespace CinematicShaders.UI.Screens.Layers
 {
     /// <summary>
     /// Layer 3: Renders interactive elements (buttons, value fields).
+    /// Refactored to use a single RenderTexture for all elements (single-texture Layer 3).
     /// </summary>
     public class ElementLayer : ILayer
     {
@@ -24,9 +25,13 @@ namespace CinematicShaders.UI.Screens.Layers
         private Dictionary<string, ElementAdapter> _elementAdapters = 
             new Dictionary<string, ElementAdapter>();
         
-        // Cache for highlight textures (avoid per-frame allocation)
-        private RenderTexture _cachedHighlightTexture = null;
-        private Vector2 _cachedHighlightSize = Vector2.zero;
+        // Single texture for entire Layer 3
+        private RenderTexture _layer3Texture;
+        private bool _isTextureDirty = true;
+
+        // Layer 3 content strings (rebuilt each frame if dirty)
+        private string[] _layer3ContentLines;
+        private const int LAYER_3_LINE_COUNT = 17;  // Matches grid rows
         
         /// <summary>
         /// Adapter that wraps HolographicTextElement to make it animatable.
@@ -56,6 +61,7 @@ namespace CinematicShaders.UI.Screens.Layers
             {
                 _element.TypeOnProgress = progress;
                 _element.IsDirty = true;
+                _layer.MarkLayer3Dirty();
             }
             
             public bool HasContent()
@@ -104,6 +110,9 @@ namespace CinematicShaders.UI.Screens.Layers
             {
                 _elementAdapters[element.ElementId] = new ElementAdapter(element, this);
             }
+            
+            // Initialize content lines array
+            _layer3ContentLines = new string[LAYER_3_LINE_COUNT];
         }
         
         public void SetTextSystem(IntPtr textSystem)
@@ -111,12 +120,28 @@ namespace CinematicShaders.UI.Screens.Layers
             _textSystem = textSystem;
         }
         
+        /// <summary>
+        /// Set the shared Layer 3 texture from ScreenManager
+        /// </summary>
+        public void SetLayer3Texture(RenderTexture texture)
+        {
+            _layer3Texture = texture;
+        }
+        
+        /// <summary>
+        /// Mark the single Layer 3 texture as dirty (needs re-render)
+        /// </summary>
+        public void MarkLayer3Dirty()
+        {
+            _isTextureDirty = true;
+        }
+        
         // Base delay for Layer 3 (when elements start animating)
         private float _layer3Delay = 3.5f;
         
         public void Render(float typeOnProgress)
         {
-            // Element rendering is done per-element in RenderToTexture
+            // Element rendering is done via single texture in RenderToTexture
         }
         
         /// <summary>
@@ -142,172 +167,223 @@ namespace CinematicShaders.UI.Screens.Layers
         }
         
         /// <summary>
+        /// Render all Layer 3 content to single texture
+        /// </summary>
+        private void RenderLayer3ToTexture()
+        {
+            if (_layer3Texture == null || _textSystem == IntPtr.Zero) return;
+            
+            BuildLayer3Content();
+            
+            // Combine all lines into single string with newlines
+            string fullText = string.Join("\n", _layer3ContentLines);
+            
+            // Layout text
+            uint color = GetGridColorUint();
+            int glyphCount = StarfieldNative.CR_TextLayoutEx(
+                _textSystem, 
+                fullText, 
+                _fontSize, 
+                color, 
+                0f, 0f, 0f, 0.667f
+            );
+            
+            if (glyphCount <= 0) return;
+            
+            // Render to single texture
+            RenderTexture prevActive = RenderTexture.active;
+            try
+            {
+                RenderTexture.active = _layer3Texture;
+                GL.Clear(true, true, Color.clear);
+                
+                StarfieldNative.CR_TextDispatch(
+                    _textSystem,
+                    _layer3Texture.GetNativeTexturePtr(),
+                    glyphCount,
+                    _layer3Texture.width,
+                    _layer3Texture.height
+                );
+            }
+            finally
+            {
+                RenderTexture.active = prevActive;
+            }
+            
+            _isTextureDirty = false;
+        }
+        
+        /// <summary>
+        /// Build Layer 3 content with current element values
+        /// Format: leading spaces + value, with adjustable spacing per line
+        /// </summary>
+        private void BuildLayer3Content()
+        {
+            // Rows 0-1: Empty (border area)
+            _layer3ContentLines[0] = "";
+            _layer3ContentLines[1] = "";
+            
+            // Row 2: HIP value (6 leading spaces)
+            string hipValue = GetElementValue("hip_value");
+            _layer3ContentLines[2] = "      " + hipValue;
+            
+            // Row 3: NAME value (6 leading spaces)
+            string nameValue = GetElementValue("name_value");
+            _layer3ContentLines[3] = "      " + nameValue;
+            
+            // Row 4: DISTANCE value (11 leading spaces)
+            string distValue = GetElementValue("distance_value");
+            _layer3ContentLines[4] = "           " + distValue;
+            
+            // Row 5: SPECTRAL value (15 leading spaces - aligned with DISTANCE)
+            string specValue = GetElementValue("spectral_value");
+            _layer3ContentLines[5] = "               " + specValue;
+            
+            // Row 6: MAG value (11 leading spaces)
+            string magValue = GetElementValue("mag_value");
+            _layer3ContentLines[6] = "           " + magValue;
+            
+            // Row 7: CONST value (6 leading spaces)
+            string constValue = GetElementValue("const_value");
+            _layer3ContentLines[7] = "      " + constValue;
+            
+            // Row 8: Empty (buttons in Layer 2)
+            _layer3ContentLines[8] = "";
+            
+            // Row 9: Empty (border)
+            _layer3ContentLines[9] = "";
+            
+            // Row 10: Empty (SEARCH/RESCAN in Layer 2)
+            _layer3ContentLines[10] = "";
+            
+            // Row 11: Search input with cursor (4 leading spaces + "► " + input + cursor)
+            string searchInput = GetElementValue("search_input");
+            bool showCursor = IsElementEditing("search_input") && IsCursorVisible();
+            _layer3ContentLines[11] = "    ► " + searchInput + (showCursor ? "▌" : "");
+            
+            // Rows 12-16: Not used (results are overlaid on rows 2-11 in right column)
+            // Actually, let's put results in right column by using spacing
+            // Row 2 right: Result 0 (32 leading spaces from right column start)
+            string result0 = GetResultValue(0);
+            if (!string.IsNullOrEmpty(result0))
+            {
+                _layer3ContentLines[2] = _layer3ContentLines[2].PadRight(52) + "• " + result0;
+            }
+            
+            // Continue pattern for results 1-9
+            for (int i = 1; i < 10; i++)
+            {
+                string result = GetResultValue(i);
+                int row = 2 + i;
+                if (!string.IsNullOrEmpty(result) && row < LAYER_3_LINE_COUNT)
+                {
+                    _layer3ContentLines[row] = "".PadRight(52) + "• " + result;
+                }
+            }
+            
+            // Fill remaining rows
+            for (int i = 12; i < LAYER_3_LINE_COUNT; i++)
+            {
+                if (_layer3ContentLines[i] == null)
+                    _layer3ContentLines[i] = "";
+            }
+        }
+        
+        /// <summary>
+        /// Get element value by ID, respecting type-on animation
+        /// </summary>
+        private string GetElementValue(string elementId)
+        {
+            var element = _elements.Find(e => e.ElementId == elementId);
+            if (element == null || !element.IsVisible) return "";
+            
+            return GetDisplayText(element);
+        }
+        
+        /// <summary>
+        /// Get search result value by index
+        /// </summary>
+        private string GetResultValue(int index)
+        {
+            string resultId = "result_" + index;
+            return GetElementValue(resultId);
+        }
+        
+        /// <summary>
+        /// Check if element is currently in editing mode
+        /// </summary>
+        private bool IsElementEditing(string elementId)
+        {
+            var element = _elements.Find(e => e.ElementId == elementId);
+            return element?.IsEditing ?? false;
+        }
+        
+        private bool _cursorVisible = true;
+        private float _cursorTimer = 0f;
+        private const float CURSOR_BLINK_INTERVAL = 0.5f;
+        
+        /// <summary>
+        /// Check if cursor should be visible (blink)
+        /// </summary>
+        private bool IsCursorVisible()
+        {
+            return _cursorVisible;
+        }
+        
+        /// <summary>
+        /// Update cursor blink. Call this from Update().
+        /// </summary>
+        public void UpdateCursor(float deltaTime)
+        {
+            _cursorTimer += deltaTime;
+            if (_cursorTimer >= CURSOR_BLINK_INTERVAL)
+            {
+                _cursorVisible = !_cursorVisible;
+                _cursorTimer = 0f;
+                MarkLayer3Dirty();  // Trigger redraw for cursor blink
+            }
+        }
+        
+        /// <summary>
         /// Render all visible elements to their textures and draw them to the screen.
+        /// Refactored to use single Layer 3 texture.
         /// </summary>
         public void RenderToTexture(IntPtr textSystem, Rect displayRect, float powerOnTime)
         {
             if (textSystem == IntPtr.Zero) return;
             _textSystem = textSystem;
             
-            // Render each visible element
-            foreach (var element in _elements)
+            // Only render during Repaint
+            if (Event.current?.type != EventType.Repaint) return;
+            
+            // Re-render to texture if dirty
+            if (_isTextureDirty)
             {
-                if (!element.IsVisible) continue;
-                if (element.TextTexture == null) continue;
-                
-                // Handle immediate mode elements (search, edit) - no animation
-                if (IsImmediateMode(element.ElementId))
-                {
-                    element.TypeOnProgress = 1.0f;
-                }
-                // For animated elements, AnimationController updates TypeOnProgress
-                // We just read the current value here
-                
-                // Re-render if dirty (only during Repaint to avoid GPU sync issues)
-                if (element.IsDirty && Event.current.type == EventType.Repaint)
-                {
-                    if (element.IsSelected)
-                    {
-                        RenderSelectedElement(element);
-                    }
-                    else
-                    {
-                        RenderElement(element);
-                    }
-                    element.IsDirty = false;
-                }
-                
-                // Draw the element texture to screen
-                DrawElement(element, displayRect);
+                RenderLayer3ToTexture();
             }
-        }
-        
-        /// <summary>
-        /// Render a single element to its texture.
-        /// Adapted from StarCatalogHolographicDisplay.RenderElement()
-        /// </summary>
-        private void RenderElement(HolographicTextElement element)
-        {
-            if (_textSystem == IntPtr.Zero) return;
-            if (element.TextTexture == null) return;
             
-            // Get text to render (with type-on truncation)
-            string text = GetDisplayText(element);
-            if (string.IsNullOrEmpty(text)) return;
-            
-            // Get grid color
-            uint color = GetGridColorUint();
-            
-            // Layout text in native system
-            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, text, _fontSize, 
-                color, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
-            
-            if (glyphCount <= 0) return;
-            
-            // Render to texture with proper active texture handling (try/finally)
-            RenderTexture prevActive = RenderTexture.active;
-            try
+            // Draw the Layer 3 texture to screen
+            if (_layer3Texture != null && _layer3Texture.IsCreated())
             {
-                RenderTexture.active = element.TextTexture;
-                
-                // Clear texture
-                GL.Clear(true, true, Color.clear);
-                
-                // Dispatch to render - texture must be active for this
-                StarfieldNative.CR_TextDispatch(
-                    _textSystem,
-                    element.TextTexture.GetNativeTexturePtr(),
-                    glyphCount,
-                    element.TextTexture.width,
-                    element.TextTexture.height);
-            }
-            finally
-            {
-                RenderTexture.active = prevActive;
-            }
-        }
-        
-        /// <summary>
-        /// Render an element with selection highlight (two-pass: highlight background + black text)
-        /// </summary>
-        private void RenderSelectedElement(HolographicTextElement element)
-        {
-            if (_textSystem == IntPtr.Zero) return;
-            if (element.TextTexture == null) return;
-            
-            // Get text to render
-            string text = GetDisplayText(element);
-            if (string.IsNullOrEmpty(text)) return;
-            
-            // Pass 1: Draw highlight background to a temp texture
-            RenderTexture highlightTex = GetHighlightTexture(element);
-            RenderHighlightBackground(highlightTex, element);
-            
-            // Pass 2: Render text in BLACK color
-            uint blackColor = 0xFF000000;  // ARGB black
-            
-            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, text, _fontSize, 
-                blackColor, 0f, 0f, 0f, 0.667f);
-            
-            if (glyphCount <= 0) return;
-            
-            // Clear element texture and composite
-            RenderTexture prevActive = RenderTexture.active;
-            try
-            {
-                RenderTexture.active = element.TextTexture;
-                GL.Clear(true, true, Color.clear);
-                
-                // Draw highlight background first
-                if (Event.current.type == EventType.Repaint)
-                {
-                    Graphics.DrawTexture(
-                        new Rect(0, 0, element.TextTexture.width, element.TextTexture.height),
-                        highlightTex,
-                        new Rect(0, 0, 1, 1),
-                        0, 0, 0, 0,
-                        Color.white);
-                }
-                
-                // Then render black text on top
-                StarfieldNative.CR_TextDispatch(
-                    _textSystem,
-                    element.TextTexture.GetNativeTexturePtr(),
-                    glyphCount,
-                    element.TextTexture.width,
-                    element.TextTexture.height);
-            }
-            finally
-            {
-                RenderTexture.active = prevActive;
+                Graphics.DrawTexture(
+                    displayRect,
+                    _layer3Texture,
+                    new Rect(0, 1, 1, -1),  // Flip Y
+                    0, 0, 0, 0,
+                    Color.white,
+                    null
+                );
             }
         }
         
         /// <summary>
         /// Draw an element's texture to the screen.
+        /// Kept for backward compatibility during transition.
         /// </summary>
         private void DrawElement(HolographicTextElement element, Rect displayRect)
         {
-            if (element.TextTexture == null) return;
-            if (Event.current.type != EventType.Repaint) return;
-            
-            // Calculate screen position
-            Rect screenPos = new Rect(
-                displayRect.x + element.Position4K.x,
-                displayRect.y + element.Position4K.y,
-                element.Position4K.width,
-                element.Position4K.height
-            );
-            
-            // Flip texture vertically via UV coordinates
-            Graphics.DrawTexture(
-                screenPos,
-                element.TextTexture,
-                new Rect(0, 1, 1, -1),  // Flip Y
-                0, 0, 0, 0,
-                Color.white,
-                null
-            );
+            // Drawing is now done via single Layer 3 texture in RenderToTexture
+            // This method is kept for compatibility during transition
         }
         
         /// <summary>
@@ -366,66 +442,6 @@ namespace CinematicShaders.UI.Screens.Layers
         }
         
         /// <summary>
-        /// Create or get a temporary render texture for highlight background.
-        /// </summary>
-        private RenderTexture GetHighlightTexture(HolographicTextElement element)
-        {
-            int width = Mathf.Max(64, Mathf.RoundToInt(element.Position4K.width));
-            int height = Mathf.Max(32, Mathf.RoundToInt(element.Position4K.height));
-            
-            // Check if we can reuse cached texture
-            if (_cachedHighlightTexture != null &&
-                _cachedHighlightSize.x == width &&
-                _cachedHighlightSize.y == height)
-            {
-                return _cachedHighlightTexture;
-            }
-            
-            // Release old cached texture if size changed
-            ReleaseHighlightCache();
-            
-            // Create new texture
-            _cachedHighlightTexture = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32);
-            _cachedHighlightTexture.enableRandomWrite = true;
-            _cachedHighlightTexture.Create();
-            _cachedHighlightSize = new Vector2(width, height);
-            
-            return _cachedHighlightTexture;
-        }
-        
-        /// <summary>
-        /// Render the colored highlight background.
-        /// </summary>
-        private void RenderHighlightBackground(RenderTexture target, HolographicTextElement element)
-        {
-            RenderTexture prevActive = RenderTexture.active;
-            try
-            {
-                RenderTexture.active = target;
-                
-                // Clear to highlight color (grid color at 30% opacity)
-                Color highlightColor = GetGridColor();
-                highlightColor.a = 0.3f;
-                GL.Clear(true, true, highlightColor);
-            }
-            finally
-            {
-                RenderTexture.active = prevActive;
-            }
-        }
-        
-        private void ReleaseHighlightCache()
-        {
-            if (_cachedHighlightTexture != null)
-            {
-                _cachedHighlightTexture.Release();
-                UnityEngine.Object.Destroy(_cachedHighlightTexture);
-                _cachedHighlightTexture = null;
-                _cachedHighlightSize = Vector2.zero;
-            }
-        }
-        
-        /// <summary>
         /// Get the grid color from StarfieldSettings.
         /// </summary>
         private Color GetGridColor()
@@ -457,6 +473,7 @@ namespace CinematicShaders.UI.Screens.Layers
             {
                 element.IsDirty = true;
             }
+            MarkLayer3Dirty();
         }
         
         /// <summary>
@@ -468,6 +485,7 @@ namespace CinematicShaders.UI.Screens.Layers
             {
                 element.IsVisible = visible;
             }
+            MarkLayer3Dirty();
         }
         
         /// <summary>
@@ -479,6 +497,7 @@ namespace CinematicShaders.UI.Screens.Layers
             if (element != null)
             {
                 element.IsVisible = visible;
+                MarkLayer3Dirty();
             }
         }
         
@@ -491,6 +510,7 @@ namespace CinematicShaders.UI.Screens.Layers
             if (element != null)
             {
                 element.SetDynamicText(text);
+                MarkLayer3Dirty();
             }
         }
         
@@ -549,6 +569,7 @@ namespace CinematicShaders.UI.Screens.Layers
                 }
             }
             
+            MarkLayer3Dirty();
             return changedIds;
         }
         
@@ -581,6 +602,8 @@ namespace CinematicShaders.UI.Screens.Layers
                     element.IsVisible = false;
                 }
             }
+            
+            MarkLayer3Dirty();
         }
 
         private bool IsValueField(string elementId)
@@ -608,6 +631,7 @@ namespace CinematicShaders.UI.Screens.Layers
         public void UpdateAnimations(float deltaTime)
         {
             AnimationController.Instance.Update(deltaTime);
+            UpdateCursor(deltaTime);
         }
         
         /// <summary>
@@ -634,6 +658,7 @@ namespace CinematicShaders.UI.Screens.Layers
                 element.TypeOnProgress = 0f;
                 element.IsDirty = true;
             }
+            MarkLayer3Dirty();
         }
         
         /// <summary>
@@ -652,7 +677,8 @@ namespace CinematicShaders.UI.Screens.Layers
         /// </summary>
         public void Cleanup()
         {
-            ReleaseHighlightCache();
+            // Texture is managed by ScreenManager, not here
+            _layer3Texture = null;
         }
     }
 }

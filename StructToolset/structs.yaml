@@ -824,6 +824,22 @@ structs:
       - name: ManeuverTextIntensity
         type: float
         comment: Text brightness
+      # === Box outline for hover feedback (Layer 3 Single-Texture Refactor) ===
+      - name: BoxOutlineEnabled
+        type: int
+        comment: Enable box outline for hover feedback (0=disabled, 1=enabled)
+      - name: BoxTopLeftX
+        type: float
+        comment: Box top-left X coordinate in UV space [0,1]
+      - name: BoxTopLeftY
+        type: float
+        comment: Box top-left Y coordinate in UV space [0,1]
+      - name: BoxBottomRightX
+        type: float
+        comment: Box bottom-right X coordinate in UV space [0,1]
+      - name: BoxBottomRightY
+        type: float
+        comment: Box bottom-right Y coordinate in UV space [0,1]
       - name: _padManeuverText2
         type: float
         comment: Padding to 16-byte boundary
