@@ -97,6 +97,8 @@ namespace CinematicShaders.UI.Screens
         /// </summary>
         public void SetLayer3Texture(RenderTexture layer3Texture)
         {
+            ModFileLogger.Log($"[MainScreen] SetLayer3Texture ENTER - instance {GetHashCode()}, layer3Texture is {(layer3Texture != null ? "valid" : "NULL")}, _elementLayer is {(_elementLayer != null ? "set" : "NULL")}");
+            
             if (_elementLayer == null)
             {
                 ModFileLogger.Log($"[MainScreen] SetLayer3Texture - DEFERRED, _elementLayer is null");
@@ -316,7 +318,7 @@ namespace CinematicShaders.UI.Screens
             
             // Render Layer 3: Elements (value fields, buttons)
             // Pass PowerOnTime so elements can calculate their individual type-on progress
-            ModFileLogger.Log($"[MainScreen] Render - Layer3Progress={Layer3Progress}, _elementLayer is {(_elementLayer != null ? "valid" : "NULL")}");
+            // DEBUG: ModFileLogger.Log($"[MainScreen] Render - Layer3Progress={Layer3Progress}, _elementLayer is {(_elementLayer != null ? "valid" : "NULL")}");
             if (_elementLayer != null && Layer3Progress > 0)
             {
                 _elementLayer.RenderToTexture(textSystem, displayRect, PowerOnTime);

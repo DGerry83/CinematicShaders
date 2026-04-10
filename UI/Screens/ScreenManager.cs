@@ -142,13 +142,20 @@ namespace CinematicShaders.UI.Screens
         /// </summary>
         public void Render(Rect displayRect)
         {
-            if (_currentScreen == null) return;
+            if (_currentScreen == null)
+            {
+                ModFileLogger.Log("[ScreenManager] Render - EARLY EXIT, _currentScreen is null");
+                return;
+            }
             
             // Validate textures before rendering (defensive against device loss)
             ValidateTextures();
             
             // Only assign textures when screen changes, not every frame
-            if (_screenWithAssignedTextures != _currentScreen)
+            bool shouldAssignTextures = _screenWithAssignedTextures != _currentScreen;
+            // DEBUG: ModFileLogger.Log($"[ScreenManager] Render - shouldAssignTextures={shouldAssignTextures}, _screenWithAssignedTextures hash={_screenWithAssignedTextures?.GetHashCode()}, _currentScreen hash={_currentScreen.GetHashCode()}");
+            
+            if (shouldAssignTextures)
             {
                 AssignTexturesToCurrentScreen();
                 _screenWithAssignedTextures = _currentScreen;

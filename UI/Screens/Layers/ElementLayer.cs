@@ -172,7 +172,7 @@ namespace CinematicShaders.UI.Screens.Layers
         /// </summary>
         private void RenderLayer3ToTexture()
         {
-            ModFileLogger.Log($"[ElementLayer] RenderLayer3ToTexture - _layer3Texture is {(_layer3Texture != null ? "valid" : "NULL")}, _textSystem is {(_textSystem != IntPtr.Zero ? "valid" : "ZERO")}");
+            // DEBUG: ModFileLogger.Log($"[ElementLayer] RenderLayer3ToTexture - _layer3Texture is {(_layer3Texture != null ? "valid" : "NULL")}, _textSystem is {(_textSystem != IntPtr.Zero ? "valid" : "ZERO")}");
             if (_layer3Texture == null || _textSystem == IntPtr.Zero) return;
             
             BuildLayer3Content();
@@ -435,7 +435,7 @@ namespace CinematicShaders.UI.Screens.Layers
         /// </summary>
         public void RenderToTexture(IntPtr textSystem, Rect displayRect, float powerOnTime)
         {
-            ModFileLogger.Log($"[ElementLayer] RenderToTexture called, _isTextureDirty={_isTextureDirty}");
+            // DEBUG: ModFileLogger.Log($"[ElementLayer] RenderToTexture called, _isTextureDirty={_isTextureDirty}");
             if (textSystem == IntPtr.Zero) return;
             _textSystem = textSystem;
             
