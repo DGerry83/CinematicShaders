@@ -314,10 +314,13 @@ namespace CinematicShaders.UI.Screens.Layers
         /// </summary>
         private bool IsElementEditing(string elementId)
         {
+            // Check both element flag and external editing ID
             var element = _elements.Find(e => e.ElementId == elementId);
-            return element?.IsEditing ?? false;
+            if (element?.IsEditing ?? false) return true;
+            return _editingElementId == elementId;
         }
         
+        // Cursor state managed by ElementLayer
         private bool _cursorVisible = true;
         private float _cursorTimer = 0f;
         private const float CURSOR_BLINK_INTERVAL = 0.5f;
@@ -343,6 +346,25 @@ namespace CinematicShaders.UI.Screens.Layers
                 MarkLayer3Dirty();  // Trigger redraw for cursor blink
             }
         }
+        
+        // Track which element has editing focus and cursor visibility
+        private string _editingElementId = null;
+        private bool _editingCursorVisible = false;
+        
+        /// <summary>
+        /// Set the cursor state from external source (e.g., StarCatalogHolographicDisplay).
+        /// </summary>
+        public void SetCursorState(string editingElementId, bool cursorVisible)
+        {
+            _editingElementId = editingElementId;
+            _editingCursorVisible = cursorVisible;
+            MarkLayer3Dirty();
+        }
+        
+        /// <summary>
+        /// Get the current editing element ID.
+        /// </summary>
+        public string GetEditingElementId() => _editingElementId;
         
         /// <summary>
         /// Render all visible elements to their textures and draw them to the screen.

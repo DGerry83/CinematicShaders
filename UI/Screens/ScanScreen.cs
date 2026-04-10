@@ -21,6 +21,10 @@ namespace CinematicShaders.UI.Screens
         private RenderTexture _layer2Texture;
         private Sequencer _sequencer;
         
+        // Click zone for SCAN area
+        private ClickZone _scanZone;
+        private bool _scanHovered = false;
+        
         // Define Layer 3 priority order (simpler - for future interactive elements)
         protected override List<string> Layer3PriorityOrder => new List<string>
         {
@@ -63,8 +67,9 @@ namespace CinematicShaders.UI.Screens
             _sequencer = new Sequencer(Layer3PriorityOrder);
             OnLayer2Complete += StartLayer3Animation;
             
-            // NOTE: ScanScreen doesn't have ElementLayer currently.
-            // When ElementLayer is added in future, call _elementLayer.ResetAllAnimationStates() here.
+            // Initialize single large click zone for SCAN area
+            _scanZone = new ClickZone("scan_area", HolographicLayoutConfig.ZONE_SCAN_AREA, true);
+            _scanHovered = false;
         }
         
         public override void OnExit()
@@ -74,6 +79,50 @@ namespace CinematicShaders.UI.Screens
             OnLayer2Complete -= StartLayer3Animation;
             _sequencer?.StopSequence();
             _sequencer = null;
+            
+            // Clear hover state
+            _scanHovered = false;
+            StarfieldNative.CR_SetBoxOutline(0, 0, 0, 0, 0);
+        }
+        
+        /// <summary>
+        /// Handle mouse interaction for SCAN area
+        /// </summary>
+        public void HandleMouse(Vector2 mousePos, Rect displayRect, bool mouseDown, bool mouseUp)
+        {
+            Vector2 gridPos = MouseToGrid(mousePos, displayRect);
+            
+            bool wasHovered = _scanHovered;
+            _scanHovered = _scanZone.Contains(gridPos);
+            
+            // Update box outline on hover change
+            if (_scanHovered != wasHovered)
+            {
+                if (_scanHovered)
+                {
+                    Rect uvRect = _scanZone.GetUVRect();
+                    StarfieldNative.CR_SetBoxOutline(1, uvRect.xMin, uvRect.yMin, uvRect.xMax, uvRect.yMax);
+                }
+                else
+                {
+                    StarfieldNative.CR_SetBoxOutline(0, 0, 0, 0, 0);
+                }
+            }
+            
+            // Handle click
+            if (mouseUp && _scanHovered)
+            {
+                OnScanClicked?.Invoke();
+            }
+        }
+        
+        private Vector2 MouseToGrid(Vector2 mousePos, Rect displayRect)
+        {
+            float localX = mousePos.x - displayRect.x;
+            float localY = mousePos.y - displayRect.y;
+            float gridX = localX / HolographicLayoutConfig.GRID_CELL_WIDTH;
+            float gridY = localY / HolographicLayoutConfig.GRID_CELL_HEIGHT;
+            return new Vector2(gridX, gridY);
         }
         
         private void StartLayer3Animation()
@@ -130,6 +179,15 @@ namespace CinematicShaders.UI.Screens
                     Color.white,
                     null
                 );
+            }
+            
+            // Handle mouse interaction
+            if (Event.current != null)
+            {
+                Vector2 mousePos = Event.current.mousePosition;
+                bool mouseDown = Event.current.type == EventType.MouseDown && Event.current.button == 0;
+                bool mouseUp = Event.current.type == EventType.MouseUp && Event.current.button == 0;
+                HandleMouse(mousePos, displayRect, mouseDown, mouseUp);
             }
         }
         

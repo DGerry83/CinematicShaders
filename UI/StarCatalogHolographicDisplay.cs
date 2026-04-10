@@ -46,6 +46,15 @@ namespace CinematicShaders.UI
         private float _borderTypeOnProgress = 0f;
         private const float BORDER_TYPE_ON_DURATION = 2.0f;
         
+        // Cursor state for edit mode (Workstream C - Layer 3 refactor)
+        private float _cursorBlinkTimer = 0f;
+        private bool _cursorVisible = true;
+        private const float CURSOR_BLINK_INTERVAL = 0.5f; // 500ms
+        
+        // Track which element is being edited
+        private string _editingElementId = null;
+        private string _editBuffer = "";
+        
         private HolographicDisplaySize _displaySize = HolographicDisplaySize.Medium;
         private float _fontSize = 24f;
         private float _lineSpacing = 32f;
@@ -964,82 +973,136 @@ namespace CinematicShaders.UI
 
         #region Edit Mode
         
-        // Edit state
+        // Edit state (legacy - kept for compatibility)
         private bool _isEditing = false;
-        private string _editBuffer = "";
         private string _originalName = "";
-        private float _cursorBlinkTimer = 0f;
-        private bool _cursorVisible = true;
         
         /// <summary>
-        /// Enter edit mode for NAME field
+        /// Enter edit mode for a specific element (Workstream C - Layer 3 refactor).
+        /// Supports both name_value and search_input.
+        /// </summary>
+        public void EnterEditMode(string elementId)
+        {
+            if (_editingElementId == elementId) return;
+            
+            // Exit previous edit mode without saving
+            if (!string.IsNullOrEmpty(_editingElementId))
+            {
+                ExitEditMode(save: false);
+            }
+            
+            _editingElementId = elementId;
+            _cursorVisible = true;
+            _cursorBlinkTimer = 0f;
+            
+            // Get current value as edit buffer
+            var element = GetElement(elementId);
+            if (element != null)
+            {
+                _editBuffer = element.DynamicText;
+                element.IsEditing = true;
+                element.IsDirty = true;
+                
+                // Legacy support for name_value
+                if (elementId == "name_value")
+                {
+                    _isEditing = true;
+                    _originalName = _editBuffer;
+                    element.IsSelecting = true;
+                    element.ShowCursor = true;
+                }
+            }
+            
+            // Pass cursor state to ElementLayer if available
+            var mainScreen = _screenManager?.CurrentScreen as MainScreen;
+            var elementLayer = mainScreen?.GetType().GetField("_elementLayer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(mainScreen) as ElementLayer;
+            elementLayer?.SetCursorState(_editingElementId, _cursorVisible);
+            
+            Debug.Log($"[HolographicDisplay] Entered edit mode for: {elementId}");
+        }
+        
+        /// <summary>
+        /// Legacy EnterEditMode for NAME field (backward compatibility)
         /// </summary>
         private void EnterEditMode()
         {
             if (_selectedStar == null) return;
-            if (_isEditing) return;
-            
-            _isEditing = true;
-            _originalName = _selectedStar.Name;
-            _editBuffer = _selectedStar.Name;
-            _cursorBlinkTimer = 0f;
-            _cursorVisible = true;
-            
-            // Mark name element as editing
-            var nameElement = GetElement("name_value");
-            if (nameElement != null)
-            {
-                nameElement.IsSelecting = true;
-                nameElement.IsDirty = true;
-                nameElement.ShowCursor = true;
-            }
-            
-            Debug.Log($"[HolographicDisplay] Entered edit mode for: {_selectedStar.Name}");
+            EnterEditMode("name_value");
         }
         
         /// <summary>
-        /// Exit edit mode, optionally saving changes
+        /// Exit edit mode, optionally saving changes (Workstream C - Layer 3 refactor).
         /// </summary>
-        private void ExitEditMode(bool save)
+        public void ExitEditMode(bool save)
         {
-            if (!_isEditing) return;
+            if (string.IsNullOrEmpty(_editingElementId)) return;
             
-            _isEditing = false;
-            
-            var nameElement = GetElement("name_value");
-            if (nameElement != null)
+            var element = GetElement(_editingElementId);
+            if (element != null)
             {
-                nameElement.IsSelecting = false;
-                nameElement.ShowCursor = false;
-                nameElement.IsDirty = true;
+                element.IsEditing = false;
+                element.ShowCursor = false;
+                
+                if (save)
+                {
+                    element.DynamicText = _editBuffer.ToUpper();
+                    
+                    // Save based on element type
+                    if (_editingElementId == "name_value")
+                    {
+                        SaveStarName(_editBuffer);
+                    }
+                    else if (_editingElementId == "search_input")
+                    {
+                        _searchQuery = _editBuffer.ToUpper();
+                        UpdateSearch(_editBuffer);
+                    }
+                }
+                else
+                {
+                    // Revert to original
+                    if (_editingElementId == "name_value")
+                    {
+                        SetElementText("name_value", _originalName);
+                    }
+                }
+                
+                element.IsDirty = true;
             }
             
-            if (save)
+            // Legacy cleanup
+            if (_editingElementId == "name_value")
             {
-                // Save the edited name
-                SaveStarName(_editBuffer);
-            }
-            else
-            {
-                // Revert to original
-                _editBuffer = _originalName;
-                SetElementText("name_value", _originalName);
+                _isEditing = false;
             }
             
-            Debug.Log($"[HolographicDisplay] Exited edit mode (saved: {save})");
+            Debug.Log($"[HolographicDisplay] Exited edit mode for {_editingElementId} (saved: {save})");
+            
+            _editingElementId = null;
+            _editBuffer = "";
+            _cursorVisible = false;
+            
+            // Clear cursor state in ElementLayer
+            var mainScreen = _screenManager?.CurrentScreen as MainScreen;
+            var elementLayer = mainScreen?.GetType().GetField("_elementLayer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(mainScreen) as ElementLayer;
+            elementLayer?.SetCursorState(null, false);
         }
         
         /// <summary>
-        /// Handle edit mode keyboard input
+        /// Handle edit mode keyboard input (Workstream C - Layer 3 refactor).
+        /// Supports both name_value and search_input fields.
         /// </summary>
         private void HandleEditInput()
         {
-            if (!_isEditing) return;
+            // Use _editingElementId as primary check for edit mode
+            if (string.IsNullOrEmpty(_editingElementId) && !_isEditing) return;
+            
+            // Determine effective editing element (backward compatibility)
+            string effectiveElementId = _editingElementId ?? (_isEditing ? "name_value" : null);
+            if (string.IsNullOrEmpty(effectiveElementId)) return;
             
             Event e = Event.current;
-            
-            if (e.type != EventType.KeyDown)
-                return;
+            if (e.type != EventType.KeyDown) return;
             
             // Enter/Return to save
             if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter)
@@ -1063,7 +1126,7 @@ namespace CinematicShaders.UI
                 if (_editBuffer.Length > 0)
                 {
                     _editBuffer = _editBuffer.Substring(0, _editBuffer.Length - 1);
-                    SetElementText("name_value", _editBuffer + (_cursorVisible ? "^|" : ""));
+                    UpdateEditDisplay();
                 }
                 e.Use();
                 return;
@@ -1073,7 +1136,7 @@ namespace CinematicShaders.UI
             if (e.keyCode == KeyCode.Delete)
             {
                 _editBuffer = "";
-                SetElementText("name_value", _cursorVisible ? "^|" : "");
+                UpdateEditDisplay();
                 e.Use();
                 return;
             }
@@ -1082,28 +1145,69 @@ namespace CinematicShaders.UI
             if (e.character != '\0' && !char.IsControl(e.character))
             {
                 _editBuffer += char.ToUpper(e.character);
-                SetElementText("name_value", _editBuffer + (_cursorVisible ? "^|" : ""));
+                UpdateEditDisplay();
                 e.Use();
                 return;
             }
         }
         
         /// <summary>
-        /// Update cursor blink animation
+        /// Update the element display with current edit buffer and cursor state.
+        /// </summary>
+        private void UpdateEditDisplay()
+        {
+            // Update the element display with edit buffer + cursor
+            var element = GetElement(_editingElementId);
+            if (element != null)
+            {
+                // Append cursor character if visible
+                string displayText = _editBuffer + (_cursorVisible ? "▌" : "");
+                element.DynamicText = displayText;
+                element.IsDirty = true;
+            }
+            
+            // Trigger Layer 3 redraw via ElementLayer
+            var mainScreen = _screenManager?.CurrentScreen as MainScreen;
+            var elementLayer = mainScreen?.GetType().GetField("_elementLayer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(mainScreen) as ElementLayer;
+            elementLayer?.MarkLayer3Dirty();
+        }
+        
+        /// <summary>
+        /// Update cursor blink animation (Workstream C - Layer 3 refactor).
+        /// Passes cursor state to ElementLayer for single-texture rendering.
         /// </summary>
         private void UpdateCursorBlink()
         {
-            if (!_isEditing) return;
+            // Check if we're in edit mode
+            if (string.IsNullOrEmpty(_editingElementId) && !_isEditing) return;
             
             _cursorBlinkTimer += Time.deltaTime;
             
-            // 2Hz blink (0.25s on, 0.25s off)
-            bool newVisible = (_cursorBlinkTimer % 0.5f) < 0.25f;
-            
-            if (newVisible != _cursorVisible)
+            if (_cursorBlinkTimer >= CURSOR_BLINK_INTERVAL)
             {
-                _cursorVisible = newVisible;
-                SetElementText("name_value", _editBuffer + (_cursorVisible ? "^|" : ""));
+                _cursorBlinkTimer = 0f;
+                _cursorVisible = !_cursorVisible;
+                
+                // Update display with new cursor state
+                UpdateEditDisplay();
+                
+                // Pass cursor state to ElementLayer
+                var mainScreen = _screenManager?.CurrentScreen as MainScreen;
+                var elementLayer = mainScreen?.GetType().GetField("_elementLayer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(mainScreen) as ElementLayer;
+                elementLayer?.SetCursorState(_editingElementId, _cursorVisible);
+            }
+        }
+        
+        /// <summary>
+        /// Pass cursor state to ElementLayer. Call from Update() when in edit mode.
+        /// </summary>
+        private void UpdateElementLayerCursor()
+        {
+            if (!string.IsNullOrEmpty(_editingElementId))
+            {
+                var mainScreen = _screenManager?.CurrentScreen as MainScreen;
+                var elementLayer = mainScreen?.GetType().GetField("_elementLayer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(mainScreen) as ElementLayer;
+                elementLayer?.SetCursorState(_editingElementId, _cursorVisible);
             }
         }
         
@@ -1948,13 +2052,16 @@ namespace CinematicShaders.UI
             switch (element.ElementId)
             {
                 case "name_value":
-                    EnterEditMode();
+                    EnterEditMode("name_value");
+                    break;
+                case "search_input":
+                    EnterEditMode("search_input");
                     break;
                 case "rescan_button":
                     ShowRescanConfirmation();
                     break;
                 case "save_button":
-                    if (_isEditing)
+                    if (_isEditing || !string.IsNullOrEmpty(_editingElementId))
                     {
                         ExitEditMode(save: true);
                     }
@@ -2786,8 +2893,8 @@ namespace CinematicShaders.UI
         /// </summary>
         private void HandleKeyboardInput()
         {
-            // Edit mode has priority
-            if (_isEditing)
+            // Edit mode has priority (check both legacy and new edit mode)
+            if (_isEditing || !string.IsNullOrEmpty(_editingElementId))
             {
                 HandleEditInput();
                 return;

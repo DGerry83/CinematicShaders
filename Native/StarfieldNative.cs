@@ -332,6 +332,17 @@ namespace CinematicShaders.Native
         public static extern int CR_SetManeuverTextTexture(IntPtr texture);
         
         /// <summary>
+        /// Set box outline for hover feedback on interactive elements.
+        /// </summary>
+        /// <param name="enabled">1 to enable, 0 to disable</param>
+        /// <param name="topLeftX">UV x-coordinate of top-left corner</param>
+        /// <param name="topLeftY">UV y-coordinate of top-left corner</param>
+        /// <param name="bottomRightX">UV x-coordinate of bottom-right corner</param>
+        /// <param name="bottomRightY">UV y-coordinate of bottom-right corner</param>
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_SetBoxOutline(int enabled, float topLeftX, float topLeftY, float bottomRightX, float bottomRightY);
+        
+        /// <summary>
         /// Uploads 7 navball icon textures to the GPU as a texture array.
         /// </summary>
         /// <param name="textures">Array of 7 Texture2D objects (must be R8G8B8A8 format)</param>

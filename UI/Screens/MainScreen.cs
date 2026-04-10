@@ -20,6 +20,15 @@ namespace CinematicShaders.UI.Screens
         private RenderTexture _layer2Texture;
         private ElementLayer _elementLayer;
         
+        // Click zone tracking for grid-based hit detection
+        private List<ClickZone> _clickZones = new List<ClickZone>();
+        private ClickZone? _hoveredZone = null;
+        
+        /// <summary>
+        /// Event fired when an interactive element is clicked
+        /// </summary>
+        public event Action<string> OnElementClicked;
+        
         // Layer 3 priority order - star data first, then search, then buttons
         protected override List<string> Layer3PriorityOrder => new List<string>
         {
@@ -83,6 +92,9 @@ namespace CinematicShaders.UI.Screens
             // Subscribe to Layer 2 completion to start Layer 3
             OnLayer2Complete += StartLayer3Animation;
             
+            // Initialize click zones for grid-based hit detection
+            InitializeClickZones(context?.HasStarSelected ?? false);
+            
             // Show elements when entering Main screen
             if (_elementLayer != null)
             {
@@ -131,6 +143,104 @@ namespace CinematicShaders.UI.Screens
             
             // Hide elements when leaving Main screen
             _elementLayer?.SetElementVisibility(false);
+            
+            // Clear click zones and hover state
+            _clickZones.Clear();
+            _hoveredZone = null;
+            StarfieldNative.CR_SetBoxOutline(0, 0, 0, 0, 0);
+        }
+        
+        /// <summary>
+        /// Initialize click zones for grid-based hit detection.
+        /// These are approximate positions - user will tune via debug exports.
+        /// </summary>
+        private void InitializeClickZones(bool hasStarSelected)
+        {
+            _clickZones.Clear();
+            
+            // Value fields (left column) - only name_value is editable, others clickable for consistency
+            _clickZones.Add(new ClickZone("hip_value", HolographicLayoutConfig.ZONE_HIP_VALUE, hasStarSelected));
+            _clickZones.Add(new ClickZone("name_value", HolographicLayoutConfig.ZONE_NAME_VALUE, hasStarSelected));
+            _clickZones.Add(new ClickZone("distance_value", HolographicLayoutConfig.ZONE_DISTANCE_VALUE, hasStarSelected));
+            _clickZones.Add(new ClickZone("spectral_value", HolographicLayoutConfig.ZONE_SPECTRAL_VALUE, hasStarSelected));
+            _clickZones.Add(new ClickZone("mag_value", HolographicLayoutConfig.ZONE_MAG_VALUE, hasStarSelected));
+            _clickZones.Add(new ClickZone("const_value", HolographicLayoutConfig.ZONE_CONST_VALUE, hasStarSelected));
+            
+            // Buttons (always enabled)
+            _clickZones.Add(new ClickZone("save_button", HolographicLayoutConfig.ZONE_SAVE_BUTTON, true));
+            _clickZones.Add(new ClickZone("reset_button", HolographicLayoutConfig.ZONE_RESET_BUTTON, true));
+            _clickZones.Add(new ClickZone("rescan_button", HolographicLayoutConfig.ZONE_RESCAN_BUTTON, true));
+            
+            // Search input (always enabled)
+            _clickZones.Add(new ClickZone("search_input", HolographicLayoutConfig.ZONE_SEARCH_INPUT, true));
+            
+            // Search results (10 rows) - enabled only when star selected
+            for (int i = 0; i < 10; i++)
+            {
+                _clickZones.Add(new ClickZone($"result_{i}", HolographicLayoutConfig.GetResultZone(i), hasStarSelected));
+            }
+        }
+        
+        /// <summary>
+        /// Handle mouse interaction for click zones
+        /// </summary>
+        public void HandleMouse(Vector2 mousePos, Rect displayRect, bool mouseDown, bool mouseUp)
+        {
+            // Convert mouse position to grid coordinates
+            Vector2 gridPos = MouseToGrid(mousePos, displayRect);
+            
+            // Find hovered zone
+            ClickZone? newHovered = null;
+            foreach (var zone in _clickZones)
+            {
+                if (zone.IsEnabled && zone.Contains(gridPos))
+                {
+                    newHovered = zone;
+                    break;
+                }
+            }
+            
+            // Handle hover change
+            if (newHovered?.ElementId != _hoveredZone?.ElementId)
+            {
+                _hoveredZone = newHovered;
+                
+                // Set box outline in shader via native call
+                if (_hoveredZone.HasValue)
+                {
+                    Rect uvRect = _hoveredZone.Value.GetUVRect();
+                    StarfieldNative.CR_SetBoxOutline(1, uvRect.xMin, uvRect.yMin, uvRect.xMax, uvRect.yMax);
+                }
+                else
+                {
+                    StarfieldNative.CR_SetBoxOutline(0, 0, 0, 0, 0);
+                }
+            }
+            
+            // Handle click
+            if (mouseUp && _hoveredZone.HasValue)
+            {
+                OnZoneClicked(_hoveredZone.Value.ElementId);
+            }
+        }
+        
+        private Vector2 MouseToGrid(Vector2 mousePos, Rect displayRect)
+        {
+            // Convert screen mouse position to local display coordinates
+            float localX = mousePos.x - displayRect.x;
+            float localY = mousePos.y - displayRect.y;
+            
+            // Convert to grid coordinates
+            float gridX = localX / HolographicLayoutConfig.GRID_CELL_WIDTH;
+            float gridY = localY / HolographicLayoutConfig.GRID_CELL_HEIGHT;
+            
+            return new Vector2(gridX, gridY);
+        }
+        
+        private void OnZoneClicked(string elementId)
+        {
+            Debug.Log($"[MainScreen] Clicked: {elementId}");
+            OnElementClicked?.Invoke(elementId);
         }
         
         public override void Render(Rect displayRect, IntPtr textSystem)
@@ -183,6 +293,15 @@ namespace CinematicShaders.UI.Screens
             if (_elementLayer != null && Layer3Progress > 0)
             {
                 _elementLayer.RenderToTexture(textSystem, displayRect, PowerOnTime);
+            }
+            
+            // Handle mouse interaction for click zones
+            if (Event.current != null)
+            {
+                Vector2 mousePos = Event.current.mousePosition;
+                bool mouseDown = Event.current.type == EventType.MouseDown && Event.current.button == 0;
+                bool mouseUp = Event.current.type == EventType.MouseUp && Event.current.button == 0;
+                HandleMouse(mousePos, displayRect, mouseDown, mouseUp);
             }
         }
         

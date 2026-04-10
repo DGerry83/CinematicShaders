@@ -20,6 +20,10 @@ namespace CinematicShaders.UI.Screens
         private RenderTexture _layer2Texture;
         private Sequencer _sequencer;
         
+        // Click zones for YES/NO buttons
+        private List<ClickZone> _clickZones = new List<ClickZone>();
+        private ClickZone? _hoveredZone = null;
+        
         // Define Layer 3 priority order - buttons appear in sequence
         protected override List<string> Layer3PriorityOrder => new List<string>
         {
@@ -67,8 +71,11 @@ namespace CinematicShaders.UI.Screens
             _sequencer = new Sequencer(Layer3PriorityOrder);
             OnLayer2Complete += StartLayer3Animation;
             
-            // NOTE: ConfirmRescanScreen doesn't have ElementLayer currently.
-            // When ElementLayer is added in future, call _elementLayer.ResetAllAnimationStates() here.
+            // Initialize click zones for YES/NO buttons
+            _clickZones.Clear();
+            _clickZones.Add(new ClickZone("yes_button", HolographicLayoutConfig.ZONE_YES_BUTTON, true));
+            _clickZones.Add(new ClickZone("no_button", HolographicLayoutConfig.ZONE_NO_BUTTON, true));
+            _hoveredZone = null;
         }
         
         public override void OnExit()
@@ -78,6 +85,61 @@ namespace CinematicShaders.UI.Screens
             OnLayer2Complete -= StartLayer3Animation;
             _sequencer?.StopSequence();
             _sequencer = null;
+            
+            // Clear click zones and hover state
+            _clickZones.Clear();
+            _hoveredZone = null;
+            StarfieldNative.CR_SetBoxOutline(0, 0, 0, 0, 0);
+        }
+        
+        /// <summary>
+        /// Handle mouse interaction for YES/NO buttons
+        /// </summary>
+        public void HandleMouse(Vector2 mousePos, Rect displayRect, bool mouseDown, bool mouseUp)
+        {
+            Vector2 gridPos = MouseToGrid(mousePos, displayRect);
+            
+            ClickZone? newHovered = null;
+            foreach (var zone in _clickZones)
+            {
+                if (zone.IsEnabled && zone.Contains(gridPos))
+                {
+                    newHovered = zone;
+                    break;
+                }
+            }
+            
+            if (newHovered?.ElementId != _hoveredZone?.ElementId)
+            {
+                _hoveredZone = newHovered;
+                
+                if (_hoveredZone.HasValue)
+                {
+                    Rect uvRect = _hoveredZone.Value.GetUVRect();
+                    StarfieldNative.CR_SetBoxOutline(1, uvRect.xMin, uvRect.yMin, uvRect.xMax, uvRect.yMax);
+                }
+                else
+                {
+                    StarfieldNative.CR_SetBoxOutline(0, 0, 0, 0, 0);
+                }
+            }
+            
+            if (mouseUp && _hoveredZone.HasValue)
+            {
+                if (_hoveredZone.Value.ElementId == "yes_button")
+                    OnYesClicked?.Invoke();
+                else if (_hoveredZone.Value.ElementId == "no_button")
+                    OnNoClicked?.Invoke();
+            }
+        }
+        
+        private Vector2 MouseToGrid(Vector2 mousePos, Rect displayRect)
+        {
+            float localX = mousePos.x - displayRect.x;
+            float localY = mousePos.y - displayRect.y;
+            float gridX = localX / HolographicLayoutConfig.GRID_CELL_WIDTH;
+            float gridY = localY / HolographicLayoutConfig.GRID_CELL_HEIGHT;
+            return new Vector2(gridX, gridY);
         }
         
         private void StartLayer3Animation()
@@ -138,6 +200,15 @@ namespace CinematicShaders.UI.Screens
             
             // Layer 3: YES/NO buttons are rendered separately by the display
             // as they require interactive hover states
+            
+            // Handle mouse interaction
+            if (Event.current != null)
+            {
+                Vector2 mousePos = Event.current.mousePosition;
+                bool mouseDown = Event.current.type == EventType.MouseDown && Event.current.button == 0;
+                bool mouseUp = Event.current.type == EventType.MouseUp && Event.current.button == 0;
+                HandleMouse(mousePos, displayRect, mouseDown, mouseUp);
+            }
         }
         
         /// <summary>
