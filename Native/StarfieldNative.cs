@@ -111,15 +111,6 @@ namespace CinematicShaders.Native
         /// Draw a box outline on the CRT UI surface.
         /// Call every frame while hovering. No persistent state.
         /// </summary>
-        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CR_DrawCRTBox(
-            int enabled,
-            float topLeftX,
-            float topLeftY,
-            float bottomRightX,
-            float bottomRightY,
-            uint color,
-            float thickness);
 
         [StructLayout(LayoutKind.Sequential)]
         public struct StarfieldSettingsNative

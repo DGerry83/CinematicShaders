@@ -20,16 +20,6 @@
 // External declarations from main module
 extern void LogToFile(const char* fmt, ...);
 
-// CRT Box drawing globals (defined in CinematicShadersNative.cpp)
-extern "C" {
-    extern float g_CRTBoxTopLeftX;
-    extern float g_CRTBoxTopLeftY;
-    extern float g_CRTBoxBottomRightX;
-    extern float g_CRTBoxBottomRightY;
-    extern uint32_t g_CRTBoxColor;
-    extern float g_CRTBoxThickness;
-    extern int g_CRTBoxEnabled;
-}
 
 static struct {
     ID3D11Device* device = nullptr;
@@ -2431,16 +2421,6 @@ struct TextParams {
     float OutputSizeX;
     float OutputSizeY;
     float Pad;
-    
-    // Box drawing parameters (CRT UI overlay)
-    int BoxEnabled;          // 0 or 1
-    uint32_t BoxColor;       // ARGB
-    float BoxTopLeftX;       // UV coordinates
-    float BoxTopLeftY;
-    float BoxBottomRightX;
-    float BoxBottomRightY;
-    float BoxThickness;      // in UV space
-    float BoxPad[2];         // Padding to 48 bytes
 };
 
 extern "C" __declspec(dllexport)
@@ -2539,17 +2519,6 @@ void CR_TextDispatch(
         params->OutputSizeY = (float)outputHeight;
         params->Pad = 0.0f;
         
-        // Box drawing parameters (CRT UI overlay)
-        params->BoxEnabled = g_CRTBoxEnabled;
-        params->BoxColor = g_CRTBoxColor;
-        params->BoxTopLeftX = g_CRTBoxTopLeftX;
-        params->BoxTopLeftY = g_CRTBoxTopLeftY;
-        params->BoxBottomRightX = g_CRTBoxBottomRightX;
-        params->BoxBottomRightY = g_CRTBoxBottomRightY;
-        params->BoxThickness = g_CRTBoxThickness;
-        params->BoxPad[0] = 0.0f;
-        params->BoxPad[1] = 0.0f;
-        
         context->Unmap(g_StarfieldState.textCB, 0);
     }
     
@@ -2569,7 +2538,7 @@ void CR_TextDispatch(
     
     // Dispatch compute shader
     // +1 for box drawing thread if enabled
-    int totalThreads = glyphCount + (g_CRTBoxEnabled ? 1 : 0);
+    int totalThreads = glyphCount;
     UINT dispatchX = (totalThreads + 63) / 64;  // 64 threads per group
     UINT dispatchY = 1;
     context->Dispatch(dispatchX, dispatchY, 1);
@@ -2682,17 +2651,6 @@ void CR_TextDispatchEx(
         params->OutputSizeY = (float)outputHeight;
         params->Pad = 0.0f;
         
-        // Box drawing parameters (CRT UI overlay)
-        params->BoxEnabled = g_CRTBoxEnabled;
-        params->BoxColor = g_CRTBoxColor;
-        params->BoxTopLeftX = g_CRTBoxTopLeftX;
-        params->BoxTopLeftY = g_CRTBoxTopLeftY;
-        params->BoxBottomRightX = g_CRTBoxBottomRightX;
-        params->BoxBottomRightY = g_CRTBoxBottomRightY;
-        params->BoxThickness = g_CRTBoxThickness;
-        params->BoxPad[0] = 0.0f;
-        params->BoxPad[1] = 0.0f;
-        
         context->Unmap(g_StarfieldState.textCB, 0);
     }
     
@@ -2714,7 +2672,7 @@ void CR_TextDispatchEx(
     
     // Dispatch compute shader
     // +1 for box drawing thread if enabled
-    int totalThreads = glyphCount + (g_CRTBoxEnabled ? 1 : 0);
+    int totalThreads = glyphCount;
     UINT dispatchX = (totalThreads + 63) / 64;  // 64 threads per group
     UINT dispatchY = 1;
     context->Dispatch(dispatchX, dispatchY, 1);
