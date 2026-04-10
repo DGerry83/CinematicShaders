@@ -85,7 +85,7 @@ namespace CinematicShaders.UI
         private ScreenManager _screenManager;
         #endregion
 
-        // Note: ScreenState enum is now in CinematicShaders.UI.Screens namespace
+        // Note: ScreenState enum removed - now using string ScreenName ("Main", "Scan", "ConfirmRescan")
         // Screen state is managed by ScreenManager
 
         #region Layer 2 Textures (Border + Labels)
@@ -209,21 +209,21 @@ namespace CinematicShaders.UI
         {
             if (_screenManager == null) return;
             
-            var currentState = _screenManager.CurrentState;
+            var currentScreenName = _screenManager.CurrentScreenName;
             
             // React to JSON becoming available
-            if (args.NewAvailability != JsonAvailability.None && currentState == ScreenState.Scan)
+            if (args.NewAvailability != JsonAvailability.None && currentScreenName == "Scan")
             {
                 var context = new ScreenTransitionContext 
                 { 
                     HasStarSelected = _selectedStar != null 
                 };
-                _screenManager.TransitionTo(ScreenState.Main, context);
+                _screenManager.TransitionTo("Main", context);
             }
             // React to JSON becoming unavailable
-            else if (args.NewAvailability == JsonAvailability.None && currentState == ScreenState.Main)
+            else if (args.NewAvailability == JsonAvailability.None && currentScreenName == "Main")
             {
-                _screenManager.TransitionTo(ScreenState.Scan);
+                _screenManager.TransitionTo("Scan");
             }
         }
         #endregion
@@ -276,13 +276,13 @@ namespace CinematicShaders.UI
             
             // NEW: Detect JSON using centralized state manager
             bool hasValidData = StarCatalogStateManager.HasValidJson();
-            var initialState = hasValidData ? ScreenState.Main : ScreenState.Scan;
-            _screenManager.TransitionTo(initialState, new ScreenTransitionContext { 
+            string initialScreen = hasValidData ? "Main" : "Scan";
+            _screenManager.TransitionTo(initialScreen, new ScreenTransitionContext { 
                 IsInitialStartup = true 
             });
             
             Debug.Log($"[HolographicDisplay] Initialized at ({x}, {y}), size: {size}, " +
-                      $"dataAvailable: {hasValidData}, initialScreen: {initialState}");
+                      $"dataAvailable: {hasValidData}, initialScreen: {initialScreen}");
         }
         
         private void InitializeScreens()
@@ -311,10 +311,10 @@ namespace CinematicShaders.UI
             var confirmScreen = new ConfirmRescanScreen(ASCII_BORDER_LINES_CONFIRM, CONFIRM_LAYER2_LINES, _fontSize, aspectRatio);
             confirmScreen.OnYesClicked += () => {
                 OnRescanConfirmed?.Invoke();
-                _screenManager.TransitionTo(ScreenState.Main);
+                _screenManager.TransitionTo("Main");
             };
             confirmScreen.OnNoClicked += () => {
-                _screenManager.TransitionTo(ScreenState.Main);
+                _screenManager.TransitionTo("Main");
             };
             _screenManager.RegisterScreen(confirmScreen);
         }
@@ -633,7 +633,7 @@ namespace CinematicShaders.UI
             }
             
             // Handle screen-specific interactions (Layer 3 interactions are handled by MainScreen)
-            if (_displayPowered && _screenManager?.CurrentScreen?.State != ScreenState.Main)
+            if (_displayPowered && _screenManager?.CurrentScreen?.ScreenName != "Main")
             {
                 HandleScreenInteractions();
             }
@@ -643,24 +643,24 @@ namespace CinematicShaders.UI
         {
             if (_screenManager?.CurrentScreen == null) return;
             
-            var currentState = _screenManager.CurrentScreen.State;
+            var currentScreenName = _screenManager.CurrentScreen.ScreenName;
             Vector2 mousePos = Event.current.mousePosition;
             bool mouseDown = Event.current.type == EventType.MouseDown && Event.current.button == 0;
             bool mouseUp = Event.current.type == EventType.MouseUp && Event.current.button == 0;
             
-            switch (currentState)
+            switch (currentScreenName)
             {
-                case ScreenState.Scan:
+                case "Scan":
                     var scanScreen = _screenManager.CurrentScreen as ScanScreen;
                     scanScreen?.HandleClick(mousePos, _displayRect, mouseDown);
                     break;
                     
-                case ScreenState.ConfirmRescan:
+                case "ConfirmRescan":
                     var confirmScreen = _screenManager.CurrentScreen as ConfirmRescanScreen;
                     confirmScreen?.UpdateInteraction(mousePos, _displayRect, mouseDown, mouseUp);
                     break;
                     
-                case ScreenState.Main:
+                case "Main":
                     // Main screen interactions handled separately via element system
                     break;
             }
@@ -1592,7 +1592,7 @@ namespace CinematicShaders.UI
             // Check if JSON catalog exists
             if (!HasJsonCatalog())
             {
-                _screenManager?.TransitionTo(ScreenState.Scan);
+                _screenManager?.TransitionTo("Scan");
                 Debug.Log("[HolographicDisplay] Power ON - No JSON catalog found, showing SCAN screen");
                 return;
             }
@@ -1603,7 +1603,7 @@ namespace CinematicShaders.UI
                 IsInitialStartup = true,
                 HasStarSelected = _selectedStar != null 
             };
-            _screenManager?.TransitionTo(ScreenState.Main, context);
+            _screenManager?.TransitionTo("Main", context);
             
             Debug.Log("[HolographicDisplay] Power ON - Main screen with animation");
         }
@@ -1614,22 +1614,22 @@ namespace CinematicShaders.UI
             
             // Use centralized state manager
             bool hasValidData = StarCatalogStateManager.HasValidJson();
-            var currentState = _screenManager.CurrentState;
+            var currentScreenName = _screenManager.CurrentScreenName;
             
             // If we have JSON but are on SCAN screen, transition to Main
-            if (hasValidData && currentState == ScreenState.Scan)
+            if (hasValidData && currentScreenName == "Scan")
             {
                 var context = new ScreenTransitionContext 
                 { 
                     HasStarSelected = _selectedStar != null 
                 };
-                _screenManager.TransitionTo(ScreenState.Main, context);
+                _screenManager.TransitionTo("Main", context);
                 Debug.Log("[HolographicDisplay] Catalog changed - transitioning to Main (JSON found)");
             }
             // If we don't have JSON but are on Main screen, transition to SCAN
-            else if (!hasValidData && currentState == ScreenState.Main)
+            else if (!hasValidData && currentScreenName == "Main")
             {
-                _screenManager.TransitionTo(ScreenState.Scan);
+                _screenManager.TransitionTo("Scan");
                 Debug.Log("[HolographicDisplay] Catalog changed - transitioning to Scan (no JSON)");
             }
         }
@@ -2445,9 +2445,9 @@ namespace CinematicShaders.UI
          * - ResetAllElementAnimations() -> Handled in BaseScreen.OnEnter()
          * 
          * Obsolete fields removed:
-         * - _currentScreen -> Use _screenManager.CurrentState
-         * - _showingScanScreen -> Check _screenManager.CurrentState == ScreenState.Scan
-         * - _showingConfirmation -> Check _screenManager.CurrentState == ScreenState.ConfirmRescan
+         * - _currentScreen -> Use _screenManager.CurrentScreenName
+         * - _showingScanScreen -> Check _screenManager.CurrentScreenName == "Scan"
+         * - _showingConfirmation -> Check _screenManager.CurrentScreenName == "ConfirmRescan"
          */
         
         /// <summary>
@@ -2492,7 +2492,7 @@ namespace CinematicShaders.UI
         /// </summary>
         public void ShowScanScreen()
         {
-            _screenManager?.TransitionTo(ScreenState.Scan);
+            _screenManager?.TransitionTo("Scan");
             Debug.Log("[HolographicDisplay] Showing SCAN screen with animation reset");
         }
 
@@ -2501,7 +2501,7 @@ namespace CinematicShaders.UI
         /// </summary>
         public void HideScanScreen()
         {
-            _screenManager?.TransitionTo(ScreenState.Main);
+            _screenManager?.TransitionTo("Main");
             Debug.Log("[HolographicDisplay] Hiding SCAN screen, returning to Main");
         }
 
@@ -2564,7 +2564,7 @@ namespace CinematicShaders.UI
         /// </summary>
         private void ShowRescanConfirmation()
         {
-            _screenManager?.TransitionTo(ScreenState.ConfirmRescan);
+            _screenManager?.TransitionTo("ConfirmRescan");
             Debug.Log("[HolographicDisplay] Showing rescan confirmation dialog");
         }
 
@@ -2573,7 +2573,7 @@ namespace CinematicShaders.UI
         /// </summary>
         private void HideRescanConfirmation()
         {
-            _screenManager?.TransitionTo(ScreenState.Main);
+            _screenManager?.TransitionTo("Main");
             Debug.Log("[HolographicDisplay] Hiding confirmation dialog, returning to Main");
         }
 
@@ -2583,7 +2583,7 @@ namespace CinematicShaders.UI
         private void ConfirmRescan()
         {
             OnRescanConfirmed?.Invoke();
-            _screenManager?.TransitionTo(ScreenState.Main);
+            _screenManager?.TransitionTo("Main");
             Debug.Log("[HolographicDisplay] Rescan confirmed - transitioning to Main");
         }
 
@@ -2856,16 +2856,16 @@ namespace CinematicShaders.UI
             // Handle ESC to clear selection/close dialogs
             if (e.keyCode == KeyCode.Escape)
             {
-                if (_screenManager?.CurrentState == ScreenState.ConfirmRescan)
+                if (_screenManager?.CurrentScreenName == "ConfirmRescan")
                 {
                     HideRescanConfirmation();
                     e.Use();
                     return;
                 }
                 
-                if (_screenManager?.CurrentState == ScreenState.Scan)
+                if (_screenManager?.CurrentScreenName == "Scan")
                 {
-                    _screenManager?.TransitionTo(ScreenState.Main);
+                    _screenManager?.TransitionTo("Main");
                     e.Use();
                     return;
                 }

@@ -35,7 +35,6 @@ namespace CinematicShaders.UI.Screens
         
         public ScanScreen(string[] borderLines, string[] artLines, float fontSize, float aspectRatio = 0.667f)
         {
-            State = ScreenState.Scan;
             ScreenName = "Scan";
             _fontSize = fontSize;
             _aspectRatio = aspectRatio;
@@ -46,23 +45,18 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
-        /// Set the shared textures for rendering
+        /// Set the shared textures for rendering. ScanScreen uses l1/l2, ignores l3.
         /// </summary>
-        public void SetTextures(RenderTexture layer1Texture, RenderTexture layer2Texture)
+        public override void SetTextures(RenderTexture l1, RenderTexture l2, RenderTexture l3)
         {
-            _layer1Texture = layer1Texture;
-            _layer2Texture = layer2Texture;
+            _layer1Texture = l1;
+            _layer2Texture = l2;
+            // Ignore l3 - this screen doesn't use Layer 3
             
-            // Set textures on layers
             if (Layers.Count > 0 && Layers[0] is BorderLayer bl)
-                bl.SetTargetTexture(layer1Texture);
+                bl.SetTargetTexture(l1);
             if (Layers.Count > 1 && Layers[1] is ContentLayer cl)
-                cl.SetTargetTexture(layer2Texture);
-        }
-        
-        public void SetLayer3Texture(RenderTexture layer3Texture)
-        {
-            // ScanScreen doesn't use dynamic Layer 3 content, but implements interface
+                cl.SetTargetTexture(l2);
         }
         
         public override void OnEnter(ScreenTransitionContext context)

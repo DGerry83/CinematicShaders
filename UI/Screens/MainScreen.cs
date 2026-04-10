@@ -48,7 +48,6 @@ namespace CinematicShaders.UI.Screens
         
         public MainScreen(string[] borderLines, string[] labelLines, float fontSize, float aspectRatio = 0.667f)
         {
-            State = ScreenState.Main;
             ScreenName = "Main";
             _fontSize = fontSize;
             _aspectRatio = aspectRatio;
@@ -101,37 +100,28 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
-        /// Set the shared textures for rendering Layers 1 and 2.
+        /// Set the shared textures for rendering Layers 1, 2, and 3.
         /// </summary>
-        public void SetTextures(RenderTexture layer1Texture, RenderTexture layer2Texture)
+        public override void SetTextures(RenderTexture l1, RenderTexture l2, RenderTexture l3)
         {
-            _layer1Texture = layer1Texture;
-            _layer2Texture = layer2Texture;
+            _layer1Texture = l1;
+            _layer2Texture = l2;
             
-            // Set textures on layers
-            if (Layers.Count > 0 && Layers[0] is BorderLayer bl)
-                bl.SetTargetTexture(layer1Texture);
-            if (Layers.Count > 1 && Layers[1] is ContentLayer cl)
-                cl.SetTargetTexture(layer2Texture);
-        }
-        
-        /// <summary>
-        /// Set the Layer 3 texture for single-texture rendering.
-        /// Supports deferred assignment if called before SetElements.
-        /// </summary>
-        public override void SetLayer3Texture(RenderTexture layer3Texture)
-        {
-            ModFileLogger.Log($"[MainScreen] SetLayer3Texture ENTER - instance {GetHashCode()}, layer3Texture is {(layer3Texture != null ? "valid" : "NULL")}, _elementLayer is {(_elementLayer != null ? "set" : "NULL")}");
-            
-            if (_elementLayer == null)
+            // Apply l3 to ElementLayer (with deferred assignment if elements not ready)
+            if (_elementLayer != null)
             {
-                ModFileLogger.Log($"[MainScreen] SetLayer3Texture - DEFERRED, _elementLayer is null");
-                _deferredLayer3Texture = layer3Texture;
-                return;
+                _elementLayer.SetLayer3Texture(l3);
+            }
+            else
+            {
+                _deferredLayer3Texture = l3;
             }
             
-            ModFileLogger.Log($"[MainScreen] SetLayer3Texture - applying immediately");
-            _elementLayer.SetLayer3Texture(layer3Texture);
+            // Set textures on border/content layers
+            if (Layers.Count > 0 && Layers[0] is BorderLayer bl)
+                bl.SetTargetTexture(l1);
+            if (Layers.Count > 1 && Layers[1] is ContentLayer cl)
+                cl.SetTargetTexture(l2);
         }
         
         public override void OnEnter(ScreenTransitionContext context)

@@ -6,7 +6,6 @@ namespace CinematicShaders.UI.Screens
 {
     public interface IScreen
     {
-        ScreenState State { get; }
         string ScreenName { get; }
         IReadOnlyList<ILayer> Layers { get; }
         
@@ -21,9 +20,9 @@ namespace CinematicShaders.UI.Screens
         void Render(Rect displayRect, IntPtr textSystem);
         
         /// <summary>
-        /// Set the Layer 3 texture for screens that use single-texture Layer 3.
-        /// Called by ScreenManager when screen becomes active.
+        /// Set the shared textures for rendering. All screens implement this.
+        /// Each screen decides which layers to use (l1, l2, l3).
         /// </summary>
-        void SetLayer3Texture(RenderTexture layer3Texture);
+        void SetTextures(RenderTexture l1, RenderTexture l2, RenderTexture l3);
     }
 }

@@ -10,7 +10,7 @@ namespace CinematicShaders.UI.Screens
     /// </summary>
     public abstract class BaseScreen : IScreen
     {
-        public ScreenState State { get; protected set; }
+
         public string ScreenName { get; protected set; }
         public List<ILayer> Layers { get; protected set; } = new List<ILayer>();
         
@@ -123,13 +123,9 @@ namespace CinematicShaders.UI.Screens
         public abstract void Render(Rect displayRect, IntPtr textSystem);
         
         /// <summary>
-        /// Set the Layer 3 texture for single-texture rendering.
-        /// Override in derived classes that use Layer 3.
+        /// Set the shared textures for rendering. Must be implemented by all screens.
         /// </summary>
-        public virtual void SetLayer3Texture(RenderTexture layer3Texture)
-        {
-            // Default: no-op. Override in screens that use Layer 3.
-        }
+        public abstract void SetTextures(RenderTexture l1, RenderTexture l2, RenderTexture l3);
         
         /// <summary>
         /// Helper to add a layer and keep list sorted by Order

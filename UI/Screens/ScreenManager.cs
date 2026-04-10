@@ -11,7 +11,7 @@ namespace CinematicShaders.UI.Screens
     /// </summary>
     public class ScreenManager
     {
-        private readonly Dictionary<ScreenState, IScreen> _screens = new Dictionary<ScreenState, IScreen>();
+        private readonly Dictionary<string, IScreen> _screens = new Dictionary<string, IScreen>();
         private IScreen _currentScreen;
         private readonly IntPtr _textSystem;
         
@@ -24,7 +24,7 @@ namespace CinematicShaders.UI.Screens
         private IScreen _screenWithAssignedTextures;
         
         public IScreen CurrentScreen => _currentScreen;
-        public ScreenState? CurrentState => _currentScreen?.State;
+        public string CurrentScreenName => _currentScreen?.ScreenName;
         
         public ScreenManager(IntPtr textSystem)
         {
@@ -79,21 +79,21 @@ namespace CinematicShaders.UI.Screens
         public void RegisterScreen(IScreen screen)
         {
             if (screen == null) throw new ArgumentNullException(nameof(screen));
-            _screens[screen.State] = screen;
+            _screens[screen.ScreenName] = screen;
         }
         
         /// <summary>
         /// Transition to a new screen with proper lifecycle handling
         /// </summary>
-        public void TransitionTo(ScreenState state, ScreenTransitionContext context = null)
+        public void TransitionTo(string screenName, ScreenTransitionContext context = null)
         {
-            if (!_screens.ContainsKey(state))
+            if (!_screens.ContainsKey(screenName))
             {
-                Debug.LogError($"[ScreenManager] Screen state {state} not registered");
+                Debug.LogError($"[ScreenManager] Screen '{screenName}' not registered");
                 return;
             }
             
-            var newScreen = _screens[state];
+            var newScreen = _screens[screenName];
             
             // Exit current screen
             _currentScreen?.OnExit();
@@ -101,14 +101,14 @@ namespace CinematicShaders.UI.Screens
             // Track previous state for context
             if (context == null)
                 context = new ScreenTransitionContext();
-            context.PreviousScreen = _currentScreen?.State ?? state;
+            context.PreviousScreen = _currentScreen?.ScreenName ?? screenName;
             
             // Switch to new screen
             _currentScreen = newScreen;
             _screenWithAssignedTextures = null;  // Force texture reassignment for new screen
             _currentScreen.OnEnter(context);
             
-            Debug.Log($"[ScreenManager] Transitioned to {state}");
+            Debug.Log($"[ScreenManager] Transitioned to {screenName}");
         }
         
         /// <summary>
@@ -177,23 +177,9 @@ namespace CinematicShaders.UI.Screens
             // DEBUG: Log instance info
             ModFileLogger.Log($"[ScreenManager] AssignTextures - _currentScreen type: {_currentScreen?.GetType().Name}, hash: {_currentScreen?.GetHashCode()}");
             
-            // Assign layers 1 and 2 via SetTextures
-            switch (_currentScreen.State)
-            {
-                case ScreenState.Main:
-                    (_currentScreen as MainScreen)?.SetTextures(layer1Texture, layer2Texture);
-                    break;
-                case ScreenState.Scan:
-                    (_currentScreen as ScanScreen)?.SetTextures(layer1Texture, layer2Texture);
-                    break;
-                case ScreenState.ConfirmRescan:
-                    (_currentScreen as ConfirmRescanScreen)?.SetTextures(layer1Texture, layer2Texture);
-                    break;
-            }
-            
-            // Assign Layer 3 via interface (extensible - any screen can implement)
-            _currentScreen?.SetLayer3Texture(layer3Texture);
-            ModFileLogger.Log($"[ScreenManager] Layer 3 texture assigned to {_currentScreen.State}");
+            // Assign all textures via unified interface
+            _currentScreen?.SetTextures(layer1Texture, layer2Texture, layer3Texture);
+            ModFileLogger.Log($"[ScreenManager] Textures assigned to {_currentScreen.ScreenName}");
         }
         
         /// <summary>
