@@ -95,7 +95,7 @@ namespace CinematicShaders.UI.Screens
         /// Set the Layer 3 texture for single-texture rendering.
         /// Supports deferred assignment if called before SetElements.
         /// </summary>
-        public void SetLayer3Texture(RenderTexture layer3Texture)
+        public override void SetLayer3Texture(RenderTexture layer3Texture)
         {
             ModFileLogger.Log($"[MainScreen] SetLayer3Texture ENTER - instance {GetHashCode()}, layer3Texture is {(layer3Texture != null ? "valid" : "NULL")}, _elementLayer is {(_elementLayer != null ? "set" : "NULL")}");
             
