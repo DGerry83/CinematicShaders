@@ -553,6 +553,9 @@ namespace CinematicShaders.UI.Screens
             _elementLayer?.SetElementText("const_value", star.Constellation);
             _elementLayer?.SetElementText("selected_star", star.Name);
             
+            // Reset animation states FIRST so adapter allows re-animation
+            _elementLayer?.ResetAllAnimationStates();
+            
             // Notify ElementLayer of content changes for animation
             var changedIds = _elementLayer?.OnContentChanged(new[] { 
                 "hip_value", "name_value", "distance_value", 
@@ -590,9 +593,6 @@ namespace CinematicShaders.UI.Screens
             
             // Update element visibility to hide star-specific fields
             UpdateElementVisibility(hasStarSelected: false);
-            
-            // Reset animation states so next selection (even same star) animates fresh
-            _elementLayer?.ResetAllAnimationStates();
         }
     }
 }
