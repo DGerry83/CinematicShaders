@@ -196,7 +196,8 @@ namespace CinematicShaders.UI
         #region Initialization
         public void Initialize(IntPtr sharedTextSystem, float x, float y, 
             HolographicDisplaySize size = HolographicDisplaySize.Medium,
-            string customJsonPath = "", string defaultJsonPath = "")
+            string customJsonPath = "", string defaultJsonPath = "",
+            string catalogPath = "")
         {
             _instanceId = ++s_instanceCount;
             _textSystem = sharedTextSystem;
@@ -220,6 +221,12 @@ namespace CinematicShaders.UI
             // Subscribe to events for reactive updates
             StarCatalogStateManager.OnCatalogChanged += HandleCatalogChanged;
             StarCatalogStateManager.OnJsonStateChanged += HandleJsonStateChanged;
+            
+            // Initialize state manager with catalog path (required for JSON state tracking)
+            if (!string.IsNullOrEmpty(catalogPath))
+            {
+                StarCatalogStateManager.Initialize(catalogPath);
+            }
 
             CreateElements();
             InitializeTextures();

@@ -1094,6 +1094,9 @@ namespace CinematicShaders.UI.Tabs
                 string customPath = _selector?.CustomJsonPath ?? "";
                 string defaultPath = _selector?.DefaultJsonPath ?? "";
                 
+                // Get catalog path for state manager initialization (required for scan-to-main transition)
+                string catalogPath = StarfieldSettings.ActiveCatalogPath ?? "";
+                
                 // Map StarConsoleMode to HolographicDisplaySize
                 HolographicDisplaySize size = HolographicDisplaySize.Medium;
                 switch (_consoleMode)
@@ -1111,7 +1114,7 @@ namespace CinematicShaders.UI.Tabs
                 }
                 
                 // Initialize with selected size
-                _holographicDisplay.Initialize(textSystem, x, y, size, customPath, defaultPath);
+                _holographicDisplay.Initialize(textSystem, x, y, size, customPath, defaultPath, catalogPath);
                 
                 // Set selector for bidirectional sync
                 _holographicDisplay.SetSelector(_selector);
