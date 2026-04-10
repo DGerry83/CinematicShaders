@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using CinematicShaders.UI.Animation;
+using CinematicShaders.Core;
 
 namespace CinematicShaders.UI.Screens
 {
@@ -134,6 +135,47 @@ namespace CinematicShaders.UI.Screens
         {
             Layers.Add(layer);
             Layers.Sort((a, b) => a.Order.CompareTo(b.Order));
+        }
+        
+        /// <summary>
+        /// Get the grid color based on Kartographer settings.
+        /// Seafoam (0), Amber (1), White (2), Green (3)
+        /// </summary>
+        protected Color GetGridColor()
+        {
+            int colorIndex = StarfieldSettings.KartographerGridColor;
+            switch (colorIndex)
+            {
+                case 0: return new Color(0.1f, 0.9f, 0.7f);  // Seafoam
+                case 1: return new Color(1.0f, 0.65f, 0.0f); // Amber
+                case 2: return new Color(0.85f, 0.95f, 1.0f); // White
+                case 3: return new Color(0.25f, 1.0f, 0.0f);  // Green
+                default: return new Color(0.1f, 0.9f, 0.7f);  // Default seafoam
+            }
+        }
+        
+        /// <summary>
+        /// Get the grid color as a uint in ARGB format for native rendering.
+        /// </summary>
+        protected uint GetGridColorUint()
+        {
+            Color c = GetGridColor();
+            uint r = (uint)(c.r * 255) & 0xFF;
+            uint g = (uint)(c.g * 255) & 0xFF;
+            uint b = (uint)(c.b * 255) & 0xFF;
+            return 0xFF000000 | (r << 16) | (g << 8) | b;  // ARGB format (A=FF)
+        }
+        
+        /// <summary>
+        /// Convert mouse position to grid coordinates for hit detection.
+        /// </summary>
+        protected Vector2 MouseToGrid(Vector2 mousePos, Rect displayRect)
+        {
+            float localX = mousePos.x - displayRect.x;
+            float localY = mousePos.y - displayRect.y;
+            float gridX = localX / HolographicLayoutConfig.GRID_CELL_WIDTH;
+            float gridY = localY / HolographicLayoutConfig.GRID_CELL_HEIGHT;
+            return new Vector2(gridX, gridY);
         }
     }
 }

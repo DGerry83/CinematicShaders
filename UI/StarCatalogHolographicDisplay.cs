@@ -949,9 +949,16 @@ namespace CinematicShaders.UI
         #endregion
 
         #region Color Helpers
+        // NOTE: GetGridColor() and GetGridColorUint() have been consolidated to BaseScreen
+        // as protected methods. All screens now inherit these methods from BaseScreen.
+        // HolographicDisplay uses the StarfieldSettings directly for color lookup.
+        
+        /// <summary>
+        /// Get the grid color based on Kartographer settings.
+        /// Note: This is a local copy since HolographicDisplay doesn't inherit from BaseScreen.
+        /// </summary>
         private Color GetGridColor()
         {
-            // Use Kartographer grid colors
             int colorIndex = StarfieldSettings.KartographerGridColor;
             switch (colorIndex)
             {
@@ -963,6 +970,10 @@ namespace CinematicShaders.UI
             }
         }
 
+        /// <summary>
+        /// Get the grid color as a uint in ARGB format for native rendering.
+        /// Note: This is a local copy since HolographicDisplay doesn't inherit from BaseScreen.
+        /// </summary>
         private uint GetGridColorUint()
         {
             Color c = GetGridColor();
