@@ -100,6 +100,10 @@
     <Compile Include="UI\Screens\MainScreen.cs" />
     <Compile Include="UI\Screens\ScanScreen.cs" />
     <Compile Include="UI\Screens\ConfirmRescanScreen.cs" />
+    <Compile Include="UI\Content\IScreenContent.cs" />
+    <Compile Include="UI\Content\MainScreenContent.cs" />
+    <Compile Include="UI\Content\ScanScreenContent.cs" />
+    <Compile Include="UI\Content\ConfirmRescanScreenContent.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="KSPBuildTools">

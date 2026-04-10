@@ -5,6 +5,7 @@ using CinematicShaders.UI.Screens.Layers;
 using CinematicShaders.Native;
 using CinematicShaders.Core;
 using CinematicShaders.UI.Animation;
+using CinematicShaders.UI.Content;
 
 namespace CinematicShaders.UI.Screens
 {
@@ -65,14 +66,37 @@ namespace CinematicShaders.UI.Screens
         /// <param name="fontSize">Font size for text rendering</param>
         /// <param name="aspectRatio">Aspect ratio for layout (default 0.667 = 2:3)</param>
         public ScanScreen(string[] borderLines, string[] artLines, float fontSize, float aspectRatio = 0.667f)
+            : this(new CustomContent(borderLines, artLines), fontSize, aspectRatio)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new ScanScreen using an IScreenContent provider.
+        /// </summary>
+        /// <param name="content">Content provider for border and content lines</param>
+        /// <param name="fontSize">Font size for text rendering</param>
+        /// <param name="aspectRatio">Aspect ratio for layout (default 0.667 = 2:3)</param>
+        public ScanScreen(IScreenContent content, float fontSize, float aspectRatio = 0.667f)
         {
             ScreenName = "Scan";
             _fontSize = fontSize;
             _aspectRatio = aspectRatio;
             
-            // Add layers
-            AddLayer(new BorderLayer(borderLines));
-            AddLayer(new ContentLayer(artLines));
+            // Add layers using content
+            AddLayer(new BorderLayer(content.BorderLines));
+            AddLayer(new ContentLayer(content.ContentLines));
+        }
+
+        // Private helper class for backward compatibility
+        private class CustomContent : IScreenContent
+        {
+            public string[] BorderLines { get; }
+            public string[] ContentLines { get; }
+            public CustomContent(string[] border, string[] content)
+            {
+                BorderLines = border;
+                ContentLines = content;
+            }
         }
         
         /// <summary>

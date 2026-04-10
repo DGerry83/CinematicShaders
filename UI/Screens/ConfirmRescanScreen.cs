@@ -5,6 +5,7 @@ using CinematicShaders.UI.Screens.Layers;
 using CinematicShaders.Native;
 using CinematicShaders.Core;
 using CinematicShaders.UI.Animation;
+using CinematicShaders.UI.Content;
 
 namespace CinematicShaders.UI.Screens
 {
@@ -85,14 +86,37 @@ namespace CinematicShaders.UI.Screens
         /// <param name="fontSize">Font size for text rendering</param>
         /// <param name="aspectRatio">Aspect ratio for layout (default 0.667 = 2:3)</param>
         public ConfirmRescanScreen(string[] borderLines, string[] textLines, float fontSize, float aspectRatio = 0.667f)
+            : this(new CustomContent(borderLines, textLines), fontSize, aspectRatio)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new ConfirmRescanScreen using an IScreenContent provider.
+        /// </summary>
+        /// <param name="content">Content provider for border and content lines</param>
+        /// <param name="fontSize">Font size for text rendering</param>
+        /// <param name="aspectRatio">Aspect ratio for layout (default 0.667 = 2:3)</param>
+        public ConfirmRescanScreen(IScreenContent content, float fontSize, float aspectRatio = 0.667f)
         {
             ScreenName = "ConfirmRescan";
             _fontSize = fontSize;
             _aspectRatio = aspectRatio;
             
-            // Add layers
-            AddLayer(new BorderLayer(borderLines));
-            AddLayer(new ContentLayer(textLines));
+            // Add layers using content
+            AddLayer(new BorderLayer(content.BorderLines));
+            AddLayer(new ContentLayer(content.ContentLines));
+        }
+
+        // Private helper class for backward compatibility
+        private class CustomContent : IScreenContent
+        {
+            public string[] BorderLines { get; }
+            public string[] ContentLines { get; }
+            public CustomContent(string[] border, string[] content)
+            {
+                BorderLines = border;
+                ContentLines = content;
+            }
         }
         
         /// <summary>

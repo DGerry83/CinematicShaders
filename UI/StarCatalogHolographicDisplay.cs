@@ -3,6 +3,7 @@ using CinematicShaders.Native;
 using CinematicShaders.UI.Screens;
 using CinematicShaders.UI.Screens.Layers;
 using CinematicShaders.UI.Animation;
+using CinematicShaders.UI.Content;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -290,7 +291,7 @@ namespace CinematicShaders.UI
             float aspectRatio = 0.667f; // 2:3 aspect ratio for text rendering
             
             // Main screen
-            var mainScreen = new MainScreen(ASCII_BORDER_LINES, MAIN_LAYER2_LINES, _fontSize, aspectRatio);
+            var mainScreen = new MainScreen(MainScreenContent.Default, _fontSize, aspectRatio);
             ModFileLogger.Log($"[HolographicDisplay] Creating MainScreen instance {mainScreen.GetHashCode()}");
             
             // Pass elements to MainScreen for Layer 3 rendering
@@ -301,14 +302,14 @@ namespace CinematicShaders.UI
             _screenManager.RegisterScreen(mainScreen);
             
             // Scan screen
-            var scanScreen = new ScanScreen(ASCII_BORDER_LINES_SCAN, SCAN_LAYER2_LINES, _fontSize, aspectRatio);
+            var scanScreen = new ScanScreen(ScanScreenContent.Default, _fontSize, aspectRatio);
             scanScreen.OnScanClicked += () => {
                 OnRescanConfirmed?.Invoke();
             };
             _screenManager.RegisterScreen(scanScreen);
             
             // Confirm screen
-            var confirmScreen = new ConfirmRescanScreen(ASCII_BORDER_LINES_CONFIRM, CONFIRM_LAYER2_LINES, _fontSize, aspectRatio);
+            var confirmScreen = new ConfirmRescanScreen(ConfirmRescanScreenContent.Default, _fontSize, aspectRatio);
             confirmScreen.OnYesClicked += () => {
                 OnRescanConfirmed?.Invoke();
                 _screenManager.TransitionTo("Main");
