@@ -77,6 +77,30 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
+        /// Get the ElementLayer for external access (e.g., cursor state management).
+        /// </summary>
+        public ElementLayer GetElementLayer()
+        {
+            return _elementLayer;
+        }
+        
+        /// <summary>
+        /// Set cursor state in ElementLayer. Passes through to ElementLayer.SetCursorState().
+        /// </summary>
+        public void SetCursorState(string elementId, bool visible)
+        {
+            _elementLayer?.SetCursorState(elementId, visible);
+        }
+        
+        /// <summary>
+        /// Mark the ElementLayer as dirty to trigger a redraw.
+        /// </summary>
+        public void MarkElementLayerDirty()
+        {
+            _elementLayer?.MarkLayer3Dirty();
+        }
+        
+        /// <summary>
         /// Set the shared textures for rendering Layers 1 and 2.
         /// </summary>
         public void SetTextures(RenderTexture layer1Texture, RenderTexture layer2Texture)

@@ -975,8 +975,7 @@ namespace CinematicShaders.UI
 
         #region Edit Mode
         
-        // Edit state (legacy - kept for compatibility)
-        private bool _isEditing = false;
+        // Edit state - single source of truth via _editingElementId
         private string _originalName = "";
         
         /// <summary>
@@ -1005,20 +1004,18 @@ namespace CinematicShaders.UI
                 element.IsEditing = true;
                 element.IsDirty = true;
                 
-                // Legacy support for name_value
+                // Set original name for potential revert on cancel
                 if (elementId == "name_value")
                 {
-                    _isEditing = true;
                     _originalName = _editBuffer;
                     element.IsSelecting = true;
                     element.ShowCursor = true;
                 }
             }
             
-            // Pass cursor state to ElementLayer if available
+            // Pass cursor state to ElementLayer via public method
             var mainScreen = _screenManager?.CurrentScreen as MainScreen;
-            var elementLayer = mainScreen?.GetType().GetField("_elementLayer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(mainScreen) as ElementLayer;
-            elementLayer?.SetCursorState(_editingElementId, _cursorVisible);
+            mainScreen?.SetCursorState(_editingElementId, _cursorVisible);
             
             Debug.Log($"[HolographicDisplay] Entered edit mode for: {elementId}");
         }
@@ -1072,22 +1069,15 @@ namespace CinematicShaders.UI
                 element.IsDirty = true;
             }
             
-            // Legacy cleanup
-            if (_editingElementId == "name_value")
-            {
-                _isEditing = false;
-            }
-            
             Debug.Log($"[HolographicDisplay] Exited edit mode for {_editingElementId} (saved: {save})");
             
             _editingElementId = null;
             _editBuffer = "";
             _cursorVisible = false;
             
-            // Clear cursor state in ElementLayer
+            // Clear cursor state in ElementLayer via public method
             var mainScreen = _screenManager?.CurrentScreen as MainScreen;
-            var elementLayer = mainScreen?.GetType().GetField("_elementLayer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(mainScreen) as ElementLayer;
-            elementLayer?.SetCursorState(null, false);
+            mainScreen?.SetCursorState(null, false);
         }
         
         /// <summary>
@@ -1096,12 +1086,10 @@ namespace CinematicShaders.UI
         /// </summary>
         private void HandleEditInput()
         {
-            // Use _editingElementId as primary check for edit mode
-            if (string.IsNullOrEmpty(_editingElementId) && !_isEditing) return;
+            // Use _editingElementId as single source of truth for edit mode
+            if (string.IsNullOrEmpty(_editingElementId)) return;
             
-            // Determine effective editing element (backward compatibility)
-            string effectiveElementId = _editingElementId ?? (_isEditing ? "name_value" : null);
-            if (string.IsNullOrEmpty(effectiveElementId)) return;
+            string effectiveElementId = _editingElementId;
             
             Event e = Event.current;
             if (e.type != EventType.KeyDown) return;
@@ -1168,10 +1156,9 @@ namespace CinematicShaders.UI
                 element.IsDirty = true;
             }
             
-            // Trigger Layer 3 redraw via ElementLayer
+            // Trigger Layer 3 redraw via ElementLayer public method
             var mainScreen = _screenManager?.CurrentScreen as MainScreen;
-            var elementLayer = mainScreen?.GetType().GetField("_elementLayer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(mainScreen) as ElementLayer;
-            elementLayer?.MarkLayer3Dirty();
+            mainScreen?.MarkElementLayerDirty();
         }
         
         /// <summary>
@@ -1181,7 +1168,7 @@ namespace CinematicShaders.UI
         private void UpdateCursorBlink()
         {
             // Check if we're in edit mode
-            if (string.IsNullOrEmpty(_editingElementId) && !_isEditing) return;
+            if (string.IsNullOrEmpty(_editingElementId)) return;
             
             _cursorBlinkTimer += Time.deltaTime;
             
@@ -1193,10 +1180,9 @@ namespace CinematicShaders.UI
                 // Update display with new cursor state
                 UpdateEditDisplay();
                 
-                // Pass cursor state to ElementLayer
+                // Pass cursor state to ElementLayer via public method
                 var mainScreen = _screenManager?.CurrentScreen as MainScreen;
-                var elementLayer = mainScreen?.GetType().GetField("_elementLayer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(mainScreen) as ElementLayer;
-                elementLayer?.SetCursorState(_editingElementId, _cursorVisible);
+                mainScreen?.SetCursorState(_editingElementId, _cursorVisible);
             }
         }
         
@@ -1208,8 +1194,7 @@ namespace CinematicShaders.UI
             if (!string.IsNullOrEmpty(_editingElementId))
             {
                 var mainScreen = _screenManager?.CurrentScreen as MainScreen;
-                var elementLayer = mainScreen?.GetType().GetField("_elementLayer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(mainScreen) as ElementLayer;
-                elementLayer?.SetCursorState(_editingElementId, _cursorVisible);
+                mainScreen?.SetCursorState(_editingElementId, _cursorVisible);
             }
         }
         
@@ -2065,7 +2050,7 @@ namespace CinematicShaders.UI
                     ShowRescanConfirmation();
                     break;
                 case "save_button":
-                    if (_isEditing || !string.IsNullOrEmpty(_editingElementId))
+                    if (!string.IsNullOrEmpty(_editingElementId))
                     {
                         ExitEditMode(save: true);
                     }
@@ -2520,19 +2505,7 @@ namespace CinematicShaders.UI
             Debug.Log("[HolographicDisplay] Hiding SCAN screen, returning to Main");
         }
 
-        /* OBSOLETE: Scan screen drawing is now handled by ScanScreen class
-        private void DrawScanScreen()
-        {
-            // Handled by ScanScreen class via ScreenManager
-        }
-        */
 
-        /* OBSOLETE: Scan screen click handling is now done in ScanScreen.HandleClick()
-        private void HandleScanScreenClick()
-        {
-            // Handled by ScanScreen class
-        }
-        */
 
         #endregion
 
@@ -2560,31 +2533,7 @@ namespace CinematicShaders.UI
             return new Rect(startX, startY, boxWidth, boxHeight);
         }
         
-        /* OBSOLETE: Confirm screen interaction is now handled by ConfirmRescanScreen.UpdateInteraction()
-        private void HandleConfirmScreenInteraction()
-        {
-            // Handled by ConfirmRescanScreen class
-        }
-        */
-        
-        /* OBSOLETE: Confirm buttons rendering is now handled by ConfirmRescanScreen
-        private void RenderConfirmButtons()
-        {
-            // Handled by ConfirmRescanScreen class
-        }
-        */
-        
-        /* OBSOLETE: Button rendering is now handled by ConfirmRescanScreen
-        private void RenderConfirmButtonNormal(Rect rect, string text)
-        {
-            // Handled by ConfirmRescanScreen class
-        }
-        
-        private void RenderConfirmButtonHighlighted(Rect rect, string text)
-        {
-            // Handled by ConfirmRescanScreen class
-        }
-        */
+
         
         #endregion
 
@@ -2638,12 +2587,7 @@ namespace CinematicShaders.UI
             Debug.Log("[HolographicDisplay] Rescan confirmed - transitioning to Main");
         }
 
-        /* OBSOLETE: Confirmation dialog drawing is now handled by ConfirmRescanScreen class
-        private void DrawConfirmationDialog()
-        {
-            // Handled by ConfirmRescanScreen class via ScreenManager
-        }
-        */
+
 
         #endregion
 
@@ -2897,8 +2841,8 @@ namespace CinematicShaders.UI
         /// </summary>
         private void HandleKeyboardInput()
         {
-            // Edit mode has priority (check both legacy and new edit mode)
-            if (_isEditing || !string.IsNullOrEmpty(_editingElementId))
+            // Edit mode has priority
+            if (!string.IsNullOrEmpty(_editingElementId))
             {
                 HandleEditInput();
                 return;
