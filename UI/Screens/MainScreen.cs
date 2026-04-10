@@ -540,6 +540,10 @@ namespace CinematicShaders.UI.Screens
             {
                 _sequencer.OnElementsChanged(changedIds);
             }
+            
+            // Enable value field visibility and click zones now that we have a star selected
+            UpdateElementVisibility(hasStarSelected: true);
+            InitializeClickZones(hasStarSelected: true);
         }
 
         /// <summary>
