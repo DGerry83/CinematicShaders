@@ -40,10 +40,9 @@ namespace CinematicShaders.UI
             ["result_9"] = GridPosition.At(42, 10),
 
             // Bottom area
+            // NOTE: Buttons ([SAVE], [RESET], [RESCAN]) are drawn on Layer 2, not Layer 3
+            // They exist as HolographicTextElement objects for click detection only
             ["search_input"] = GridPosition.At(6, 11),
-            ["rescan_button"] = GridPosition.At(35, 10),
-            ["save_button"] = GridPosition.At(20, 8),
-            ["reset_button"] = GridPosition.At(32, 8),
         };
 
         #endregion
