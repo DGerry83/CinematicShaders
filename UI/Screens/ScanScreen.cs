@@ -276,26 +276,5 @@ namespace CinematicShaders.UI.Screens
             }
         }
         
-        /// <summary>
-        /// Legacy click detection method. Returns true if SCAN art was clicked.
-        /// </summary>
-        /// <param name="mousePos">Mouse position in screen coordinates</param>
-        /// <param name="displayRect">Display rectangle</param>
-        /// <param name="mouseDown">True if mouse button is pressed</param>
-        /// <returns>True if the SCAN area was clicked</returns>
-        /// <remarks>
-        /// This method is kept for backwards compatibility.
-        /// New code should use HandleMouse() for consistency with other screens.
-        /// </remarks>
-        public bool HandleClick(Vector2 mousePos, Rect displayRect, bool mouseDown)
-        {
-            // Only trigger on actual click, not hover
-            if (mouseDown && displayRect.Contains(mousePos))
-            {
-                OnScanClicked?.Invoke();
-                return true;
-            }
-            return false;
-        }
     }
 }

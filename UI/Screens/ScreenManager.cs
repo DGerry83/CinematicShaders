@@ -261,12 +261,9 @@ namespace CinematicShaders.UI.Screens
             var layer2Texture = GetLayerTexture(2);
             var layer3Texture = GetLayerTexture(3);
             
-            // DEBUG: Log instance info
-            ModFileLogger.Log($"[ScreenManager] AssignTextures - _currentScreen type: {_currentScreen?.GetType().Name}, hash: {_currentScreen?.GetHashCode()}");
-            
             // Assign all textures via unified interface
             _currentScreen?.SetTextures(layer1Texture, layer2Texture, layer3Texture);
-            ModFileLogger.Log($"[ScreenManager] Textures assigned to {_currentScreen.ScreenName}");
+
         }
         
         /// <summary>

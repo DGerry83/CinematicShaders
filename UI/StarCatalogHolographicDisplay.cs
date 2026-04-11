@@ -25,7 +25,6 @@ namespace CinematicShaders.UI
         private const float TITLE_BAR_HEIGHT = 30f;   // Height for PWR button and X
         private const int WINDOW_ID = 98767;          // Unique window ID
         
-        // DEBUG: Instance tracking
         private static int s_instanceCount = 0;
         private int _instanceId;
         #endregion
@@ -43,9 +42,6 @@ namespace CinematicShaders.UI
         private const float LAYER_2_DELAY = 1.0f;      // Start after Layer 1 (halved)
         private const float LAYER_3_DELAY = 4.0f;      // Start after Layer 2
         
-        // Legacy variable - keep for compatibility but use _layer1TypeOnProgress
-        private float _borderTypeOnProgress = 0f;
-        private const float BORDER_TYPE_ON_DURATION = 2.0f;
         
         // Cursor state for edit mode (Workstream C - Layer 3 refactor)
         private float _cursorBlinkTimer = 0f;
@@ -447,21 +443,6 @@ namespace CinematicShaders.UI
             _displayTexture.Create();
 
             // Create per-element textures
-            foreach (var element in _elements.Values)
-            {
-                CreateElementTexture(element);
-            }
-        }
-
-        private void CreateElementTexture(HolographicTextElement element)
-        {
-            // Element textures at fixed size
-            int width = Mathf.Max(64, Mathf.RoundToInt(element.Position4K.width));
-            int height = Mathf.Max(32, Mathf.RoundToInt(element.Position4K.height));
-
-            element.TextTexture = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32);
-            element.TextTexture.enableRandomWrite = true;
-            element.TextTexture.Create();
         }
         
         /// <summary>
@@ -475,17 +456,6 @@ namespace CinematicShaders.UI
                 _displayTexture.Release();
                 Destroy(_displayTexture);
                 _displayTexture = null;
-            }
-            
-            // Release element textures
-            foreach (var element in _elements.Values)
-            {
-                if (element.TextTexture != null)
-                {
-                    element.TextTexture.Release();
-                    Destroy(element.TextTexture);
-                    element.TextTexture = null;
-                }
             }
             
             // Release border texture
@@ -521,7 +491,7 @@ namespace CinematicShaders.UI
         
         private void OnGUI()
         {
-            // DEBUG: ModFileLogger.Log($"[DRAW-FLOW] OnGUI called, _isVisible={_isVisible}, instance={_instanceId}");
+
             if (!_isVisible) return;
             
             InitStyles();
@@ -553,10 +523,6 @@ namespace CinematicShaders.UI
             
             // Update display rect based on window position
             UpdateDisplayRect();
-            
-            // Handle mouse interaction for CRT area
-            // DISABLED: Legacy pixel-based click detection - now handled by ClickHandler grid-based system
-            // UpdateMouseInteraction();
             
             // Draw the CRT display inside the border
             DrawCRTDisplay();
@@ -624,7 +590,7 @@ namespace CinematicShaders.UI
         
         private void DrawCRTDisplay()
         {
-            // DEBUG: ModFileLogger.Log("[DRAW-FLOW] DrawCRTDisplay called");
+
             // Draw black background for CRT area (Layer 0)
             GUI.color = Color.black;
             Rect crtRect = new Rect(
@@ -662,7 +628,7 @@ namespace CinematicShaders.UI
             {
                 case "Scan":
                     var scanScreen = _screenManager.CurrentScreen as ScanScreen;
-                    scanScreen?.HandleClick(mousePos, _displayRect, mouseDown);
+                    scanScreen?.HandleMouse(mousePos, _displayRect, mouseDown, mouseUp);
                     break;
                     
                 case "ConfirmRescan":
@@ -686,7 +652,7 @@ namespace CinematicShaders.UI
                 _windowRect.width - BORDER_THICKNESS * 2,
                 _windowRect.height - TITLE_BAR_HEIGHT - BORDER_THICKNESS * 2
             );
-            // DEBUG: ModFileLogger.Log($"[DRAW] UpdateDisplayRect: _windowRect={_windowRect}, _displayRect={_displayRect}");
+
         }
         
         private void ClampWindowToScreen()
@@ -726,121 +692,6 @@ namespace CinematicShaders.UI
             GUI.color = Color.black;
             GUI.DrawTexture(_displayRect, Texture2D.whiteTexture);
             GUI.color = Color.white;
-        }
-
-        private void UpdateElements()
-        {
-            // DEBUG: ModFileLogger.Log($"[DIAG] UpdateElements: _displayPowered={_displayPowered}, element count={_elements?.Count}");
-            if (!_displayPowered) {
-                // DEBUG: ModFileLogger.Log("[DIAG] FAIL: not powered on");
-                return;
-            }
-
-            _powerOnTime += Time.deltaTime;
-            
-            // Update Layer 1 (Border) type-on animation
-            if (_layer1TypeOnProgress < 1f)
-            {
-                _layer1TypeOnProgress = Mathf.Clamp01(_powerOnTime / LAYER_1_DURATION);
-                _borderTypeOnProgress = _layer1TypeOnProgress;  // Keep legacy in sync
-                InvalidateBorder();  // Mark border dirty to re-render
-            }
-            
-            // Update Layer 2 (Labels) type-on animation - starts after Layer 1
-            if (_powerOnTime >= LAYER_2_DELAY && _layer2TypeOnProgress < 1f)
-            {
-                float layer2LocalTime = _powerOnTime - LAYER_2_DELAY;
-                _layer2TypeOnProgress = Mathf.Clamp01(layer2LocalTime / LAYER_2_DURATION);
-                InvalidateLayer2();  // Mark Layer 2 dirty to re-render
-            }
-
-            foreach (var element in _elements.Values)
-            {
-                // DEBUG: ModFileLogger.Log($"[DIAG] Element {element.ElementId}: IsDirty={element.IsDirty}, IsVisible={element.IsVisible}, TypeOnProgress={element.TypeOnProgress}");
-
-                // Update type-on animation (only for visible elements)
-                if (element.IsVisible && _powerOnTime >= element.TypeOnDelay && element.TypeOnProgress < 1f)
-                {
-                    float localTime = _powerOnTime - element.TypeOnDelay;
-                    element.TypeOnProgress = Mathf.Clamp01(localTime / TYPE_ON_DURATION);
-                    element.IsDirty = true;
-                }
-
-                // Re-render if dirty (only during Repaint to avoid GPU sync issues)
-                if (element.IsDirty && element.IsVisible && Event.current.type == EventType.Repaint)
-                {
-                    // Use two-pass selection rendering for selected elements
-                    if (element.IsSelected)
-                    {
-                        RenderSelectedElement(element);
-                    }
-                    else
-                    {
-                        RenderElement(element);
-                    }
-                    element.IsDirty = false;
-                }
-            }
-        }
-
-        private void RenderElement(HolographicTextElement element)
-        {
-            // DEBUG: ModFileLogger.Log($"[RENDER] RenderElement called for {element.ElementId}");
-            // DEBUG: ModFileLogger.Log($"[DIAG] RenderElement {element.ElementId}: _textSystem={_textSystem != IntPtr.Zero}");
-            if (_textSystem == IntPtr.Zero) {
-                // DEBUG: ModFileLogger.Log($"[DIAG] FAIL: _textSystem is null");
-                return;
-            }
-            
-            // DEBUG: ModFileLogger.Log($"[DIAG] {element.ElementId}: TextTexture={element.TextTexture != null}");
-            if (element.TextTexture == null) {
-                // DEBUG: ModFileLogger.Log($"[DIAG] FAIL: TextTexture is null");
-                return;
-            }
-
-            // Get text to render (with type-on truncation)
-            string text = GetDisplayText(element);
-            // DEBUG: ModFileLogger.Log($"[DIAG] {element.ElementId}: text='{text}', length={text?.Length}");
-            if (string.IsNullOrEmpty(text)) {
-                // DEBUG: ModFileLogger.Log($"[DIAG] FAIL: text is empty");
-                return;
-            }
-
-            // Get CRT color (custom mapped for display)
-            uint color = CinematicShadersUIResources.Colors.CRTColors.GetColorUint(StarfieldSettings.KartographerGridColor);
-
-            // Layout text in native system
-            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, text, _fontSize, 
-                color, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
-            // DEBUG: ModFileLogger.Log($"[DIAG] {element.ElementId}: glyphCount={glyphCount}");
-            if (glyphCount <= 0) {
-                // DEBUG: ModFileLogger.Log($"[DIAG] FAIL: glyphCount <= 0");
-                return;
-            }
-
-            // DEBUG: ModFileLogger.Log($"[DIAG] {element.ElementId}: Calling CR_TextDispatch");
-
-            // Render to texture with proper active texture handling
-            RenderTexture prevActive = RenderTexture.active;
-            try
-            {
-                RenderTexture.active = element.TextTexture;
-                
-                // Clear texture
-                GL.Clear(true, true, Color.clear);
-                
-                // Dispatch to render - texture must be active for this
-                StarfieldNative.CR_TextDispatch(
-                    _textSystem,
-                    element.TextTexture.GetNativeTexturePtr(),
-                    glyphCount,
-                    element.TextTexture.width,
-                    element.TextTexture.height);
-            }
-            finally
-            {
-                RenderTexture.active = prevActive;
-            }
         }
 
         private string GetDisplayText(HolographicTextElement element)
@@ -897,65 +748,6 @@ namespace CinematicShaders.UI
             return text.Length;
         }
 
-        private void DrawElements()
-        {
-            // DIAGNOSTIC: Log entry point
-            // DEBUG: ModFileLogger.Log($"[DRAW] DrawElements called, _elements count={_elements?.Count}, _displayRect={_displayRect}");
-            // DEBUG: ModFileLogger.Log($"[DRAW] GUI.matrix={GUI.matrix}");
-            
-            if (!_displayPowered) {
-                // DEBUG: ModFileLogger.Log("[DRAW] DrawElements: not powered, returning");
-                return;
-            }
-            
-            int visibleCount = 0;
-            foreach (var element in _elements.Values)
-            {
-                // DIAGNOSTIC: Log element state
-                // DEBUG: ModFileLogger.Log($"[DRAW] Element {element.ElementId}: Position4K={element.Position4K}, IsVisible={element.IsVisible}, IsDirty={element.IsDirty}");
-                
-                if (!element.IsVisible) continue;
-                if (element.TextTexture == null) continue;
-                
-                visibleCount++;
-
-                // Use original Y position - flipping is done via UV coordinates
-                Rect screenPos = new Rect(
-                    _displayRect.x + element.Position4K.x,   // ADD display offset
-                    _displayRect.y + element.Position4K.y,   // ADD display offset
-                    element.Position4K.width,
-                    element.Position4K.height
-                );
-
-                // Calculate what the CORRECT position should be (for comparison)
-                Rect correctScreenPos = new Rect(
-                    _displayRect.x + element.Position4K.x,
-                    _displayRect.y + element.Position4K.y,
-                    element.Position4K.width,
-                    element.Position4K.height
-                );
-                
-                // DIAGNOSTIC: Log final screen position before draw
-                // DEBUG: ModFileLogger.Log($"[DRAW] Drawing {element.ElementId} at screenPos={screenPos}, correctPos SHOULD BE={correctScreenPos}, textureSize={element.TextTexture.width}x{element.TextTexture.height}");
-                // DEBUG: ModFileLogger.Log($"[DRAW] _displayRect.x={_displayRect.x}, _displayRect.y={_displayRect.y}, Position4K.x={element.Position4K.x}, Position4K.y={element.Position4K.y}");
-
-                // Flip texture vertically via UV coordinates
-                // Only draw during Repaint event
-                if (Event.current.type == EventType.Repaint)
-                {
-                    Graphics.DrawTexture(
-                        screenPos,              // dest rect
-                        element.TextTexture,    // source texture (already has Kartographer color baked in)
-                        new Rect(0, 1, 1, -1),  // source UVs: flip Y
-                        0, 0, 0, 0,             // border widths
-                        Color.white,            // Full color - texture has grid color baked in
-                        null                    // material
-                    );
-                }
-            }
-            
-            // DEBUG: ModFileLogger.Log($"[DRAW] DrawElements complete, drew {visibleCount} visible elements");
-        }
         #endregion
 
         #region Color Helpers
@@ -1595,7 +1387,6 @@ namespace CinematicShaders.UI
 
         private void TogglePower()
         {
-            // DEBUG: ModFileLogger.Log($"[DIAG] TogglePower: current={_displayPowered}");
             if (_displayPowered)
             {
                 PowerOff();
@@ -1851,18 +1642,6 @@ namespace CinematicShaders.UI
                 Destroy(_displayTexture);
             }
 
-            foreach (var element in _elements.Values)
-            {
-                if (element.TextTexture != null)
-                {
-                    element.TextTexture.Release();
-                    Destroy(element.TextTexture);
-                }
-            }
-
-            // Release highlight texture cache if allocated
-            ReleaseHighlightCache();
-
             // Release border texture
             if (_borderTexture != null)
             {
@@ -1899,126 +1678,7 @@ namespace CinematicShaders.UI
         }
         #endregion
 
-        #region Selection Rendering
-
-        // Cache for highlight textures (avoid per-frame allocation)
-        private RenderTexture _cachedHighlightTexture = null;
-        private Vector2 _cachedHighlightSize = Vector2.zero;
-
-        /// <summary>
-        /// Render an element with selection highlight (two-pass: highlight background + black text)
-        /// </summary>
-        private void RenderSelectedElement(HolographicTextElement element)
-        {
-            if (_textSystem == IntPtr.Zero) return;
-            if (element.TextTexture == null) return;
-
-            // Get text to render
-            string text = GetDisplayText(element);
-            if (string.IsNullOrEmpty(text)) return;
-
-            // Pass 1: Draw highlight background to a temp texture
-            RenderTexture highlightTex = GetHighlightTexture(element);
-            RenderHighlightBackground(highlightTex, element);
-
-            // Pass 2: Render text in BLACK color
-            uint blackColor = 0xFF000000;  // ARGB black
-
-            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, text, _fontSize, 
-                blackColor, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
-            if (glyphCount <= 0) return;
-
-            // Clear element texture
-            RenderTexture.active = element.TextTexture;
-            GL.Clear(true, true, Color.clear);
-            // REMOVED: RenderTexture.active = null;  // Keep active for compositing
-
-            // First draw the highlight background (now renders to active RT) - only during Repaint
-            if (Event.current.type == EventType.Repaint)
-            {
-                Graphics.DrawTexture(
-                    new Rect(0, 0, element.TextTexture.width, element.TextTexture.height),
-                    highlightTex,
-                    new Rect(0, 0, 1, 1),
-                    0, 0, 0, 0,
-                    new Color(1, 1, 1, 1));
-            }
-
-            // Then render black text on top (also uses active RT via native UAV)
-            StarfieldNative.CR_TextDispatch(
-                _textSystem,
-                element.TextTexture.GetNativeTexturePtr(),
-                glyphCount,
-                element.TextTexture.width,
-                element.TextTexture.height);
-
-            // NOW clear active RT after all operations complete
-            RenderTexture.active = null;
-
-            ReleaseHighlightTexture(highlightTex);
-        }
-
-        /// <summary>
-        /// Create or get a temporary render texture for highlight background
-        /// </summary>
-        private RenderTexture GetHighlightTexture(HolographicTextElement element)
-        {
-            int width = Mathf.Max(64, Mathf.RoundToInt(element.Position4K.width));
-            int height = Mathf.Max(32, Mathf.RoundToInt(element.Position4K.height));
-
-            // Check if we can reuse cached texture
-            if (_cachedHighlightTexture != null &&
-                _cachedHighlightSize.x == width &&
-                _cachedHighlightSize.y == height)
-            {
-                return _cachedHighlightTexture;
-            }
-
-            // Release old cached texture if size changed
-            ReleaseHighlightCache();
-
-            // Create new texture
-            _cachedHighlightTexture = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32);
-            _cachedHighlightTexture.enableRandomWrite = true;
-            _cachedHighlightTexture.Create();
-            _cachedHighlightSize = new Vector2(width, height);
-
-            return _cachedHighlightTexture;
-        }
-
-        private void ReleaseHighlightTexture(RenderTexture tex)
-        {
-            // Texture is cached, don't release immediately
-            // It will be reused or cleaned up in OnDestroy
-        }
-
-        private void ReleaseHighlightCache()
-        {
-            if (_cachedHighlightTexture != null)
-            {
-                _cachedHighlightTexture.Release();
-                Destroy(_cachedHighlightTexture);
-                _cachedHighlightTexture = null;
-                _cachedHighlightSize = Vector2.zero;
-            }
-        }
-
-        /// <summary>
-        /// Render the colored highlight background
-        /// </summary>
-        private void RenderHighlightBackground(RenderTexture target, HolographicTextElement element)
-        {
-            RenderTexture.active = target;
-
-            // Clear to highlight color (grid color at 30% opacity)
-            Color highlightColor = GetGridColor();
-            highlightColor.a = 0.3f;
-            GL.Clear(true, true, highlightColor);
-
-            RenderTexture.active = null;
-        }
-
-        #endregion
+        
 
         #region Mouse Interaction
 
@@ -2042,61 +1702,6 @@ namespace CinematicShaders.UI
             );
 
             return screenPos.Contains(_mousePosition);
-        }
-
-        /// <summary>
-        /// Update mouse state and handle hover/click
-        /// </summary>
-        private void UpdateMouseInteraction()
-        {
-            // Get mouse position (Unity GUI coordinates: top-left origin)
-            _mousePosition = Event.current.mousePosition;
-
-            // Find hovered element
-            HolographicTextElement newHovered = null;
-
-            foreach (var element in _elements.Values)
-            {
-                if (IsClickable(element) && IsMouseOverElement(element))
-                {
-                    newHovered = element;
-                    break;
-                }
-            }
-
-            // Handle hover change
-            if (newHovered != _hoveredElement)
-            {
-                // Clear old hover
-                if (_hoveredElement != null)
-                {
-                    _hoveredElement.IsSelected = false;
-                    _hoveredElement.IsDirty = true;
-                }
-
-                // Set new hover
-                _hoveredElement = newHovered;
-                if (_hoveredElement != null)
-                {
-                    _hoveredElement.IsSelected = true;
-                    _hoveredElement.IsDirty = true;
-                }
-            }
-
-            // Handle mouse down/up for click detection
-            if (Event.current.type == EventType.MouseDown && Event.current.button == 0)
-            {
-                _pressedElement = _hoveredElement;
-            }
-            else if (Event.current.type == EventType.MouseUp && Event.current.button == 0)
-            {
-                if (_pressedElement != null && _pressedElement == _hoveredElement)
-                {
-                    // Click detected
-                    OnElementClicked(_pressedElement);
-                }
-                _pressedElement = null;
-            }
         }
 
         /// <summary>
@@ -3016,12 +2621,6 @@ namespace CinematicShaders.UI
         private void HandleKeyboardInput()
         {
             Event e = Event.current;
-            
-            // DEBUG: Log all keyboard events
-            if (e.isKey && e.type == EventType.KeyDown)
-            {
-                ModFileLogger.Log($"[SearchDebug] KeyDown: key={e.keyCode}, char='{e.character}', type={e.type}, editingMode={_editingElementId ?? "null"}");
-            }
             
             // Edit mode has priority
             if (!string.IsNullOrEmpty(_editingElementId))

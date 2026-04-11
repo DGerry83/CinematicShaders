@@ -44,7 +44,6 @@ namespace CinematicShaders.UI
         public Rect ScaledPosition(float scaleFactor) => ScaleRect(Position4K, scaleFactor);
 
         // Rendering
-        public RenderTexture TextTexture;
         public bool IsDirty = true;    // Needs re-render
 
         // Selection state (for editable)
@@ -114,18 +113,6 @@ namespace CinematicShaders.UI
             return fullText.Substring(0, visibleChars);
         }
 
-        /// <summary>
-        /// Release the render texture if allocated
-        /// </summary>
-        public void ReleaseTexture()
-        {
-            if (TextTexture != null)
-            {
-                TextTexture.Release();
-                Object.Destroy(TextTexture);
-                TextTexture = null;
-            }
-        }
 
         // ============================================================================
         // NEW: Grid-based positioning (primary) - Added at end per Scope A contract

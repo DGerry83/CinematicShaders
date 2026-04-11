@@ -93,7 +93,6 @@
     <Compile Include="UI\Animation\IAnimatableElement.cs" />
     <Compile Include="UI\Animation\AnimationController.cs" />
     <Compile Include="UI\Animation\Sequencer.cs" />
-    <Compile Include="UI\Screens\ScreenState.cs" />
     <Compile Include="UI\Screens\ILayer.cs" />
     <Compile Include="UI\Screens\IScreen.cs" />
     <Compile Include="UI\Screens\ScreenTransitionContext.cs" />

@@ -199,11 +199,6 @@ namespace CinematicShaders.UI.Screens
             OnLayer2Complete -= StartLayer3Animation;
             
             _elementLayer?.SetElementVisibility(false);
-            
-            // DISABLED: Don't clear click zones on exit - screen may still be active
-            // _clickHandler.SetZones(new List<ClickZone>());
-            // Box drawing disabled - needs proper struct toolkit implementation
-            // StarfieldNative.CR_DrawCRTBox(0, 0, 0, 0, 0, 0, 0);
         }
         
         /// <summary>

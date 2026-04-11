@@ -251,14 +251,6 @@ namespace CinematicShaders.UI.Screens.Layers
             
             _textSystem = textSystem;
             
-            // DIAGNOSTIC: (Disabled) Log layer3Progress on first few frames and at key intervals
-            // if (layer3Progress < 1.0f || _isTextureDirty)
-            // {
-            //     ModFileLogger.Log($"[ElementLayer] RenderToTexture - layer3Progress={layer3Progress:F3}, _isTextureDirty={_isTextureDirty}");
-            // }
-            
-            // Global character-based animation
-            // Layer3Progress (0-1) represents position through the entire character stream
             if (layer3Progress > 0)
             {
                 DistributeGlobalProgressAcrossElements(layer3Progress);
@@ -351,18 +343,7 @@ namespace CinematicShaders.UI.Screens.Layers
                 }
             }
             
-            if (hasChanges && globalProgress < 1.0f)
-            {
-                // DIAGNOSTIC: (Disabled) Log global progress
-                // ModFileLogger.Log($"[ElementLayer] Global progress {globalProgress:F3}: {visibleCharCount}/{totalChars} chars visible");
-                
-                // DIAGNOSTIC: (Disabled) Log first few elements' progress
-                // for (int i = 0; i < Mathf.Min(3, sortedElements.Count); i++)
-                // {
-                //     var elem = sortedElements[i];
-                //     ModFileLogger.Log($"[ElementLayer]   {elem.ElementId}: TypeOnProgress={elem.TypeOnProgress:F3}, text='{elem.FullDisplayText}'");
-                // }
-            }
+
         }
         
         /// <summary>
