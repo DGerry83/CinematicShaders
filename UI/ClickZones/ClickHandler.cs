@@ -27,6 +27,10 @@ namespace CinematicShaders.UI.ClickZones
             _hoveredZone = null;
         }
         
+        // DEBUG: Track last logged position to avoid spam
+        private Vector2 _lastLoggedPos = Vector2.zero;
+        private string _lastLoggedZone = null;
+        
         /// <summary>
         /// Update hit detection and draw hover highlight.
         /// Supports both UV-based and grid-based zones.
@@ -38,8 +42,27 @@ namespace CinematicShaders.UI.ClickZones
             
             Vector2 mousePos = Event.current.mousePosition;
             
+            // DEBUG: Log grid position when mouse moves significantly or on click
+            bool shouldLog = false;
+            if (Vector2.Distance(mousePos, _lastLoggedPos) > 50f)
+            {
+                shouldLog = true;
+                _lastLoggedPos = mousePos;
+            }
+            
             // Try grid-based hit detection first (more precise)
-            ClickZone newHovered = FindZoneByGrid(mousePos, displayRect);
+            ClickZone newHovered = FindZoneByGrid(mousePos, displayRect, shouldLog);
+            
+            // DEBUG: Log zone detection
+            if (shouldLog || (Event.current.type == EventType.MouseUp && Event.current.button == 0))
+            {
+                string zoneName = newHovered?.ElementId ?? "none";
+                if (zoneName != _lastLoggedZone || Event.current.type == EventType.MouseUp)
+                {
+                    _lastLoggedZone = zoneName;
+                    ModFileLogger.Log($"[ClickHandler] Mouse at screen ({mousePos.x:F0},{mousePos.y:F0}), zone: {zoneName}, event: {Event.current.type}");
+                }
+            }
             
             // Fallback to UV if grid detection fails
             if (newHovered == null)
@@ -74,14 +97,24 @@ namespace CinematicShaders.UI.ClickZones
         /// Find zone using grid-based coordinates (more precise alignment).
         /// Uses integer comparisons to avoid float precision issues.
         /// </summary>
-        private ClickZone FindZoneByGrid(Vector2 mousePos, Rect displayRect)
+        private ClickZone FindZoneByGrid(Vector2 mousePos, Rect displayRect, bool logDebug = false)
         {
+            float localX = mousePos.x - displayRect.x;
+            float localY = mousePos.y - displayRect.y;
+            
             GridPosition gridPos = TerminalGridConfig.PixelToGrid(
-                mousePos.x - displayRect.x,
-                mousePos.y - displayRect.y,
+                localX,
+                localY,
                 displayRect.width,
                 displayRect.height
             );
+            
+            // DEBUG: Log grid conversion
+            if (logDebug)
+            {
+                float cellHeight = displayRect.height / TerminalGridConfig.GRID_ROWS;
+                ModFileLogger.Log($"[ClickHandler] Pixel ({localX:F1},{localY:F1}) in rect {displayRect.height:F0}h -> Grid ({gridPos.Column},{gridPos.Row}), cellHeight={cellHeight:F2}");
+            }
             
             foreach (var zone in _zones)
             {
@@ -99,6 +132,11 @@ namespace CinematicShaders.UI.ClickZones
                     if (gridPos.Column >= zoneLeft && gridPos.Column < zoneRight &&
                         gridPos.Row >= zoneTop && gridPos.Row < zoneBottom)
                     {
+                        // DEBUG: Log zone hit
+                        if (logDebug)
+                        {
+                            ModFileLogger.Log($"[ClickHandler] HIT zone {zone.ElementId} at grid ({gridPos.Column},{gridPos.Row}), zone rows {zoneTop}-{zoneBottom}");
+                        }
                         return zone;
                     }
                 }
