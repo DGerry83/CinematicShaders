@@ -190,10 +190,10 @@ namespace CinematicShaders.Core
 
             try
             {
-                // Build font path: ../PluginData/Fonts/Ac437_Rainbow100_re_66.ttf
+                // Build font path: ../PluginData/Fonts/AcPlus_Rainbow100_re_66.ttf
                 // C# DLL is in Plugins/, font is in PluginData/ at mod root level
                 string assemblyPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-                string fontPath = Path.GetFullPath(Path.Combine(assemblyPath, "..", "PluginData", "Fonts", "Ac437_Rainbow100_re_66.ttf"));
+                string fontPath = Path.GetFullPath(Path.Combine(assemblyPath, "..", "PluginData", "Fonts", "AcPlus_Rainbow100_re_66.ttf"));
 
                 if (!File.Exists(fontPath))
                 {

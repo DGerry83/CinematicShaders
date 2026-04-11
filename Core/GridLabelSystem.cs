@@ -123,7 +123,7 @@ namespace CinematicShaders.Core
         // Font configuration
         private const float DEFAULT_FONT_SIZE = 18f;
         private const int TEXTURE_SIZE = 256;
-        private const string FONT_NAME = "Ac437_Rainbow100_re_66.ttf";
+        private const string FONT_NAME = "AcPlus_Rainbow100_re_66.ttf";
         
 
         
@@ -170,7 +170,7 @@ namespace CinematicShaders.Core
         {
             if (_textSystem != IntPtr.Zero) return;
             
-            // Build font path: ../PluginData/Fonts/Ac437_Rainbow100_re_66.ttf
+            // Build font path: ../PluginData/Fonts/AcPlus_Rainbow100_re_66.ttf
             // C# DLL is in Plugins/, font is in PluginData/ at mod root level
             string assemblyPath = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
             string fontPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(assemblyPath, "..", "PluginData", "Fonts", FONT_NAME));

@@ -441,7 +441,7 @@ namespace CinematicShaders.Core
             try
             {
                 string assemblyPath = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-                string fontPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(assemblyPath, "..", "PluginData", "Fonts", "Ac437_Rainbow100_re_66.ttf"));
+                string fontPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(assemblyPath, "..", "PluginData", "Fonts", "AcPlus_Rainbow100_re_66.ttf"));
 
                 if (!System.IO.File.Exists(fontPath)) return;
 

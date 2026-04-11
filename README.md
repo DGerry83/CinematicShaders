@@ -117,7 +117,7 @@ any terms you choose.
 All navball icon assets(the sdf pngs and the svg source files in the assets\ folder) are licensed under the above MIT license terms.  You are free to use, modify, copy, distribute them as you wish without attribution.
 
 **Font**
-The DEC Rainbow 100 Font, Ac437_Rainbow100_re_66.ttf, found in the FONTS folder is licensed under CC-BY-SA-4.0 https://creativecommons.org/licenses/by-sa/4.0/ from 
+The DEC Rainbow 100 Font, AcPlus_Rainbow100_re_66.ttf, found in the FONTS folder is licensed under CC-BY-SA-4.0 https://creativecommons.org/licenses/by-sa/4.0/ from 
 https://int10h.org/oldschool-pc-fonts/  The Oldschool PC Font Resource.
 
 Under CC-BY-SA-4.0 You are free to:
