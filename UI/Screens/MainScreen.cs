@@ -342,12 +342,27 @@ namespace CinematicShaders.UI.Screens
         
         /// <summary>
         /// Called when a star is selected.
+        /// Resets Layer 3 animation for type-on effect when new star data is displayed.
         /// </summary>
         public void OnStarSelected(NamedStar star)
         {
             if (star == null) return;
             
-            // Simple: just set text. Animation happens automatically via TypeOnProgress.
+            ModFileLogger.Log($"[MainScreen] OnStarSelected called for HIP {star.HipparcosID} - Resetting Layer 3 animation");
+            ModFileLogger.Log($"[MainScreen] BEFORE reset: PowerOnTime={PowerOnTime:F3}, Layer3Progress={Layer3Progress:F3}");
+            
+            // CRITICAL FIX: Reset Layer 3 animation timing to trigger type-on effect
+            // This ensures text animates character-by-character instead of appearing instantly
+            PowerOnTime = Layer3Delay;  // Reset to start of Layer 3
+            Layer3Progress = 0f;        // Force progress to 0
+            
+            ModFileLogger.Log($"[MainScreen] AFTER reset: PowerOnTime={PowerOnTime:F3}, Layer3Progress={Layer3Progress:F3}");
+            
+            // Reset all element animations to 0 (this also happens in SetElementText, but doing it
+            // explicitly here ensures all elements are reset even if text doesn't change)
+            _elementLayer?.ResetAllElementAnimations();
+            
+            // Set text values - this will also call ResetAllElementAnimations() internally
             _elementLayer?.SetElementText("hip_value", star.HipparcosID.ToString());
             _elementLayer?.SetElementText("name_value", star.Name);
             _elementLayer?.SetElementText("distance_value", $"{star.DistanceLy:F1} LY");
@@ -359,6 +374,8 @@ namespace CinematicShaders.UI.Screens
             // Enable value field click zones
             UpdateClickZoneState(true);
             UpdateElementVisibility(true);
+            
+            ModFileLogger.Log($"[MainScreen] OnStarSelected complete - animation should start from 0");
         }
 
         /// <summary>
