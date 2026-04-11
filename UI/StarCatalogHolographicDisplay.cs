@@ -47,13 +47,6 @@ namespace CinematicShaders.UI
         private float _borderTypeOnProgress = 0f;
         private const float BORDER_TYPE_ON_DURATION = 2.0f;
         
-        // Splash screen state (pop-on/fade-out boot graphic)
-        private RenderTexture _splashTexture = null;
-        private float _splashStartTime = 0f;
-        private const float SPLASH_VISIBLE_DURATION = 0.75f;  // Solid time
-        private const float SPLASH_FADE_DURATION = 0.75f;     // Fade out time
-        private const float SPLASH_TOTAL_DURATION = 1.5f;     // Total boot graphic time
-        
         // Cursor state for edit mode (Workstream C - Layer 3 refactor)
         private float _cursorBlinkTimer = 0f;
         private bool _cursorVisible = true;
@@ -159,34 +152,6 @@ namespace CinematicShaders.UI
             "   [YES]                                            [NO]   ",
             "                                                           ",
             "                                                           "
-        };
-
-        // ============================================================================
-        // SPLASH SCREEN CONTENT - Pop-on/Fade-out boot graphic
-        // ============================================================================
-        // This is displayed instantly when PWR is clicked, stays visible for ~0.75s,
-        // then fades out over ~0.75s before Layer 1 border type-on begins.
-        // 
-        // INSTRUCTIONS: Fill in your ASCII art/logo below. Keep it 59 chars wide 
-        // (matching the grid) and 13 lines tall for consistency.
-        // 
-        // File location: UI/StarCatalogHolographicDisplay.cs
-        // Variable name: SPLASH_SCREEN_LINES
-        // ============================================================================
-        private static readonly string[] SPLASH_SCREEN_LINES = new string[]
-        {
-            @" ________   _________    ________      ________",
-            @"|\   ____\ |\___   ___\ |\   __  \    |\   __  \",
-            @"\ \  \___|_\|___ \  \_| \ \  \|\  \   \ \  \|\  \",
-            @" \ \_____  \    \ \  \   \ \   __  \   \ \   _  _\",
-            @"   \|____|\  \  __\ \  \ __\ \  \ \  \ __\ \  \\  \|",
-            @"     ____\_\  \|\__\ \__\\__\ \__\ \__\\__\ \__\\ _\|\__\",
-            @"    |\_________\|__|\|__\|__|\|__|\|__\|__|\|__|\|__\|__|",
-            @"    \|_________|System for Tabulation of Astrometric Records",
-            @"                ⠀⠹⡶⣤⢶⠃⠀⠀ ⡀⠀⠀⠀  ⢀",
-            @"                ⣠⣴⣷⡠⣽⣦⣄⡀ ⠀⠹⡶⣤⢶⠃",
-            @"                ⠀⠀⠈⡿⠀⠀⠀⠀ ⣠⣴⣷⡠⣽⣦⣄",
-            @"                ⠀⠀⠀⠁     ⠀⠀⠈⡿"
         };
 
         /// <summary>
@@ -345,6 +310,11 @@ namespace CinematicShaders.UI
                 OnRescanConfirmed?.Invoke();
             };
             _screenManager.RegisterScreen(scanScreen);
+            
+            // Splash screen (boot logo)
+            var splashScreen = new SplashScreen(_fontSize, aspectRatio);
+            splashScreen.OnSplashComplete += HandleSplashComplete;
+            _screenManager.RegisterScreen(splashScreen);
             
             // Confirm screen
             var confirmScreen = new ConfirmRescanScreen(ConfirmRescanScreenContent.Default, _fontSize, aspectRatio);
@@ -666,15 +636,8 @@ namespace CinematicShaders.UI
             GUI.DrawTexture(crtRect, Texture2D.whiteTexture);
             GUI.color = Color.white;
             
-            // Render splash screen (pop-on/fade-out boot graphic)
-            if (_displayPowered)
-            {
-                RenderSplashScreen();
-            }
-            
-            // Render current screen via ScreenManager (Layers 1, 2, and 3)
-            // Only show after splash starts fading to avoid overlap
-            if (_displayPowered && _screenManager != null && _powerOnTime > SPLASH_VISIBLE_DURATION)
+            // Render current screen via ScreenManager (SplashScreen, MainScreen, or ScanScreen)
+            if (_displayPowered && _screenManager != null)
             {
                 _screenManager.Render(_displayRect);
             }
@@ -710,105 +673,6 @@ namespace CinematicShaders.UI
                 case "Main":
                     // Main screen interactions handled separately via element system
                     break;
-            }
-        }
-        
-        /// <summary>
-        /// Render the splash screen (pop-on/fade-out boot graphic).
-        /// Shows instantly for 0.75s, then fades out over 0.75s.
-        /// </summary>
-        private void RenderSplashScreen()
-        {
-            float elapsed = _powerOnTime - _splashStartTime;
-            
-            // Only show during splash duration
-            if (elapsed < 0f || elapsed > SPLASH_TOTAL_DURATION)
-                return;
-            
-            // Calculate alpha: 1.0 for first 0.75s, then fade to 0
-            float alpha = 1.0f;
-            if (elapsed > SPLASH_VISIBLE_DURATION)
-            {
-                float fadeProgress = (elapsed - SPLASH_VISIBLE_DURATION) / SPLASH_FADE_DURATION;
-                alpha = Mathf.Clamp01(1.0f - fadeProgress);
-            }
-            
-            // Skip rendering if fully faded
-            if (alpha <= 0.01f)
-                return;
-            
-            // Ensure splash texture exists
-            if (_splashTexture == null)
-            {
-                InitializeSplashTexture();
-            }
-            
-            // Render splash texture with alpha
-            GUI.color = new Color(1f, 1f, 1f, alpha);
-            Graphics.DrawTexture(
-                _displayRect,
-                _splashTexture,
-                new Rect(0, 1, 1, -1),  // Flip Y for correct orientation
-                0, 0, 0, 0,
-                Color.white,
-                null
-            );
-            GUI.color = Color.white;
-        }
-        
-        /// <summary>
-        /// Initialize the splash screen render texture.
-        /// </summary>
-        private void InitializeSplashTexture()
-        {
-            Vector2 dimensions = HolographicLayoutConfig.GetDisplayDimensions(_displaySize);
-            int width = Mathf.RoundToInt(dimensions.x);
-            int height = Mathf.RoundToInt(dimensions.y);
-            
-            _splashTexture = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32);
-            _splashTexture.enableRandomWrite = true;
-            _splashTexture.Create();
-            
-            // Render splash text to texture
-            RenderSplashToTexture();
-        }
-        
-        /// <summary>
-        /// Render the splash screen text to the texture.
-        /// </summary>
-        private void RenderSplashToTexture()
-        {
-            if (_textSystem == IntPtr.Zero || _splashTexture == null) return;
-            
-            // Build splash text from lines
-            string splashText = string.Join("\n", SPLASH_SCREEN_LINES);
-            
-            uint color = GetGridColorUint();
-            float fontSize = _fontSize;
-            
-            // Layout the splash text
-            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, splashText, fontSize, 
-                color, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
-            
-            if (glyphCount <= 0) return;
-            
-            // Render to texture
-            RenderTexture prevActive = RenderTexture.active;
-            try
-            {
-                RenderTexture.active = _splashTexture;
-                GL.Clear(true, true, Color.clear);
-                
-                StarfieldNative.CR_TextDispatch(
-                    _textSystem,
-                    _splashTexture.GetNativeTexturePtr(),
-                    glyphCount,
-                    _splashTexture.width,
-                    _splashTexture.height);
-            }
-            finally
-            {
-                RenderTexture.active = prevActive;
             }
         }
         
@@ -1743,35 +1607,59 @@ namespace CinematicShaders.UI
             
             _displayPowered = true;
             _powerOnTime = 0f; // Reset power on time
-            _splashStartTime = 0f; // Reset splash timing
             
             // Reset AnimationController for fresh animations
             AnimationController.Instance.Reset();
             
-            // Check if JSON catalog exists
-            if (!HasJsonCatalog())
-            {
-                _screenManager?.TransitionTo("Scan");
-                Debug.Log("[HolographicDisplay] Power ON - No JSON catalog found, showing SCAN screen");
-                return;
-            }
+            // Determine target screen based on JSON availability
+            bool hasJson = HasJsonCatalog();
+            string targetScreen = hasJson ? "Main" : "Scan";
             
-            // Transition to Main screen
+            // Transition to Splash screen first - it will auto-transition to target
+            var context = new ScreenTransitionContext 
+            { 
+                IsInitialStartup = true,
+                HasStarSelected = _selectedStar != null,
+                TargetScreenName = targetScreen
+            };
+            _screenManager?.TransitionTo("Splash", context);
+            
+            Debug.Log($"[HolographicDisplay] Power ON - Splash screen, will transition to {targetScreen}");
+        }
+        
+        /// <summary>
+        /// Called when SplashScreen completes its animation.
+        /// Transitions to the target screen (Main or Scan based on JSON availability).
+        /// </summary>
+        private void HandleSplashComplete(string targetScreenName)
+        {
+            if (!_displayPowered || _screenManager == null)
+                return;
+            
             var context = new ScreenTransitionContext 
             { 
                 IsInitialStartup = true,
                 HasStarSelected = _selectedStar != null 
             };
-            _screenManager?.TransitionTo("Main", context);
             
-            // Initialize click zones for MainScreen
-            var mainScreen = _screenManager?.CurrentScreen as MainScreen;
-            mainScreen?.SetClickZones();
-            
-            // Notify subscribers that we're powered on (they should refresh data)
-            OnPoweredOn?.Invoke();
-            
-            Debug.Log("[HolographicDisplay] Power ON - Main screen with animation");
+            if (targetScreenName == "Main")
+            {
+                _screenManager.TransitionTo("Main", context);
+                
+                // Initialize click zones for MainScreen
+                var mainScreen = _screenManager.CurrentScreen as MainScreen;
+                mainScreen?.SetClickZones();
+                
+                // Notify subscribers that we're powered on
+                OnPoweredOn?.Invoke();
+                
+                Debug.Log("[HolographicDisplay] Splash complete - transitioned to Main");
+            }
+            else
+            {
+                _screenManager.TransitionTo("Scan");
+                Debug.Log("[HolographicDisplay] Splash complete - transitioned to Scan");
+            }
         }
         
         public void OnCatalogChanged()
@@ -1971,14 +1859,6 @@ namespace CinematicShaders.UI
                 _confirmBorderLabelsTexture = null;
             }
             
-            // Release splash texture
-            if (_splashTexture != null)
-            {
-                _splashTexture.Release();
-                Destroy(_splashTexture);
-                _splashTexture = null;
-            }
-
             // Shutdown ScreenManager
             _screenManager?.Shutdown();
             _screenManager = null;

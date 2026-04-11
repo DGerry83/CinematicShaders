@@ -104,6 +104,7 @@
     <Compile Include="UI\Screens\Layers\ElementLayer.cs" />
     <Compile Include="UI\Screens\MainScreen.cs" />
     <Compile Include="UI\Screens\ScanScreen.cs" />
+    <Compile Include="UI\Screens\SplashScreen.cs" />
     <Compile Include="UI\Screens\ConfirmRescanScreen.cs" />
     <Compile Include="UI\Content\IScreenContent.cs" />
     <Compile Include="UI\Content\MainScreenContent.cs" />
