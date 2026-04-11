@@ -699,38 +699,33 @@ namespace CinematicShaders.UI
                 _selector.ForceReloadJson();
                 
                 // Now refresh our star list from the reloaded data
-                var field = typeof(KartographerSelector).GetField("_namedStars", 
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                if (field != null)
+                var namedStars = StarCatalogStateManager.NamedStars;
+                if (namedStars != null)
                 {
-                    var namedStars = field.GetValue(_selector) as Dictionary<int, NamedStar>;
-                    if (namedStars != null)
+                    _allStars = namedStars.Values.OrderBy(s => s.Name).ToList();
+                    UpdateFilteredList();
+                    
+                    // Update the editor with the newly loaded star data
+                    if (hipId > 0)
                     {
-                        _allStars = namedStars.Values.OrderBy(s => s.Name).ToList();
-                        UpdateFilteredList();
-                        
-                        // Update the editor with the newly loaded star data
-                        if (hipId > 0)
+                        var updatedStar = _allStars.FirstOrDefault(s => s.HipparcosID == hipId);
+                        if (updatedStar != null)
                         {
-                            var updatedStar = _allStars.FirstOrDefault(s => s.HipparcosID == hipId);
-                            if (updatedStar != null)
-                            {
-                                _selectedStar = updatedStar;
-                                _originalName = updatedStar.Name;
-                                _editNameText = updatedStar.Name;
-                                
-                                Debug.Log($"[StarCatalogEditor] Refreshed after save: {updatedStar.Name} (HIP {hipId})");
+                            _selectedStar = updatedStar;
+                            _originalName = updatedStar.Name;
+                            _editNameText = updatedStar.Name;
                             
+                            Debug.Log($"[StarCatalogEditor] Refreshed after save: {updatedStar.Name} (HIP {hipId})");
+                        
                             // Re-select the star to trigger selection animation with new name
                             _selector.SelectStarByHipId(hipId);
-                            }
-                            else
-                            {
-                                // Star not found in reloaded data - use saved name as fallback
-                                Debug.LogWarning($"[StarCatalogEditor] Star HIP {hipId} not found after reload, using saved name");
-                                _editNameText = savedName;
-                                _originalName = savedName;
-                            }
+                        }
+                        else
+                        {
+                            // Star not found in reloaded data - use saved name as fallback
+                            Debug.LogWarning($"[StarCatalogEditor] Star HIP {hipId} not found after reload, using saved name");
+                            _editNameText = savedName;
+                            _originalName = savedName;
                         }
                     }
                 }
@@ -739,19 +734,12 @@ namespace CinematicShaders.UI
 
         private void RefreshStarList()
         {
-            // Use reflection to access private _namedStars field
-            if (_selector == null) return;
-            
-            var field = typeof(KartographerSelector).GetField("_namedStars", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            if (field != null)
+            // Get stars from StarCatalogStateManager
+            var namedStars = StarCatalogStateManager.NamedStars;
+            if (namedStars != null)
             {
-                var namedStars = field.GetValue(_selector) as Dictionary<int, NamedStar>;
-                if (namedStars != null)
-                {
-                    _allStars = namedStars.Values.OrderBy(s => s.Name).ToList();
-                    UpdateFilteredList();
-                }
+                _allStars = namedStars.Values.OrderBy(s => s.Name).ToList();
+                UpdateFilteredList();
             }
         }
         #endregion

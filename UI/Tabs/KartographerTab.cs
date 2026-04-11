@@ -1269,42 +1269,27 @@ namespace CinematicShaders.UI.Tabs
         }
         
         /// <summary>
-        /// Get the list of named stars from the selector
+        /// Get the list of named stars from StarCatalogStateManager
         /// </summary>
         private List<NamedStar> GetNamedStarsFromSelector()
         {
-            if (_selector == null) 
-            {
-                ModFileLogger.Log("[SearchDebug] GetNamedStarsFromSelector: _selector is NULL");
-                return new List<NamedStar>();
-            }
+            ModFileLogger.Log("[SearchDebug] GetNamedStarsFromSelector called");
             
-            ModFileLogger.Log($"[SearchDebug] GetNamedStarsFromSelector called, _selector={_selector.GetHashCode()}");
-            
-            // Use reflection to access private _namedStars field
-            var field = typeof(KartographerSelector).GetField("_namedStars", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            if (field != null)
+            // Get stars from StarCatalogStateManager (static property)
+            var namedStars = StarCatalogStateManager.NamedStars;
+            if (namedStars != null)
             {
-                var namedStars = field.GetValue(_selector) as Dictionary<int, NamedStar>;
-                if (namedStars != null)
+                ModFileLogger.Log($"[SearchDebug] StarCatalogStateManager.NamedStars has {namedStars.Count} entries");
+                if (namedStars.Count > 0)
                 {
-                    ModFileLogger.Log($"[SearchDebug] namedStars dictionary has {namedStars.Count} entries");
-                    if (namedStars.Count > 0)
-                    {
-                        var first = namedStars.Values.First();
-                        ModFileLogger.Log($"[SearchDebug] First star: HIP {first.HipparcosID}, Name='{first.Name}'");
-                    }
-                    return namedStars.Values.ToList();
+                    var first = namedStars.Values.First();
+                    ModFileLogger.Log($"[SearchDebug] First star: HIP {first.HipparcosID}, Name='{first.Name}'");
                 }
-                else
-                {
-                    ModFileLogger.Log("[SearchDebug] namedStars is NULL");
-                }
+                return namedStars.Values.ToList();
             }
             else
             {
-                ModFileLogger.Log("[SearchDebug] Could not find _namedStars field via reflection");
+                ModFileLogger.Log("[SearchDebug] StarCatalogStateManager.NamedStars is NULL");
             }
             return new List<NamedStar>();
         }
