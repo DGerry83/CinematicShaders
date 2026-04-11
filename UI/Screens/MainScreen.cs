@@ -221,11 +221,12 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
-        /// Handles zone click events.
+        /// Handles zone click events from ClickHandler (grid-based hit detection).
+        /// Fires OnElementClicked event which is subscribed to by HolographicDisplay.
         /// </summary>
         private void HandleZoneClicked(string elementId)
         {
-            Debug.Log($"[MainScreen] Clicked: {elementId}");
+            Debug.Log($"[MainScreen] ClickHandler zone clicked: {elementId}");
             OnElementClicked?.Invoke(elementId);
         }
         

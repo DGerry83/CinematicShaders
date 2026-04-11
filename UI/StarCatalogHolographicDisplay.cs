@@ -550,7 +550,8 @@ namespace CinematicShaders.UI
             UpdateDisplayRect();
             
             // Handle mouse interaction for CRT area
-            UpdateMouseInteraction();
+            // DISABLED: Legacy pixel-based click detection - now handled by ClickHandler grid-based system
+            // UpdateMouseInteraction();
             
             // Draw the CRT display inside the border
             DrawCRTDisplay();
