@@ -98,6 +98,10 @@ namespace CinematicShaders.UI.Screens
         /// </summary>
         protected virtual float Layer3Duration => 1.0f;
         
+        // Character-based animation constants (Phase 1: Layer 3 only)
+        protected const float CHARS_PER_SECOND = 60f;
+        protected const float MIN_TYPEON_DURATION = 0.5f;
+        
         // Layer 1/2 completion tracking
         
         /// <summary>
@@ -204,7 +208,11 @@ namespace CinematicShaders.UI.Screens
                 Layer2Progress = 0f;
                 
             if (PowerOnTime >= Layer3Delay)
-                Layer3Progress = Mathf.Clamp01((PowerOnTime - Layer3Delay) / Layer3Duration);
+            {
+                // Phase 1: Character-based duration for Layer 3
+                float layer3Duration = CalculateLayerDuration(3);
+                Layer3Progress = Mathf.Clamp01((PowerOnTime - Layer3Delay) / layer3Duration);
+            }
             else
                 Layer3Progress = 0f;
             
@@ -232,6 +240,24 @@ namespace CinematicShaders.UI.Screens
                 case 2: return Layer2Progress;
                 case 3: return Layer3Progress;
                 default: return 1f;
+            }
+        }
+        
+        /// <summary>
+        /// Calculates the animation duration for a specific layer based on content.
+        /// Override to implement character-based timing.
+        /// </summary>
+        /// <param name="layerOrder">The layer order (1, 2, or 3)</param>
+        /// <returns>Duration in seconds</returns>
+        protected virtual float CalculateLayerDuration(int layerOrder)
+        {
+            // Default implementation uses fixed durations
+            switch (layerOrder)
+            {
+                case 1: return Layer1Duration;
+                case 2: return Layer2Duration;
+                case 3: return Layer3Duration;
+                default: return MIN_TYPEON_DURATION;
             }
         }
         

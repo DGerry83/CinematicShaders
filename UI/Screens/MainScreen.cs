@@ -274,7 +274,7 @@ namespace CinematicShaders.UI.Screens
             // Render Layer 3: Elements
             if (_elementLayer != null && Layer3Progress > 0)
             {
-                _elementLayer.RenderToTexture(textSystem, displayRect, PowerOnTime);
+                _elementLayer.RenderToTexture(textSystem, displayRect, Layer3Progress);
             }
             
             // Handle clicks (layer-agnostic, draws box overlay)
@@ -307,6 +307,27 @@ namespace CinematicShaders.UI.Screens
         private void StartLayer3Animation()
         {
             Debug.Log("[MainScreen] Layer 2 complete, starting Layer 3 animation");
+        }
+        
+        /// <summary>
+        /// Calculate animation duration for a layer based on content.
+        /// Phase 1: Character-based timing for Layer 3 only.
+        /// </summary>
+        protected override float CalculateLayerDuration(int layerOrder)
+        {
+            switch (layerOrder)
+            {
+                case 1:
+                    return Layer1Duration; // Keep existing fixed duration
+                case 2:
+                    return Layer2Duration; // Keep existing fixed duration
+                case 3:
+                    // NEW: Character-based calculation for Layer 3
+                    var elementLayer = Layers.Count > 2 ? Layers[2] as ElementLayer : null;
+                    return elementLayer?.CalculateTypeOnDuration() ?? MIN_TYPEON_DURATION;
+                default:
+                    return MIN_TYPEON_DURATION;
+            }
         }
         
         /// <summary>

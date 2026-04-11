@@ -29,8 +29,9 @@ namespace CinematicShaders.UI.Screens.Layers
         private string[] _layer3ContentLines;
         private const int LAYER_3_LINE_COUNT = 17;
         
-        // Base delay for Layer 3 (when elements start animating)
-        private float _layer3Delay = 3.5f;
+        // Character-based animation constants
+        private const float CHARS_PER_SECOND = 60f;
+        private const float MIN_TYPEON_DURATION = 0.5f;
         
         // Cursor state
         private bool _cursorVisible = true;
@@ -82,10 +83,11 @@ namespace CinematicShaders.UI.Screens.Layers
         
         /// <summary>
         /// Set the Layer 3 delay for calculating element start times.
+        /// Deprecated: Now using normalized Layer3Progress from BaseScreen.
         /// </summary>
         public void SetLayer3Delay(float delay)
         {
-            _layer3Delay = delay;
+            // No longer used - progress is now passed directly from BaseScreen.Layer3Progress
         }
         
         /// <summary>
@@ -119,27 +121,91 @@ namespace CinematicShaders.UI.Screens.Layers
         }
         
         /// <summary>
-        /// Render all visible elements.
-        /// Advances TypeOnProgress automatically.
+        /// Count total visible non-space characters in all elements
         /// </summary>
-        public void RenderToTexture(IntPtr textSystem, Rect displayRect, float powerOnTime)
+        public int GetVisibleCharacterCount()
+        {
+            int count = 0;
+            foreach (var element in _elements)
+            {
+                if (element.IsVisible)
+                {
+                    string text = element.FullDisplayText;
+                    foreach (char c in text)
+                    {
+                        if (c != ' ') count++;
+                    }
+                }
+            }
+            return count;
+        }
+        
+        /// <summary>
+        /// Calculate type-on duration based on character count
+        /// </summary>
+        public float CalculateTypeOnDuration()
+        {
+            int charCount = GetVisibleCharacterCount();
+            float duration = charCount / CHARS_PER_SECOND;
+            return Mathf.Max(MIN_TYPEON_DURATION, duration);
+        }
+        
+        /// <summary>
+        /// Render all visible elements.
+        /// Uses Layer3Progress (0-1) for type-on animation.
+        /// </summary>
+        public void RenderToTexture(IntPtr textSystem, Rect displayRect, float layer3Progress)
         {
             if (textSystem == IntPtr.Zero || _layer3Texture == null) return;
             if (Event.current?.type != EventType.Repaint) return;
             
             _textSystem = textSystem;
             
-            // Advance animations
-            foreach (var element in _elements)
+            // Advance animations using normalized layer3Progress (0-1)
+            // Distribute progress across visible elements based on priority order
+            var visibleElements = _elements.FindAll(e => e.IsVisible);
+            if (visibleElements.Count > 0 && layer3Progress > 0)
             {
-                if (!element.IsVisible) continue;
+                // Sort by element ID for consistent ordering
+                visibleElements.Sort((a, b) => string.Compare(a.ElementId, b.ElementId, StringComparison.Ordinal));
                 
-                if (element.TypeOnProgress < 1.0f && powerOnTime >= element.TypeOnDelay)
+                int totalElements = visibleElements.Count;
+                float elementsProgress = layer3Progress * totalElements;
+                
+                for (int i = 0; i < visibleElements.Count; i++)
                 {
-                    float localTime = powerOnTime - element.TypeOnDelay;
-                    element.TypeOnProgress = Mathf.Clamp01(localTime / element.TypeOnDuration);
-                    element.IsDirty = true;
-                    _isTextureDirty = true;
+                    var element = visibleElements[i];
+                    float elementStart = i;
+                    float elementEnd = i + 1;
+                    
+                    if (elementsProgress >= elementEnd)
+                    {
+                        // Element fully animated
+                        if (element.TypeOnProgress < 1.0f)
+                        {
+                            element.TypeOnProgress = 1.0f;
+                            element.IsDirty = true;
+                            _isTextureDirty = true;
+                        }
+                    }
+                    else if (elementsProgress > elementStart)
+                    {
+                        // Element partially animated
+                        float localProgress = elementsProgress - elementStart;
+                        element.TypeOnProgress = Mathf.Clamp01(localProgress);
+                        element.IsDirty = true;
+                        _isTextureDirty = true;
+                    }
+                    else
+                    {
+                        // Element not yet started
+                        if (element.TypeOnProgress > 0)
+                        {
+                            element.TypeOnProgress = 0f;
+                            element.IsDirty = true;
+                            _isTextureDirty = true;
+                        }
+                    }
                 }
             }
             
