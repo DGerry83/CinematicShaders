@@ -392,7 +392,7 @@ namespace CinematicShaders.UI.Screens.Layers
             
             string fullText = string.Join("\n", _layer3ContentLines);
             
-            uint color = GetGridColorUint();
+            uint color = CinematicShadersUIResources.Colors.CRTColors.GetColorUint(StarfieldSettings.KartographerGridColor);
             int glyphCount = StarfieldNative.CR_TextLayoutEx(
                 _textSystem, 
                 fullText, 

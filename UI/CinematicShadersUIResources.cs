@@ -22,6 +22,52 @@ namespace CinematicShaders.UI
 
                 public static readonly Color[] All = { Seafoam, Amber, White, Green };
             }
+            
+            /// <summary>
+            /// CRT display colors - custom mapped from Kartographer grid color selection.
+            /// These may differ from the actual grid colors for visual consistency on the CRT display.
+            /// </summary>
+            public static class CRTColors
+            {
+                // Current test mapping:
+                // Seafoam selection -> RED
+                // Amber selection -> BLUE
+                // White selection -> GREEN
+                // Green selection -> MAGENTA
+                public static readonly Color Seafoam = new Color(1.0f, 0.0f, 0.0f);
+                public static readonly Color Amber = new Color(0.0f, 0.0f, 1.0f);
+                public static readonly Color White = new Color(0.0f, 1.0f, 0.0f);
+                public static readonly Color Green = new Color(1.0f, 0.0f, 1.0f);
+
+                public static readonly Color[] All = { Seafoam, Amber, White, Green };
+                
+                /// <summary>
+                /// Gets the CRT color based on the Kartographer grid color index.
+                /// </summary>
+                public static Color GetColor(int colorIndex)
+                {
+                    switch (colorIndex)
+                    {
+                        case 0: return Seafoam;
+                        case 1: return Amber;
+                        case 2: return White;
+                        case 3: return Green;
+                        default: return Seafoam;
+                    }
+                }
+                
+                /// <summary>
+                /// Gets the CRT color as a uint in ARGB format for native rendering.
+                /// </summary>
+                public static uint GetColorUint(int colorIndex)
+                {
+                    Color c = GetColor(colorIndex);
+                    uint r = (uint)(c.r * 255) & 0xFF;
+                    uint g = (uint)(c.g * 255) & 0xFF;
+                    uint b = (uint)(c.b * 255) & 0xFF;
+                    return 0xFF000000 | (r << 16) | (g << 8) | b;  // ARGB format (A=FF)
+                }
+            }
         }
         #endregion
 

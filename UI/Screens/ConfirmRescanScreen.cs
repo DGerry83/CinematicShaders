@@ -265,7 +265,7 @@ namespace CinematicShaders.UI.Screens
             if (Event.current == null || Event.current.type != EventType.Repaint)
                 return;
             
-            uint color = GetGridColorUint();
+            uint color = CinematicShadersUIResources.Colors.CRTColors.GetColorUint(StarfieldSettings.KartographerGridColor);
             
             // Render Layer 1: Border
             var borderLayer = Layers[0] as BorderLayer;

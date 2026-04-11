@@ -68,10 +68,7 @@ namespace CinematicShaders.UI.Screens
             @"    ____\_\  \|\__\ \__\\__\ \__\ \__\\__\ \__\\ _\|\__\",
             @"   |\_________\|__|\|__\|__|\|__|\|__\|__|\|__|\|__\|__|",
             @"   \|_________|System for Tabulation of Astrometric Records",
-            @"             ⠀⠹⡶⣤⢶⠃⠀⠀ ⡀⠀⠀⠀  ⢀",
-            @"             ⣠⣴⣷⡠⣽⣦⣄⡀ ⠀⠹⡶⣤⢶⠃",
-            @"             ⠀⠀⠈⡿⠀⠀⠀⠀ ⣠⣴⣷⡠⣽⣦⣄",
-            @"            ⠀⠀⠀⠁     ⠀⠀⠈⡿"
+            @"                                                       v1.0"
         };
         
         /// <summary>
@@ -175,7 +172,7 @@ namespace CinematicShaders.UI.Screens
             if (alpha <= 0.01f)
                 return;
             
-            uint color = GetGridColorUint();
+            uint color = CinematicShadersUIResources.Colors.CRTColors.GetColorUint(StarfieldSettings.KartographerGridColor);
             
             // Render Layer 2: Logo
             var contentLayer = Layers[0] as ContentLayer;
@@ -224,5 +221,6 @@ namespace CinematicShaders.UI.Screens
             uint b = (uint)(c.b * 255) & 0xFF;
             return 0xFF000000 | (r << 16) | (g << 8) | b;
         }
+        
     }
 }

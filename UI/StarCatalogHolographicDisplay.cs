@@ -806,8 +806,8 @@ namespace CinematicShaders.UI
                 return;
             }
 
-            // Get grid color
-            uint color = GetGridColorUint();
+            // Get CRT color (custom mapped for display)
+            uint color = CinematicShadersUIResources.Colors.CRTColors.GetColorUint(StarfieldSettings.KartographerGridColor);
 
             // Layout text in native system
             int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, text, _fontSize, 
@@ -987,6 +987,38 @@ namespace CinematicShaders.UI
         private uint GetGridColorUint()
         {
             Color c = GetGridColor();
+            uint r = (uint)(c.r * 255) & 0xFF;
+            uint g = (uint)(c.g * 255) & 0xFF;
+            uint b = (uint)(c.b * 255) & 0xFF;
+            return 0xFF000000 | (r << 16) | (g << 8) | b;  // ARGB format (A=FF)
+        }
+
+        /// <summary>
+        /// Gets the CRT display color based on Kartographer settings.
+        /// These are custom-tuned colors for the CRT text display that may differ
+        /// from the actual Kartographer grid colors for visual consistency.
+        /// Note: This is a local copy since HolographicDisplay doesn't inherit from BaseScreen.
+        /// </summary>
+        private Color GetCRTColor()
+        {
+            int colorIndex = StarfieldSettings.KartographerGridColor;
+            switch (colorIndex)
+            {
+                case 0: return new Color(1.0f, 0.0f, 0.0f);  // Seafoam -> RED (test)
+                case 1: return new Color(0.0f, 0.0f, 1.0f);  // Amber -> BLUE (test)
+                case 2: return new Color(0.0f, 1.0f, 0.0f);  // White -> GREEN (test)
+                case 3: return new Color(1.0f, 0.0f, 1.0f);  // Green -> MAGENTA (test)
+                default: return new Color(1.0f, 0.0f, 0.0f);  // Default -> RED
+            }
+        }
+
+        /// <summary>
+        /// Gets the CRT display color as a uint in ARGB format for native rendering.
+        /// Note: This is a local copy since HolographicDisplay doesn't inherit from BaseScreen.
+        /// </summary>
+        private uint GetCRTColorUint()
+        {
+            Color c = GetCRTColor();
             uint r = (uint)(c.r * 255) & 0xFF;
             uint g = (uint)(c.g * 255) & 0xFF;
             uint b = (uint)(c.b * 255) & 0xFF;
@@ -2350,7 +2382,7 @@ namespace CinematicShaders.UI
                     borderText = borderText.Substring(0, endIndex) + "^|";
             }
 
-            uint color = GetGridColorUint();
+            uint color = CinematicShadersUIResources.Colors.CRTColors.GetColorUint(StarfieldSettings.KartographerGridColor);
             float fontSize = _fontSize;
 
             // Layout the border text
@@ -2455,7 +2487,7 @@ namespace CinematicShaders.UI
                     text = text.Substring(0, endIndex) + "^|";
             }
 
-            uint color = GetGridColorUint();
+            uint color = CinematicShadersUIResources.Colors.CRTColors.GetColorUint(StarfieldSettings.KartographerGridColor);
 
             // Layout the text
             int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, text, _fontSize, 
@@ -2527,7 +2559,7 @@ namespace CinematicShaders.UI
             // Join lines with newlines
             string text = string.Join("\n", LAYER3_DUMMY_LINES);
 
-            uint color = GetGridColorUint();
+            uint color = CinematicShadersUIResources.Colors.CRTColors.GetColorUint(StarfieldSettings.KartographerGridColor);
 
             // Layout the text
             int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, text, _fontSize, 
