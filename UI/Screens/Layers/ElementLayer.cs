@@ -4,6 +4,8 @@ using System.Linq;
 using UnityEngine;
 using CinematicShaders.Native;
 using CinematicShaders.Core;
+using static CinematicShaders.UI.TerminalGridConfig;
+using static CinematicShaders.UI.HolographicGridLayout;
 
 
 namespace CinematicShaders.UI.Screens.Layers
@@ -51,6 +53,9 @@ namespace CinematicShaders.UI.Screens.Layers
             "result_5", "result_6", "result_7", "result_8", "result_9"
         };
         
+        // Grid-based content buffer
+        private char[,] _gridBuffer = new char[GRID_ROWS, GRID_COLUMNS];
+
         public ElementLayer(List<HolographicTextElement> elements, float fontSize)
         {
             _elements = elements ?? new List<HolographicTextElement>();
@@ -420,9 +425,84 @@ namespace CinematicShaders.UI.Screens.Layers
         }
         
         /// <summary>
+        /// Initialize grid buffer with spaces.
+        /// </summary>
+        private void InitializeGridBuffer()
+        {
+            for (int row = 0; row < GRID_ROWS; row++)
+            {
+                for (int col = 0; col < GRID_COLUMNS; col++)
+                {
+                    _gridBuffer[row, col] = ' ';
+                }
+            }
+        }
+
+        /// <summary>
+        /// Place text in the grid buffer at specified position.
+        /// </summary>
+        private void PlaceTextInGrid(string text, int col, int row)
+        {
+            if (string.IsNullOrEmpty(text) || row < 0 || row >= GRID_ROWS) return;
+            
+            for (int i = 0; i < text.Length && col + i < GRID_COLUMNS; i++)
+            {
+                if (col + i >= 0)
+                {
+                    _gridBuffer[row, col + i] = text[i];
+                }
+            }
+        }
+
+        /// <summary>
+        /// Build Layer 3 content using grid-based positioning.
+        /// Replaces the hardcoded string building with grid placement.
+        /// </summary>
+        private void BuildLayer3ContentGridBased()
+        {
+            InitializeGridBuffer();
+            
+            // Get all elements and place them at their grid positions
+            foreach (var element in _elements)
+            {
+                if (!element.IsVisible) continue;
+                
+                // Get grid position from layout
+                if (ElementPositions.TryGetValue(element.ElementId, out GridPosition pos))
+                {
+                    string text = GetDisplayText(element);
+                    PlaceTextInGrid(text, pos.Column, pos.Row);
+                }
+            }
+            
+            // Convert grid buffer to string array
+            _layer3ContentLines = new string[GRID_ROWS];
+            for (int row = 0; row < GRID_ROWS; row++)
+            {
+                var sb = new System.Text.StringBuilder(GRID_COLUMNS);
+                for (int col = 0; col < GRID_COLUMNS; col++)
+                {
+                    sb.Append(_gridBuffer[row, col]);
+                }
+                _layer3ContentLines[row] = sb.ToString();
+            }
+        }
+
+        /// <summary>
         /// Build Layer 3 content with current element values.
+        /// Uses grid-based positioning for alignment.
         /// </summary>
         private void BuildLayer3Content()
+        {
+            // Use new grid-based layout
+            BuildLayer3ContentGridBased();
+        }
+
+        /// <summary>
+        /// Build Layer 3 content with current element values.
+        /// LEGACY: Hardcoded positioning - kept for reference/fallback.
+        /// </summary>
+        private void BuildLayer3ContentLegacy()
         {
             _layer3ContentLines = new string[LAYER_3_LINE_COUNT];
             
@@ -542,6 +622,28 @@ namespace CinematicShaders.UI.Screens.Layers
                     _layer3ContentLines[row] = "";
                 }
             }
+        }
+
+        /// <summary>
+        /// Export grid layout visualization for debugging.
+        /// Shows the grid with visible characters and dots for spaces.
+        /// </summary>
+        public string ExportGridVisualization()
+        {
+            BuildLayer3ContentGridBased();
+            
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("Grid Layout (59×13):");
+            sb.AppendLine("Col:" + string.Join("", System.Linq.Enumerable.Range(0, 10).Select(i => i % 10)));
+            
+            for (int row = 0; row < GRID_ROWS; row++)
+            {
+                string line = _layer3ContentLines[row];
+                string visible = line.Replace(' ', '·');
+                sb.AppendLine($"{row:D2} {visible}");
+            }
+            
+            return sb.ToString();
         }
         
         private string GetElementValue(string elementId)
