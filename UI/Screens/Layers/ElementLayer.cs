@@ -251,11 +251,11 @@ namespace CinematicShaders.UI.Screens.Layers
             
             _textSystem = textSystem;
             
-            // DIAGNOSTIC: Log layer3Progress on first few frames and at key intervals
-            if (layer3Progress < 1.0f || _isTextureDirty)
-            {
-                ModFileLogger.Log($"[ElementLayer] RenderToTexture - layer3Progress={layer3Progress:F3}, _isTextureDirty={_isTextureDirty}");
-            }
+            // DIAGNOSTIC: (Disabled) Log layer3Progress on first few frames and at key intervals
+            // if (layer3Progress < 1.0f || _isTextureDirty)
+            // {
+            //     ModFileLogger.Log($"[ElementLayer] RenderToTexture - layer3Progress={layer3Progress:F3}, _isTextureDirty={_isTextureDirty}");
+            // }
             
             // Global character-based animation
             // Layer3Progress (0-1) represents position through the entire character stream
@@ -353,14 +353,15 @@ namespace CinematicShaders.UI.Screens.Layers
             
             if (hasChanges && globalProgress < 1.0f)
             {
-                ModFileLogger.Log($"[ElementLayer] Global progress {globalProgress:F3}: {visibleCharCount}/{totalChars} chars visible");
+                // DIAGNOSTIC: (Disabled) Log global progress
+                // ModFileLogger.Log($"[ElementLayer] Global progress {globalProgress:F3}: {visibleCharCount}/{totalChars} chars visible");
                 
-                // DIAGNOSTIC: Log first few elements' progress
-                for (int i = 0; i < Mathf.Min(3, sortedElements.Count); i++)
-                {
-                    var elem = sortedElements[i];
-                    ModFileLogger.Log($"[ElementLayer]   {elem.ElementId}: TypeOnProgress={elem.TypeOnProgress:F3}, text='{elem.FullDisplayText}'");
-                }
+                // DIAGNOSTIC: (Disabled) Log first few elements' progress
+                // for (int i = 0; i < Mathf.Min(3, sortedElements.Count); i++)
+                // {
+                //     var elem = sortedElements[i];
+                //     ModFileLogger.Log($"[ElementLayer]   {elem.ElementId}: TypeOnProgress={elem.TypeOnProgress:F3}, text='{elem.FullDisplayText}'");
+                // }
             }
         }
         
@@ -666,13 +667,13 @@ namespace CinematicShaders.UI.Screens.Layers
             {
                 int endIndex = GetTypeOnEndIndex(fullText, element.TypeOnProgress);
                 
-                // DIAGNOSTIC: Log when animation is starting (progress < 0.5) to verify truncation
-                if (element.TypeOnProgress < 0.5f)
-                {
-                    string result = endIndex <= 0 ? " " : fullText.Substring(0, endIndex) + "^|";
-                    ModFileLogger.Log($"[ElementLayer] GetDisplayText({element.ElementId}): progress={element.TypeOnProgress:F3}, endIndex={endIndex}, result='{result}'");
-                    return result;
-                }
+                // DIAGNOSTIC: (Disabled) Log when animation is starting (progress < 0.5) to verify truncation
+                // if (element.TypeOnProgress < 0.5f)
+                // {
+                //     string result = endIndex <= 0 ? " " : fullText.Substring(0, endIndex) + "^|";
+                //     ModFileLogger.Log($"[ElementLayer] GetDisplayText({element.ElementId}): progress={element.TypeOnProgress:F3}, endIndex={endIndex}, result='{result}'");
+                //     return result;
+                // }
                 
                 if (endIndex <= 0)
                     return " ";

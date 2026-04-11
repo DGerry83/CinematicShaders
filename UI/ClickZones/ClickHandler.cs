@@ -25,6 +25,13 @@ namespace CinematicShaders.UI.ClickZones
         {
             _zones = zones ?? new List<ClickZone>();
             _hoveredZone = null;
+            
+            // DEBUG: Log all zones when set
+            ModFileLogger.Log($"[ClickHandler] SetZones called with {_zones.Count} zones:");
+            foreach (var zone in _zones)
+            {
+                ModFileLogger.Log($"[ClickHandler]   Zone '{zone.ElementId}': GridRect=[{zone.GridRect.x:F0},{zone.GridRect.y:F0},{zone.GridRect.width:F0},{zone.GridRect.height:F0}], Enabled={zone.IsEnabled}");
+            }
         }
         
         // DEBUG: Track last logged position to avoid spam
@@ -41,8 +48,19 @@ namespace CinematicShaders.UI.ClickZones
             if (Event.current == null) return;
             
             Vector2 mousePos = Event.current.mousePosition;
+            bool isMouseDown = (Event.current.type == EventType.MouseDown && Event.current.button == 0);
+            bool isMouseUp = (Event.current.type == EventType.MouseUp && Event.current.button == 0);
             
-            // DEBUG: Track last logged position to avoid spam
+            // DEBUG: Log EVERY mouse down for debugging
+            if (isMouseDown)
+            {
+                ModFileLogger.Log($"[ClickHandler] === MOUSE DOWN ===");
+                ModFileLogger.Log($"[ClickHandler] Mouse screen position: ({mousePos.x:F1}, {mousePos.y:F1})");
+                ModFileLogger.Log($"[ClickHandler] DisplayRect: x={displayRect.x:F0}, y={displayRect.y:F0}, width={displayRect.width:F0}, height={displayRect.height:F0}");
+                ModFileLogger.Log($"[ClickHandler] Zone count: {_zones.Count}");
+            }
+            
+            // DEBUG: Track last logged position to avoid spam on hover
             bool shouldLog = false;
             if (Vector2.Distance(mousePos, _lastLoggedPos) > 50f)
             {
@@ -51,16 +69,16 @@ namespace CinematicShaders.UI.ClickZones
             }
             
             // Try grid-based hit detection first (more precise)
-            ClickZone newHovered = FindZoneByGrid(mousePos, displayRect, shouldLog);
+            ClickZone newHovered = FindZoneByGrid(mousePos, displayRect, isMouseDown); // Log details on mouse down
             
-            // DEBUG: Log zone detection
-            if (shouldLog || (Event.current.type == EventType.MouseUp && Event.current.button == 0))
+            // DEBUG: Log zone detection on mouse up
+            if (isMouseUp)
             {
                 string zoneName = newHovered?.ElementId ?? "none";
-                if (zoneName != _lastLoggedZone || Event.current.type == EventType.MouseUp)
+                ModFileLogger.Log($"[ClickHandler] MOUSE UP - hovered zone: {zoneName}");
+                if (_hoveredZone != null && newHovered == _hoveredZone)
                 {
-                    _lastLoggedZone = zoneName;
-                    ModFileLogger.Log($"[ClickHandler] Mouse at screen ({mousePos.x:F0},{mousePos.y:F0}), zone: {zoneName}, event: {Event.current.type}");
+                    ModFileLogger.Log($"[ClickHandler] CLICK DETECTED on zone: {_hoveredZone.ElementId}");
                 }
             }
             
@@ -112,13 +130,25 @@ namespace CinematicShaders.UI.ClickZones
             // DEBUG: Log grid conversion
             if (logDebug)
             {
+                float cellWidth = displayRect.width / TerminalGridConfig.GRID_COLUMNS;
                 float cellHeight = displayRect.height / TerminalGridConfig.GRID_ROWS;
-                ModFileLogger.Log($"[ClickHandler] Pixel ({localX:F1},{localY:F1}) in rect {displayRect.height:F0}h -> Grid ({gridPos.Column},{gridPos.Row}), cellHeight={cellHeight:F2}");
+                ModFileLogger.Log($"[ClickHandler] Local pixel: ({localX:F1}, {localY:F1})");
+                ModFileLogger.Log($"[ClickHandler] Cell size: ({cellWidth:F1}, {cellHeight:F1})");
+                ModFileLogger.Log($"[ClickHandler] Grid position: ({gridPos.Column}, {gridPos.Row})");
+            }
+            
+            if (logDebug)
+            {
+                ModFileLogger.Log($"[ClickHandler] Checking {_zones.Count} zones...");
             }
             
             foreach (var zone in _zones)
             {
-                if (!zone.IsEnabled) continue;
+                if (!zone.IsEnabled) 
+                {
+                    if (logDebug) ModFileLogger.Log($"[ClickHandler]   Zone '{zone.ElementId}' is DISABLED");
+                    continue;
+                }
                 
                 // Check if zone has grid rect
                 if (zone.GridRect.width > 0 && zone.GridRect.height > 0)
@@ -129,16 +159,23 @@ namespace CinematicShaders.UI.ClickZones
                     int zoneRight = zoneLeft + Mathf.RoundToInt(zone.GridRect.width);
                     int zoneBottom = zoneTop + Mathf.RoundToInt(zone.GridRect.height);
                     
-                    if (gridPos.Column >= zoneLeft && gridPos.Column < zoneRight &&
-                        gridPos.Row >= zoneTop && gridPos.Row < zoneBottom)
+                    bool colHit = gridPos.Column >= zoneLeft && gridPos.Column < zoneRight;
+                    bool rowHit = gridPos.Row >= zoneTop && gridPos.Row < zoneBottom;
+                    
+                    if (logDebug)
                     {
-                        // DEBUG: Log zone hit
-                        if (logDebug)
-                        {
-                            ModFileLogger.Log($"[ClickHandler] HIT zone {zone.ElementId} at grid ({gridPos.Column},{gridPos.Row}), zone rows {zoneTop}-{zoneBottom}");
-                        }
+                        ModFileLogger.Log($"[ClickHandler]   Check '{zone.ElementId}': grid=({gridPos.Column},{gridPos.Row}) vs zone=[{zoneLeft}-{zoneRight},{zoneTop}-{zoneBottom}] colHit={colHit}, rowHit={rowHit}");
+                    }
+                    
+                    if (colHit && rowHit)
+                    {
+                        if (logDebug) ModFileLogger.Log($"[ClickHandler]   >>> HIT '{zone.ElementId}' <<<");
                         return zone;
                     }
+                }
+                else if (logDebug)
+                {
+                    ModFileLogger.Log($"[ClickHandler]   Zone '{zone.ElementId}' has no GridRect");
                 }
             }
             
