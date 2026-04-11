@@ -235,6 +235,12 @@ namespace CinematicShaders.UI.Screens
         public override void Render(Rect displayRect, IntPtr textSystem)
         {
             if (textSystem == IntPtr.Zero) return;
+            
+            // Handle clicks FIRST - this needs to run for all event types (MouseUp, etc.)
+            // so that click detection works properly
+            _clickHandler.Update(displayRect);
+            
+            // Only render graphics during Repaint event
             if (Event.current == null || Event.current.type != EventType.Repaint)
                 return;
             
@@ -277,9 +283,6 @@ namespace CinematicShaders.UI.Screens
             {
                 _elementLayer.RenderToTexture(textSystem, displayRect, Layer3Progress);
             }
-            
-            // Handle clicks (layer-agnostic, draws box overlay)
-            _clickHandler.Update(displayRect);
         }
         
         /// <summary>
