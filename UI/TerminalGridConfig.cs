@@ -45,6 +45,7 @@ namespace CinematicShaders.UI
 
         /// <summary>
         /// Convert pixel coordinates to the nearest grid position.
+        /// Accounts for texture flip (row 0 at bottom visually due to Rect(0,1,1,-1)).
         /// </summary>
         /// <param name="x">Pixel X coordinate</param>
         /// <param name="y">Pixel Y coordinate</param>
@@ -57,7 +58,10 @@ namespace CinematicShaders.UI
             float cellHeight = displayHeight / GRID_ROWS;
 
             int col = Mathf.FloorToInt(x / cellWidth);
-            int row = Mathf.FloorToInt(y / cellHeight);
+            // Invert Y because texture is flipped (Rect(0, 1, 1, -1))
+            // Pixel Y=0 (top) corresponds to visual bottom = row 12
+            // Pixel Y=max (bottom) corresponds to visual top = row 0
+            int row = (GRID_ROWS - 1) - Mathf.FloorToInt(y / cellHeight);
 
             // Clamp to valid grid bounds
             col = Mathf.Clamp(col, 0, GRID_COLUMNS - 1);

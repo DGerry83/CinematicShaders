@@ -42,8 +42,7 @@ namespace CinematicShaders.UI
             // Bottom area
             // NOTE: Buttons ([SAVE], [RESET], [RESCAN]) are drawn on Layer 2, not Layer 3
             // They exist as HolographicTextElement objects for click detection only
-            // Layer 3 cursor renders at row 11 (one below "SEARCH" at row 10)
-            ["search_input"] = GridPosition.At(4, 11),
+            ["search_input"] = GridPosition.At(4, 11),   // Row 11: cursor renders here
         };
 
         #endregion
@@ -66,13 +65,13 @@ namespace CinematicShaders.UI
             ["mag_value"] = new GridRegion(GridPosition.At(6, 5), 15, 1),
             ["const_value"] = new GridRegion(GridPosition.At(8, 6), 20, 1),
             
-            // Button zones (adjusted for texture flip - match visual positions)
-            ["save_button"] = new GridRegion(GridPosition.At(17, 8), 7, 1),    // Visual row 8
-            ["reset_button"] = new GridRegion(GridPosition.At(27, 8), 8, 1),   // Visual row 8
-            ["rescan_button"] = new GridRegion(GridPosition.At(27, 10), 8, 1), // Visual row 10
+            // Button zones (match visual positions in ContentLines)
+            ["save_button"] = new GridRegion(GridPosition.At(17, 8), 7, 1),     // Row 8: "[SAVE]"
+            ["reset_button"] = new GridRegion(GridPosition.At(27, 8), 8, 1),   // Row 8: "[RESET]"
+            ["rescan_button"] = new GridRegion(GridPosition.At(27, 10), 8, 1), // Row 10: "[RESCAN]"
             
-            // Input zone (adjusted for texture flip)
-            ["search_input"] = new GridRegion(GridPosition.At(4, 10), 25, 1),   // Visual row 10 (matches "SEARCH" label)
+            // Input zone
+            ["search_input"] = new GridRegion(GridPosition.At(4, 11), 25, 1),   // Row 11: "►" cursor position
         };
 
         /// <summary>
