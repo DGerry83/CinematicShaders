@@ -9,6 +9,7 @@ namespace CinematicShaders.UI.ClickZones
     /// <summary>
     /// Handles click zone hit detection and hover highlighting.
     /// Layer-agnostic: works with UV coordinates across any layer.
+    /// Supports both UV-based and grid-based hit detection (grid is primary, UV is fallback).
     /// </summary>
     public class ClickHandler
     {
@@ -28,6 +29,7 @@ namespace CinematicShaders.UI.ClickZones
         
         /// <summary>
         /// Update hit detection and draw hover highlight.
+        /// Supports both UV-based and grid-based zones.
         /// Call from Render() or OnGUI().
         /// </summary>
         public void Update(Rect displayRect)
@@ -35,17 +37,15 @@ namespace CinematicShaders.UI.ClickZones
             if (Event.current == null) return;
             
             Vector2 mousePos = Event.current.mousePosition;
-            Vector2 mouseUV = ScreenToUV(mousePos, displayRect);
             
-            // Find hovered zone
-            ClickZone newHovered = null;
-            foreach (var zone in _zones)
+            // Try grid-based hit detection first (more precise)
+            ClickZone newHovered = FindZoneByGrid(mousePos, displayRect);
+            
+            // Fallback to UV if grid detection fails
+            if (newHovered == null)
             {
-                if (zone.IsEnabled && zone.ContainsUV(mouseUV))
-                {
-                    newHovered = zone;
-                    break;
-                }
+                Vector2 mouseUV = ScreenToUV(mousePos, displayRect);
+                newHovered = FindZoneByUV(mouseUV);
             }
             
             // Handle hover change
@@ -57,12 +57,7 @@ namespace CinematicShaders.UI.ClickZones
             // Draw or clear highlight box
             if (_hoveredZone != null)
             {
-                DrawHighlightBox(_hoveredZone.UVRect);
-            }
-            else
-            {
-                // Clear box - DISABLED: Box drawing needs proper struct toolkit implementation
-                // StarfieldNative.CR_DrawCRTBox(0, 0, 0, 0, 0, 0, 0);
+                DrawHighlightBox(_hoveredZone);
             }
             
             // Handle click
@@ -75,6 +70,50 @@ namespace CinematicShaders.UI.ClickZones
             }
         }
         
+        /// <summary>
+        /// Find zone using grid-based coordinates (more precise alignment).
+        /// </summary>
+        private ClickZone FindZoneByGrid(Vector2 mousePos, Rect displayRect)
+        {
+            GridPosition gridPos = TerminalGridConfig.PixelToGrid(
+                mousePos.x - displayRect.x,
+                mousePos.y - displayRect.y,
+                displayRect.width,
+                displayRect.height
+            );
+            
+            foreach (var zone in _zones)
+            {
+                if (!zone.IsEnabled) continue;
+                
+                // Check if zone has grid rect
+                if (zone.GridRect.width > 0 && zone.GridRect.height > 0)
+                {
+                    if (zone.GridRect.Contains(new Vector2(gridPos.Column, gridPos.Row)))
+                    {
+                        return zone;
+                    }
+                }
+            }
+            
+            return null;
+        }
+        
+        /// <summary>
+        /// Find zone using UV coordinates (fallback).
+        /// </summary>
+        private ClickZone FindZoneByUV(Vector2 mouseUV)
+        {
+            foreach (var zone in _zones)
+            {
+                if (zone.IsEnabled && zone.UVRect.width > 0 && zone.ContainsUV(mouseUV))
+                {
+                    return zone;
+                }
+            }
+            return null;
+        }
+        
         private Vector2 ScreenToUV(Vector2 screenPos, Rect displayRect)
         {
             float u = (screenPos.x - displayRect.x) / displayRect.width;
@@ -82,37 +121,14 @@ namespace CinematicShaders.UI.ClickZones
             return new Vector2(u, v);
         }
         
-        private void DrawHighlightBox(Rect uvRect)
+        /// <summary>
+        /// Draw highlight box around the zone.
+        /// Uses grid rect if available, falls back to UV rect.
+        /// </summary>
+        private void DrawHighlightBox(ClickZone zone)
         {
             // DISABLED: Box drawing needs proper struct toolkit implementation
-            // TODO: Implement using CRTOverlayParams via struct generator
-            
-            // uint color = GetGridColorUint();
-            // float thickness = 0.003f; // ~2-3px
-            // StarfieldNative.CR_DrawCRTBox(1, uvRect.x, uvRect.y, 
-            //     uvRect.xMax, uvRect.yMax, color, thickness);
-        }
-        
-        private uint GetGridColorUint()
-        {
-            Color c = GetGridColor();
-            uint r = (uint)(c.r * 255) & 0xFF;
-            uint g = (uint)(c.g * 255) & 0xFF;
-            uint b = (uint)(c.b * 255) & 0xFF;
-            return 0xFF000000 | (r << 16) | (g << 8) | b;
-        }
-        
-        private Color GetGridColor()
-        {
-            int colorIndex = StarfieldSettings.KartographerGridColor;
-            switch (colorIndex)
-            {
-                case 0: return new Color(0.1f, 0.9f, 0.7f);  // Cyan (default)
-                case 1: return new Color(1.0f, 0.65f, 0.0f); // Amber
-                case 2: return new Color(0.85f, 0.95f, 1.0f); // Ice Blue
-                case 3: return new Color(0.25f, 1.0f, 0.0f); // Matrix Green
-                default: return new Color(0.1f, 0.9f, 0.7f);
-            }
+            // When enabled, use zone.GridRect or zone.UVRect based on availability
         }
         
         public event Action<string> OnZoneClicked;

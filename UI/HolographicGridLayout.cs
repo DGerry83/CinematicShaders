@@ -53,36 +53,41 @@ namespace CinematicShaders.UI
         /// <summary>
         /// Clickable regions on the grid.
         /// Keys are zone identifiers, values define the grid region bounds.
+        /// Grid coordinates are source of truth; UVRect calculated from GridRect for backward compatibility.
         /// </summary>
         public static readonly Dictionary<string, GridRegion> ClickZones = 
             new Dictionary<string, GridRegion>
         {
-            // Left column value areas
-            ["hip_zone"] = new GridRegion(GridPosition.At(12, 1), 8, 1),
-            ["name_zone"] = new GridRegion(GridPosition.At(12, 2), 12, 1),
-            ["distance_zone"] = new GridRegion(GridPosition.At(12, 3), 10, 1),
-            ["spectral_zone"] = new GridRegion(GridPosition.At(12, 4), 8, 1),
-            ["mag_zone"] = new GridRegion(GridPosition.At(12, 5), 8, 1),
-            ["const_zone"] = new GridRegion(GridPosition.At(12, 6), 12, 1),
-
-            // Search result rows (right column)
-            ["result_0_zone"] = new GridRegion(GridPosition.At(42, 1), 16, 1),
-            ["result_1_zone"] = new GridRegion(GridPosition.At(42, 2), 16, 1),
-            ["result_2_zone"] = new GridRegion(GridPosition.At(42, 3), 16, 1),
-            ["result_3_zone"] = new GridRegion(GridPosition.At(42, 4), 16, 1),
-            ["result_4_zone"] = new GridRegion(GridPosition.At(42, 5), 16, 1),
-            ["result_5_zone"] = new GridRegion(GridPosition.At(42, 6), 16, 1),
-            ["result_6_zone"] = new GridRegion(GridPosition.At(42, 7), 16, 1),
-            ["result_7_zone"] = new GridRegion(GridPosition.At(42, 8), 16, 1),
-            ["result_8_zone"] = new GridRegion(GridPosition.At(42, 9), 16, 1),
-            ["result_9_zone"] = new GridRegion(GridPosition.At(42, 10), 16, 1),
-
-            // Input and buttons
-            ["search_input_zone"] = new GridRegion(GridPosition.At(6, 11), 20, 1),
-            ["rescan_button_zone"] = new GridRegion(GridPosition.At(35, 10), 10, 1),
-            ["save_button_zone"] = new GridRegion(GridPosition.At(20, 8), 10, 1),
-            ["reset_button_zone"] = new GridRegion(GridPosition.At(32, 8), 10, 1),
+            // Value field zones (left column)
+            ["hip_value"] = new GridRegion(GridPosition.At(6, 1), 20, 1),
+            ["name_value"] = new GridRegion(GridPosition.At(6, 2), 25, 1),
+            ["distance_value"] = new GridRegion(GridPosition.At(11, 3), 20, 1),
+            ["spectral_value"] = new GridRegion(GridPosition.At(11, 4), 15, 1),
+            ["mag_value"] = new GridRegion(GridPosition.At(6, 5), 15, 1),
+            ["const_value"] = new GridRegion(GridPosition.At(8, 6), 20, 1),
+            
+            // Button zones
+            ["save_button"] = new GridRegion(GridPosition.At(17, 8), 7, 1),
+            ["reset_button"] = new GridRegion(GridPosition.At(27, 8), 8, 1),
+            ["rescan_button"] = new GridRegion(GridPosition.At(27, 10), 8, 1),
+            
+            // Input zone
+            ["search_input"] = new GridRegion(GridPosition.At(6, 11), 25, 1),
         };
+
+        /// <summary>
+        /// Get a search result zone by index (0-9).
+        /// </summary>
+        public static GridRegion GetResultZone(int index)
+        {
+            if (index < 0 || index >= 10)
+                return new GridRegion(GridPosition.At(38, 1), 20, 1);
+            
+            // Results in right column, rows 1-10
+            int row = 1 + index;
+            if (row > 6) row += 1; // Skip row 7 (gap)
+            return new GridRegion(GridPosition.At(38, row), 20, 1);
+        }
 
         #endregion
 

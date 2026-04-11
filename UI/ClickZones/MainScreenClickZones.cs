@@ -6,126 +6,87 @@ namespace CinematicShaders.UI.ClickZones
 {
     /// <summary>
     /// Defines all clickable zones for the MainScreen.
-    /// Coordinates are in UV space (0-1 across the display).
+    /// Grid coordinates are source of truth; UVRect calculated from GridRect for backward compatibility.
     /// </summary>
     public static class MainScreenClickZones
     {
-        // Button zones (Layer 2/3)
-        public static readonly ClickZone SAVE_BUTTON = new ClickZone {
-            ElementId = "save_button",
-            UVRect = new Rect(0.35f, 0.65f, 0.10f, 0.05f),
-            Category = "button",
-            IsEnabled = true
-        };
-        
-        public static readonly ClickZone RESET_BUTTON = new ClickZone {
-            ElementId = "reset_button",
-            UVRect = new Rect(0.48f, 0.65f, 0.12f, 0.05f),
-            Category = "button",
-            IsEnabled = true
-        };
-        
-        public static readonly ClickZone RESCAN_BUTTON = new ClickZone {
-            ElementId = "rescan_button",
-            UVRect = new Rect(0.65f, 0.77f, 0.15f, 0.05f),
-            Category = "button",
-            IsEnabled = true
-        };
-        
-        // Input zone
-        public static readonly ClickZone SEARCH_INPUT = new ClickZone {
-            ElementId = "search_input",
-            UVRect = new Rect(0.15f, 0.77f, 0.40f, 0.05f),
-            Category = "input",
-            IsEnabled = true
-        };
-        
-        // Value field zones (Layer 3)
-        public static readonly ClickZone NAME_VALUE = new ClickZone {
-            ElementId = "name_value",
-            UVRect = new Rect(0.18f, 0.18f, 0.35f, 0.05f),
-            Category = "value",
-            IsEnabled = true
-        };
-        
-        public static readonly ClickZone HIP_VALUE = new ClickZone {
-            ElementId = "hip_value",
-            UVRect = new Rect(0.18f, 0.10f, 0.20f, 0.05f),
-            Category = "value",
-            IsEnabled = true
-        };
-        
-        public static readonly ClickZone DISTANCE_VALUE = new ClickZone {
-            ElementId = "distance_value",
-            UVRect = new Rect(0.18f, 0.26f, 0.25f, 0.05f),
-            Category = "value",
-            IsEnabled = true
-        };
-        
-        public static readonly ClickZone SPECTRAL_VALUE = new ClickZone {
-            ElementId = "spectral_value",
-            UVRect = new Rect(0.18f, 0.34f, 0.15f, 0.05f),
-            Category = "value",
-            IsEnabled = true
-        };
-        
-        public static readonly ClickZone MAG_VALUE = new ClickZone {
-            ElementId = "mag_value",
-            UVRect = new Rect(0.18f, 0.42f, 0.15f, 0.05f),
-            Category = "value",
-            IsEnabled = true
-        };
-        
-        public static readonly ClickZone CONST_VALUE = new ClickZone {
-            ElementId = "const_value",
-            UVRect = new Rect(0.18f, 0.50f, 0.30f, 0.05f),
-            Category = "value",
-            IsEnabled = true
-        };
-        
-        /// <summary>
-        /// Get a search result zone by index (0-9).
-        /// </summary>
-        public static ClickZone GetResultZone(int index)
-        {
-            float y = 0.12f + (index * 0.06f);
-            return new ClickZone {
-                ElementId = $"result_{index}",
-                UVRect = new Rect(0.58f, y, 0.35f, 0.05f),
-                Category = "result",
-                IsEnabled = true
-            };
-        }
-        
         /// <summary>
         /// Get all click zones for the main screen.
+        /// Grid coordinates are source of truth; UVRect calculated from GridRect.
         /// </summary>
         public static List<ClickZone> GetAllZones()
         {
-            var zones = new List<ClickZone> {
-                SAVE_BUTTON, RESET_BUTTON, RESCAN_BUTTON,
-                SEARCH_INPUT, NAME_VALUE, HIP_VALUE,
-                DISTANCE_VALUE, SPECTRAL_VALUE, MAG_VALUE, CONST_VALUE
-            };
+            var zones = new List<ClickZone>();
+            
+            // Create zones from grid layout
+            foreach (var kvp in HolographicGridLayout.ClickZones)
+            {
+                string category = kvp.Key.EndsWith("_button") ? "button" : 
+                                 kvp.Key.EndsWith("_input") ? "input" : "value";
+                
+                zones.Add(new ClickZone 
+                {
+                    ElementId = kvp.Key,
+                    GridRect = new Rect(kvp.Value.TopLeft.Column, kvp.Value.TopLeft.Row, 
+                                       kvp.Value.Width, kvp.Value.Height),
+                    // UVRect will be calculated by ClickHandler or zone itself
+                    Category = category,
+                    IsEnabled = true
+                });
+            }
             
             // Add search result zones (10 rows)
             for (int i = 0; i < 10; i++)
             {
-                zones.Add(GetResultZone(i));
+                var gridRegion = HolographicGridLayout.GetResultZone(i);
+                zones.Add(new ClickZone 
+                {
+                    ElementId = $"result_{i}",
+                    GridRect = new Rect(gridRegion.TopLeft.Column, gridRegion.TopLeft.Row,
+                                       gridRegion.Width, gridRegion.Height),
+                    Category = "result",
+                    IsEnabled = true
+                });
             }
             
             return zones;
         }
-        
+
         /// <summary>
         /// Get only the value field zones (enabled when star selected).
         /// </summary>
         public static List<ClickZone> GetValueZones()
         {
             return new List<ClickZone> {
-                NAME_VALUE, HIP_VALUE, DISTANCE_VALUE,
-                SPECTRAL_VALUE, MAG_VALUE, CONST_VALUE
+                GetZone("name_value"),
+                GetZone("hip_value"),
+                GetZone("distance_value"),
+                GetZone("spectral_value"),
+                GetZone("mag_value"),
+                GetZone("const_value")
             };
+        }
+
+        /// <summary>
+        /// Get a single zone by element ID from grid layout.
+        /// </summary>
+        private static ClickZone GetZone(string elementId)
+        {
+            if (HolographicGridLayout.ClickZones.TryGetValue(elementId, out GridRegion region))
+            {
+                string category = elementId.EndsWith("_button") ? "button" : 
+                                 elementId.EndsWith("_input") ? "input" : "value";
+                
+                return new ClickZone 
+                {
+                    ElementId = elementId,
+                    GridRect = new Rect(region.TopLeft.Column, region.TopLeft.Row,
+                                       region.Width, region.Height),
+                    Category = category,
+                    IsEnabled = true
+                };
+            }
+            return null;
         }
     }
 }
