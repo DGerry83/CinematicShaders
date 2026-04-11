@@ -4,6 +4,7 @@ using UnityEngine;
 using CinematicShaders.Native;
 using CinematicShaders.Core;
 
+
 namespace CinematicShaders.UI.Screens.Layers
 {
     /// <summary>
@@ -99,10 +100,12 @@ namespace CinematicShaders.UI.Screens.Layers
             var element = _elements.Find(e => e.ElementId == elementId);
             if (element != null && element.DynamicText != text)
             {
+                ModFileLogger.Log($"[ElementLayer] SetElementText({elementId}): '{element.DynamicText}' -> '{text}', TypeOnProgress reset to 0");
                 element.DynamicText = text;
                 element.TypeOnProgress = 0f;  // Reset = animate from start
                 element.IsVisible = !string.IsNullOrEmpty(text);
                 element.IsDirty = true;
+                element.TypeOnDuration = Mathf.Max(0.3f, text?.Length * 0.03f ?? 0.3f); // Per-element animation duration
                 MarkLayer3Dirty();
             }
         }
@@ -152,7 +155,8 @@ namespace CinematicShaders.UI.Screens.Layers
         
         /// <summary>
         /// Render all visible elements.
-        /// Uses Layer3Progress (0-1) for type-on animation.
+        /// Uses Layer3Progress (0-1) as trigger to start type-on animation.
+        /// Each element animates independently with its own TypeOnProgress.
         /// </summary>
         public void RenderToTexture(IntPtr textSystem, Rect displayRect, float layer3Progress)
         {
@@ -161,51 +165,39 @@ namespace CinematicShaders.UI.Screens.Layers
             
             _textSystem = textSystem;
             
-            // Advance animations using normalized layer3Progress (0-1)
-            // Distribute progress across visible elements based on priority order
+            // Advance animations independently per-element
+            // layer3Progress > 0 means Layer 3 animation has started globally
             var visibleElements = _elements.FindAll(e => e.IsVisible);
             if (visibleElements.Count > 0 && layer3Progress > 0)
             {
-                // Sort by element ID for consistent ordering
-                visibleElements.Sort((a, b) => string.Compare(a.ElementId, b.ElementId, StringComparison.Ordinal));
-                
-                int totalElements = visibleElements.Count;
-                float elementsProgress = layer3Progress * totalElements;
+                float deltaTime = Time.deltaTime;
+                bool hasAnimatingElements = false;
                 
                 for (int i = 0; i < visibleElements.Count; i++)
                 {
                     var element = visibleElements[i];
-                    float elementStart = i;
-                    float elementEnd = i + 1;
                     
-                    if (elementsProgress >= elementEnd)
+                    // Advance TypeOnProgress independently for each element
+                    if (element.TypeOnProgress < 1.0f)
                     {
-                        // Element fully animated
-                        if (element.TypeOnProgress < 1.0f)
-                        {
-                            element.TypeOnProgress = 1.0f;
-                            element.IsDirty = true;
-                            _isTextureDirty = true;
-                        }
-                    }
-                    else if (elementsProgress > elementStart)
-                    {
-                        // Element partially animated
-                        float localProgress = elementsProgress - elementStart;
-                        element.TypeOnProgress = Mathf.Clamp01(localProgress);
+                        float prevProgress = element.TypeOnProgress;
+                        float advance = deltaTime / Mathf.Max(0.01f, element.TypeOnDuration);
+                        element.TypeOnProgress = Mathf.Min(1.0f, element.TypeOnProgress + advance);
                         element.IsDirty = true;
                         _isTextureDirty = true;
-                    }
-                    else
-                    {
-                        // Element not yet started
-                        if (element.TypeOnProgress > 0)
+                        hasAnimatingElements = true;
+                        
+                        // Log animation progress for debugging
+                        if (Mathf.Abs(element.TypeOnProgress - prevProgress) > 0.001f)
                         {
-                            element.TypeOnProgress = 0f;
-                            element.IsDirty = true;
-                            _isTextureDirty = true;
+                            ModFileLogger.Log($"[ElementLayer] {element.ElementId}: TypeOnProgress {prevProgress:F3} -> {element.TypeOnProgress:F3}");
                         }
                     }
+                }
+                
+                if (hasAnimatingElements)
+                {
+                    ModFileLogger.Log($"[ElementLayer] RenderToTexture: layer3Progress={layer3Progress:F3}, animating {visibleElements.Count} elements");
                 }
             }
             
