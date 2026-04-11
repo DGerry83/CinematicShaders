@@ -1526,6 +1526,7 @@ namespace CinematicShaders.UI
         #region Public API
         public void Show()
         {
+            ModFileLogger.Log("[SearchDebug] HolographicDisplay.Show() called");
             _isVisible = true;
             // Don't auto-power on - let user click PWR button
             // This also allows the window to be positioned before first draw
@@ -1624,6 +1625,9 @@ namespace CinematicShaders.UI
             // Initialize click zones for MainScreen
             var mainScreen = _screenManager?.CurrentScreen as MainScreen;
             mainScreen?.SetClickZones();
+            
+            // Notify subscribers that we're powered on (they should refresh data)
+            OnPoweredOn?.Invoke();
             
             Debug.Log("[HolographicDisplay] Power ON - Main screen with animation");
         }
@@ -2169,6 +2173,7 @@ namespace CinematicShaders.UI
         public event Action OnResetClicked;
         public event Action<NamedStar> OnStarSelected;
         public event Action OnRescanConfirmed;
+        public event Action OnPoweredOn;
 
 
 

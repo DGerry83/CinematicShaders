@@ -70,10 +70,9 @@ namespace CinematicShaders.UI.Tabs
             // Update holographic display star list if JSON became available
             ModFileLogger.Log($"[SearchDebug] HandleJsonStateChanged: Old={args.OldAvailability}, New={args.NewAvailability}, HolographicVisible={_holographicDisplay?.IsVisible}");
             if (args.NewAvailability != JsonAvailability.None && 
-                args.OldAvailability == JsonAvailability.None &&
                 _holographicDisplay != null && _holographicDisplay.IsVisible)
             {
-                ModFileLogger.Log("[SearchDebug] JSON became available, updating star list");
+                ModFileLogger.Log("[SearchDebug] JSON available, updating star list");
                 var stars = GetNamedStarsFromSelector();
                 _holographicDisplay.SetStarList(stars);
             }
@@ -1047,8 +1046,10 @@ namespace CinematicShaders.UI.Tabs
         /// </summary>
         private void ToggleHolographicDisplay()
         {
+            ModFileLogger.Log($"[SearchDebug] ToggleHolographicDisplay called. _holographicDisplay={_holographicDisplay != null}, IsVisible={_holographicDisplay?.IsVisible}");
             if (_holographicDisplay == null)
             {
+                ModFileLogger.Log("[SearchDebug] Creating new holographic display");
                 CreateHolographicDisplay();
             }
             else
@@ -1126,6 +1127,7 @@ namespace CinematicShaders.UI.Tabs
                 // Subscribe to events
                 _holographicDisplay.OnRescanConfirmed += OnHolographicRescan;
                 _holographicDisplay.OnWindowClosed += OnHolographicWindowClosed;
+                _holographicDisplay.OnPoweredOn += OnHolographicPoweredOn;
             }
         }
 
@@ -1169,6 +1171,19 @@ namespace CinematicShaders.UI.Tabs
             Debug.Log("[KartographerTab] Holographic display closed via X button");
             // Window closed itself, just clean up reference if needed
             // The component will be destroyed by the GameObject cleanup
+        }
+        
+        /// <summary>
+        /// Handle display powered on - refresh star list
+        /// </summary>
+        private void OnHolographicPoweredOn()
+        {
+            ModFileLogger.Log("[SearchDebug] OnHolographicPoweredOn called - refreshing star list");
+            if (_holographicDisplay != null && _selector != null)
+            {
+                var stars = GetNamedStarsFromSelector();
+                _holographicDisplay.SetStarList(stars);
+            }
         }
 
         /// <summary>
