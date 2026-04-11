@@ -98,15 +98,7 @@ namespace CinematicShaders.UI.Screens.Layers
             // Element rendering is done via single texture in RenderToTexture.
         }
         
-        /// <summary>
-        /// Set the Layer 3 delay for calculating element start times.
-        /// Deprecated: Now using normalized Layer3Progress from BaseScreen.
-        /// </summary>
-        public void SetLayer3Delay(float delay)
-        {
-            // No longer used - progress is now passed directly from BaseScreen.Layer3Progress
-        }
-        
+
         /// <summary>
         /// Set element text and trigger animation.
         /// Resets ALL element animations to 0 for global character-based animation.
@@ -480,133 +472,7 @@ namespace CinematicShaders.UI.Screens.Layers
             BuildLayer3ContentGridBased();
         }
 
-        /// <summary>
-        /// Build Layer 3 content with current element values.
-        /// LEGACY: Hardcoded positioning - kept for reference/fallback.
-        /// </summary>
-        private void BuildLayer3ContentLegacy()
-        {
-            _layer3ContentLines = new string[LAYER_3_LINE_COUNT];
-            
-            // Rows 0-1: Empty (border area)
-            _layer3ContentLines[0] = "";
-            _layer3ContentLines[1] = "";
-            
-            // Row 2: HIP value + optional result 0
-            string hipValue = GetElementValue("hip_value");
-            string result0 = GetResultValue(0);
-            if (!string.IsNullOrEmpty(result0))
-            {
-                int spacesAfter = 38 - hipValue.Length;
-                _layer3ContentLines[2] = "            " + hipValue + new string(' ', spacesAfter) + "• " + result0;
-            }
-            else
-            {
-                _layer3ContentLines[2] = "            " + hipValue;
-            }
-            
-            // Row 3: NAME value + optional result 1
-            string nameValue = GetElementValue("name_value");
-            string result1 = GetResultValue(1);
-            if (!string.IsNullOrEmpty(result1))
-            {
-                int spacesAfter = 38 - nameValue.Length;
-                _layer3ContentLines[3] = "            " + nameValue + new string(' ', spacesAfter) + "• " + result1;
-            }
-            else
-            {
-                _layer3ContentLines[3] = "            " + nameValue;
-            }
-            
-            // Row 4: DISTANCE value + optional result 2
-            string distValue = GetElementValue("distance_value");
-            string result2 = GetResultValue(2);
-            if (!string.IsNullOrEmpty(result2))
-            {
-                int spacesAfter = 38 - distValue.Length;
-                _layer3ContentLines[4] = "            " + distValue + new string(' ', spacesAfter) + "• " + result2;
-            }
-            else
-            {
-                _layer3ContentLines[4] = "            " + distValue;
-            }
-            
-            // Row 5: SPECTRAL value + optional result 3
-            string specValue = GetElementValue("spectral_value");
-            string result3 = GetResultValue(3);
-            if (!string.IsNullOrEmpty(result3))
-            {
-                int spacesAfter = 38 - specValue.Length;
-                _layer3ContentLines[5] = "            " + specValue + new string(' ', spacesAfter) + "• " + result3;
-            }
-            else
-            {
-                _layer3ContentLines[5] = "            " + specValue;
-            }
-            
-            // Row 6: MAG value + optional result 4
-            string magValue = GetElementValue("mag_value");
-            string result4 = GetResultValue(4);
-            if (!string.IsNullOrEmpty(result4))
-            {
-                int spacesAfter = 38 - magValue.Length;
-                _layer3ContentLines[6] = "            " + magValue + new string(' ', spacesAfter) + "• " + result4;
-            }
-            else
-            {
-                _layer3ContentLines[6] = "            " + magValue;
-            }
-            
-            // Row 7: CONST value + optional result 5
-            string constValue = GetElementValue("const_value");
-            string result5 = GetResultValue(5);
-            if (!string.IsNullOrEmpty(result5))
-            {
-                int spacesAfter = 38 - constValue.Length;
-                _layer3ContentLines[7] = "            " + constValue + new string(' ', spacesAfter) + "• " + result5;
-            }
-            else
-            {
-                _layer3ContentLines[7] = "            " + constValue;
-            }
-            
-            // Rows 8-10: Empty
-            _layer3ContentLines[8] = "";
-            _layer3ContentLines[9] = "";
-            _layer3ContentLines[10] = "";
-            
-            // Row 11: Search input with cursor + optional result 9
-            string searchInput = GetElementValue("search_input");
-            bool showCursor = (_editingElementId == "search_input") && _cursorVisible;
-            string result9 = GetResultValue(9);
-            if (!string.IsNullOrEmpty(result9))
-            {
-                string inputWithCursor = searchInput + (showCursor ? "▌" : "");
-                int spacesAfter = 38 - inputWithCursor.Length - 3;
-                _layer3ContentLines[11] = "    ► " + inputWithCursor + new string(' ', spacesAfter) + "• " + result9;
-            }
-            else
-            {
-                _layer3ContentLines[11] = "    ► " + searchInput + (showCursor ? "▌" : "");
-            }
-            
-            // Rows 12-16: Additional results
-            for (int i = 6; i < 10; i++)
-            {
-                string result = GetResultValue(i);
-                int row = 12 + (i - 6);
-                if (!string.IsNullOrEmpty(result) && row < LAYER_3_LINE_COUNT)
-                {
-                    _layer3ContentLines[row] = "                                      " + result;
-                }
-                else if (row < LAYER_3_LINE_COUNT)
-                {
-                    _layer3ContentLines[row] = "";
-                }
-            }
-        }
-
-        /// <summary>
+/// <summary>
         /// Export grid layout visualization for debugging.
         /// Shows the grid with visible characters and dots for spaces.
         /// </summary>

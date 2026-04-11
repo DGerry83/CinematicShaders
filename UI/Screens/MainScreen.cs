@@ -179,7 +179,6 @@ namespace CinematicShaders.UI.Screens
                 bool hasStar = context?.HasStarSelected ?? false;
                 
                 _elementLayer.SetElementVisibility(true);
-                _elementLayer.SetLayer3Delay(Layer3Delay);
                 
                 // Buttons and search always visible
                 _elementLayer?.SetElementVisibility("save_button", true);

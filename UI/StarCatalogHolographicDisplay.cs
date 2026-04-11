@@ -75,7 +75,7 @@ namespace CinematicShaders.UI
         // Display position (set by parent)
         private Rect _displayRect;
 
-        // Render textures for composite output
+        // Render texture for composite output
         private RenderTexture _displayTexture = null;
         
         // Screen manager for screen state handling
@@ -85,17 +85,9 @@ namespace CinematicShaders.UI
         // Note: ScreenState enum removed - now using string ScreenName ("Main", "Scan", "ConfirmRescan")
         // Screen state is managed by ScreenManager
 
-        #region Layer 2 Textures (Border + Labels)
-        // Layer 2: Combined border + labels textures per screen
-        private RenderTexture _mainBorderLabelsTexture;
-        private RenderTexture _scanBorderLabelsTexture;
-        private RenderTexture _confirmBorderLabelsTexture;
-        private bool _mainBorderLabelsDirty = true;
-        private bool _scanBorderLabelsDirty = true;
-        private bool _confirmBorderLabelsDirty = true;
-        #endregion
 
-        #region Layer 2 Content Strings
+
+        // Layer 2 content strings (for reference)
         // Main screen Layer 2 content (border + labels)
         private static readonly string[] MAIN_LAYER2_LINES = new string[]
         {
@@ -179,7 +171,6 @@ namespace CinematicShaders.UI
             "║ ► Sirius                         ║║ •Star 11            ║",
             "╚══════════════════════════════════╩╩═════════════════════╝"
         };
-        #endregion
 
         #region JSON Paths (DEPRECATED - Now managed by StarCatalogStateManager)
         
@@ -262,9 +253,8 @@ namespace CinematicShaders.UI
 
             CreateElements();
             InitializeTextures();
-            InitializeBorderTexture();
             
-            // NEW: Initialize ScreenManager
+            // Initialize ScreenManager
             _screenManager = new ScreenManager(_textSystem);
             _screenManager.InitializeTextures(
                 Mathf.RoundToInt(dimensions.x), 
@@ -345,7 +335,6 @@ namespace CinematicShaders.UI
             // Recreate textures for new size
             CleanupRenderTextures();
             InitializeTextures();
-            InitializeBorderTexture();
             
             // ScreenManager textures stay at Large size (825x450)
             // Font size changes provide the "scaling" for different presets
@@ -363,7 +352,6 @@ namespace CinematicShaders.UI
             {
                 element.IsDirty = true;
             }
-            _borderDirty = true;
             
             Debug.Log($"[HolographicDisplay] Size changed to: {size}: {dimensions.x}x{dimensions.y}");
         }
@@ -371,7 +359,6 @@ namespace CinematicShaders.UI
         private void CreateElements()
         {
             // FIELD ORDER: HIP, NAME, DISTANCE, SPECTRAL, MAGNITUDE, CONSTELLATION
-            // NOTE: Labels are now rendered in Layer 2 (combined border+labels texture)
             // Only value fields and interactive elements are created here (Layer 3)
 
             AddElement("hip_value", TextElementType.Value, "", "", HolographicLayoutConfig.HIP_VALUE_POS, 0.1f);
@@ -386,7 +373,7 @@ namespace CinematicShaders.UI
             AddElement("rescan_button", TextElementType.Label, "", "[RESCAN]", HolographicLayoutConfig.RESCAN_BUTTON_POS, 1.7f);
             AddElement("selected_star", TextElementType.Value, "", "", HolographicLayoutConfig.SELECTED_STAR_POS, 1.8f);
 
-            // Add SAVE and RESET buttons (if not already present)
+            // Add SAVE and RESET buttons
             if (!_elements.ContainsKey("save_button"))
             {
                 AddElement("save_button", TextElementType.Label, "", "[SAVE]",
@@ -441,8 +428,6 @@ namespace CinematicShaders.UI
             _displayTexture = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32);
             _displayTexture.enableRandomWrite = true;
             _displayTexture.Create();
-
-            // Create per-element textures
         }
         
         /// <summary>
@@ -456,33 +441,6 @@ namespace CinematicShaders.UI
                 _displayTexture.Release();
                 Destroy(_displayTexture);
                 _displayTexture = null;
-            }
-            
-            // Release border texture
-            if (_borderTexture != null)
-            {
-                _borderTexture.Release();
-                Destroy(_borderTexture);
-                _borderTexture = null;
-            }
-
-            // Release Layer 2 textures
-            ReleaseLayer2Texture(ref _mainBorderLabelsTexture, ref _mainBorderLabelsDirty);
-            ReleaseLayer2Texture(ref _scanBorderLabelsTexture, ref _scanBorderLabelsDirty);
-            ReleaseLayer2Texture(ref _confirmBorderLabelsTexture, ref _confirmBorderLabelsDirty);
-        }
-
-        /// <summary>
-        /// Release a single Layer 2 texture
-        /// </summary>
-        private void ReleaseLayer2Texture(ref RenderTexture texture, ref bool dirtyFlag)
-        {
-            if (texture != null)
-            {
-                texture.Release();
-                Destroy(texture);
-                texture = null;
-                dirtyFlag = true;
             }
         }
         #endregion
@@ -1642,34 +1600,6 @@ namespace CinematicShaders.UI
                 Destroy(_displayTexture);
             }
 
-            // Release border texture
-            if (_borderTexture != null)
-            {
-                _borderTexture.Release();
-                Destroy(_borderTexture);
-                _borderTexture = null;
-            }
-
-            // Release Layer 2 textures
-            if (_mainBorderLabelsTexture != null)
-            {
-                _mainBorderLabelsTexture.Release();
-                Destroy(_mainBorderLabelsTexture);
-                _mainBorderLabelsTexture = null;
-            }
-            if (_scanBorderLabelsTexture != null)
-            {
-                _scanBorderLabelsTexture.Release();
-                Destroy(_scanBorderLabelsTexture);
-                _scanBorderLabelsTexture = null;
-            }
-            if (_confirmBorderLabelsTexture != null)
-            {
-                _confirmBorderLabelsTexture.Release();
-                Destroy(_confirmBorderLabelsTexture);
-                _confirmBorderLabelsTexture = null;
-            }
-            
             // Shutdown ScreenManager
             _screenManager?.Shutdown();
             _screenManager = null;
@@ -1921,279 +1851,7 @@ namespace CinematicShaders.UI
             "╚═════════════════════════════════════════════════════════╝"
         };
 
-        // Render texture for the border - uses native text system
-        private RenderTexture _borderTexture = null;
-        private bool _borderDirty = true;
-
-        /// <summary>
-        /// Initialize the border render texture and Layer 2 textures
-        /// </summary>
-        private void InitializeBorderTexture()
-        {
-            if (_borderTexture != null) return;
-
-            Vector2 dimensions = HolographicLayoutConfig.GetDisplayDimensions(_displaySize);
-            int width = Mathf.RoundToInt(dimensions.x);
-            int height = Mathf.RoundToInt(dimensions.y);
-
-            _borderTexture = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32);
-            _borderTexture.enableRandomWrite = true;
-            _borderTexture.Create();
-            _borderDirty = true;
-
-            // Initialize Layer 2 textures for all screens
-            InitializeLayer2Texture(ref _mainBorderLabelsTexture, width, height, ref _mainBorderLabelsDirty);
-            InitializeLayer2Texture(ref _scanBorderLabelsTexture, width, height, ref _scanBorderLabelsDirty);
-            InitializeLayer2Texture(ref _confirmBorderLabelsTexture, width, height, ref _confirmBorderLabelsDirty);
-        }
-
-        /// <summary>
-        /// Initialize a single Layer 2 texture
-        /// </summary>
-        private void InitializeLayer2Texture(ref RenderTexture texture, int width, int height, ref bool dirtyFlag)
-        {
-            if (texture != null) return;
-
-            texture = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32);
-            texture.enableRandomWrite = true;
-            texture.Create();
-            dirtyFlag = true;
-        }
-
-        /// <summary>
-        /// Render the ASCII border using native text system
-        /// </summary>
-        private void RenderBorderTexture(string[] borderLines)
-        {
-            if (_textSystem == IntPtr.Zero) return;
-            if (_borderTexture == null) InitializeBorderTexture();
-            if (!_borderDirty) return;
-
-            _borderDirty = false;
-
-            // Build border text from lines
-            string borderText = string.Join("\n", borderLines);
-
-            // Apply type-on: only show portion based on progress (with cursor)
-            // Spaces skip - they appear immediately without consuming type-on time
-            if (_layer1TypeOnProgress < 1f)
-            {
-                int endIndex = GetTypeOnEndIndex(borderText, _layer1TypeOnProgress);
-                
-                // Add cursor when typing is in progress (like text elements)
-                if (endIndex <= 0)
-                    borderText = " ";  // Space when nothing visible yet
-                else
-                    borderText = borderText.Substring(0, endIndex) + "^|";
-            }
-
-            uint color = CinematicShadersUIResources.Colors.CRTColors.GetColorUint(StarfieldSettings.KartographerGridColor);
-            float fontSize = _fontSize;
-
-            // Layout the border text
-            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, borderText, fontSize, 
-                color, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
-            if (glyphCount <= 0) return;
-
-            // Render to texture with proper active texture handling
-            RenderTexture prevActive = RenderTexture.active;
-            try
-            {
-                RenderTexture.active = _borderTexture;
-                
-                // Clear texture
-                GL.Clear(true, true, Color.clear);
-
-                // Dispatch to render - texture must be active for this
-                StarfieldNative.CR_TextDispatch(
-                    _textSystem,
-                    _borderTexture.GetNativeTexturePtr(),
-                    glyphCount,
-                    _borderTexture.width,
-                    _borderTexture.height);
-            }
-            finally
-            {
-                // Always reset active render texture, even if an exception occurred
-                RenderTexture.active = prevActive;
-            }
-        }
-
-        /// <summary>
-        /// Draw the full ASCII border with native text rendering
-        /// </summary>
-        private void DrawASCIIBorder(string[] borderLines)
-        {
-            // Ensure border is rendered (only during Repaint to avoid GPU sync issues)
-            if (_borderDirty && Event.current.type == EventType.Repaint)
-            {
-                RenderBorderTexture(borderLines);
-            }
-
-            // Draw the border texture - type-on effect is in the text content itself
-            if (_borderTexture != null && Event.current.type == EventType.Repaint)
-            {
-                // Remove alpha fade - border types on, doesn't fade
-                // Use full color, the type-on effect is in the text content itself
-                Graphics.DrawTexture(
-                    _displayRect,           // dest rect (screen position)
-                    _borderTexture,         // source texture
-                    new Rect(0, 1, 1, -1),  // source UVs: flip Y (x, y, width, height in UV space)
-                    0, 0, 0, 0,             // border widths
-                    Color.white,            // Full color, no alpha fade
-                    null                    // material
-                );
-            }
-        }
-
-        /// <summary>
-        /// Mark border as needing re-render (e.g., on color change)
-        /// </summary>
-        public void InvalidateBorder()
-        {
-            _borderDirty = true;
-        }
-
-        /// <summary>
-        /// Mark all Layer 2 textures as dirty (e.g., on color change)
-        /// </summary>
-        public void InvalidateLayer2()
-        {
-            _mainBorderLabelsDirty = true;
-            _scanBorderLabelsDirty = true;
-            _confirmBorderLabelsDirty = true;
-        }
-
-        #endregion
-
-        #region Layer 2 Rendering Methods
-
-        /// <summary>
-        /// Render Layer 2 texture (border + labels) for a specific screen
-        /// </summary>
-        private void RenderLayer2Texture(string[] textLines, RenderTexture targetTexture)
-        {
-            if (_textSystem == IntPtr.Zero) return;
-            if (targetTexture == null) return;
-
-            // Join lines with newlines
-            string text = string.Join("\n", textLines);
-
-            // Apply type-on: only show portion based on progress (with cursor)
-            // Spaces skip - they appear immediately without consuming type-on time
-            if (_layer2TypeOnProgress < 1f)
-            {
-                int endIndex = GetTypeOnEndIndex(text, _layer2TypeOnProgress);
-                
-                // Add cursor when typing is in progress
-                if (endIndex <= 0)
-                    text = " ";  // Space when nothing visible yet
-                else
-                    text = text.Substring(0, endIndex) + "^|";
-            }
-
-            uint color = CinematicShadersUIResources.Colors.CRTColors.GetColorUint(StarfieldSettings.KartographerGridColor);
-
-            // Layout the text
-            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, text, _fontSize, 
-                color, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
-            if (glyphCount <= 0) return;
-
-            // Render to texture with proper active texture handling
-            RenderTexture prevActive = RenderTexture.active;
-            try
-            {
-                RenderTexture.active = targetTexture;
-                
-                // Clear texture
-                GL.Clear(true, true, Color.clear);
-
-                // Dispatch to render - texture must be active for this
-                StarfieldNative.CR_TextDispatch(
-                    _textSystem,
-                    targetTexture.GetNativeTexturePtr(),
-                    glyphCount,
-                    targetTexture.width,
-                    targetTexture.height);
-            }
-            finally
-            {
-                // Always reset active render texture, even if an exception occurred
-                RenderTexture.active = prevActive;
-            }
-        }
-
-        /// <summary>
-        /// Draw Layer 2 texture (border + labels) for the current screen
-        /// </summary>
-        private void DrawLayer2(RenderTexture layer2Texture, string[] contentLines, ref bool dirtyFlag)
-        {
-            // Only draw during Repaint event
-            if (Event.current.type != EventType.Repaint) return;
-
-            // Re-render if dirty
-            if (dirtyFlag && layer2Texture != null && contentLines != null)
-            {
-                RenderLayer2Texture(contentLines, layer2Texture);
-                dirtyFlag = false;
-            }
-
-            // Draw the texture with UV flip for correct orientation
-            if (layer2Texture != null)
-            {
-                Graphics.DrawTexture(
-                    _displayRect,           // dest rect (screen position)
-                    layer2Texture,          // source texture
-                    new Rect(0, 1, 1, -1),  // source UVs: flip Y
-                    0, 0, 0, 0,             // border widths
-                    Color.white,            // Full color - texture has grid color baked in
-                    null                    // material
-                );
-            }
-        }
-
-        /// <summary>
-        /// Render the dummy Layer 3 content to a texture for layout calibration.
-        /// This allows exporting a reference image showing where values should appear.
-        /// </summary>
-        private void RenderDummyLayer3ToTexture(RenderTexture targetTexture)
-        {
-            if (_textSystem == IntPtr.Zero) return;
-            if (targetTexture == null) return;
-
-            // Join lines with newlines
-            string text = string.Join("\n", LAYER3_DUMMY_LINES);
-
-            uint color = CinematicShadersUIResources.Colors.CRTColors.GetColorUint(StarfieldSettings.KartographerGridColor);
-
-            // Layout the text
-            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, text, _fontSize, 
-                color, 0f, 0f, 0f, 0.667f);  // 0.667f = 2:3 aspect ratio
-            if (glyphCount <= 0) return;
-
-            // Render to texture with proper active texture handling
-            RenderTexture prevActive = RenderTexture.active;
-            try
-            {
-                RenderTexture.active = targetTexture;
-                
-                // Clear texture
-                GL.Clear(true, true, Color.clear);
-
-                // Dispatch to render - texture must be active for this
-                StarfieldNative.CR_TextDispatch(
-                    _textSystem,
-                    targetTexture.GetNativeTexturePtr(),
-                    glyphCount,
-                    targetTexture.width,
-                    targetTexture.height);
-            }
-            finally
-            {
-                // Always reset active render texture, even if an exception occurred
-                RenderTexture.active = prevActive;
-            }
-        }
+        // Note: Border rendering is now handled by BorderLayer in ScreenManager
 
         #endregion
 
@@ -2787,49 +2445,6 @@ namespace CinematicShaders.UI
                         }
                     }
                 }
-                
-                // Export legacy border texture (Layer 1)
-                if (_borderTexture != null)
-                {
-                    ExportRenderTextureToPng(_borderTexture, Path.Combine(exportDir, $"Legacy_Layer1_Border_{timestamp}.png"));
-                    exportedCount++;
-                }
-                
-                // Export per-screen Layer 2 textures
-                if (_mainBorderLabelsTexture != null)
-                {
-                    ExportRenderTextureToPng(_mainBorderLabelsTexture, Path.Combine(exportDir, $"Legacy_Layer2_MainLabels_{timestamp}.png"));
-                    exportedCount++;
-                }
-                if (_scanBorderLabelsTexture != null)
-                {
-                    ExportRenderTextureToPng(_scanBorderLabelsTexture, Path.Combine(exportDir, $"Legacy_Layer2_ScanLabels_{timestamp}.png"));
-                    exportedCount++;
-                }
-                if (_confirmBorderLabelsTexture != null)
-                {
-                    ExportRenderTextureToPng(_confirmBorderLabelsTexture, Path.Combine(exportDir, $"Legacy_Layer2_ConfirmLabels_{timestamp}.png"));
-                    exportedCount++;
-                }
-                
-                // REMOVED: Per-element texture export loop (old system)
-                // The single Layer 3 texture is now exported via ScreenManager above
-                
-                // Export dummy Layer 3 texture (for layout calibration reference)
-                RenderTexture dummyLayer3Texture = new RenderTexture(
-                    Mathf.RoundToInt(HolographicLayoutConfig.DISPLAY_WIDTH_LARGE),
-                    Mathf.RoundToInt(HolographicLayoutConfig.DISPLAY_HEIGHT_LARGE),
-                    0, RenderTextureFormat.ARGB32);
-                dummyLayer3Texture.enableRandomWrite = true;
-                dummyLayer3Texture.Create();
-                
-                RenderDummyLayer3ToTexture(dummyLayer3Texture);
-                
-                ExportRenderTextureToPng(dummyLayer3Texture, Path.Combine(exportDir, $"DummyLayer3_{timestamp}.png"));
-                exportedCount++;
-                
-                dummyLayer3Texture.Release();
-                Destroy(dummyLayer3Texture);
                 
                 // Export display texture (composite)
                 if (_displayTexture != null)
