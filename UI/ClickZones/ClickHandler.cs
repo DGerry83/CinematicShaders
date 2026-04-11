@@ -42,7 +42,7 @@ namespace CinematicShaders.UI.ClickZones
             
             Vector2 mousePos = Event.current.mousePosition;
             
-            // DEBUG: Log grid position when mouse moves significantly or on click
+            // DEBUG: Track last logged position to avoid spam
             bool shouldLog = false;
             if (Vector2.Distance(mousePos, _lastLoggedPos) > 50f)
             {

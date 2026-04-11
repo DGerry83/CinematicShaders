@@ -108,26 +108,27 @@ namespace CinematicShaders.UI
         // Pixel position = grid_coord × glyph_size
         
         // Main panel left column - VALUE positions (after Layer 2 labels)
-        // Labels end at: HIP:(6), NAME:(7), DISTANCE:(11), SPECTRAL:(11), MAG:(6), CONST:(8)
+        // Labels are on rows: HIP(1), NAME(2), DISTANCE(3), SPECTRAL(4), MAG(5), CONST(6)
+        // Values are positioned on the same rows as their labels
         // Height 32px for consistent rendering with other Layer 3 elements
-        public static readonly Rect HIP_VALUE_POS = new Rect(72, 64, 300, 32);        // col 6 × 12 = 72, row 2 × 32 = 64
-        public static readonly Rect NAME_VALUE_POS = new Rect(84, 96, 300, 32);       // col 7 × 12 = 84, row 3 × 32 = 96
-        public static readonly Rect DISTANCE_VALUE_POS = new Rect(132, 128, 250, 32); // col 11 × 12 = 132, row 4 × 32 = 128
-        public static readonly Rect SPECTRAL_VALUE_POS = new Rect(132, 160, 200, 32); // col 11 × 12 = 132, row 5 × 32 = 160
-        public static readonly Rect MAG_VALUE_POS = new Rect(72, 192, 200, 32);       // col 6 × 12 = 72, row 6 × 32 = 192
-        public static readonly Rect CONST_VALUE_POS = new Rect(96, 224, 250, 32);     // col 8 × 12 = 96, row 7 × 32 = 224
+        public static readonly Rect HIP_VALUE_POS = new Rect(72, 32, 300, 32);        // col 6 × 12 = 72, row 1 × 32 = 32
+        public static readonly Rect NAME_VALUE_POS = new Rect(84, 64, 300, 32);       // col 7 × 12 = 84, row 2 × 32 = 64
+        public static readonly Rect DISTANCE_VALUE_POS = new Rect(132, 96, 250, 32);  // col 11 × 12 = 132, row 3 × 32 = 96
+        public static readonly Rect SPECTRAL_VALUE_POS = new Rect(132, 128, 200, 32); // col 11 × 12 = 132, row 4 × 32 = 128
+        public static readonly Rect MAG_VALUE_POS = new Rect(72, 160, 200, 32);       // col 6 × 12 = 72, row 5 × 32 = 160
+        public static readonly Rect CONST_VALUE_POS = new Rect(96, 192, 250, 32);     // col 8 × 12 = 96, row 6 × 32 = 192
 
-        // Buttons at specified grid positions
+        // Buttons at specified grid positions (matching Layer 2 layout)
         // [SAVE] at 17,8  [RESET] at 27,8  [RESCAN] at 27,10
         // Height 32px for consistent rendering with result rows
-        public static readonly Rect SAVE_BUTTON_POS = new Rect(204, 256, 84, 32);     // col 17 × 12 = 204, row 8 × 32 = 256 (7 chars "[SAVE]" × 12 = 84)
-        public static readonly Rect RESET_BUTTON_POS = new Rect(324, 256, 96, 32);    // col 27 × 12 = 324, row 8 × 32 = 256 (8 chars "[RESET]" × 12 = 96)
+        public static readonly Rect SAVE_BUTTON_POS = new Rect(204, 224, 84, 32);     // col 17 × 12 = 204, row 7 × 32 = 224 (7 chars "[SAVE]" × 12 = 84)
+        public static readonly Rect RESET_BUTTON_POS = new Rect(324, 224, 96, 32);    // col 27 × 12 = 324, row 7 × 32 = 224 (8 chars "[RESET]" × 12 = 96)
 
         // Search area
         // Height 32px for consistent rendering
-        public static readonly Rect SEARCH_INPUT_POS = new Rect(96, 320, 300, 32);    // col 8 × 12 = 96, row 10 × 32 = 320 (after "SEARCH")
-        public static readonly Rect RESCAN_BUTTON_POS = new Rect(324, 320, 96, 32);   // col 27 × 12 = 324, row 10 × 32 = 320
-        public static readonly Rect SELECTED_STAR_POS = new Rect(72, 368, 400, 32);   // row 11.5 × 32 ≈ 368
+        public static readonly Rect SEARCH_INPUT_POS = new Rect(96, 288, 300, 32);    // col 8 × 12 = 96, row 9 × 32 = 288 (after "SEARCH" at row 9)
+        public static readonly Rect RESCAN_BUTTON_POS = new Rect(324, 288, 96, 32);   // col 27 × 12 = 324, row 9 × 32 = 288
+        public static readonly Rect SELECTED_STAR_POS = new Rect(72, 336, 400, 32);   // row 10.5 × 32 ≈ 336
 
         // Results rows (10 max, calculated positions)
         public static Rect GetResultRowPos(int index)
@@ -148,17 +149,17 @@ namespace CinematicShaders.UI
         public const int GRID_ROWS = 17;     // 459px / 27px
         
         // Main Screen Click Zones (grid coordinates: x, y, width, height)
-        // These are approximate - user will tune via debug exports
-        public static readonly Rect ZONE_HIP_VALUE = new Rect(6, 2, 25, 1);
-        public static readonly Rect ZONE_NAME_VALUE = new Rect(6, 3, 25, 1);
-        public static readonly Rect ZONE_DISTANCE_VALUE = new Rect(11, 4, 20, 1);
-        public static readonly Rect ZONE_SPECTRAL_VALUE = new Rect(11, 5, 20, 1);
-        public static readonly Rect ZONE_MAG_VALUE = new Rect(11, 6, 20, 1);
-        public static readonly Rect ZONE_CONST_VALUE = new Rect(6, 7, 25, 1);
-        public static readonly Rect ZONE_SAVE_BUTTON = new Rect(17, 8, 7, 1);
-        public static readonly Rect ZONE_RESET_BUTTON = new Rect(27, 8, 8, 1);
-        public static readonly Rect ZONE_RESCAN_BUTTON = new Rect(27, 10, 8, 1);
-        public static readonly Rect ZONE_SEARCH_INPUT = new Rect(8, 11, 30, 1);
+        // Grid rows match visual layout: HIP(1), NAME(2), DISTANCE(3), SPECTRAL(4), MAG(5), CONST(6)
+        public static readonly Rect ZONE_HIP_VALUE = new Rect(6, 1, 25, 1);
+        public static readonly Rect ZONE_NAME_VALUE = new Rect(6, 2, 25, 1);
+        public static readonly Rect ZONE_DISTANCE_VALUE = new Rect(11, 3, 20, 1);
+        public static readonly Rect ZONE_SPECTRAL_VALUE = new Rect(11, 4, 20, 1);
+        public static readonly Rect ZONE_MAG_VALUE = new Rect(11, 5, 20, 1);
+        public static readonly Rect ZONE_CONST_VALUE = new Rect(6, 6, 25, 1);
+        public static readonly Rect ZONE_SAVE_BUTTON = new Rect(17, 7, 7, 1);
+        public static readonly Rect ZONE_RESET_BUTTON = new Rect(27, 7, 8, 1);
+        public static readonly Rect ZONE_RESCAN_BUTTON = new Rect(27, 9, 8, 1);
+        public static readonly Rect ZONE_SEARCH_INPUT = new Rect(8, 10, 30, 1);
         
         // Search result zones (rows 2-11, right column)
         public static Rect GetResultZone(int index)

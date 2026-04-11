@@ -58,8 +58,8 @@ namespace CinematicShaders.UI
             float cellHeight = displayHeight / GRID_ROWS;
 
             int col = Mathf.FloorToInt(x / cellWidth);
-            // Invert Y to match UV-flipped rendering (row 0 at bottom visually)
-            int row = Mathf.FloorToInt((displayHeight - 1 - y) / cellHeight);
+            // DEBUG: Using direct Y to diagnose offset issue
+            int row = Mathf.FloorToInt(y / cellHeight);
 
             // Clamp to valid grid bounds
             col = Mathf.Clamp(col, 0, GRID_COLUMNS - 1);
