@@ -2076,6 +2076,11 @@ namespace CinematicShaders.UI
                     }
                     break;
                 case "reset_button":
+                    // Exit edit mode without saving before resetting
+                    if (!string.IsNullOrEmpty(_editingElementId))
+                    {
+                        ExitEditMode(save: false);
+                    }
                     ResetStarName();
                     break;
                 case "yes_button":
@@ -2165,6 +2170,13 @@ namespace CinematicShaders.UI
         {
             if (element.AssociatedData is NamedStar star)
             {
+                // CRITICAL: Exit edit mode WITHOUT saving before switching stars
+                // This ensures the old edit text doesn't persist in the field
+                if (!string.IsNullOrEmpty(_editingElementId))
+                {
+                    ExitEditMode(save: false);
+                }
+                
                 SetStarData(star);
                 OnStarSelected?.Invoke(star);
                 Debug.Log($"[HolographicDisplay] Selected star: {star.Name}");

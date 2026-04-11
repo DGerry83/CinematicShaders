@@ -72,6 +72,7 @@ namespace CinematicShaders.UI.ClickZones
         
         /// <summary>
         /// Find zone using grid-based coordinates (more precise alignment).
+        /// Uses integer comparisons to avoid float precision issues.
         /// </summary>
         private ClickZone FindZoneByGrid(Vector2 mousePos, Rect displayRect)
         {
@@ -89,7 +90,14 @@ namespace CinematicShaders.UI.ClickZones
                 // Check if zone has grid rect
                 if (zone.GridRect.width > 0 && zone.GridRect.height > 0)
                 {
-                    if (zone.GridRect.Contains(new Vector2(gridPos.Column, gridPos.Row)))
+                    // Use integer comparisons to avoid float precision issues
+                    int zoneLeft = Mathf.RoundToInt(zone.GridRect.x);
+                    int zoneTop = Mathf.RoundToInt(zone.GridRect.y);
+                    int zoneRight = zoneLeft + Mathf.RoundToInt(zone.GridRect.width);
+                    int zoneBottom = zoneTop + Mathf.RoundToInt(zone.GridRect.height);
+                    
+                    if (gridPos.Column >= zoneLeft && gridPos.Column < zoneRight &&
+                        gridPos.Row >= zoneTop && gridPos.Row < zoneBottom)
                     {
                         return zone;
                     }
