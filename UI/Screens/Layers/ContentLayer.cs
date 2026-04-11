@@ -16,8 +16,9 @@ namespace CinematicShaders.UI.Screens.Layers
         private readonly string[] _contentLines;
         private RenderTexture _targetTexture;
         
-        // Track last rendered progress to avoid redundant renders
+        // Track last rendered progress and color to avoid redundant renders
         private float _lastRenderedProgress = -1f;
+        private uint _lastRenderedColor = 0;
         
         public ContentLayer(string[] contentLines)
         {
@@ -41,10 +42,11 @@ namespace CinematicShaders.UI.Screens.Layers
         {
             if (_targetTexture == null) return;
             
-            // Skip if not dirty and progress hasn't changed (for animations)
+            // Skip if not dirty and progress hasn't changed and color hasn't changed
             // Always render if progress is changing (animation in progress)
             bool progressChanged = Mathf.Abs(typeOnProgress - _lastRenderedProgress) > 0.001f;
-            if (!IsDirty && typeOnProgress >= 1f && !progressChanged) return;
+            bool colorChanged = color != _lastRenderedColor;
+            if (!IsDirty && typeOnProgress >= 1f && !progressChanged && !colorChanged) return;
             
             // Join lines with newlines
             string text = string.Join("\n", _contentLines);
@@ -93,6 +95,7 @@ namespace CinematicShaders.UI.Screens.Layers
             // Update tracking state
             IsDirty = false;
             _lastRenderedProgress = typeOnProgress;
+            _lastRenderedColor = color;
         }
         
         /// <summary>
@@ -103,6 +106,7 @@ namespace CinematicShaders.UI.Screens.Layers
             _targetTexture = texture;
             IsDirty = true;
             _lastRenderedProgress = -1f;  // Force re-render on texture change
+            _lastRenderedColor = 0;       // Force re-render on texture change
         }
         
         public void MarkDirty()
