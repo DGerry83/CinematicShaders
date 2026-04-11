@@ -106,6 +106,7 @@ namespace CinematicShaders.UI.Screens
         public void SetElements(List<HolographicTextElement> elements)
         {
             _elementLayer = new ElementLayer(elements, _fontSize);
+            _elementLayer.SetPriorityOrder(Layer3PriorityOrder);
             AddLayer(_elementLayer);
             
             if (_deferredLayer3Texture != null)

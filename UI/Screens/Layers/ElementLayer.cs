@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using CinematicShaders.Native;
 using CinematicShaders.Core;
@@ -10,7 +11,7 @@ namespace CinematicShaders.UI.Screens.Layers
     /// <summary>
     /// Layer 3: Renders interactive elements (buttons, value fields).
     /// Simplified architecture - text rendering only, no complex state machine.
-    /// Animation handled per-element via TypeOnProgress.
+    /// Animation handled globally - all elements animate as ONE continuous character stream.
     /// </summary>
     public class ElementLayer : ILayer
     {
@@ -39,6 +40,16 @@ namespace CinematicShaders.UI.Screens.Layers
         private float _cursorTimer = 0f;
         private const float CURSOR_BLINK_INTERVAL = 0.5f;
         private string _editingElementId = null;
+        
+        // Priority order for element animation sequence
+        private List<string> _priorityOrder = new List<string>
+        {
+            "hip_value", "name_value", "distance_value",
+            "spectral_value", "mag_value", "const_value",
+            "selected_star", "search_input",
+            "result_0", "result_1", "result_2", "result_3", "result_4",
+            "result_5", "result_6", "result_7", "result_8", "result_9"
+        };
         
         public ElementLayer(List<HolographicTextElement> elements, float fontSize)
         {
@@ -93,21 +104,46 @@ namespace CinematicShaders.UI.Screens.Layers
         
         /// <summary>
         /// Set element text and trigger animation.
-        /// Simple: just reset TypeOnProgress to 0.
+        /// Resets ALL element animations to 0 for global character-based animation.
         /// </summary>
         public void SetElementText(string elementId, string text)
         {
             var element = _elements.Find(e => e.ElementId == elementId);
             if (element != null && element.DynamicText != text)
             {
-                ModFileLogger.Log($"[ElementLayer] SetElementText({elementId}): '{element.DynamicText}' -> '{text}', TypeOnProgress reset to 0");
+                ModFileLogger.Log($"[ElementLayer] SetElementText({elementId}): '{element.DynamicText}' -> '{text}', resetting ALL animations");
                 element.DynamicText = text;
-                element.TypeOnProgress = 0f;  // Reset = animate from start
                 element.IsVisible = !string.IsNullOrEmpty(text);
                 element.IsDirty = true;
-                element.TypeOnDuration = Mathf.Max(0.3f, text?.Length * 0.03f ?? 0.3f); // Per-element animation duration
+                
+                // Reset ALL element animations to 0 for global character-based animation
+                ResetAllElementAnimations();
+                
                 MarkLayer3Dirty();
             }
+        }
+        
+        /// <summary>
+        /// Reset TypeOnProgress for ALL elements to 0.
+        /// Called when any element text changes to restart the global animation.
+        /// </summary>
+        private void ResetAllElementAnimations()
+        {
+            foreach (var e in _elements)
+            {
+                e.TypeOnProgress = 0f;
+                e.IsDirty = true;
+            }
+            ModFileLogger.Log("[ElementLayer] All element animations reset to 0");
+        }
+        
+        /// <summary>
+        /// Set the priority order for element animation.
+        /// Elements animate in this order as one continuous character stream.
+        /// </summary>
+        public void SetPriorityOrder(List<string> priorityOrder)
+        {
+            _priorityOrder = priorityOrder ?? _priorityOrder;
         }
         
         /// <summary>
@@ -144,19 +180,64 @@ namespace CinematicShaders.UI.Screens.Layers
         }
         
         /// <summary>
-        /// Calculate type-on duration based on character count
+        /// Calculate type-on duration based on total character count across all visible elements.
+        /// This ensures consistent animation speed regardless of how many elements are visible.
         /// </summary>
         public float CalculateTypeOnDuration()
         {
-            int charCount = GetVisibleCharacterCount();
-            float duration = charCount / CHARS_PER_SECOND;
+            int totalCharCount = GetTotalVisibleCharacterCount();
+            float duration = totalCharCount / CHARS_PER_SECOND;
             return Mathf.Max(MIN_TYPEON_DURATION, duration);
         }
         
         /// <summary>
+        /// Get total visible character count across ALL visible elements.
+        /// Used for global character-based animation.
+        /// </summary>
+        private int GetTotalVisibleCharacterCount()
+        {
+            int total = 0;
+            var visibleElements = GetSortedVisibleElements();
+            
+            foreach (var element in visibleElements)
+            {
+                string text = element.FullDisplayText;
+                foreach (char c in text)
+                {
+                    if (c != ' ' && c != '\n' && c != '\r' && c != '\t')
+                        total++;
+                }
+            }
+            return total;
+        }
+        
+        /// <summary>
+        /// Get visible elements sorted by priority order.
+        /// </summary>
+        private List<HolographicTextElement> GetSortedVisibleElements()
+        {
+            var visibleElements = _elements.FindAll(e => e.IsVisible);
+            
+            // Sort by priority order
+            visibleElements.Sort((a, b) =>
+            {
+                int indexA = _priorityOrder.IndexOf(a.ElementId);
+                int indexB = _priorityOrder.IndexOf(b.ElementId);
+                
+                // Elements not in priority list go at the end
+                if (indexA < 0) indexA = int.MaxValue;
+                if (indexB < 0) indexB = int.MaxValue;
+                
+                return indexA.CompareTo(indexB);
+            });
+            
+            return visibleElements;
+        }
+        
+        /// <summary>
         /// Render all visible elements.
-        /// Uses Layer3Progress (0-1) as trigger to start type-on animation.
-        /// Each element animates independently with its own TypeOnProgress.
+        /// Uses Layer3Progress (0-1) as global character position across ALL elements.
+        /// Elements animate as ONE continuous character stream (like reading a book).
         /// </summary>
         public void RenderToTexture(IntPtr textSystem, Rect displayRect, float layer3Progress)
         {
@@ -165,40 +246,11 @@ namespace CinematicShaders.UI.Screens.Layers
             
             _textSystem = textSystem;
             
-            // Advance animations independently per-element
-            // layer3Progress > 0 means Layer 3 animation has started globally
-            var visibleElements = _elements.FindAll(e => e.IsVisible);
-            if (visibleElements.Count > 0 && layer3Progress > 0)
+            // Global character-based animation
+            // Layer3Progress (0-1) represents position through the entire character stream
+            if (layer3Progress > 0)
             {
-                float deltaTime = Time.deltaTime;
-                bool hasAnimatingElements = false;
-                
-                for (int i = 0; i < visibleElements.Count; i++)
-                {
-                    var element = visibleElements[i];
-                    
-                    // Advance TypeOnProgress independently for each element
-                    if (element.TypeOnProgress < 1.0f)
-                    {
-                        float prevProgress = element.TypeOnProgress;
-                        float advance = deltaTime / Mathf.Max(0.01f, element.TypeOnDuration);
-                        element.TypeOnProgress = Mathf.Min(1.0f, element.TypeOnProgress + advance);
-                        element.IsDirty = true;
-                        _isTextureDirty = true;
-                        hasAnimatingElements = true;
-                        
-                        // Log animation progress for debugging
-                        if (Mathf.Abs(element.TypeOnProgress - prevProgress) > 0.001f)
-                        {
-                            ModFileLogger.Log($"[ElementLayer] {element.ElementId}: TypeOnProgress {prevProgress:F3} -> {element.TypeOnProgress:F3}");
-                        }
-                    }
-                }
-                
-                if (hasAnimatingElements)
-                {
-                    ModFileLogger.Log($"[ElementLayer] RenderToTexture: layer3Progress={layer3Progress:F3}, animating {visibleElements.Count} elements");
-                }
+                DistributeGlobalProgressAcrossElements(layer3Progress);
             }
             
             // Re-render to texture if dirty
@@ -219,6 +271,95 @@ namespace CinematicShaders.UI.Screens.Layers
                     null
                 );
             }
+        }
+        
+        /// <summary>
+        /// Distribute global Layer3Progress across all visible elements.
+        /// Treats all elements as one continuous character stream.
+        /// </summary>
+        private void DistributeGlobalProgressAcrossElements(float globalProgress)
+        {
+            var sortedElements = GetSortedVisibleElements();
+            if (sortedElements.Count == 0) return;
+            
+            // Calculate total character count
+            int totalChars = 0;
+            var elementCharCounts = new List<int>();
+            foreach (var element in sortedElements)
+            {
+                int charCount = CountNonSpaceChars(element.FullDisplayText);
+                elementCharCounts.Add(charCount);
+                totalChars += charCount;
+            }
+            
+            if (totalChars == 0) return;
+            
+            // Calculate how many characters should be visible at this progress
+            int visibleCharCount = Mathf.FloorToInt(globalProgress * totalChars);
+            
+            // Distribute across elements
+            int charsAssigned = 0;
+            bool hasChanges = false;
+            
+            for (int i = 0; i < sortedElements.Count; i++)
+            {
+                var element = sortedElements[i];
+                int elementCharCount = elementCharCounts[i];
+                float prevProgress = element.TypeOnProgress;
+                
+                if (elementCharCount == 0)
+                {
+                    // Element has no characters (e.g., empty text) - show it fully
+                    element.TypeOnProgress = 1.0f;
+                }
+                else if (charsAssigned + elementCharCount <= visibleCharCount)
+                {
+                    // Entire element visible
+                    element.TypeOnProgress = 1.0f;
+                    charsAssigned += elementCharCount;
+                }
+                else if (charsAssigned >= visibleCharCount)
+                {
+                    // Element not started yet
+                    element.TypeOnProgress = 0.0f;
+                }
+                else
+                {
+                    // Partially visible - calculate exact progress within this element
+                    int charsIntoElement = visibleCharCount - charsAssigned;
+                    element.TypeOnProgress = (float)charsIntoElement / elementCharCount;
+                    charsAssigned += elementCharCount;
+                }
+                
+                // Mark dirty if progress changed
+                if (Mathf.Abs(element.TypeOnProgress - prevProgress) > 0.001f)
+                {
+                    element.IsDirty = true;
+                    _isTextureDirty = true;
+                    hasChanges = true;
+                }
+            }
+            
+            if (hasChanges && globalProgress < 1.0f)
+            {
+                ModFileLogger.Log($"[ElementLayer] Global progress {globalProgress:F3}: {visibleCharCount}/{totalChars} chars visible");
+            }
+        }
+        
+        /// <summary>
+        /// Count non-space characters in text.
+        /// </summary>
+        private int CountNonSpaceChars(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return 0;
+            
+            int count = 0;
+            foreach (char c in text)
+            {
+                if (c != ' ' && c != '\n' && c != '\r' && c != '\t')
+                    count++;
+            }
+            return count;
         }
         
         /// <summary>
