@@ -38,9 +38,9 @@ namespace CinematicShaders.UI
         // Layer animation progress (sequential type-on)
         private float _layer1TypeOnProgress = 0f;  // Border (Layer 1)
         private float _layer2TypeOnProgress = 0f;  // Labels (Layer 2)
-        private const float LAYER_1_DURATION = 2.0f;   // 2.0s for border
-        private const float LAYER_2_DURATION = 2.0f;   // 2.0s for labels
-        private const float LAYER_2_DELAY = 2.0f;      // Start after Layer 1
+        private const float LAYER_1_DURATION = 1.0f;   // 1.0s for border (halved)
+        private const float LAYER_2_DURATION = 1.0f;   // 1.0s for labels (halved)
+        private const float LAYER_2_DELAY = 1.0f;      // Start after Layer 1 (halved)
         private const float LAYER_3_DELAY = 4.0f;      // Start after Layer 2
         
         // Legacy variable - keep for compatibility but use _layer1TypeOnProgress
@@ -152,6 +152,34 @@ namespace CinematicShaders.UI
             "   [YES]                                            [NO]   ",
             "                                                           ",
             "                                                           "
+        };
+
+        // ============================================================================
+        // SPLASH SCREEN CONTENT - Pop-on/Fade-out boot graphic
+        // ============================================================================
+        // This is displayed instantly when PWR is clicked, stays visible for ~0.75s,
+        // then fades out over ~0.75s before Layer 1 border type-on begins.
+        // 
+        // INSTRUCTIONS: Fill in your ASCII art/logo below. Keep it 59 chars wide 
+        // (matching the grid) and 13 lines tall for consistency.
+        // 
+        // File location: UI/StarCatalogHolographicDisplay.cs
+        // Variable name: SPLASH_SCREEN_LINES
+        // ============================================================================
+        private static readonly string[] SPLASH_SCREEN_LINES = new string[]
+        {
+            " ________   _________    ________      ________",
+            "|\   ____\ |\___   ___\ |\   __  \    |\   __  \",
+            "\ \  \___|_\|___ \  \_| \ \  \|\  \   \ \  \|\  \",
+            " \ \_____  \    \ \  \   \ \   __  \   \ \   _  _\",
+            "   \|____|\  \  __\ \  \ __\ \  \ \  \ __\ \  \\  \|",
+            "     ____\_\  \|\__\ \__\\__\ \__\ \__\\__\ \__\\ _\|\__\",
+            "    |\_________\|__|\|__\|__|\|__|\|__\|__|\|__|\|__\|__|",
+            "    \|_________|System for Tabulation of Astrometric Records",
+            "                ⠀⠹⡶⣤⢶⠃⠀⠀ ⡀⠀⠀⠀  ⢀",
+            "                ⣠⣴⣷⡠⣽⣦⣄⡀ ⠀⠹⡶⣤⢶⠃",
+            "                ⠀⠀⠈⡿⠀⠀⠀⠀ ⣠⣴⣷⡠⣽⣦⣄",
+            "                ⠀⠀⠀⠁     ⠀⠀⠈⡿"
         };
 
         /// <summary>

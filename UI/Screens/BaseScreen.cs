@@ -12,9 +12,9 @@ namespace CinematicShaders.UI.Screens
     /// </summary>
     /// <remarks>
     /// The animation system uses a sequential three-layer approach:
-    /// 1. Layer 1 (0-2s): Border and frame elements type on
-    /// 2. Layer 2 (2-3.5s): Labels and static content type on
-    /// 3. Layer 3 (3.5s+): Interactive elements and values type on
+    /// 1. Layer 1 (0-1s): Border and frame elements type on
+    /// 2. Layer 2 (1-1.75s): Labels and static content type on
+    /// 3. Layer 3 (1.75s+): Interactive elements and values type on
     /// 
     /// Derived classes can customize timing by overriding the virtual duration properties.
     /// Layer 3 elements use a priority-based sequencer for fine-grained control over
@@ -70,27 +70,27 @@ namespace CinematicShaders.UI.Screens
         
         /// <summary>
         /// Gets the duration of Layer 1 animation in seconds.
-        /// Override to customize timing. Default: 2.0s
+        /// Override to customize timing. Default: 1.0s (halved for faster boot)
         /// </summary>
-        protected virtual float Layer1Duration => 2.0f;
+        protected virtual float Layer1Duration => 1.0f;
         
         /// <summary>
         /// Gets the delay before Layer 2 animation starts (after Layer 1 completes).
-        /// Override to customize timing. Default: 2.0s
+        /// Override to customize timing. Default: 1.0s (halved for faster boot)
         /// </summary>
-        protected virtual float Layer2Delay => 2.0f;
+        protected virtual float Layer2Delay => 1.0f;
         
         /// <summary>
         /// Gets the duration of Layer 2 animation in seconds.
-        /// Override to customize timing. Default: 1.5s
+        /// Override to customize timing. Default: 0.75s (halved for faster boot)
         /// </summary>
-        protected virtual float Layer2Duration => 1.5f;
+        protected virtual float Layer2Duration => 0.75f;
         
         /// <summary>
         /// Gets the delay before Layer 3 animation starts (after Layer 2 completes).
-        /// Override to customize timing. Default: 3.5s
+        /// Override to customize timing. Default: 1.75s (halved for faster boot)
         /// </summary>
-        protected virtual float Layer3Delay => 3.5f;
+        protected virtual float Layer3Delay => 1.75f;
         
         /// <summary>
         /// Gets the duration of Layer 3 animation in seconds.
