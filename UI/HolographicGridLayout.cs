@@ -28,21 +28,21 @@ namespace CinematicShaders.UI
             ["selected_star"] = GridPosition.At(4, 8),
 
             // Right column search results
-            ["result_0"] = GridPosition.At(42, 1),
-            ["result_1"] = GridPosition.At(42, 2),
-            ["result_2"] = GridPosition.At(42, 3),
-            ["result_3"] = GridPosition.At(42, 4),
-            ["result_4"] = GridPosition.At(42, 5),
-            ["result_5"] = GridPosition.At(42, 6),
-            ["result_6"] = GridPosition.At(42, 7),
-            ["result_7"] = GridPosition.At(42, 8),
-            ["result_8"] = GridPosition.At(42, 9),
-            ["result_9"] = GridPosition.At(42, 10),
+            ["result_0"] = GridPosition.At(38, 1),
+            ["result_1"] = GridPosition.At(38, 2),
+            ["result_2"] = GridPosition.At(38, 3),
+            ["result_3"] = GridPosition.At(38, 4),
+            ["result_4"] = GridPosition.At(38, 5),
+            ["result_5"] = GridPosition.At(38, 6),
+            ["result_6"] = GridPosition.At(38, 7),
+            ["result_7"] = GridPosition.At(38, 8),
+            ["result_8"] = GridPosition.At(38, 9),
+            ["result_9"] = GridPosition.At(38, 10),
 
             // Bottom area
             // NOTE: Buttons ([SAVE], [RESET], [RESCAN]) are drawn on Layer 2, not Layer 3
             // They exist as HolographicTextElement objects for click detection only
-            ["search_input"] = GridPosition.At(6, 11),
+            ["search_input"] = GridPosition.At(4, 12),
         };
 
         #endregion
@@ -66,12 +66,12 @@ namespace CinematicShaders.UI
             ["const_value"] = new GridRegion(GridPosition.At(8, 6), 20, 1),
             
             // Button zones
-            ["save_button"] = new GridRegion(GridPosition.At(17, 8), 7, 1),
-            ["reset_button"] = new GridRegion(GridPosition.At(27, 8), 8, 1),
-            ["rescan_button"] = new GridRegion(GridPosition.At(27, 10), 8, 1),
+            ["save_button"] = new GridRegion(GridPosition.At(17, 9), 7, 1),
+            ["reset_button"] = new GridRegion(GridPosition.At(27, 9), 8, 1),
+            ["rescan_button"] = new GridRegion(GridPosition.At(27, 11), 8, 1),
             
             // Input zone
-            ["search_input"] = new GridRegion(GridPosition.At(6, 11), 25, 1),
+            ["search_input"] = new GridRegion(GridPosition.At(4, 12), 25, 1),
         };
 
         /// <summary>
