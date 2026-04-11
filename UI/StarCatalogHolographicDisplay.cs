@@ -2191,9 +2191,9 @@ namespace CinematicShaders.UI
                     ExitEditMode(save: false);
                 }
                 
-                SetStarData(star);
-                OnStarSelected?.Invoke(star);
-                Debug.Log($"[HolographicDisplay] Selected star: {star.Name}");
+                // Select the star (this syncs to selector/Kartographer)
+                SelectStar(star);
+                Debug.Log($"[HolographicDisplay] Selected star from search result: {star.Name}");
             }
         }
 
