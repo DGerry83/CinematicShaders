@@ -58,10 +58,7 @@ namespace CinematicShaders.UI
             float cellHeight = displayHeight / GRID_ROWS;
 
             int col = Mathf.FloorToInt(x / cellWidth);
-            // Invert Y because texture is flipped (Rect(0, 1, 1, -1))
-            // Pixel Y=0 (top) corresponds to visual bottom = row 12
-            // Pixel Y=max (bottom) corresponds to visual top = row 0
-            int row = (GRID_ROWS - 1) - Mathf.FloorToInt(y / cellHeight);
+            int row = Mathf.FloorToInt(y / cellHeight);
 
             // Clamp to valid grid bounds
             col = Mathf.Clamp(col, 0, GRID_COLUMNS - 1);
