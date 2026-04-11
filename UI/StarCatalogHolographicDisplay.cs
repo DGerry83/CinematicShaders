@@ -2708,6 +2708,12 @@ namespace CinematicShaders.UI
             _allStars = stars ?? new List<NamedStar>();
             _allStars.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
             
+            ModFileLogger.Log($"[SearchDebug] SetStarList called with {_allStars?.Count ?? 0} stars");
+            if (_allStars.Count > 0)
+            {
+                ModFileLogger.Log($"[SearchDebug] First star: HIP {_allStars[0].HipparcosID}, Name: '{_allStars[0].Name}'");
+            }
+            
             // Clear search and show empty state
             _searchQuery = "";
             _inputBuffer = "";
@@ -2722,14 +2728,18 @@ namespace CinematicShaders.UI
         /// </summary>
         public void UpdateSearch(string query)
         {
+            ModFileLogger.Log($"[SearchDebug] UpdateSearch called with query='{query}', lastSearchTime={_lastSearchTime:F2}, time={Time.time:F2}");
+            
             // Debounce rapid updates
             if (Time.time - _lastSearchTime < SEARCH_DEBOUNCE)
             {
+                ModFileLogger.Log($"[SearchDebug] Search debounced - too soon");
                 return;
             }
             _lastSearchTime = Time.time;
             
             _searchQuery = query?.ToUpper() ?? "";
+            ModFileLogger.Log($"[SearchDebug] Setting searchQuery='{_searchQuery}'");
             
             // Update search input display
             SetElementText("search_input", string.IsNullOrEmpty(_searchQuery) ? "..." : _searchQuery);
@@ -2745,6 +2755,8 @@ namespace CinematicShaders.UI
         {
             _filteredResults.Clear();
             
+            ModFileLogger.Log($"[SearchDebug] UpdateSearchResults called. Query='{_searchQuery}', _allStars.Count={_allStars?.Count ?? 0}");
+            
             if (string.IsNullOrWhiteSpace(_searchQuery))
             {
                 // Show empty state message in results
@@ -2755,6 +2767,7 @@ namespace CinematicShaders.UI
             string query = _searchQuery.ToLowerInvariant();
             
             // Filter: match name or HIP ID
+            int checkCount = 0;
             foreach (var star in _allStars)
             {
                 if (_filteredResults.Count >= MAX_SEARCH_RESULTS)
@@ -2763,11 +2776,15 @@ namespace CinematicShaders.UI
                 bool nameMatch = star.Name.ToLowerInvariant().Contains(query);
                 bool hipMatch = star.HipparcosID.ToString().Contains(query);
                 
+                checkCount++;
                 if (nameMatch || hipMatch)
                 {
+                    ModFileLogger.Log($"[SearchDebug] Match found: HIP {star.HipparcosID}, Name='{star.Name}'");
                     _filteredResults.Add(star);
                 }
             }
+            
+            ModFileLogger.Log($"[SearchDebug] Searched {checkCount} stars, found {_filteredResults.Count} matches");
             
             // Update result elements
             UpdateResultElements();
@@ -2931,14 +2948,20 @@ namespace CinematicShaders.UI
         /// </summary>
         private void HandleKeyboardInput()
         {
+            Event e = Event.current;
+            
+            // DEBUG: Log all keyboard events
+            if (e.isKey && e.type == EventType.KeyDown)
+            {
+                ModFileLogger.Log($"[SearchDebug] KeyDown: key={e.keyCode}, char='{e.character}', type={e.type}, editingMode={_editingElementId ?? "null"}");
+            }
+            
             // Edit mode has priority
             if (!string.IsNullOrEmpty(_editingElementId))
             {
                 HandleEditInput();
                 return;
             }
-            
-            Event e = Event.current;
             
             if (e.type != EventType.KeyDown)
                 return;
@@ -2981,7 +3004,9 @@ namespace CinematicShaders.UI
             // Handle typing for search input
             if (e.character != '\0' && !char.IsControl(e.character))
             {
+                ModFileLogger.Log($"[SearchDebug] Typing: char='{e.character}', adding to buffer");
                 _inputBuffer += char.ToUpper(e.character);
+                ModFileLogger.Log($"[SearchDebug] Buffer now: '{_inputBuffer}'");
                 UpdateSearch(_inputBuffer);
                 e.Use();
                 return;

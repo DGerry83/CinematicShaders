@@ -68,10 +68,12 @@ namespace CinematicShaders.UI.Tabs
             Debug.Log($"[KartographerTab] JSON state changed: {args.OldAvailability} -> {args.NewAvailability}");
             
             // Update holographic display star list if JSON became available
+            ModFileLogger.Log($"[SearchDebug] HandleJsonStateChanged: Old={args.OldAvailability}, New={args.NewAvailability}, HolographicVisible={_holographicDisplay?.IsVisible}");
             if (args.NewAvailability != JsonAvailability.None && 
                 args.OldAvailability == JsonAvailability.None &&
                 _holographicDisplay != null && _holographicDisplay.IsVisible)
             {
+                ModFileLogger.Log("[SearchDebug] JSON became available, updating star list");
                 var stars = GetNamedStarsFromSelector();
                 _holographicDisplay.SetStarList(stars);
             }
@@ -1073,10 +1075,12 @@ namespace CinematicShaders.UI.Tabs
         /// </summary>
         private void CreateHolographicDisplay()
         {
+            ModFileLogger.Log("[SearchDebug] CreateHolographicDisplay called");
             var addon = CinematicShadersAddon.Instance;
             if (addon != null)
             {
                 _holographicDisplay = addon.gameObject.AddComponent<StarCatalogHolographicDisplay>();
+                ModFileLogger.Log($"[SearchDebug] _selector is null: {_selector == null}");
                 
                 // Calculate position (docked to main window)
                 float x = 0, y = 0;
@@ -1130,11 +1134,18 @@ namespace CinematicShaders.UI.Tabs
         /// </summary>
         private void InitializeHolographicDisplay()
         {
+            ModFileLogger.Log($"[SearchDebug] InitializeHolographicDisplay called. _holographicDisplay={_holographicDisplay != null}, _selector={_selector != null}");
             if (_holographicDisplay == null) return;
-            if (_selector == null) return;
+            if (_selector == null) 
+            {
+                ModFileLogger.Log("[SearchDebug] InitializeHolographicDisplay: _selector is null, cannot initialize");
+                return;
+            }
             
             // Get star list from selector
+            ModFileLogger.Log("[SearchDebug] SyncHolographicDisplayStarList calling GetNamedStarsFromSelector");
             var stars = GetNamedStarsFromSelector();
+            ModFileLogger.Log($"[SearchDebug] Got {stars.Count} stars, calling SetStarList");
             _holographicDisplay.SetStarList(stars);
             
             // Set pre-selected star if any
@@ -1247,7 +1258,13 @@ namespace CinematicShaders.UI.Tabs
         /// </summary>
         private List<NamedStar> GetNamedStarsFromSelector()
         {
-            if (_selector == null) return new List<NamedStar>();
+            if (_selector == null) 
+            {
+                ModFileLogger.Log("[SearchDebug] GetNamedStarsFromSelector: _selector is NULL");
+                return new List<NamedStar>();
+            }
+            
+            ModFileLogger.Log($"[SearchDebug] GetNamedStarsFromSelector called, _selector={_selector.GetHashCode()}");
             
             // Use reflection to access private _namedStars field
             var field = typeof(KartographerSelector).GetField("_namedStars", 
@@ -1257,8 +1274,22 @@ namespace CinematicShaders.UI.Tabs
                 var namedStars = field.GetValue(_selector) as Dictionary<int, NamedStar>;
                 if (namedStars != null)
                 {
+                    ModFileLogger.Log($"[SearchDebug] namedStars dictionary has {namedStars.Count} entries");
+                    if (namedStars.Count > 0)
+                    {
+                        var first = namedStars.Values.First();
+                        ModFileLogger.Log($"[SearchDebug] First star: HIP {first.HipparcosID}, Name='{first.Name}'");
+                    }
                     return namedStars.Values.ToList();
                 }
+                else
+                {
+                    ModFileLogger.Log("[SearchDebug] namedStars is NULL");
+                }
+            }
+            else
+            {
+                ModFileLogger.Log("[SearchDebug] Could not find _namedStars field via reflection");
             }
             return new List<NamedStar>();
         }
