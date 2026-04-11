@@ -200,10 +200,28 @@ namespace CinematicShaders.UI.Screens
             
             _elementLayer?.SetElementVisibility(false);
             
-            // Clear click zones and box outline
-            _clickHandler.SetZones(new List<ClickZone>());
+            // DISABLED: Don't clear click zones on exit - screen may still be active
+            // _clickHandler.SetZones(new List<ClickZone>());
             // Box drawing disabled - needs proper struct toolkit implementation
             // StarfieldNative.CR_DrawCRTBox(0, 0, 0, 0, 0, 0, 0);
+        }
+        
+        /// <summary>
+        /// Initialize click zones. Called when display is powered on.
+        /// </summary>
+        public void SetClickZones()
+        {
+            _clickHandler.SetZones(MainScreenClickZones.GetAllZones());
+            Debug.Log("[MainScreen] Click zones initialized");
+        }
+        
+        /// <summary>
+        /// Clear click zones. Called when display is powered off.
+        /// </summary>
+        public void ClearClickZones()
+        {
+            _clickHandler.SetZones(new List<ClickZone>());
+            Debug.Log("[MainScreen] Click zones cleared");
         }
         
         /// <summary>

@@ -1621,6 +1621,10 @@ namespace CinematicShaders.UI
             };
             _screenManager?.TransitionTo("Main", context);
             
+            // Initialize click zones for MainScreen
+            var mainScreen = _screenManager?.CurrentScreen as MainScreen;
+            mainScreen?.SetClickZones();
+            
             Debug.Log("[HolographicDisplay] Power ON - Main screen with animation");
         }
         
@@ -1667,6 +1671,10 @@ namespace CinematicShaders.UI
                 element.TypeOnProgress = 0f;
                 element.IsDirty = true;
             }
+            
+            // Clear click zones to prevent detection when powered off
+            var mainScreen = _screenManager?.CurrentScreen as MainScreen;
+            mainScreen?.ClearClickZones();
             
             Debug.Log("[HolographicDisplay] Power OFF");
         }
