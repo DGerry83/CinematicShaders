@@ -126,5 +126,42 @@ namespace CinematicShaders.UI
                 TextTexture = null;
             }
         }
+
+        // ============================================================================
+        // NEW: Grid-based positioning (primary) - Added at end per Scope A contract
+        // ============================================================================
+
+        /// <summary>
+        /// Grid position for this element (59×13 terminal grid).
+        /// When GridWidth > 0, this takes precedence over Position4K.
+        /// </summary>
+        public GridPosition GridPos { get; set; }
+
+        /// <summary>
+        /// Width of this element in grid columns.
+        /// Set to 0 to use Position4K fallback (legacy positioning).
+        /// </summary>
+        public int GridWidth { get; set; }
+
+        /// <summary>
+        /// Calculate pixel Rect from grid position (for rendering).
+        /// Falls back to Position4K if GridWidth is 0.
+        /// </summary>
+        /// <param name="displayWidth">Total display width in pixels</param>
+        /// <param name="displayHeight">Total display height in pixels</param>
+        /// <returns>Pixel rectangle for rendering</returns>
+        public Rect GetPixelRect(float displayWidth, float displayHeight)
+        {
+            if (GridWidth > 0)
+            {
+                var region = new GridRegion(GridPos, GridWidth, 1);
+                return TerminalGridConfig.GridToPixelRect(region, displayWidth, displayHeight);
+            }
+            else
+            {
+                // Fallback to legacy system
+                return Position4K;
+            }
+        }
     }
 }
