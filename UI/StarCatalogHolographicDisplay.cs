@@ -9,6 +9,8 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using static FinePrint.ContractDefs;
+using static CinematicShaders.UI.UnifiedGridConfig;
+using static CinematicShaders.UI.UnifiedGridRegistry;
 
 namespace CinematicShaders.UI
 {
@@ -355,6 +357,17 @@ namespace CinematicShaders.UI
 
         private void CreateElements()
         {
+            _elements.Clear();
+            _resultElements.Clear();
+            
+            // Unified grid path (Phase 4)
+            if (UnifiedGridConfig.USE_UNIFIED_GRID)
+            {
+                CreateElementsUnified();
+                return;
+            }
+            
+            // Legacy path (existing implementation continues...)
             // FIELD ORDER: HIP, NAME, DISTANCE, SPECTRAL, MAGNITUDE, CONSTELLATION
             // Only value fields and interactive elements are created here (Layer 3)
 
@@ -398,6 +411,76 @@ namespace CinematicShaders.UI
                 _resultElements.Add(elem);
                 _elements[elem.ElementId] = elem;
             }
+        }
+
+        /// <summary>
+        /// Creates elements using unified 59×13 grid system.
+        /// Calculates pixel positions dynamically based on display size.
+        /// </summary>
+        private void CreateElementsUnified()
+        {
+            // Get current display dimensions
+            Vector2 dimensions = HolographicLayoutConfig.GetDisplayDimensions(_displaySize);
+            float displayWidth = dimensions.x;
+            float displayHeight = dimensions.y;
+            
+            // Create main screen elements from unified registry
+            foreach (var kvp in UnifiedGridRegistry.MainScreenElements)
+            {
+                var definition = kvp.Value;
+                
+                // Skip buttons - they are drawn in Layer 2
+                if (definition.Type == ElementType.Button)
+                    continue;
+                
+                // Create element using unified definition
+                var element = HolographicTextElement.FromDefinition(definition, displayWidth, displayHeight);
+                
+                // Set initial values based on element type
+                switch (definition.ElementId)
+                {
+                    case "hip_value":
+                        element.StaticText = "HIP:";
+                        break;
+                    case "name_value":
+                        element.StaticText = "NAME:";
+                        element.Type = TextElementType.Editable;
+                        break;
+                    case "distance_value":
+                        element.StaticText = "DISTANCE:";
+                        break;
+                    case "spectral_value":
+                        element.StaticText = "TYPE:";
+                        break;
+                    case "mag_value":
+                        element.StaticText = "MAG:";
+                        break;
+                    case "const_value":
+                        element.StaticText = "CONST:";
+                        break;
+                    case "search_input":
+                        element.StaticText = "SEARCH:";
+                        element.Type = TextElementType.Input;
+                        break;
+                    case "selected_star":
+                        element.StaticText = "SELECTED:";
+                        break;
+                }
+                
+                _elements[definition.ElementId] = element;
+            }
+            
+            // Create search result elements dynamically
+            for (int i = 0; i < 10; i++)
+            {
+                var definition = UnifiedGridRegistry.GetSearchResultElement(i);
+                var element = HolographicTextElement.FromDefinition(definition, displayWidth, displayHeight);
+                element.IsVisible = false; // Hidden by default
+                _resultElements.Add(element);
+                _elements[element.ElementId] = element;
+            }
+            
+            Debug.Log($"[StarCatalogHolographicDisplay] Created {_elements.Count} main elements and {_resultElements.Count} result elements (unified grid)");
         }
 
         private void AddElement(string id, TextElementType type, string staticText, string dynamicText, Rect pos4K, float typeOnDelay)
