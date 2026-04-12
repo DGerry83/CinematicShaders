@@ -205,8 +205,11 @@ namespace CinematicShaders.UI.Screens
         /// </summary>
         public void SetClickZones()
         {
-            _clickHandler.SetZones(MainScreenClickZones.GetAllZones());
-            Debug.Log("[MainScreen] Click zones initialized");
+            ModFileLogger.Log("[MainScreen] SetClickZones() called");
+            var zones = MainScreenClickZones.GetAllZones();
+            ModFileLogger.Log($"[MainScreen] Got {zones.Count} zones, setting in ClickHandler");
+            _clickHandler.SetZones(zones);
+            ModFileLogger.Log("[MainScreen] Click zones set");
         }
         
         /// <summary>
@@ -214,8 +217,9 @@ namespace CinematicShaders.UI.Screens
         /// </summary>
         public void ClearClickZones()
         {
+            ModFileLogger.Log("[MainScreen] ClearClickZones() called");
             _clickHandler.SetZones(new List<ClickZone>());
-            Debug.Log("[MainScreen] Click zones cleared");
+            ModFileLogger.Log("[MainScreen] Click zones cleared");
         }
         
         /// <summary>

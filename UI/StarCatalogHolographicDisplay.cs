@@ -315,6 +315,9 @@ namespace CinematicShaders.UI
         /// </summary>
         public void SetDisplaySize(HolographicDisplaySize size)
         {
+            ModFileLogger.Log($"[HolographicDisplay] SetDisplaySize({size}) called");
+            ModFileLogger.Log($"[HolographicDisplay] Previous size: {_displaySize}");
+            
             // For unified grid, allow all sizes. For legacy, keep Large only.
             if (!UnifiedGridConfig.USE_UNIFIED_GRID && size != HolographicDisplaySize.Large)
             {
@@ -340,6 +343,9 @@ namespace CinematicShaders.UI
             
             _windowRect = new Rect(_windowRect.x, _windowRect.y, windowWidth, windowHeight);
             
+            ModFileLogger.Log($"[HolographicDisplay] New window size: {_windowRect.width}x{_windowRect.height}");
+            ModFileLogger.Log($"[HolographicDisplay] CurrentDisplaySize set to: {TerminalGridConfig.CurrentDisplaySize}");
+            
             // Recreate textures for new size
             CleanupRenderTextures();
             InitializeTextures();
@@ -349,6 +355,7 @@ namespace CinematicShaders.UI
                 if (UnifiedGridConfig.USE_UNIFIED_GRID)
                 {
                     // Unified grid: Reinitialize ScreenManager textures at new size
+                    ModFileLogger.Log("[HolographicDisplay] Recreating elements for unified grid");
                     _screenManager.Shutdown();
                     _screenManager = new ScreenManager(_textSystem);
                     _screenManager.InitializeTextures(

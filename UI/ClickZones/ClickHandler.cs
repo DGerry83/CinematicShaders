@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using CinematicShaders.Native;
 using CinematicShaders.Core;
@@ -23,9 +24,25 @@ namespace CinematicShaders.UI.ClickZones
         /// </summary>
         public void SetZones(List<ClickZone> zones)
         {
-            _zones = zones ?? new List<ClickZone>();
-            _hoveredZone = null;
+            ModFileLogger.Log($"[ClickHandler] SetZones() called with {zones?.Count ?? 0} zones");
             
+            if (zones == null)
+            {
+                ModFileLogger.Log("[ClickHandler] WARNING: zones is null!");
+                _zones = new List<ClickZone>();
+                return;
+            }
+            
+            _zones = zones;
+            
+            // Log first few zones
+            foreach (var zone in _zones.Take(3))
+            {
+                ModFileLogger.Log($"[ClickHandler] Zone set: {zone.ElementId}");
+            }
+            
+            _hoveredZone = null;
+
 
         }
         
@@ -92,6 +109,13 @@ namespace CinematicShaders.UI.ClickZones
                 TerminalGridConfig.CurrentDisplaySize
             );
             
+            // At start (only log on mouse down to avoid spam)
+            if (logDebug)
+            {
+                ModFileLogger.Log($"[ClickHandler] FindZoneByGrid called, mouse: {mousePos}, display: {displayRect}");
+                ModFileLogger.Log($"[ClickHandler] Converted to grid: {gridPos}");
+                ModFileLogger.Log($"[ClickHandler] Checking {_zones.Count} zones");
+            }
 
             foreach (var zone in _zones)
             {
@@ -111,10 +135,21 @@ namespace CinematicShaders.UI.ClickZones
                     
                     if (colHit && rowHit)
                     {
+                        // When zone found
+                        if (logDebug)
+                        {
+                            ModFileLogger.Log($"[ClickHandler] Found zone: {zone.ElementId}");
+                        }
                         return zone;
                     }
                 }
 
+            }
+            
+            // When no zone found
+            if (logDebug)
+            {
+                ModFileLogger.Log("[ClickHandler] No zone found");
             }
             
             return null;

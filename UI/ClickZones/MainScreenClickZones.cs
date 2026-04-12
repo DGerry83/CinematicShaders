@@ -17,6 +17,10 @@ namespace CinematicShaders.UI.ClickZones
         /// </summary>
         public static List<ClickZone> GetAllZones()
         {
+            ModFileLogger.Log("[MainScreenClickZones] GetAllZones() called");
+            ModFileLogger.Log($"[MainScreenClickZones] USE_UNIFIED_GRID: {UnifiedGridConfig.USE_UNIFIED_GRID}");
+            ModFileLogger.Log($"[MainScreenClickZones] CurrentDisplaySize: {TerminalGridConfig.CurrentDisplaySize}");
+            
             // Unified grid path (Phase 3)
             if (UnifiedGridConfig.USE_UNIFIED_GRID)
             {
@@ -30,10 +34,12 @@ namespace CinematicShaders.UI.ClickZones
                     unifiedZones.Add(new ClickZone(resultDef));
                 }
                 
+                ModFileLogger.Log($"[MainScreenClickZones] Returning {unifiedZones.Count} unified zones");
                 return unifiedZones;
             }
             
             // Legacy path (existing implementation)
+            ModFileLogger.Log("[MainScreenClickZones] Using legacy path");
             var zones = new List<ClickZone>();
             
             // Create zones from grid layout

@@ -498,8 +498,16 @@ namespace CinematicShaders.UI.Screens.Layers
         /// </summary>
         private void BuildLayer3ContentUnified()
         {
+            // At the very start of the method
+            ModFileLogger.Log("[ElementLayer] BuildLayer3ContentUnified() called");
+            ModFileLogger.Log($"[ElementLayer] CurrentDisplaySize: {TerminalGridConfig.CurrentDisplaySize}");
+            ModFileLogger.Log($"[ElementLayer] USE_UNIFIED_GRID: {UnifiedGridConfig.USE_UNIFIED_GRID}");
+
             // Clear the grid buffer
             Array.Clear(_gridBuffer, 0, _gridBuffer.Length);
+            
+            // Before getting zones
+            ModFileLogger.Log("[ElementLayer] Getting click zones from registry...");
             
             // Get all main screen elements from unified registry
             var elementDefinitions = MainScreenElements;
@@ -567,6 +575,15 @@ namespace CinematicShaders.UI.Screens.Layers
                 {
                     var resultDef = UnifiedGridRegistry.GetSearchResultElement(i);
                     zones.Add(new ClickZone(resultDef));
+                }
+                
+                // After getting zones
+                ModFileLogger.Log($"[ElementLayer] Got {zones.Count} zones from registry");
+                
+                // Log each zone
+                foreach (var zone in zones.Take(5)) // Log first 5 to avoid spam
+                {
+                    ModFileLogger.Log($"[ElementLayer] Zone: {zone.ElementId} at ({zone.GridRect.x},{zone.GridRect.y}) size ({zone.GridRect.width},{zone.GridRect.height})");
                 }
             }
 
