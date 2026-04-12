@@ -430,6 +430,17 @@ namespace CinematicShaders.UI.Screens.Layers
         }
 
         /// <summary>
+        /// Places a single character into the grid buffer.
+        /// </summary>
+        private void PlaceCharInGrid(char c, int col, int row)
+        {
+            if (col >= 0 && col < GRID_COLUMNS && row >= 0 && row < GRID_ROWS)
+            {
+                _gridBuffer[row, col] = c;
+            }
+        }
+
+        /// <summary>
         /// Build Layer 3 content using grid-based positioning.
         /// Replaces the hardcoded string building with grid placement.
         /// </summary>
@@ -544,6 +555,39 @@ namespace CinematicShaders.UI.Screens.Layers
                 }
             }
             
+            // Debug: Draw click zones as visible blocks
+            if (UnifiedGridConfig.DEBUG_DRAW_CLICK_ZONES)
+            {
+                // Get all click zones
+                var zones = UnifiedGridRegistry.GetClickZonesForScreen(
+                    UnifiedGridRegistry.MainScreenElements);
+                
+                // Add search result zones
+                for (int i = 0; i < 10; i++)
+                {
+                    var resultDef = UnifiedGridRegistry.GetSearchResultElement(i);
+                    zones.Add(new ClickZone(resultDef));
+                }
+                
+                // Draw each zone as block characters
+                foreach (var zone in zones)
+                {
+                    int startCol = Mathf.FloorToInt(zone.GridRect.x);
+                    int startRow = Mathf.FloorToInt(zone.GridRect.y);
+                    int width = Mathf.FloorToInt(zone.GridRect.width);
+                    int height = Mathf.FloorToInt(zone.GridRect.height);
+                    
+                    // Draw '█' for each cell in the zone
+                    for (int r = 0; r < height && startRow + r < GRID_ROWS; r++)
+                    {
+                        for (int c = 0; c < width && startCol + c < GRID_COLUMNS; c++)
+                        {
+                            PlaceCharInGrid('█', startCol + c, startRow + r);
+                        }
+                    }
+                }
+            }
+
             // Convert grid buffer to string array (same as legacy path)
             _layer3ContentLines = new string[GRID_ROWS];
             for (int row = 0; row < GRID_ROWS; row++)

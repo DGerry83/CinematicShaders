@@ -22,5 +22,10 @@ namespace CinematicShaders.UI
         /// Number of rows in the unified grid
         /// </summary>
         public const int GRID_ROWS = 13;
+        
+        /// <summary>
+        /// Debug mode: Draw click zones as visible blocks.
+        /// </summary>
+        public const bool DEBUG_DRAW_CLICK_ZONES = true; // Set to true to enable
     }
 }
