@@ -15,6 +15,12 @@ namespace CinematicShaders.UI
         public const int GRID_COLUMNS = 59;
 
         /// <summary>
+        /// Current display size for glyph-based coordinate calculations.
+        /// Updated by StarCatalogHolographicDisplay when size changes.
+        /// </summary>
+        public static HolographicDisplaySize CurrentDisplaySize { get; set; } = HolographicDisplaySize.Large;
+
+        /// <summary>
         /// Number of rows in the terminal grid (13 = Layer 1 border height)
         /// </summary>
         public const int GRID_ROWS = 13;

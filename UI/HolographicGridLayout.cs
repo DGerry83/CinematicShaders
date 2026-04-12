@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -137,11 +138,24 @@ namespace CinematicShaders.UI
         /// <summary>
         /// Convert a screen pixel position to a zone ID.
         /// Returns the zone ID or null if the position is not within any zone.
+        /// Uses the current display size for glyph-based coordinate conversion.
         /// </summary>
+        public static string FindZoneAtPixel(float x, float y)
+        {
+            var gridPos = TerminalGridConfig.PixelToGrid(
+                x, y, 
+                TerminalGridConfig.CurrentDisplaySize
+            );
+            return FindZoneAtPosition(gridPos);
+        }
+
+        /// <summary>
+        /// Legacy method for backward compatibility - uses CurrentDisplaySize internally.
+        /// </summary>
+        [Obsolete("Use FindZoneAtPixel(x, y) instead")]
         public static string FindZoneAtPixel(float x, float y, float displayWidth, float displayHeight)
         {
-            var gridPos = TerminalGridConfig.PixelToGrid(x, y, displayWidth, displayHeight);
-            return FindZoneAtPosition(gridPos);
+            return FindZoneAtPixel(x, y);
         }
 
         #endregion

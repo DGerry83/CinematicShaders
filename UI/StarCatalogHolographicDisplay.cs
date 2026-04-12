@@ -329,6 +329,9 @@ namespace CinematicShaders.UI
             
             _displaySize = size;
             
+            // Update the global current display size for glyph-based calculations
+            TerminalGridConfig.CurrentDisplaySize = size;
+            
             // Get new dimensions
             Vector2 dimensions = HolographicLayoutConfig.GetDisplayDimensions(size);
             _fontSize = HolographicLayoutConfig.GetFontSize(size);
@@ -440,14 +443,12 @@ namespace CinematicShaders.UI
 
         /// <summary>
         /// Creates elements using unified 59×13 grid system.
-        /// Calculates pixel positions dynamically based on display size.
+        /// Calculates pixel positions dynamically using current display size.
         /// </summary>
         private void CreateElementsUnified()
         {
-            // Get current display dimensions
-            Vector2 dimensions = HolographicLayoutConfig.GetDisplayDimensions(_displaySize);
-            float displayWidth = dimensions.x;
-            float displayHeight = dimensions.y;
+            // Current display size is set by SetDisplaySize() via TerminalGridConfig.CurrentDisplaySize
+            // Elements calculate their pixel positions using glyph metrics automatically
             
             // Create main screen elements from unified registry
             foreach (var kvp in UnifiedGridRegistry.MainScreenElements)
@@ -458,8 +459,8 @@ namespace CinematicShaders.UI
                 if (definition.Type == ElementType.Button)
                     continue;
                 
-                // Create element using unified definition
-                var element = HolographicTextElement.FromDefinition(definition, displayWidth, displayHeight);
+                // Create element using unified definition (uses CurrentDisplaySize internally)
+                var element = HolographicTextElement.FromDefinition(definition);
                 
                 // Set element types for interactive elements
                 switch (definition.ElementId)
@@ -479,7 +480,7 @@ namespace CinematicShaders.UI
             for (int i = 0; i < 10; i++)
             {
                 var definition = UnifiedGridRegistry.GetSearchResultElement(i);
-                var element = HolographicTextElement.FromDefinition(definition, displayWidth, displayHeight);
+                var element = HolographicTextElement.FromDefinition(definition);
                 element.IsVisible = false; // Hidden by default
                 _resultElements.Add(element);
                 _elements[element.ElementId] = element;

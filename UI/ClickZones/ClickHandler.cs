@@ -85,11 +85,11 @@ namespace CinematicShaders.UI.ClickZones
             float localX = mousePos.x - displayRect.x;
             float localY = mousePos.y - displayRect.y;
             
+            // Use the current display size for glyph-based coordinate conversion
             GridPosition gridPos = TerminalGridConfig.PixelToGrid(
                 localX,
                 localY,
-                displayRect.width,
-                displayRect.height
+                TerminalGridConfig.CurrentDisplaySize
             );
             
 

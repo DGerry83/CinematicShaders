@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace CinematicShaders.UI
@@ -126,12 +127,10 @@ namespace CinematicShaders.UI
 
         /// <summary>
         /// Creates a HolographicTextElement from a unified grid element definition.
-        /// Calculates pixel position dynamically based on display size.
+        /// Calculates pixel position dynamically using current display size.
         /// </summary>
         /// <param name="definition">Grid element definition</param>
-        /// <param name="displayWidth">Display width for pixel calculation</param>
-        /// <param name="displayHeight">Display height for pixel calculation</param>
-        public HolographicTextElement(GridElementDefinition definition, float displayWidth, float displayHeight)
+        public HolographicTextElement(GridElementDefinition definition)
         {
             ElementId = definition.ElementId;
             StaticText = "";
@@ -142,8 +141,8 @@ namespace CinematicShaders.UI
             GridPos = definition.Position;
             GridWidth = definition.Width;
             
-            // Calculate pixel position from grid coordinates
-            Position4K = definition.GetPixelRect(displayWidth, displayHeight);
+            // Calculate pixel position from grid coordinates using current display size
+            Position4K = definition.GetPixelRect();
             
             Priority = definition.Priority;
             IsVisible = definition.VisibleByDefault;
@@ -153,6 +152,15 @@ namespace CinematicShaders.UI
             TypeOnProgress = 1.0f;
             TypeOnDelay = 0f;
             TypeOnDuration = 0.5f;
+        }
+
+        /// <summary>
+        /// Legacy constructor for backward compatibility.
+        /// </summary>
+        [Obsolete("Use constructor without display dimensions instead")]
+        public HolographicTextElement(GridElementDefinition definition, float displayWidth, float displayHeight)
+            : this(definition)
+        {
         }
 
         /// <summary>
@@ -179,10 +187,20 @@ namespace CinematicShaders.UI
 
         /// <summary>
         /// Factory method to create a HolographicTextElement from a grid definition.
+        /// Uses current display size for glyph-based calculations.
         /// </summary>
+        public static HolographicTextElement FromDefinition(GridElementDefinition definition)
+        {
+            return new HolographicTextElement(definition);
+        }
+
+        /// <summary>
+        /// Legacy factory method for backward compatibility.
+        /// </summary>
+        [Obsolete("Use FromDefinition(definition) instead")]
         public static HolographicTextElement FromDefinition(GridElementDefinition definition, float displayWidth, float displayHeight)
         {
-            return new HolographicTextElement(definition, displayWidth, displayHeight);
+            return FromDefinition(definition);
         }
 
 
@@ -205,22 +223,43 @@ namespace CinematicShaders.UI
         /// <summary>
         /// Calculate pixel Rect from grid position (for rendering).
         /// Falls back to Position4K if GridWidth is 0.
+        /// Uses glyph-based calculations with the current display size.
         /// </summary>
-        /// <param name="displayWidth">Total display width in pixels</param>
-        /// <param name="displayHeight">Total display height in pixels</param>
         /// <returns>Pixel rectangle for rendering</returns>
-        public Rect GetPixelRect(float displayWidth, float displayHeight)
+        public Rect GetPixelRect()
         {
             if (GridWidth > 0)
             {
-                var region = new GridRegion(GridPos, GridWidth, 1);
-                return TerminalGridConfig.GridToPixelRect(region, displayWidth, displayHeight);
+                // Use glyph-based coordinate conversion with current display size
+                Vector2 pixelPos = TerminalGridConfig.GridToPixel(
+                    GridPos.Column, 
+                    GridPos.Row, 
+                    TerminalGridConfig.CurrentDisplaySize
+                );
+                
+                // Calculate width based on glyph width
+                var (glyphWidth, glyphHeight) = TerminalGridConfig.GlyphMetrics.GetGlyphMetrics(
+                    TerminalGridConfig.CurrentDisplaySize
+                );
+                float width = GridWidth * glyphWidth;
+                float height = glyphHeight;
+                
+                return new Rect(pixelPos.x, pixelPos.y, width, height);
             }
             else
             {
                 // Fallback to legacy system
                 return Position4K;
             }
+        }
+
+        /// <summary>
+        /// Legacy method for backward compatibility - uses CurrentDisplaySize internally.
+        /// </summary>
+        [Obsolete("Use parameterless GetPixelRect() instead")]
+        public Rect GetPixelRect(float displayWidth, float displayHeight)
+        {
+            return GetPixelRect();
         }
     }
 }

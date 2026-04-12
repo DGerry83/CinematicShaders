@@ -53,14 +53,37 @@ namespace CinematicShaders.UI
         }
         
         /// <summary>
-        /// Get pixel rectangle for rendering at specified display size.
+        /// Get pixel rectangle for rendering using current display size.
+        /// Uses glyph-based calculations.
         /// </summary>
-        /// <param name="displayWidth">Total display width in pixels</param>
-        /// <param name="displayHeight">Total display height in pixels</param>
         /// <returns>Pixel rectangle in screen coordinates</returns>
+        public Rect GetPixelRect()
+        {
+            var region = GetGridRegion();
+            Vector2 pixelPos = TerminalGridConfig.GridToPixel(
+                region.TopLeft.Column, 
+                region.TopLeft.Row, 
+                TerminalGridConfig.CurrentDisplaySize
+            );
+            
+            // Calculate size based on glyph metrics
+            var (glyphWidth, glyphHeight) = TerminalGridConfig.GlyphMetrics.GetGlyphMetrics(
+                TerminalGridConfig.CurrentDisplaySize
+            );
+            
+            float width = region.Width * glyphWidth;
+            float height = region.Height * glyphHeight;
+            
+            return new Rect(pixelPos.x, pixelPos.y, width, height);
+        }
+
+        /// <summary>
+        /// Legacy method for backward compatibility - uses CurrentDisplaySize internally.
+        /// </summary>
+        [Obsolete("Use parameterless GetPixelRect() instead")]
         public Rect GetPixelRect(float displayWidth, float displayHeight)
         {
-            return TerminalGridConfig.GridToPixelRect(GetGridRegion(), displayWidth, displayHeight);
+            return GetPixelRect();
         }
         
         /// <summary>
