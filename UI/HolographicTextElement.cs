@@ -13,7 +13,8 @@ namespace CinematicShaders.UI
         SearchResult,   // Clickable result row
         Header,         // "SEARCH RESULTS"
         Border,         // ASCII art elements
-        Input           // Search input field
+        Input,          // Search input field
+        Button          // Clickable button
     }
 
     /// <summary>
@@ -22,6 +23,13 @@ namespace CinematicShaders.UI
     /// </summary>
     public class HolographicTextElement
     {
+        /// <summary>
+        /// Default constructor for object initializer syntax.
+        /// </summary>
+        public HolographicTextElement()
+        {
+        }
+
         // Identification
         public string ElementId;
         public TextElementType Type;
@@ -63,6 +71,9 @@ namespace CinematicShaders.UI
         // Associated data for search results
         public object AssociatedData;
         public bool IsVisible = true;
+
+        // Animation priority order (lower = earlier)
+        public int Priority;
 
         /// <summary>
         /// Helper to scale a rect from 4K reference to target resolution
@@ -111,6 +122,67 @@ namespace CinematicShaders.UI
             int visibleChars = Mathf.RoundToInt(fullText.Length * TypeOnProgress);
             visibleChars = Mathf.Clamp(visibleChars, 0, fullText.Length);
             return fullText.Substring(0, visibleChars);
+        }
+
+        /// <summary>
+        /// Creates a HolographicTextElement from a unified grid element definition.
+        /// Calculates pixel position dynamically based on display size.
+        /// </summary>
+        /// <param name="definition">Grid element definition</param>
+        /// <param name="displayWidth">Display width for pixel calculation</param>
+        /// <param name="displayHeight">Display height for pixel calculation</param>
+        public HolographicTextElement(GridElementDefinition definition, float displayWidth, float displayHeight)
+        {
+            ElementId = definition.ElementId;
+            StaticText = "";
+            DynamicText = "";
+            Type = ConvertElementType(definition.Type);
+            
+            // Store grid position for reference
+            GridPos = definition.Position;
+            GridWidth = definition.Width;
+            
+            // Calculate pixel position from grid coordinates
+            Position4K = definition.GetPixelRect(displayWidth, displayHeight);
+            
+            Priority = definition.Priority;
+            IsVisible = definition.VisibleByDefault;
+            
+            // Initialize other fields to defaults
+            IsDirty = true;
+            TypeOnProgress = 1.0f;
+            TypeOnDelay = 0f;
+            TypeOnDuration = 0.5f;
+        }
+
+        /// <summary>
+        /// Converts ElementType to TextElementType.
+        /// </summary>
+        private static TextElementType ConvertElementType(ElementType type)
+        {
+            switch (type)
+            {
+                case ElementType.Editable:
+                    return TextElementType.Editable;
+                case ElementType.Button:
+                    return TextElementType.Button;
+                case ElementType.Input:
+                    return TextElementType.Input;
+                case ElementType.SearchResult:
+                    return TextElementType.SearchResult;
+                case ElementType.Label:
+                    return TextElementType.Label;
+                default:
+                    return TextElementType.Value;
+            }
+        }
+
+        /// <summary>
+        /// Factory method to create a HolographicTextElement from a grid definition.
+        /// </summary>
+        public static HolographicTextElement FromDefinition(GridElementDefinition definition, float displayWidth, float displayHeight)
+        {
+            return new HolographicTextElement(definition, displayWidth, displayHeight);
         }
 
 
