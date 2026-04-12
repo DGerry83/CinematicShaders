@@ -75,9 +75,6 @@ namespace CinematicShaders.UI
         // Display position (set by parent)
         private Rect _displayRect;
 
-        // Render texture for composite output
-        private RenderTexture _displayTexture = null;
-        
         // Screen manager for screen state handling
         private ScreenManager _screenManager;
         #endregion
@@ -420,14 +417,8 @@ namespace CinematicShaders.UI
 
         private void InitializeTextures()
         {
-            // Create display texture at fixed size
-            Vector2 dimensions = HolographicLayoutConfig.GetDisplayDimensions(_displaySize);
-            int width = Mathf.RoundToInt(dimensions.x);
-            int height = Mathf.RoundToInt(dimensions.y);
-
-            _displayTexture = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32);
-            _displayTexture.enableRandomWrite = true;
-            _displayTexture.Create();
+            // Textures are now managed by ScreenManager
+            // This method is kept for future texture initialization if needed
         }
         
         /// <summary>
@@ -435,13 +426,8 @@ namespace CinematicShaders.UI
         /// </summary>
         private void CleanupRenderTextures()
         {
-            // Release display texture
-            if (_displayTexture != null)
-            {
-                _displayTexture.Release();
-                Destroy(_displayTexture);
-                _displayTexture = null;
-            }
+            // Textures are now managed by ScreenManager
+            // This method is kept for future cleanup if needed
         }
         #endregion
 
@@ -1593,13 +1579,6 @@ namespace CinematicShaders.UI
             StarCatalogStateManager.OnCatalogChanged -= HandleCatalogChanged;
             StarCatalogStateManager.OnJsonStateChanged -= HandleJsonStateChanged;
             
-            // Release render textures
-            if (_displayTexture != null)
-            {
-                _displayTexture.Release();
-                Destroy(_displayTexture);
-            }
-
             // Shutdown ScreenManager
             _screenManager?.Shutdown();
             _screenManager = null;
@@ -2444,13 +2423,6 @@ namespace CinematicShaders.UI
                             exportedCount++;
                         }
                     }
-                }
-                
-                // Export display texture (composite)
-                if (_displayTexture != null)
-                {
-                    ExportRenderTextureToPng(_displayTexture, Path.Combine(exportDir, $"DisplayTexture_{timestamp}.png"));
-                    exportedCount++;
                 }
                 
                 Debug.Log($"[HolographicDisplay] Exported {exportedCount} textures to: {exportDir}");
