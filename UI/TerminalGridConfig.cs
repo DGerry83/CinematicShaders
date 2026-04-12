@@ -25,11 +25,12 @@ namespace CinematicShaders.UI
 
         /// <summary>
         /// Convert a grid region to pixel rectangle for rendering.
+        /// Uses the unified 59×13 grid system.
         /// </summary>
-        /// <param name="region">Grid region to convert</param>
-        /// <param name="displayWidth">Total display width in pixels</param>
-        /// <param name="displayHeight">Total display height in pixels</param>
-        /// <returns>Pixel rectangle in screen coordinates</returns>
+        /// <param name="region">Grid region (columns/rows on 59×13 grid)</param>
+        /// <param name="displayWidth">Target display width in pixels</param>
+        /// <param name="displayHeight">Target display height in pixels</param>
+        /// <returns>Pixel rectangle for Unity rendering</returns>
         public static Rect GridToPixelRect(GridRegion region, float displayWidth, float displayHeight)
         {
             float cellWidth = displayWidth / GRID_COLUMNS;
@@ -101,6 +102,32 @@ namespace CinematicShaders.UI
         {
             return position.Column >= 0 && position.Column < GRID_COLUMNS &&
                    position.Row >= 0 && position.Row < GRID_ROWS;
+        }
+
+        /// <summary>
+        /// Validate that grid coordinates are within bounds.
+        /// </summary>
+        /// <param name="column">Column index (0 to GRID_COLUMNS-1)</param>
+        /// <param name="row">Row index (0 to GRID_ROWS-1)</param>
+        /// <returns>True if coordinates are valid</returns>
+        public static bool IsValidGridCoordinate(int column, int row)
+        {
+            return column >= 0 && column < GRID_COLUMNS &&
+                   row >= 0 && row < GRID_ROWS;
+        }
+
+        /// <summary>
+        /// Clamp grid coordinates to valid bounds.
+        /// </summary>
+        /// <param name="column">Column index (will be clamped)</param>
+        /// <param name="row">Row index (will be clamped)</param>
+        /// <returns>Clamped GridPosition</returns>
+        public static GridPosition ClampToGrid(int column, int row)
+        {
+            return new GridPosition(
+                Mathf.Clamp(column, 0, GRID_COLUMNS - 1),
+                Mathf.Clamp(row, 0, GRID_ROWS - 1)
+            );
         }
     }
 }
