@@ -4,8 +4,9 @@ using System.Linq;
 using UnityEngine;
 using CinematicShaders.Native;
 using CinematicShaders.Core;
-using static CinematicShaders.UI.TerminalGridConfig;
 using static CinematicShaders.UI.HolographicGridLayout;
+using static CinematicShaders.UI.UnifiedGridConfig;
+using static CinematicShaders.UI.UnifiedGridRegistry;
 
 
 namespace CinematicShaders.UI.Screens.Layers
@@ -434,6 +435,14 @@ namespace CinematicShaders.UI.Screens.Layers
         /// </summary>
         private void BuildLayer3ContentGridBased()
         {
+            // Unified grid path (Phase 2)
+            if (USE_UNIFIED_GRID)
+            {
+                BuildLayer3ContentUnified();
+                return;
+            }
+            
+            // Legacy path (existing implementation continues unchanged)
             InitializeGridBuffer();
             
             // Get all elements and place them at their grid positions
@@ -470,6 +479,78 @@ namespace CinematicShaders.UI.Screens.Layers
         {
             // Use new grid-based layout
             BuildLayer3ContentGridBased();
+        }
+        
+        /// <summary>
+        /// Builds Layer 3 content using unified 59×13 grid system.
+        /// This is the new unified implementation that replaces legacy grid-based building.
+        /// </summary>
+        private void BuildLayer3ContentUnified()
+        {
+            // Clear the grid buffer
+            Array.Clear(_gridBuffer, 0, _gridBuffer.Length);
+            
+            // Get all main screen elements from unified registry
+            var elementDefinitions = MainScreenElements;
+            
+            // Render each element to the grid buffer
+            foreach (var kvp in elementDefinitions)
+            {
+                var definition = kvp.Value;
+                
+                // Skip elements that shouldn't be visible by default
+                if (!definition.VisibleByDefault)
+                    continue;
+                
+                // Find the corresponding HolographicTextElement
+                var element = _elements.Find(e => e.ElementId == definition.ElementId);
+                if (element != null && element.IsVisible)
+                {
+                    // Get the display text (respecting type-on animation)
+                    string text = GetDisplayText(element);
+                    
+                    // Place element text at its grid position
+                    if (!string.IsNullOrEmpty(text))
+                    {
+                        PlaceTextInGrid(text, definition.Position.Column, definition.Position.Row);
+                    }
+                    
+                    // Update element's grid position for reference
+                    element.GridPos = definition.Position;
+                }
+            }
+            
+            // Handle search results dynamically
+            for (int i = 0; i < 10; i++)
+            {
+                string resultId = $"result_{i}";
+                var resultElement = _elements.Find(e => e.ElementId == resultId);
+                
+                if (resultElement != null && resultElement.IsVisible)
+                {
+                    var definition = GetSearchResultElement(i);
+                    string text = GetDisplayText(resultElement);
+                    
+                    if (!string.IsNullOrEmpty(text))
+                    {
+                        PlaceTextInGrid(text, definition.Position.Column, definition.Position.Row);
+                    }
+                    
+                    resultElement.GridPos = definition.Position;
+                }
+            }
+            
+            // Convert grid buffer to string array (same as legacy path)
+            _layer3ContentLines = new string[GRID_ROWS];
+            for (int row = 0; row < GRID_ROWS; row++)
+            {
+                var sb = new System.Text.StringBuilder(GRID_COLUMNS);
+                for (int col = 0; col < GRID_COLUMNS; col++)
+                {
+                    sb.Append(_gridBuffer[row, col] == '\0' ? ' ' : _gridBuffer[row, col]);
+                }
+                _layer3ContentLines[row] = sb.ToString();
+            }
         }
 
 /// <summary>
