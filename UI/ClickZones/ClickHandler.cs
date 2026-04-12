@@ -112,8 +112,30 @@ namespace CinematicShaders.UI.ClickZones
             bool isMouseDown = (Event.current.type == EventType.MouseDown && Event.current.button == 0);
             bool isMouseUp = (Event.current.type == EventType.MouseUp && Event.current.button == 0);
             
+            // Log only on actual click attempt
+            if (isMouseDown)
+            {
+                float localX = mousePos.x - displayRect.x;
+                float localY = mousePos.y - displayRect.y;
+                GridPosition gridPos = TerminalGridConfig.PixelToGrid(
+                    localX,
+                    localY,
+                    TerminalGridConfig.CurrentDisplaySize
+                );
+                ModFileLogger.Log($"[ClickHandler] Click at mouse: {mousePos}, grid: {gridPos}");
+            }
+            
             // Try grid-based hit detection first (more precise)
             ClickZone newHovered = FindZoneByGrid(mousePos, displayRect, zones, isMouseDown);
+            
+            // Log zone found/not found only on click
+            if (isMouseDown)
+            {
+                if (newHovered != null)
+                    ModFileLogger.Log($"[ClickHandler] FOUND zone: {newHovered.ElementId}");
+                else
+                    ModFileLogger.Log($"[ClickHandler] NO zone found at mouse position");
+            }
             
             // Fallback to UV if grid detection fails
             if (newHovered == null)

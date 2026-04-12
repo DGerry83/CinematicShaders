@@ -42,6 +42,8 @@ namespace CinematicShaders.ClickZones
             {
                 return registry.GetZonesForCurrentSize();
             }
+            
+            ModFileLogger.Log($"[Registry.GetZones] WARNING: No registry found for '{screenName}'");
             return new List<ClickZone>();
         }
         
