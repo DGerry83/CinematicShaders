@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using CinematicShaders.Core;
+using CinematicShaders.UI;
 
 namespace CinematicShaders.UI.ClickZones
 {
@@ -11,11 +12,19 @@ namespace CinematicShaders.UI.ClickZones
     public static class MainScreenClickZones
     {
         /// <summary>
-        /// Get all click zones for the main screen.
-        /// Grid coordinates are source of truth; UVRect calculated from GridRect.
+        /// Gets all click zones for the main screen.
+        /// Uses unified grid system when USE_UNIFIED_GRID is true.
         /// </summary>
         public static List<ClickZone> GetAllZones()
         {
+            // Unified grid path (Phase 3)
+            if (UnifiedGridConfig.USE_UNIFIED_GRID)
+            {
+                return UnifiedGridRegistry.GetClickZonesForScreen(
+                    UnifiedGridRegistry.MainScreenElements);
+            }
+            
+            // Legacy path (existing implementation)
             var zones = new List<ClickZone>();
             
             // Create zones from grid layout

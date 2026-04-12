@@ -90,6 +90,38 @@ namespace CinematicShaders.UI
                 Priority = 6
             },
             
+            // Buttons (for click zones only - drawn in Layer 2)
+            ["save_button"] = new GridElementDefinition
+            {
+                ElementId = "save_button",
+                Position = GridPosition.At(17, 8),
+                Width = 7,
+                Height = 1,
+                Type = ElementType.Button,
+                Priority = 10,
+                VisibleByDefault = true
+            },
+            ["reset_button"] = new GridElementDefinition
+            {
+                ElementId = "reset_button",
+                Position = GridPosition.At(27, 8),
+                Width = 8,
+                Height = 1,
+                Type = ElementType.Button,
+                Priority = 11,
+                VisibleByDefault = true
+            },
+            ["rescan_button"] = new GridElementDefinition
+            {
+                ElementId = "rescan_button",
+                Position = GridPosition.At(27, 10),
+                Width = 8,
+                Height = 1,
+                Type = ElementType.Button,
+                Priority = 12,
+                VisibleByDefault = true
+            },
+            
             // Search results (rows 1-10, right column)
             // Generated dynamically via GetSearchResultElement(int index)
         };

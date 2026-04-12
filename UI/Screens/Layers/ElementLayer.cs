@@ -502,6 +502,10 @@ namespace CinematicShaders.UI.Screens.Layers
                 if (!definition.VisibleByDefault)
                     continue;
                 
+                // Skip buttons - they are drawn in Layer 2, but we need them in registry for click zones
+                if (definition.Type == ElementType.Button)
+                    continue;
+                
                 // Find the corresponding HolographicTextElement
                 var element = _elements.Find(e => e.ElementId == definition.ElementId);
                 if (element != null && element.IsVisible)
