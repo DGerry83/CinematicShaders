@@ -70,35 +70,6 @@ namespace CinematicShaders.UI
                 Priority = 5
             },
             
-            // Buttons
-            ["save_button"] = new GridElementDefinition
-            {
-                ElementId = "save_button",
-                Position = GridPosition.At(17, 8),
-                Width = 7,
-                Height = 1,
-                Type = ElementType.Button,
-                Priority = 10
-            },
-            ["reset_button"] = new GridElementDefinition
-            {
-                ElementId = "reset_button",
-                Position = GridPosition.At(27, 8),
-                Width = 8,
-                Height = 1,
-                Type = ElementType.Button,
-                Priority = 11
-            },
-            ["rescan_button"] = new GridElementDefinition
-            {
-                ElementId = "rescan_button",
-                Position = GridPosition.At(27, 10),
-                Width = 8,
-                Height = 1,
-                Type = ElementType.Button,
-                Priority = 12
-            },
-            
             // Search
             ["search_input"] = new GridElementDefinition
             {
