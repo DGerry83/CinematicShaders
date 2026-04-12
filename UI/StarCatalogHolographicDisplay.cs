@@ -436,34 +436,14 @@ namespace CinematicShaders.UI
                 // Create element using unified definition
                 var element = HolographicTextElement.FromDefinition(definition, displayWidth, displayHeight);
                 
-                // Set initial values based on element type
+                // Set element types for interactive elements
                 switch (definition.ElementId)
                 {
-                    case "hip_value":
-                        element.StaticText = "HIP:";
-                        break;
                     case "name_value":
-                        element.StaticText = "NAME:";
                         element.Type = TextElementType.Editable;
                         break;
-                    case "distance_value":
-                        element.StaticText = "DISTANCE:";
-                        break;
-                    case "spectral_value":
-                        element.StaticText = "TYPE:";
-                        break;
-                    case "mag_value":
-                        element.StaticText = "MAG:";
-                        break;
-                    case "const_value":
-                        element.StaticText = "CONST:";
-                        break;
                     case "search_input":
-                        element.StaticText = "SEARCH:";
                         element.Type = TextElementType.Input;
-                        break;
-                    case "selected_star":
-                        element.StaticText = "SELECTED:";
                         break;
                 }
                 
