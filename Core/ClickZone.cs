@@ -73,7 +73,7 @@ namespace CinematicShaders.Core
                 case ElementType.Button:
                     return "button";
                 case ElementType.Editable:
-                    return "editable";
+                    return "value";
                 case ElementType.Input:
                     return "input";
                 case ElementType.SearchResult:

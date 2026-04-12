@@ -555,36 +555,18 @@ namespace CinematicShaders.UI.Screens.Layers
                 }
             }
             
-            // Debug: Draw click zones as visible blocks
+            // Debug mode: just call GetClickZonesForScreen() without drawing
             if (UnifiedGridConfig.DEBUG_DRAW_CLICK_ZONES)
             {
-                // Get all click zones
+                // Get zones but don't draw them - test if just calling this makes it work
                 var zones = UnifiedGridRegistry.GetClickZonesForScreen(
                     UnifiedGridRegistry.MainScreenElements);
                 
-                // Add search result zones
+                // Add search result zones (also without drawing)
                 for (int i = 0; i < 10; i++)
                 {
                     var resultDef = UnifiedGridRegistry.GetSearchResultElement(i);
                     zones.Add(new ClickZone(resultDef));
-                }
-                
-                // Draw each zone as block characters
-                foreach (var zone in zones)
-                {
-                    int startCol = Mathf.FloorToInt(zone.GridRect.x);
-                    int startRow = Mathf.FloorToInt(zone.GridRect.y);
-                    int width = Mathf.FloorToInt(zone.GridRect.width);
-                    int height = Mathf.FloorToInt(zone.GridRect.height);
-                    
-                    // Draw '█' for each cell in the zone
-                    for (int r = 0; r < height && startRow + r < GRID_ROWS; r++)
-                    {
-                        for (int c = 0; c < width && startCol + c < GRID_COLUMNS; c++)
-                        {
-                            PlaceCharInGrid('█', startCol + c, startRow + r);
-                        }
-                    }
                 }
             }
 
