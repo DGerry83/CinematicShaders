@@ -237,6 +237,11 @@ namespace CinematicShaders.UI
             _lineSpacing = HolographicLayoutConfig.GetLineSpacing(size);
             _displaySize = size;
             
+            // CRITICAL FIX: Set CurrentDisplaySize BEFORE creating elements or zones
+            // This ensures TerminalGridConfig.CurrentDisplaySize is correct when
+            // MainScreenClickZones.GetAllZones() is called during InitializeScreens()
+            TerminalGridConfig.CurrentDisplaySize = size;
+            
             // DEPRECATED: Paths now managed by StarCatalogStateManager
             // Subscribe to events for reactive updates
             StarCatalogStateManager.OnCatalogChanged += HandleCatalogChanged;
