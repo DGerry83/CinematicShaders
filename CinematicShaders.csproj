@@ -91,6 +91,8 @@
     <Compile Include="UI\ClickZones\MainScreenClickZones.cs" />
     <Compile Include="UI\ClickZones\ScreenZoneRegistry.cs" />
     <Compile Include="UI\ClickZones\MultiScreenClickZoneRegistry.cs" />
+    <Compile Include="UI\ClickZones\ZoneSetGenerator.cs" />
+    <Compile Include="UI\ClickZones\ZoneRegistryInitializer.cs" />
     <Compile Include="UI\Tabs\GTAOTab.cs" />
     <Compile Include="UI\Tabs\GridLabelDebugUI.cs" />
     <Compile Include="UI\Tabs\KartographerTab.cs" />
