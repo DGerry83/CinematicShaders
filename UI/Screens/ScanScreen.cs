@@ -6,6 +6,7 @@ using CinematicShaders.Native;
 using CinematicShaders.Core;
 using CinematicShaders.UI.Animation;
 using CinematicShaders.UI.Content;
+using CinematicShaders.UI;
 
 namespace CinematicShaders.UI.Screens
 {
@@ -133,8 +134,19 @@ namespace CinematicShaders.UI.Screens
             _sequencer = new Sequencer(Layer3PriorityOrder);
             OnLayer2Complete += StartLayer3Animation;
             
-            // Initialize single large click zone for SCAN area
-            _scanZone = new ClickZone("scan_area", HolographicLayoutConfig.ZONE_SCAN_AREA, true);
+            // Initialize click zone for SCAN area
+            if (UnifiedGridConfig.USE_UNIFIED_GRID)
+            {
+                // Unified grid path - get zone from registry
+                var definition = UnifiedGridRegistry.ScanScreenElements["scan_area"];
+                _scanZone = new ClickZone(definition);
+            }
+            else
+            {
+                // Legacy path
+                _scanZone = new ClickZone("scan_area", HolographicLayoutConfig.ZONE_SCAN_AREA, true);
+            }
+            
             _scanHovered = false;
         }
         

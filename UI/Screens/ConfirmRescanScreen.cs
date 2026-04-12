@@ -6,6 +6,7 @@ using CinematicShaders.Native;
 using CinematicShaders.Core;
 using CinematicShaders.UI.Animation;
 using CinematicShaders.UI.Content;
+using CinematicShaders.UI;
 
 namespace CinematicShaders.UI.Screens
 {
@@ -153,10 +154,21 @@ namespace CinematicShaders.UI.Screens
             _sequencer = new Sequencer(Layer3PriorityOrder);
             OnLayer2Complete += StartLayer3Animation;
             
-            // Initialize click zones for YES/NO buttons
+            // Initialize YES/NO button zones
             _clickZones.Clear();
-            _clickZones.Add(new ClickZone("yes_button", HolographicLayoutConfig.ZONE_YES_BUTTON, true));
-            _clickZones.Add(new ClickZone("no_button", HolographicLayoutConfig.ZONE_NO_BUTTON, true));
+            if (UnifiedGridConfig.USE_UNIFIED_GRID)
+            {
+                var yesDef = UnifiedGridRegistry.ConfirmRescanElements["yes_button"];
+                var noDef = UnifiedGridRegistry.ConfirmRescanElements["no_button"];
+                
+                _clickZones.Add(new ClickZone(yesDef));
+                _clickZones.Add(new ClickZone(noDef));
+            }
+            else
+            {
+                _clickZones.Add(new ClickZone("yes_button", HolographicLayoutConfig.ZONE_YES_BUTTON, true));
+                _clickZones.Add(new ClickZone("no_button", HolographicLayoutConfig.ZONE_NO_BUTTON, true));
+            }
             _hoveredZone = null;
         }
         
