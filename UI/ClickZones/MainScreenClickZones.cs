@@ -20,8 +20,17 @@ namespace CinematicShaders.UI.ClickZones
             // Unified grid path (Phase 3)
             if (UnifiedGridConfig.USE_UNIFIED_GRID)
             {
-                return UnifiedGridRegistry.GetClickZonesForScreen(
+                var unifiedZones = UnifiedGridRegistry.GetClickZonesForScreen(
                     UnifiedGridRegistry.MainScreenElements);
+                
+                // Add search result zones (result_0 through result_9)
+                for (int i = 0; i < 10; i++)
+                {
+                    var resultDef = UnifiedGridRegistry.GetSearchResultElement(i);
+                    unifiedZones.Add(new ClickZone(resultDef));
+                }
+                
+                return unifiedZones;
             }
             
             // Legacy path (existing implementation)

@@ -137,9 +137,7 @@ namespace CinematicShaders.UI
                 throw new ArgumentOutOfRangeException(nameof(index));
             
             // Results in right column, rows 1-10
-            // Skip row 7 (gap between results sections)
-            int row = 1 + index;
-            if (row > 6) row += 1;
+            int row = 1 + index;  // Simple sequential placement
             
             return new GridElementDefinition
             {
