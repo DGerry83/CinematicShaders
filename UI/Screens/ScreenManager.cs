@@ -62,6 +62,18 @@ namespace CinematicShaders.UI.Screens
         public string CurrentScreenName => _currentScreen?.ScreenName;
         
         /// <summary>
+        /// Gets a registered screen by name.
+        /// Returns null if the screen is not registered.
+        /// </summary>
+        /// <param name="screenName">The name of the screen to get</param>
+        /// <returns>The screen if found, null otherwise</returns>
+        public IScreen GetScreen(string screenName)
+        {
+            _screens.TryGetValue(screenName, out var screen);
+            return screen;
+        }
+        
+        /// <summary>
         /// Initializes a new ScreenManager with the specified native text system.
         /// </summary>
         /// <param name="textSystem">Native text system pointer for GPU text rendering</param>

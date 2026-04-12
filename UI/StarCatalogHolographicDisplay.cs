@@ -368,6 +368,16 @@ namespace CinematicShaders.UI
                         Mathf.RoundToInt(dimensions.y));
                     InitializeScreens();
                     
+                    // CRITICAL FIX: Reinitialize click zones after screen reinitialization
+                    // This ensures zones are calculated for the new display size
+                    if (_displayPowered)
+                    {
+                        // Use GetScreen since CurrentScreen is null after Shutdown()
+                        var mainScreen = _screenManager.GetScreen("Main") as MainScreen;
+                        mainScreen?.SetClickZones();
+                        ModFileLogger.Log("[HolographicDisplay] Click zones reinitialized after size change");
+                    }
+                    
                     Debug.Log($"[HolographicDisplay] ScreenManager textures resized to: {dimensions.x}x{dimensions.y}");
                 }
                 else
@@ -376,6 +386,15 @@ namespace CinematicShaders.UI
                     // Font size changes provide the "scaling" for different presets
                     _screenManager.MarkAllLayersDirty();
                     InitializeScreens();
+                    
+                    // CRITICAL FIX: Reinitialize click zones after screen reinitialization
+                    // This ensures zones are calculated for the new display size
+                    if (_displayPowered)
+                    {
+                        var mainScreen = _screenManager.CurrentScreen as MainScreen;
+                        mainScreen?.SetClickZones();
+                        ModFileLogger.Log("[HolographicDisplay] Click zones reinitialized after size change (legacy)");
+                    }
                 }
             }
             
