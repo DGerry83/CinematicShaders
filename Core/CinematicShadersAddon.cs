@@ -72,6 +72,9 @@ namespace CinematicShaders.Core
                 StarfieldPerSaveSettings.Instance.ApplyToSettings();
             }
             StarCatalogManager.Initialize();  // Ensure catalog folder exists
+            
+            // Initialize the multi-screen click zone registry for holographic display
+            CinematicShaders.ClickZones.ZoneRegistryInitializer.Initialize();
 
             // Only auto-enable if in a playable scene (not LOADING, MAINMENU, or EDITOR)
             if (IsPlayableScene() && (GTAOSettings.EnableGTAO || StarfieldSettings.EnableStarfield))

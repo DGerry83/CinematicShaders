@@ -6,6 +6,7 @@ using CinematicShaders.Native;
 using CinematicShaders.Core;
 using CinematicShaders.UI.Content;
 using CinematicShaders.UI.ClickZones;
+using CinematicShaders.UI;
 
 namespace CinematicShaders.UI.Screens
 {
@@ -85,7 +86,17 @@ namespace CinematicShaders.UI.Screens
             
             // Create click handler
             _clickHandler = new ClickHandler();
-            _clickHandler.SetZones(MainScreenClickZones.GetAllZones());
+            
+            if (UnifiedGridConfig.USE_UNIFIED_GRID)
+            {
+                // New way: Just set screen name, zones come from registry
+                _clickHandler.SetScreen("Main");
+            }
+            else
+            {
+                // Legacy way: Set zones directly
+                _clickHandler.SetZones(MainScreenClickZones.GetAllZones());
+            }
             _clickHandler.OnZoneClicked += HandleZoneClicked;
         }
 
@@ -206,10 +217,21 @@ namespace CinematicShaders.UI.Screens
         public void SetClickZones()
         {
             ModFileLogger.Log("[MainScreen] SetClickZones() called");
-            var zones = MainScreenClickZones.GetAllZones();
-            ModFileLogger.Log($"[MainScreen] Got {zones.Count} zones, setting in ClickHandler");
-            _clickHandler.SetZones(zones);
-            ModFileLogger.Log("[MainScreen] Click zones set");
+            
+            if (UnifiedGridConfig.USE_UNIFIED_GRID)
+            {
+                // New way: Just set screen, registry provides zones
+                _clickHandler.SetScreen("Main");
+                ModFileLogger.Log("[MainScreen] Screen set to Main via registry");
+            }
+            else
+            {
+                // Legacy way: Set zones directly
+                var zones = MainScreenClickZones.GetAllZones();
+                ModFileLogger.Log($"[MainScreen] Got {zones.Count} zones, setting in ClickHandler");
+                _clickHandler.SetZones(zones);
+                ModFileLogger.Log("[MainScreen] Click zones set");
+            }
         }
         
         /// <summary>
