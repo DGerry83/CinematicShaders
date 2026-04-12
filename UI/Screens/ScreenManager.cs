@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using CinematicShaders.Core;
+using CinematicShaders.UI;
 
 namespace CinematicShaders.UI.Screens
 {
@@ -72,19 +73,29 @@ namespace CinematicShaders.UI.Screens
         /// <summary>
         /// Initializes the shared texture pool for rendering.
         /// </summary>
-        /// <param name="width">Requested width (ignored - always uses Large preset dimensions)</param>
-        /// <param name="height">Requested height (ignored - always uses Large preset dimensions)</param>
+        /// <param name="width">Requested width (uses actual dimensions for unified grid, Large preset for legacy)</param>
+        /// <param name="height">Requested height (uses actual dimensions for unified grid, Large preset for legacy)</param>
         /// <remarks>
-        /// Always creates textures at Large preset size (825x450) to ensure 1:1 pixel mapping
-        /// regardless of the actual display size. This maintains crisp text rendering.
+        /// For unified grid: Uses passed dimensions to support Small/Medium/Large sizes.
+        /// For legacy: Always creates textures at Large preset size (825x450) for 1:1 pixel mapping.
         /// Creates textures for layers 1, 2, and 3.
         /// </remarks>
         public void InitializeTextures(int width, int height)
         {
-            // IGNORE passed dimensions - always use Large size
-            // This ensures 1:1 pixel mapping at all presets
-            _textureWidth = 825;  // Large width
-            _textureHeight = 450; // Large height
+            if (UnifiedGridConfig.USE_UNIFIED_GRID)
+            {
+                // Unified grid: Use actual display dimensions for dynamic sizing
+                _textureWidth = width;
+                _textureHeight = height;
+                Debug.Log($"[ScreenManager] Initialized textures at display size: {width}x{height}");
+            }
+            else
+            {
+                // Legacy: Always use Large size for 1:1 pixel mapping
+                _textureWidth = 825;  // Large width
+                _textureHeight = 450; // Large height
+                Debug.Log($"[ScreenManager] Initialized textures at Large preset (legacy): 825x450");
+            }
             
             // Create shared textures for layers 1, 2, and 3
             EnsureTexture(1);

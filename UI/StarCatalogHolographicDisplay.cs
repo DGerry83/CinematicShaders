@@ -318,6 +318,13 @@ namespace CinematicShaders.UI
         /// </summary>
         public void SetDisplaySize(HolographicDisplaySize size)
         {
+            // For unified grid, allow all sizes. For legacy, keep Large only.
+            if (!UnifiedGridConfig.USE_UNIFIED_GRID && size != HolographicDisplaySize.Large)
+            {
+                Debug.Log("[StarCatalogHolographicDisplay] Non-Large sizes require unified grid. Forcing Large.");
+                size = HolographicDisplaySize.Large;
+            }
+            
             if (_displaySize == size) return;
             
             _displaySize = size;
@@ -335,15 +342,33 @@ namespace CinematicShaders.UI
             CleanupRenderTextures();
             InitializeTextures();
             
-            // ScreenManager textures stay at Large size (825x450)
-            // Font size changes provide the "scaling" for different presets
             if (_screenManager != null)
             {
-                // Just mark layers dirty so they re-render with new font size
-                _screenManager.MarkAllLayersDirty();
-                
-                // Re-initialize screens with new font size
-                InitializeScreens();
+                if (UnifiedGridConfig.USE_UNIFIED_GRID)
+                {
+                    // Unified grid: Reinitialize ScreenManager textures at new size
+                    _screenManager.Shutdown();
+                    _screenManager = new ScreenManager(_textSystem);
+                    _screenManager.InitializeTextures(
+                        Mathf.RoundToInt(dimensions.x), 
+                        Mathf.RoundToInt(dimensions.y));
+                    InitializeScreens();
+                    
+                    Debug.Log($"[HolographicDisplay] ScreenManager textures resized to: {dimensions.x}x{dimensions.y}");
+                }
+                else
+                {
+                    // Legacy: ScreenManager textures stay at Large size (825x450)
+                    // Font size changes provide the "scaling" for different presets
+                    _screenManager.MarkAllLayersDirty();
+                    InitializeScreens();
+                }
+            }
+            
+            // Recreate elements with new dimensions (unified grid only)
+            if (UnifiedGridConfig.USE_UNIFIED_GRID)
+            {
+                CreateElements();
             }
             
             // Mark all elements dirty for re-render
