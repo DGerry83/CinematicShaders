@@ -224,16 +224,14 @@ namespace CinematicShaders.UI
             _instanceId = ++s_instanceCount;
             _textSystem = sharedTextSystem;
             
-            // Calculate display dimensions based on size
-            Vector2 dimensions = HolographicLayoutConfig.GetDisplayDimensions(size);
+            // Get glyph-based display dimensions
+            Vector2 dimensions = TerminalGridConfig.GetDisplayDimensions(size);
             _displayRect = new Rect(x, y, dimensions.x, dimensions.y);
             
-            // Set window size including border
-            _windowRect = new Rect(
-                x, y,
-                dimensions.x + BORDER_THICKNESS * 2,
-                dimensions.y + TITLE_BAR_HEIGHT + BORDER_THICKNESS * 2
-            );
+            // Calculate window size: display + borders + title bar
+            float windowWidth = dimensions.x + 2 * BORDER_THICKNESS;
+            float windowHeight = dimensions.y + TITLE_BAR_HEIGHT + 2 * BORDER_THICKNESS;
+            _windowRect = new Rect(x, y, windowWidth, windowHeight);
             
             _fontSize = HolographicLayoutConfig.GetFontSize(size);
             _lineSpacing = HolographicLayoutConfig.GetLineSpacing(size);
@@ -267,8 +265,7 @@ namespace CinematicShaders.UI
                 IsInitialStartup = true 
             });
             
-            Debug.Log($"[HolographicDisplay] Initialized at ({x}, {y}), size: {size}, " +
-                      $"dataAvailable: {hasValidData}, initialScreen: {initialScreen}");
+            Debug.Log($"[StarCatalogHolographicDisplay] Initialized: window {windowWidth}x{windowHeight} for {size} (display: {dimensions.x}x{dimensions.y})");
         }
         
         private void InitializeScreens()
@@ -332,14 +329,16 @@ namespace CinematicShaders.UI
             // Update the global current display size for glyph-based calculations
             TerminalGridConfig.CurrentDisplaySize = size;
             
-            // Get new dimensions
-            Vector2 dimensions = HolographicLayoutConfig.GetDisplayDimensions(size);
+            // Get glyph-based display dimensions
+            Vector2 dimensions = TerminalGridConfig.GetDisplayDimensions(size);
             _fontSize = HolographicLayoutConfig.GetFontSize(size);
             _lineSpacing = HolographicLayoutConfig.GetLineSpacing(size);
             
-            // Update window size
-            _windowRect.width = dimensions.x + BORDER_THICKNESS * 2;
-            _windowRect.height = dimensions.y + TITLE_BAR_HEIGHT + BORDER_THICKNESS * 2;
+            // Calculate window size: display + borders + title bar
+            float windowWidth = dimensions.x + 2 * BORDER_THICKNESS;
+            float windowHeight = dimensions.y + TITLE_BAR_HEIGHT + 2 * BORDER_THICKNESS;
+            
+            _windowRect = new Rect(_windowRect.x, _windowRect.y, windowWidth, windowHeight);
             
             // Recreate textures for new size
             CleanupRenderTextures();
@@ -380,7 +379,7 @@ namespace CinematicShaders.UI
                 element.IsDirty = true;
             }
             
-            Debug.Log($"[HolographicDisplay] Size changed to: {size}: {dimensions.x}x{dimensions.y}");
+            Debug.Log($"[StarCatalogHolographicDisplay] Window size: {windowWidth}x{windowHeight} for {size} (display: {dimensions.x}x{dimensions.y})");
         }
 
         private void CreateElements()
