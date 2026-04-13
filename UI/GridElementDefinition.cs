@@ -78,15 +78,6 @@ namespace CinematicShaders.UI
         }
 
         /// <summary>
-        /// Legacy method for backward compatibility - uses CurrentDisplaySize internally.
-        /// </summary>
-        [Obsolete("Use parameterless GetPixelRect() instead")]
-        public Rect GetPixelRect(float displayWidth, float displayHeight)
-        {
-            return GetPixelRect();
-        }
-        
-        /// <summary>
         /// Get the click zone for this element.
         /// Automatically derived from grid position.
         /// </summary>

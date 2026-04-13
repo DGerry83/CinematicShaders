@@ -155,15 +155,6 @@ namespace CinematicShaders.UI
         }
 
         /// <summary>
-        /// Legacy constructor for backward compatibility.
-        /// </summary>
-        [Obsolete("Use constructor without display dimensions instead")]
-        public HolographicTextElement(GridElementDefinition definition, float displayWidth, float displayHeight)
-            : this(definition)
-        {
-        }
-
-        /// <summary>
         /// Converts ElementType to TextElementType.
         /// </summary>
         private static TextElementType ConvertElementType(ElementType type)
@@ -194,18 +185,8 @@ namespace CinematicShaders.UI
             return new HolographicTextElement(definition);
         }
 
-        /// <summary>
-        /// Legacy factory method for backward compatibility.
-        /// </summary>
-        [Obsolete("Use FromDefinition(definition) instead")]
-        public static HolographicTextElement FromDefinition(GridElementDefinition definition, float displayWidth, float displayHeight)
-        {
-            return FromDefinition(definition);
-        }
-
-
         // ============================================================================
-        // NEW: Grid-based positioning (primary) - Added at end per Scope A contract
+        // Grid-based positioning (primary)
         // ============================================================================
 
         /// <summary>
@@ -256,10 +237,5 @@ namespace CinematicShaders.UI
         /// <summary>
         /// Legacy method for backward compatibility - uses CurrentDisplaySize internally.
         /// </summary>
-        [Obsolete("Use parameterless GetPixelRect() instead")]
-        public Rect GetPixelRect(float displayWidth, float displayHeight)
-        {
-            return GetPixelRect();
-        }
     }
 }

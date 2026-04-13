@@ -7,7 +7,7 @@ namespace CinematicShaders.UI.Layout
     {
         /// <summary>
         /// Master feature flag that enables the constraint-based layout path.
-        /// Defaults to false for backward compatibility.
+        /// Defaults to true - constraint layout is now the primary system.
         /// </summary>
         public static bool UseConstraintLayout { get; set; } = true;
 
@@ -24,18 +24,5 @@ namespace CinematicShaders.UI.Layout
         /// Tolerance in pixels for position validation between legacy and constraint layouts.
         /// </summary>
         public static float PositionTolerance { get; set; } = 2f;
-
-        /// <summary>
-        /// Path to the emergency fallback file. If this file exists, the legacy layout is forced.
-        /// </summary>
-        public const string FallbackFilePath = "GameData/CinematicShaders/PluginData/StarConsole_use_legacy_layout.txt";
-
-        /// <summary>
-        /// Checks whether the emergency fallback file exists, requesting legacy layout mode.
-        /// </summary>
-        public static bool IsEmergencyFallbackRequested()
-        {
-            return System.IO.File.Exists(FallbackFilePath);
-        }
     }
 }
