@@ -447,8 +447,8 @@ namespace CinematicShaders.UI.Screens.Layers
                 DistributeGlobalProgressAcrossElements(layer3Progress);
             }
             
-            // Re-render to texture if dirty
-            if (_isTextureDirty)
+            // Re-render to texture if dirty and texture is valid
+            if (_isTextureDirty && _layer3Texture != null && _layer3Texture.IsCreated())
             {
                 RenderLayer3ToTexture();
             }
@@ -558,7 +558,7 @@ namespace CinematicShaders.UI.Screens.Layers
         /// </summary>
         private void RenderLayer3ToTexture()
         {
-            if (_layer3Texture == null || _textSystem == IntPtr.Zero) return;
+            if (_layer3Texture == null || !_layer3Texture.IsCreated() || _textSystem == IntPtr.Zero) return;
             
             BuildLayer3Content();
             

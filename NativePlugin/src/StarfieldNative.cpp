@@ -1395,10 +1395,12 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         
         // Bind text texture to slot t2 if available
         if (g_StarfieldState.textTextureSRV) {
-            LogToFile("[Text] Binding text texture SRV %p to PS slot t2", g_StarfieldState.textTextureSRV);
+            // Logging disabled - too spammy, called every frame
+            // LogToFile("[Text] Binding text texture SRV %p to PS slot t2", g_StarfieldState.textTextureSRV);
             context->PSSetShaderResources(2, 1, &g_StarfieldState.textTextureSRV);
         } else {
-            LogToFile("[Text] No text texture SRV available (null), nothing bound to t2");
+            // Logging disabled - too spammy
+            // LogToFile("[Text] No text texture SRV available (null), nothing bound to t2");
         }
         
         // Bind grid label textures to slots t3-t14
