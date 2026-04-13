@@ -32,7 +32,7 @@ namespace CinematicShaders.UI.Screens
     /// Unlike other screens, ScanScreen does not use Layer 3 because it has
     /// no dynamic value fields or buttons - just the clickable SCAN art.
     /// </remarks>
-    public class ScanScreen : BaseScreen
+    public class ScanScreen : BaseScreen, IClickHandler
     {
         private readonly float _fontSize;
         private readonly float _aspectRatio;
@@ -43,6 +43,10 @@ namespace CinematicShaders.UI.Screens
         // Click zone for SCAN area
         private ClickZone _scanZone;
         private bool _scanHovered = false;
+        
+        // NEW: Simple click handler
+        public ScanScreenClickHandler ClickHandler { get; private set; }
+        public ClickZoneManager ZoneManager => ClickHandler?.ZoneManager;
         
         /// <summary>
         /// Layer 3 priority order (reserved for future interactive elements).
@@ -134,7 +138,7 @@ namespace CinematicShaders.UI.Screens
             _sequencer = new Sequencer(Layer3PriorityOrder);
             OnLayer2Complete += StartLayer3Animation;
             
-            // Initialize click zone for SCAN area
+            // Initialize click zone for SCAN area (legacy support)
             if (UnifiedGridConfig.USE_UNIFIED_GRID)
             {
                 // Unified grid path - get zone from registry
@@ -146,6 +150,10 @@ namespace CinematicShaders.UI.Screens
                 // Legacy path
                 _scanZone = new ClickZone("scan_area", HolographicLayoutConfig.ZONE_SCAN_AREA, true);
             }
+            
+            // NEW: Create and setup click handler
+            ClickHandler = new ScanScreenClickHandler(this);
+            ClickHandler.SetupZones();
             
             _scanHovered = false;
         }
@@ -174,8 +182,8 @@ namespace CinematicShaders.UI.Screens
         /// <param name="mouseDown">True if left mouse button was pressed this frame</param>
         /// <param name="mouseUp">True if left mouse button was released this frame</param>
         /// <remarks>
-        /// Detects hover over the SCAN zone, updates the box outline visual,
-        /// and fires OnScanClicked when clicked.
+        /// DEPRECATED: Use IClickHandler.HandleInput via ScanScreenClickHandler instead.
+        /// Kept for compatibility with legacy code.
         /// </remarks>
         public void HandleMouse(Vector2 mousePos, Rect displayRect, bool mouseDown, bool mouseUp)
         {
@@ -203,6 +211,40 @@ namespace CinematicShaders.UI.Screens
             {
                 OnScanClicked?.Invoke();
             }
+        }
+        
+        // Callback methods invoked by ScanScreenClickHandler
+        
+        public void OnScanAreaClicked()
+        {
+            ModFileLogger.Log("[ScanScreen] OnScanAreaClicked");
+            OnScanClicked?.Invoke();
+        }
+        
+        public void OnElementHoverEnter(string elementId)
+        {
+            // Show hover highlight for scan_area
+            _scanHovered = true;
+            if (_scanZone != null)
+            {
+                Rect uvRect = _scanZone.GetUVRect();
+                StarfieldNative.CR_SetBoxOutline(1, uvRect.xMin, uvRect.yMin, uvRect.xMax, uvRect.yMax);
+            }
+        }
+        
+        public void OnElementHoverExit(string elementId)
+        {
+            // Clear hover highlight
+            _scanHovered = false;
+            StarfieldNative.CR_SetBoxOutline(0, 0, 0, 0, 0);
+        }
+        
+        /// <summary>
+        /// IClickHandler implementation - delegates to ClickHandler.
+        /// </summary>
+        public void HandleInput(Rect displayRect)
+        {
+            ClickHandler?.HandleInput(displayRect);
         }
         
         /// <summary>
@@ -278,14 +320,8 @@ namespace CinematicShaders.UI.Screens
                 );
             }
             
-            // Handle mouse interaction
-            if (Event.current != null)
-            {
-                Vector2 mousePos = Event.current.mousePosition;
-                bool mouseDown = Event.current.type == EventType.MouseDown && Event.current.button == 0;
-                bool mouseUp = Event.current.type == EventType.MouseUp && Event.current.button == 0;
-                HandleMouse(mousePos, displayRect, mouseDown, mouseUp);
-            }
+            // Handle mouse interaction via new click handler
+            HandleInput(displayRect);
         }
         
     }
