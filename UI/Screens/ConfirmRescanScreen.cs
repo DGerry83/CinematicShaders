@@ -296,6 +296,7 @@ namespace CinematicShaders.UI.Screens
         /// Detects hover over button zones, updates the box outline visual,
         /// and fires OnYesClicked or OnNoClicked when a button is clicked.
         /// </remarks>
+        [Obsolete("ConfirmRescanScreen now uses ConfirmRescanClickHandler for input handling. This method will be removed in a future version.", error: false)]
         public void HandleMouse(Vector2 mousePos, Rect displayRect, bool mouseDown, bool mouseUp)
         {
             Vector2 gridPos = MouseToGrid(mousePos, displayRect);
@@ -433,6 +434,7 @@ namespace CinematicShaders.UI.Screens
         /// 
         /// Kept for backwards compatibility and potential external callers.
         /// </remarks>
+        [Obsolete("ConfirmRescanScreen now uses ConfirmRescanClickHandler for input handling. This method will be removed in a future version.", error: false)]
         public void UpdateInteraction(Vector2 mousePos, Rect displayRect, bool mouseDown, bool mouseUp)
         {
             // Calculate YES/NO button positions

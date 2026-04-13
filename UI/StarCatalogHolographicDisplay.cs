@@ -449,9 +449,6 @@ namespace CinematicShaders.UI
                 GridPos = region.TopLeft,
                 GridWidth = region.Width,
                 
-                // Legacy Position4K for backward compatibility
-                Position4K = CalculatePixelRect(region),
-                
                 // Visibility and animation
                 IsVisible = visibleByDefault,
                 IsDirty = true,
@@ -622,21 +619,6 @@ namespace CinematicShaders.UI
             }
             
             Debug.Log($"[StarCatalogHolographicDisplay] Created {_elements.Count} elements using constraint layout");
-        }
-
-        private void AddElement(string id, TextElementType type, string staticText, string dynamicText, Rect pos4K, float typeOnDelay)
-        {
-            _elements[id] = new HolographicTextElement
-            {
-                ElementId = id,
-                Type = type,
-                StaticText = staticText.ToUpper(),
-                DynamicText = dynamicText.ToUpper(),
-                Position4K = pos4K,
-                TypeOnDelay = typeOnDelay,
-                TypeOnProgress = 0f,  // Start at 0 for type-on animation
-                IsDirty = true
-            };
         }
 
         private void InitializeTextures()
@@ -1827,11 +1809,12 @@ namespace CinematicShaders.UI
         {
             if (!element.IsVisible) return false;
 
+            Rect pixelRect = element.GetPixelRect();
             Rect screenPos = new Rect(
-                _displayRect.x + element.Position4K.x,
-                _displayRect.y + element.Position4K.y,
-                element.Position4K.width,
-                element.Position4K.height
+                _displayRect.x + pixelRect.x,
+                _displayRect.y + pixelRect.y,
+                pixelRect.width,
+                pixelRect.height
             );
 
             return screenPos.Contains(_mousePosition);

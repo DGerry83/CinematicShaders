@@ -335,15 +335,17 @@ namespace CinematicShaders.UI.Screens
         /// <param name="displayRect">The display rectangle in screen coordinates</param>
         /// <returns>Grid coordinates (grid cells from top-left)</returns>
         /// <remarks>
-        /// Grid coordinates are based on HolographicLayoutConfig grid cell dimensions.
+        /// Grid coordinates are based on TerminalGridConfig grid cell dimensions.
         /// Use these coordinates with ClickZone for element hit detection.
         /// </remarks>
         protected Vector2 MouseToGrid(Vector2 mousePos, Rect displayRect)
         {
             float localX = mousePos.x - displayRect.x;
             float localY = mousePos.y - displayRect.y;
-            float gridX = localX / HolographicLayoutConfig.GRID_CELL_WIDTH;
-            float gridY = localY / HolographicLayoutConfig.GRID_CELL_HEIGHT;
+            float cellWidth = displayRect.width / TerminalGridConfig.GRID_COLUMNS;
+            float cellHeight = displayRect.height / TerminalGridConfig.GRID_ROWS;
+            float gridX = localX / cellWidth;
+            float gridY = localY / cellHeight;
             return new Vector2(gridX, gridY);
         }
     }

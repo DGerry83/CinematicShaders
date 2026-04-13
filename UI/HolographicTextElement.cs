@@ -44,13 +44,7 @@ namespace CinematicShaders.UI
         /// </summary>
         public string FullDisplayText => $"{StaticText} {DynamicText}".Trim().ToUpper();
 
-        // Position (4K reference coordinates)
-        public Rect Position4K;
-
-        /// <summary>
-        /// Get scaled position based on scale factor
-        /// </summary>
-        public Rect ScaledPosition(float scaleFactor) => ScaleRect(Position4K, scaleFactor);
+        // Position is grid-based only; legacy 4K fallback removed in Phase 1 cleanup
 
         // Rendering
         public bool IsDirty = true;    // Needs re-render
@@ -75,19 +69,6 @@ namespace CinematicShaders.UI
 
         // Animation priority order (lower = earlier)
         public int Priority;
-
-        /// <summary>
-        /// Helper to scale a rect from 4K reference to target resolution
-        /// </summary>
-        private static Rect ScaleRect(Rect rect4K, float scaleFactor)
-        {
-            return new Rect(
-                rect4K.x * scaleFactor,
-                rect4K.y * scaleFactor,
-                rect4K.width * scaleFactor,
-                rect4K.height * scaleFactor
-            );
-        }
 
         /// <summary>
         /// Mark this element as needing re-render
@@ -133,19 +114,16 @@ namespace CinematicShaders.UI
 
         /// <summary>
         /// Grid position for this element (59×13 terminal grid).
-        /// When GridWidth > 0, this takes precedence over Position4K.
         /// </summary>
         public GridPosition GridPos { get; set; }
 
         /// <summary>
         /// Width of this element in grid columns.
-        /// Set to 0 to use Position4K fallback (legacy positioning).
         /// </summary>
         public int GridWidth { get; set; }
 
         /// <summary>
         /// Calculate pixel Rect from grid position (for rendering).
-        /// Falls back to Position4K if GridWidth is 0.
         /// Uses glyph-based calculations with the current display size.
         /// </summary>
         /// <returns>Pixel rectangle for rendering</returns>
@@ -153,27 +131,22 @@ namespace CinematicShaders.UI
         {
             if (GridWidth > 0)
             {
-                // Use glyph-based coordinate conversion with current display size
                 Vector2 pixelPos = TerminalGridConfig.GridToPixel(
-                    GridPos.Column, 
-                    GridPos.Row, 
+                    GridPos.Column,
+                    GridPos.Row,
                     TerminalGridConfig.CurrentDisplaySize
                 );
-                
-                // Calculate width based on glyph width
+
                 var (glyphWidth, glyphHeight) = TerminalGridConfig.GlyphMetrics.GetGlyphMetrics(
                     TerminalGridConfig.CurrentDisplaySize
                 );
                 float width = GridWidth * glyphWidth;
                 float height = glyphHeight;
-                
+
                 return new Rect(pixelPos.x, pixelPos.y, width, height);
             }
-            else
-            {
-                // Fallback to legacy system
-                return Position4K;
-            }
+
+            return Rect.zero;
         }
 
         /// <summary>

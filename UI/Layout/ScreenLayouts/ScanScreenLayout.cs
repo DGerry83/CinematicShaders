@@ -4,78 +4,76 @@ using UnityEngine;
 namespace CinematicShaders.UI.Layout.ScreenLayouts
 {
     /// <summary>
-    /// Constraint-based layout definition for the ScanScreen.
-    /// Reproduces the legacy grid position for the clickable SCAN area.
-    /// Stores grid coordinates (cells) and converts to pixels on demand.
+    /// Layout for the Scan screen.
+    /// The scan screen is simple - just a full-screen scan button/area.
     /// </summary>
     public class ScanScreenLayout : ILayout
     {
-        private readonly Dictionary<string, GridRegion> _elementGridAreas =
-            new Dictionary<string, GridRegion>();
+        private readonly Dictionary<string, GridRegion> _gridAreas = new Dictionary<string, GridRegion>();
+        private readonly Dictionary<string, Rect> _pixelAreas = new Dictionary<string, Rect>();
+        private bool _isBuilt = false;
+        private Rect _displayArea;
 
-        /// <summary>
-        /// Builds the layout structure within the given display area.
-        /// Stores grid coordinates directly.
-        /// </summary>
-        public void Build(LayoutEngine engine, Rect displayArea)
+        public void Build(LayoutEngine layout, Rect displayArea)
         {
-            _elementGridAreas.Clear();
+            if (_isBuilt) return;
 
-            // scan_area: Grid(10, 3), Width 49, Height 9
-            _elementGridAreas["scan_area"] = new GridRegion(
-                GridPosition.At(10, 3), 49, 9);
+            _displayArea = displayArea;
+
+            int columns = TerminalGridConfig.GRID_COLUMNS;  // 59
+            int rows = TerminalGridConfig.GRID_ROWS;        // 13
+
+            float cellWidth = displayArea.width / columns;
+            float cellHeight = displayArea.height / rows;
+
+            Rect[] areas = layout.Split(
+                Direction.Vertical,
+                new[]
+                {
+                    Constraint.Length(cellHeight),   // Top margin (title area)
+                    Constraint.Fill(1),               // Scan button area
+                    Constraint.Length(cellHeight * 2) // Bottom margin (hint text area)
+                },
+                displayArea
+            );
+
+            _pixelAreas["scan_area"] = areas[1];
+            _pixelAreas["title_area"] = areas[0];
+            _pixelAreas["hint_area"] = areas[2];
+
+            _gridAreas["scan_area"] = RectToGridRegion(areas[1], cellWidth, cellHeight);
+            _gridAreas["title_area"] = RectToGridRegion(areas[0], cellWidth, cellHeight);
+            _gridAreas["hint_area"] = RectToGridRegion(areas[2], cellWidth, cellHeight);
+
+            _isBuilt = true;
         }
 
-        /// <summary>
-        /// Gets the grid region for the specified element.
-        /// Grid coordinates are in cells (column, row, width, height).
-        /// </summary>
         public GridRegion GetGridArea(string elementId)
         {
-            return _elementGridAreas.TryGetValue(elementId, out GridRegion region)
+            return _gridAreas.TryGetValue(elementId, out GridRegion region)
                 ? region
                 : new GridRegion(GridPosition.At(0, 0), 0, 0);
         }
 
-        /// <summary>
-        /// Gets the pixel rectangle for the specified element.
-        /// Converts grid coordinates to pixels using current glyph metrics.
-        /// </summary>
         public Rect GetArea(string elementId)
         {
-            if (!_elementGridAreas.TryGetValue(elementId, out GridRegion gridRegion))
-                return Rect.zero;
-
-            var (glyphWidth, glyphHeight) = TerminalGridConfig.GlyphMetrics.GetGlyphMetrics(
-                TerminalGridConfig.CurrentDisplaySize
-            );
-
-            float x = gridRegion.TopLeft.Column * glyphWidth;
-            float y = gridRegion.TopLeft.Row * glyphHeight;
-            float width = gridRegion.Width * glyphWidth;
-            float height = gridRegion.Height * glyphHeight;
-
-            return new Rect(x, y, width, height);
+            return _pixelAreas.TryGetValue(elementId, out Rect area)
+                ? area
+                : Rect.zero;
         }
 
-        /// <summary>
-        /// Gets all element IDs defined in this layout.
-        /// </summary>
         public IEnumerable<string> GetElementIds()
         {
-            return _elementGridAreas.Keys;
+            return _gridAreas.Keys;
         }
 
-        /// <summary>
-        /// Validates the calculated layout against reference positions.
-        /// </summary>
         public bool ValidateAgainst(Dictionary<string, Rect> reference, float tolerance)
         {
             bool valid = true;
 
             foreach (KeyValuePair<string, Rect> kvp in reference)
             {
-                if (!_elementGridAreas.TryGetValue(kvp.Key, out GridRegion gridRegion))
+                if (!_gridAreas.TryGetValue(kvp.Key, out GridRegion gridRegion))
                 {
                     Debug.LogError(string.Format(
                         "[LayoutValidation] {0}: Missing in calculated layout", kvp.Key));
@@ -100,6 +98,22 @@ namespace CinematicShaders.UI.Layout.ScreenLayouts
             }
 
             return valid;
+        }
+
+        public void Invalidate()
+        {
+            _isBuilt = false;
+            _gridAreas.Clear();
+            _pixelAreas.Clear();
+        }
+
+        private GridRegion RectToGridRegion(Rect rect, float cellWidth, float cellHeight)
+        {
+            int col = Mathf.RoundToInt(rect.x / cellWidth);
+            int row = Mathf.RoundToInt(rect.y / cellHeight);
+            int width = Mathf.RoundToInt(rect.width / cellWidth);
+            int height = Mathf.RoundToInt(rect.height / cellHeight);
+            return new GridRegion(GridPosition.At(col, row), width, height);
         }
     }
 }

@@ -201,6 +201,7 @@ namespace CinematicShaders.UI.Screens
         /// DEPRECATED: Use IClickHandler.HandleInput via ScanScreenClickHandler instead.
         /// Kept for compatibility with legacy code.
         /// </remarks>
+        [Obsolete("ScanScreen now uses ScanScreenClickHandler for input handling. This method will be removed in a future version.", error: false)]
         public void HandleMouse(Vector2 mousePos, Rect displayRect, bool mouseDown, bool mouseUp)
         {
             Vector2 gridPos = MouseToGrid(mousePos, displayRect);
