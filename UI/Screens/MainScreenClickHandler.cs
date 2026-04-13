@@ -24,7 +24,7 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
-        /// Sets up click zones for all MainScreen elements.
+        /// Sets up click zones for all MainScreen elements using constraint layout.
         /// Call this once during screen initialization.
         /// </summary>
         public void SetupZones()
@@ -32,84 +32,43 @@ namespace CinematicShaders.UI.Screens
             ZoneManager.Clear();
             
             // Value fields (left column)
-            var hipDef = UnifiedGridRegistry.MainScreenElements["hip_value"];
-            ZoneManager.RegisterZone("hip_value", 
-                (int)hipDef.Position.Column, (int)hipDef.Position.Row,
-                hipDef.Width, hipDef.Height, "value",
-                () => _screen.OnValueClicked("hip_value"));
-            
-            var nameDef = UnifiedGridRegistry.MainScreenElements["name_value"];
-            ZoneManager.RegisterZone("name_value",
-                (int)nameDef.Position.Column, (int)nameDef.Position.Row,
-                nameDef.Width, nameDef.Height, "editable",
-                () => _screen.OnValueClicked("name_value"));
-            
-            var distDef = UnifiedGridRegistry.MainScreenElements["distance_value"];
-            ZoneManager.RegisterZone("distance_value",
-                (int)distDef.Position.Column, (int)distDef.Position.Row,
-                distDef.Width, distDef.Height, "value",
-                () => _screen.OnValueClicked("distance_value"));
-            
-            var specDef = UnifiedGridRegistry.MainScreenElements["spectral_value"];
-            ZoneManager.RegisterZone("spectral_value",
-                (int)specDef.Position.Column, (int)specDef.Position.Row,
-                specDef.Width, specDef.Height, "value",
-                () => _screen.OnValueClicked("spectral_value"));
-            
-            var magDef = UnifiedGridRegistry.MainScreenElements["mag_value"];
-            ZoneManager.RegisterZone("mag_value",
-                (int)magDef.Position.Column, (int)magDef.Position.Row,
-                magDef.Width, magDef.Height, "value",
-                () => _screen.OnValueClicked("mag_value"));
-            
-            var constDef = UnifiedGridRegistry.MainScreenElements["const_value"];
-            ZoneManager.RegisterZone("const_value",
-                (int)constDef.Position.Column, (int)constDef.Position.Row,
-                constDef.Width, constDef.Height, "value",
-                () => _screen.OnValueClicked("const_value"));
+            RegisterZoneFromLayout("hip_value", "value", () => _screen.OnValueClicked("hip_value"));
+            RegisterZoneFromLayout("name_value", "editable", () => _screen.OnValueClicked("name_value"));
+            RegisterZoneFromLayout("distance_value", "value", () => _screen.OnValueClicked("distance_value"));
+            RegisterZoneFromLayout("spectral_value", "value", () => _screen.OnValueClicked("spectral_value"));
+            RegisterZoneFromLayout("mag_value", "value", () => _screen.OnValueClicked("mag_value"));
+            RegisterZoneFromLayout("const_value", "value", () => _screen.OnValueClicked("const_value"));
             
             // Buttons
-            var saveDef = UnifiedGridRegistry.MainScreenElements["save_button"];
-            ZoneManager.RegisterZone("save_button",
-                (int)saveDef.Position.Column, (int)saveDef.Position.Row,
-                saveDef.Width, saveDef.Height, "button",
-                () => _screen.OnSaveClicked());
-            
-            var resetDef = UnifiedGridRegistry.MainScreenElements["reset_button"];
-            ZoneManager.RegisterZone("reset_button",
-                (int)resetDef.Position.Column, (int)resetDef.Position.Row,
-                resetDef.Width, resetDef.Height, "button",
-                () => _screen.OnResetClicked());
-            
-            var rescanDef = UnifiedGridRegistry.MainScreenElements["rescan_button"];
-            ZoneManager.RegisterZone("rescan_button",
-                (int)rescanDef.Position.Column, (int)rescanDef.Position.Row,
-                rescanDef.Width, rescanDef.Height, "button",
-                () => _screen.OnRescanClicked());
+            RegisterZoneFromLayout("save_button", "button", () => _screen.OnSaveClicked());
+            RegisterZoneFromLayout("reset_button", "button", () => _screen.OnResetClicked());
+            RegisterZoneFromLayout("rescan_button", "button", () => _screen.OnRescanClicked());
             
             // Input field
-            var searchDef = UnifiedGridRegistry.MainScreenElements["search_input"];
-            ZoneManager.RegisterZone("search_input",
-                (int)searchDef.Position.Column, (int)searchDef.Position.Row,
-                searchDef.Width, searchDef.Height, "input",
-                () => _screen.OnSearchClicked());
+            RegisterZoneFromLayout("search_input", "input", () => _screen.OnSearchClicked());
             
             // Selected star
-            var selectedDef = UnifiedGridRegistry.MainScreenElements["selected_star"];
-            ZoneManager.RegisterZone("selected_star",
-                (int)selectedDef.Position.Column, (int)selectedDef.Position.Row,
-                selectedDef.Width, selectedDef.Height, "value",
-                () => _screen.OnSelectedStarClicked());
+            RegisterZoneFromLayout("selected_star", "value", () => _screen.OnSelectedStarClicked());
             
             // Search results (0-9)
             for (int i = 0; i < 10; i++)
             {
                 int resultIndex = i; // Capture for closure
-                var resultDef = UnifiedGridRegistry.GetSearchResultElement(i);
-                ZoneManager.RegisterZone($"result_{i}",
-                    (int)resultDef.Position.Column, (int)resultDef.Position.Row,
-                    resultDef.Width, resultDef.Height, "result",
-                    () => _screen.OnResultClicked(resultIndex));
+                RegisterZoneFromLayout($"result_{i}", "result", () => _screen.OnResultClicked(resultIndex));
+            }
+        }
+        
+        /// <summary>
+        /// Helper to register a zone from constraint layout.
+        /// </summary>
+        private void RegisterZoneFromLayout(string elementId, string category, System.Action onClick)
+        {
+            GridRegion region = _screen.Layout.GetGridArea(elementId);
+            if (region.Width > 0 && region.Height > 0)
+            {
+                ZoneManager.RegisterZone(elementId,
+                    region.TopLeft.Column, region.TopLeft.Row,
+                    region.Width, region.Height, category, onClick);
             }
         }
         
