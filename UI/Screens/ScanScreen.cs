@@ -138,18 +138,9 @@ namespace CinematicShaders.UI.Screens
             _sequencer = new Sequencer(Layer3PriorityOrder);
             OnLayer2Complete += StartLayer3Animation;
             
-            // Initialize click zone for SCAN area (legacy support)
-            if (UnifiedGridConfig.USE_UNIFIED_GRID)
-            {
-                // Unified grid path - get zone from registry
-                var definition = UnifiedGridRegistry.ScanScreenElements["scan_area"];
-                _scanZone = new ClickZone(definition);
-            }
-            else
-            {
-                // Legacy path
-                _scanZone = new ClickZone("scan_area", HolographicLayoutConfig.ZONE_SCAN_AREA, true);
-            }
+            // Initialize click zone for SCAN area
+            var definition = UnifiedGridRegistry.ScanScreenElements["scan_area"];
+            _scanZone = new ClickZone(definition);
             
             // NEW: Create and setup click handler
             ClickHandler = new ScanScreenClickHandler(this);

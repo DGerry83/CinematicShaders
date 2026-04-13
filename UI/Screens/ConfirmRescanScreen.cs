@@ -236,21 +236,12 @@ namespace CinematicShaders.UI.Screens
             ClickHandler = new ConfirmRescanClickHandler(this);
             ClickHandler.SetupZones();
             
-            // Initialize YES/NO button zones (legacy - kept for compatibility)
+            // Initialize YES/NO button zones
             _clickZones.Clear();
-            if (UnifiedGridConfig.USE_UNIFIED_GRID)
-            {
-                var yesDef = UnifiedGridRegistry.ConfirmRescanElements["yes_button"];
-                var noDef = UnifiedGridRegistry.ConfirmRescanElements["no_button"];
-                
-                _clickZones.Add(new ClickZone(yesDef));
-                _clickZones.Add(new ClickZone(noDef));
-            }
-            else
-            {
-                _clickZones.Add(new ClickZone("yes_button", HolographicLayoutConfig.ZONE_YES_BUTTON, true));
-                _clickZones.Add(new ClickZone("no_button", HolographicLayoutConfig.ZONE_NO_BUTTON, true));
-            }
+            var yesDef = UnifiedGridRegistry.ConfirmRescanElements["yes_button"];
+            var noDef = UnifiedGridRegistry.ConfirmRescanElements["no_button"];
+            _clickZones.Add(new ClickZone(yesDef));
+            _clickZones.Add(new ClickZone(noDef));
             _hoveredZone = null;
         }
         

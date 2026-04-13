@@ -7,12 +7,7 @@ namespace CinematicShaders.UI
     /// </summary>
     public static class UnifiedGridConfig
     {
-        /// <summary>
-        /// Feature flag to enable unified grid system.
-        /// Default: false (use legacy system until migration complete)
-        /// </summary>
-        public const bool USE_UNIFIED_GRID = true;
-        
+
         /// <summary>
         /// Number of columns in the unified grid (matches Layer 1 border)
         /// </summary>

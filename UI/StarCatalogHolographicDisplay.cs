@@ -323,12 +323,7 @@ namespace CinematicShaders.UI
             ModFileLogger.Log($"[HolographicDisplay] SetDisplaySize({size}) called");
             ModFileLogger.Log($"[HolographicDisplay] Previous size: {_displaySize}");
             
-            // For unified grid, allow all sizes. For legacy, keep Large only.
-            if (!UnifiedGridConfig.USE_UNIFIED_GRID && size != HolographicDisplaySize.Large)
-            {
-                Debug.Log("[StarCatalogHolographicDisplay] Non-Large sizes require unified grid. Forcing Large.");
-                size = HolographicDisplaySize.Large;
-            }
+            // Unified grid supports all display sizes
             
             if (_displaySize == size) return;
             
@@ -357,52 +352,30 @@ namespace CinematicShaders.UI
             
             if (_screenManager != null)
             {
-                if (UnifiedGridConfig.USE_UNIFIED_GRID)
+                // Unified grid: Reinitialize ScreenManager textures at new size
+                ModFileLogger.Log("[HolographicDisplay] Recreating elements for unified grid");
+                _screenManager.Shutdown();
+                _screenManager = new ScreenManager(_textSystem);
+                _screenManager.InitializeTextures(
+                    Mathf.RoundToInt(dimensions.x), 
+                    Mathf.RoundToInt(dimensions.y));
+                InitializeScreens();
+                
+                // CRITICAL FIX: Reinitialize click zones after screen reinitialization
+                // This ensures zones are calculated for the new display size
+                if (_displayPowered)
                 {
-                    // Unified grid: Reinitialize ScreenManager textures at new size
-                    ModFileLogger.Log("[HolographicDisplay] Recreating elements for unified grid");
-                    _screenManager.Shutdown();
-                    _screenManager = new ScreenManager(_textSystem);
-                    _screenManager.InitializeTextures(
-                        Mathf.RoundToInt(dimensions.x), 
-                        Mathf.RoundToInt(dimensions.y));
-                    InitializeScreens();
-                    
-                    // CRITICAL FIX: Reinitialize click zones after screen reinitialization
-                    // This ensures zones are calculated for the new display size
-                    if (_displayPowered)
-                    {
-                        // Use GetScreen since CurrentScreen is null after Shutdown()
-                        var mainScreen = _screenManager.GetScreen("Main") as MainScreen;
-                        mainScreen?.SetClickZones();
-                        ModFileLogger.Log("[HolographicDisplay] Click zones reinitialized after size change");
-                    }
-                    
-                    Debug.Log($"[HolographicDisplay] ScreenManager textures resized to: {dimensions.x}x{dimensions.y}");
+                    // Use GetScreen since CurrentScreen is null after Shutdown()
+                    var mainScreen = _screenManager.GetScreen("Main") as MainScreen;
+                    mainScreen?.SetClickZones();
+                    ModFileLogger.Log("[HolographicDisplay] Click zones reinitialized after size change");
                 }
-                else
-                {
-                    // Legacy: ScreenManager textures stay at Large size (825x450)
-                    // Font size changes provide the "scaling" for different presets
-                    _screenManager.MarkAllLayersDirty();
-                    InitializeScreens();
-                    
-                    // CRITICAL FIX: Reinitialize click zones after screen reinitialization
-                    // This ensures zones are calculated for the new display size
-                    if (_displayPowered)
-                    {
-                        var mainScreen = _screenManager.CurrentScreen as MainScreen;
-                        mainScreen?.SetClickZones();
-                        ModFileLogger.Log("[HolographicDisplay] Click zones reinitialized after size change (legacy)");
-                    }
-                }
+                
+                Debug.Log($"[HolographicDisplay] ScreenManager textures resized to: {dimensions.x}x{dimensions.y}");
             }
             
-            // Recreate elements with new dimensions (unified grid only)
-            if (UnifiedGridConfig.USE_UNIFIED_GRID)
-            {
-                CreateElements();
-            }
+            // Recreate elements with new dimensions
+            CreateElements();
             
             // Mark all elements dirty for re-render
             foreach (var element in _elements.Values)
@@ -417,58 +390,7 @@ namespace CinematicShaders.UI
         {
             _elements.Clear();
             _resultElements.Clear();
-            
-            // Unified grid path (Phase 4)
-            if (UnifiedGridConfig.USE_UNIFIED_GRID)
-            {
-                CreateElementsUnified();
-                return;
-            }
-            
-            // Legacy path (existing implementation continues...)
-            // FIELD ORDER: HIP, NAME, DISTANCE, SPECTRAL, MAGNITUDE, CONSTELLATION
-            // Only value fields and interactive elements are created here (Layer 3)
-
-            AddElement("hip_value", TextElementType.Value, "", "", HolographicLayoutConfig.HIP_VALUE_POS, 0.1f);
-            AddElement("name_value", TextElementType.Editable, "", "", HolographicLayoutConfig.NAME_VALUE_POS, 0.3f);
-            AddElement("distance_value", TextElementType.Value, "", "", HolographicLayoutConfig.DISTANCE_VALUE_POS, 0.5f);
-            AddElement("spectral_value", TextElementType.Value, "", "", HolographicLayoutConfig.SPECTRAL_VALUE_POS, 0.7f);
-            AddElement("mag_value", TextElementType.Value, "", "", HolographicLayoutConfig.MAG_VALUE_POS, 0.9f);
-            AddElement("const_value", TextElementType.Value, "", "", HolographicLayoutConfig.CONST_VALUE_POS, 1.1f);
-
-            // Search elements (Layer 3 - interactive)
-            AddElement("search_input", TextElementType.Input, "", "...", HolographicLayoutConfig.SEARCH_INPUT_POS, 1.6f);
-            AddElement("rescan_button", TextElementType.Label, "", "[RESCAN]", HolographicLayoutConfig.RESCAN_BUTTON_POS, 1.7f);
-            AddElement("selected_star", TextElementType.Value, "", "", HolographicLayoutConfig.SELECTED_STAR_POS, 1.8f);
-
-            // Add SAVE and RESET buttons
-            if (!_elements.ContainsKey("save_button"))
-            {
-                AddElement("save_button", TextElementType.Label, "", "[SAVE]",
-                    HolographicLayoutConfig.SAVE_BUTTON_POS, 1.4f);
-            }
-            if (!_elements.ContainsKey("reset_button"))
-            {
-                AddElement("reset_button", TextElementType.Label, "", "[RESET]",
-                    HolographicLayoutConfig.RESET_BUTTON_POS, 1.45f);
-            }
-
-            // Results rows (10 max)
-            for (int i = 0; i < MAX_SEARCH_RESULTS; i++)
-            {
-                var elem = new HolographicTextElement
-                {
-                    ElementId = $"result_{i}",
-                    Type = TextElementType.SearchResult,
-                    StaticText = "",
-                    DynamicText = "",
-                    Position4K = HolographicLayoutConfig.GetResultRowPos(i),
-                    TypeOnDelay = 2.2f + (i * 0.05f),
-                    IsVisible = false  // Hidden until populated
-                };
-                _resultElements.Add(elem);
-                _elements[elem.ElementId] = elem;
-            }
+            CreateElementsUnified();
         }
 
         /// <summary>

@@ -94,20 +94,10 @@ namespace CinematicShaders.UI.Screens
         /// </remarks>
         public void InitializeTextures(int width, int height)
         {
-            if (UnifiedGridConfig.USE_UNIFIED_GRID)
-            {
-                // Unified grid: Use actual display dimensions for dynamic sizing
-                _textureWidth = width;
-                _textureHeight = height;
-                Debug.Log($"[ScreenManager] Initialized textures at display size: {width}x{height}");
-            }
-            else
-            {
-                // Legacy: Always use Large size for 1:1 pixel mapping
-                _textureWidth = 825;  // Large width
-                _textureHeight = 450; // Large height
-                Debug.Log($"[ScreenManager] Initialized textures at Large preset (legacy): 825x450");
-            }
+            // Unified grid: Use actual display dimensions for dynamic sizing
+            _textureWidth = width;
+            _textureHeight = height;
+            Debug.Log($"[ScreenManager] Initialized textures at display size: {width}x{height}");
             
             // Create shared textures for layers 1, 2, and 3
             EnsureTexture(1);

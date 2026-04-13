@@ -445,40 +445,7 @@ namespace CinematicShaders.UI.Screens.Layers
         /// </summary>
         private void BuildLayer3ContentGridBased()
         {
-            // Unified grid path (Phase 2)
-            if (USE_UNIFIED_GRID)
-            {
-                BuildLayer3ContentUnified();
-                return;
-            }
-            
-            // Legacy path (existing implementation continues unchanged)
-            InitializeGridBuffer();
-            
-            // Get all elements and place them at their grid positions
-            foreach (var element in _elements)
-            {
-                if (!element.IsVisible) continue;
-                
-                // Get grid position from unified registry
-                if (UnifiedGridRegistry.MainScreenElements.TryGetValue(element.ElementId, out var definition))
-                {
-                    string text = GetDisplayText(element);
-                    PlaceTextInGrid(text, definition.Position.Column, definition.Position.Row);
-                }
-            }
-            
-            // Convert grid buffer to string array
-            _layer3ContentLines = new string[GRID_ROWS];
-            for (int row = 0; row < GRID_ROWS; row++)
-            {
-                var sb = new System.Text.StringBuilder(GRID_COLUMNS);
-                for (int col = 0; col < GRID_COLUMNS; col++)
-                {
-                    sb.Append(_gridBuffer[row, col]);
-                }
-                _layer3ContentLines[row] = sb.ToString();
-            }
+            BuildLayer3ContentUnified();
         }
 
         /// <summary>
