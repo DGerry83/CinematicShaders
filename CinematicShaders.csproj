@@ -120,6 +120,7 @@
     <Compile Include="UI\Layout\ILayout.cs" />
     <Compile Include="UI\Layout\RectExtensions.cs" />
     <Compile Include="UI\Layout\LayoutConfig.cs" />
+    <Compile Include="UI\Layout\ScreenLayouts\MainScreenLayout.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="KSPBuildTools">
