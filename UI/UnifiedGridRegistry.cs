@@ -173,8 +173,8 @@ namespace CinematicShaders.UI
             ["yes_button"] = new GridElementDefinition
             {
                 ElementId = "yes_button",
-                Position = GridPosition.At(15, 11),
-                Width = 6,
+                Position = GridPosition.At(3, 11),  // Aligned with CONFIRM_LAYER2_LINES: "   [YES]"
+                Width = 7,  // "[YES]" plus brackets
                 Height = 1,
                 Type = ElementType.Button,
                 Priority = 0
@@ -182,8 +182,8 @@ namespace CinematicShaders.UI
             ["no_button"] = new GridElementDefinition
             {
                 ElementId = "no_button",
-                Position = GridPosition.At(48, 11),  // Adjusted for 59×13 grid
-                Width = 5,
+                Position = GridPosition.At(49, 11),  // Aligned with CONFIRM_LAYER2_LINES: "[NO]"
+                Width = 4,  // "[NO]" plus brackets
                 Height = 1,
                 Type = ElementType.Button,
                 Priority = 1
