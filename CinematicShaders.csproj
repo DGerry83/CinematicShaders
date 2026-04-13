@@ -115,6 +115,11 @@
     <Compile Include="UI\Content\MainScreenContent.cs" />
     <Compile Include="UI\Content\ScanScreenContent.cs" />
     <Compile Include="UI\Content\ConfirmRescanScreenContent.cs" />
+    <Compile Include="UI\Layout\Constraint.cs" />
+    <Compile Include="UI\Layout\LayoutEngine.cs" />
+    <Compile Include="UI\Layout\ILayout.cs" />
+    <Compile Include="UI\Layout\RectExtensions.cs" />
+    <Compile Include="UI\Layout\LayoutConfig.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="KSPBuildTools">
