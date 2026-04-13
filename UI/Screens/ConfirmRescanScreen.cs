@@ -35,7 +35,7 @@ namespace CinematicShaders.UI.Screens
     /// Buttons appear in sequence after the warning text types on,
     /// following the Layer3PriorityOrder.
     /// </remarks>
-    public class ConfirmRescanScreen : BaseScreen
+    public class ConfirmRescanScreen : BaseScreen, IClickHandler
     {
         private readonly float _fontSize;
         private readonly float _aspectRatio;
@@ -43,9 +43,13 @@ namespace CinematicShaders.UI.Screens
         private RenderTexture _layer2Texture;
         private Sequencer _sequencer;
         
-        // Click zones for YES/NO buttons
+        // Click zones for YES/NO buttons (legacy - kept for compatibility)
         private List<ClickZone> _clickZones = new List<ClickZone>();
         private ClickZone _hoveredZone = null;
+        
+        // New click handler (Simplified Click System)
+        public ConfirmRescanClickHandler ClickHandler { get; private set; }
+        public ClickZoneManager ZoneManager => ClickHandler?.ZoneManager;
         
         /// <summary>
         /// Layer 3 priority order for button appearance sequence.
@@ -78,6 +82,64 @@ namespace CinematicShaders.UI.Screens
         /// Subscribe to cancel and return to the previous screen.
         /// </summary>
         public event System.Action OnNoClicked;
+        
+        // Callback methods invoked by ConfirmRescanClickHandler
+        
+        public void OnYesButtonClicked()
+        {
+            ModFileLogger.Log("[ConfirmRescanScreen] OnYesButtonClicked");
+            OnYesClicked?.Invoke();
+        }
+        
+        public void OnNoButtonClicked()
+        {
+            ModFileLogger.Log("[ConfirmRescanScreen] OnNoButtonClicked");
+            OnNoClicked?.Invoke();
+        }
+        
+        public void OnElementHoverEnter(string elementId)
+        {
+            // Show hover highlight
+            var zone = ClickHandler.ZoneManager.FindZoneById(elementId);
+            if (zone != null)
+            {
+                // Convert grid rect to UV rect for native outline
+                Rect uvRect = GridToUVRect(zone.GridRect);
+                StarfieldNative.CR_SetBoxOutline(1, uvRect.xMin, uvRect.yMin, uvRect.xMax, uvRect.yMax);
+            }
+        }
+        
+        public void OnElementHoverExit(string elementId)
+        {
+            // Clear hover highlight
+            StarfieldNative.CR_SetBoxOutline(0, 0, 0, 0, 0);
+        }
+        
+        /// <summary>
+        /// Converts a grid rect to UV coordinates for the native outline renderer.
+        /// </summary>
+        private Rect GridToUVRect(Rect gridRect)
+        {
+            float col = gridRect.x;
+            float row = gridRect.y;
+            float width = gridRect.width;
+            float height = gridRect.height;
+            
+            float xMin = col / TerminalGridConfig.GRID_COLUMNS;
+            float yMin = 1.0f - ((row + height) / TerminalGridConfig.GRID_ROWS);
+            float xMax = (col + width) / TerminalGridConfig.GRID_COLUMNS;
+            float yMax = 1.0f - (row / TerminalGridConfig.GRID_ROWS);
+            
+            return new Rect(xMin, yMin, xMax - xMin, yMax - yMin);
+        }
+        
+        /// <summary>
+        /// IClickHandler implementation - delegates to ClickHandler.
+        /// </summary>
+        public void HandleInput(Rect displayRect)
+        {
+            ClickHandler?.HandleInput(displayRect);
+        }
         
         /// <summary>
         /// Initializes a new ConfirmRescanScreen with the specified content and styling.
@@ -154,7 +216,11 @@ namespace CinematicShaders.UI.Screens
             _sequencer = new Sequencer(Layer3PriorityOrder);
             OnLayer2Complete += StartLayer3Animation;
             
-            // Initialize YES/NO button zones
+            // NEW: Create and setup click handler (Simplified Click System)
+            ClickHandler = new ConfirmRescanClickHandler(this);
+            ClickHandler.SetupZones();
+            
+            // Initialize YES/NO button zones (legacy - kept for compatibility)
             _clickZones.Clear();
             if (UnifiedGridConfig.USE_UNIFIED_GRID)
             {
@@ -316,13 +382,10 @@ namespace CinematicShaders.UI.Screens
             // Layer 3: YES/NO buttons are rendered separately by the display
             // as they require interactive hover states
             
-            // Handle mouse interaction
+            // Handle mouse interaction via new click handler (Simplified Click System)
             if (Event.current != null)
             {
-                Vector2 mousePos = Event.current.mousePosition;
-                bool mouseDown = Event.current.type == EventType.MouseDown && Event.current.button == 0;
-                bool mouseUp = Event.current.type == EventType.MouseUp && Event.current.button == 0;
-                HandleMouse(mousePos, displayRect, mouseDown, mouseUp);
+                HandleInput(displayRect);
             }
         }
         
