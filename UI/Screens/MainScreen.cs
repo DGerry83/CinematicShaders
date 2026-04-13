@@ -5,7 +5,6 @@ using CinematicShaders.UI.Screens.Layers;
 using CinematicShaders.Native;
 using CinematicShaders.Core;
 using CinematicShaders.UI.Content;
-using CinematicShaders.UI.ClickZones;
 using CinematicShaders.UI;
 
 namespace CinematicShaders.UI.Screens
@@ -32,10 +31,10 @@ namespace CinematicShaders.UI.Screens
     /// - Click search results to select stars
     /// 
     /// <para><b>Click Zone System:</b></para>
-    /// Uses UV-based hit detection with ClickHandler. Zones are defined in
-    /// MainScreenClickZones and enabled/disabled based on star selection state.
+    /// Uses UV-based hit detection with MainScreenClickHandler. Zones are defined in
+    /// MainScreenClickHandler.SetupZones and enabled/disabled based on star selection state.
     /// </remarks>
-    public class MainScreen : BaseScreen
+    public class MainScreen : BaseScreen, IClickHandler
     {
         private readonly float _fontSize;
         private readonly float _aspectRatio;
@@ -44,8 +43,9 @@ namespace CinematicShaders.UI.Screens
         private ElementLayer _elementLayer;
         private RenderTexture _deferredLayer3Texture;
         
-        // NEW: ClickHandler for layer-agnostic UV-based hit detection
-        private ClickHandler _clickHandler;
+        // NEW: Simple click handler
+        public MainScreenClickHandler ClickHandler { get; private set; }
+        public ClickZoneManager ZoneManager => ClickHandler?.ZoneManager;
         
         /// <summary>
         /// Event fired when an interactive element is clicked.
@@ -84,20 +84,7 @@ namespace CinematicShaders.UI.Screens
             AddLayer(new BorderLayer(content.BorderLines));
             AddLayer(new ContentLayer(content.ContentLines));
             
-            // Create click handler
-            _clickHandler = new ClickHandler();
-            
-            if (UnifiedGridConfig.USE_UNIFIED_GRID)
-            {
-                // New way: Just set screen name, zones come from registry
-                _clickHandler.SetScreen("Main");
-            }
-            else
-            {
-                // Legacy way: Set zones directly
-                _clickHandler.SetZones(MainScreenClickZones.GetAllZones());
-            }
-            _clickHandler.OnZoneClicked += HandleZoneClicked;
+            // Note: ClickHandler is created in OnEnter() for proper initialization timing
         }
 
         private class CustomContent : IScreenContent
@@ -181,6 +168,10 @@ namespace CinematicShaders.UI.Screens
             // Subscribe to Layer 2 completion
             OnLayer2Complete += StartLayer3Animation;
             
+            // NEW: Create and setup click handler
+            ClickHandler = new MainScreenClickHandler(this);
+            ClickHandler.SetupZones();
+            
             // Enable value field click zones based on star selected
             UpdateClickZoneState(context?.HasStarSelected ?? false);
             
@@ -216,22 +207,9 @@ namespace CinematicShaders.UI.Screens
         /// </summary>
         public void SetClickZones()
         {
-            ModFileLogger.Log("[MainScreen] SetClickZones() called");
-            
-            if (UnifiedGridConfig.USE_UNIFIED_GRID)
-            {
-                // New way: Just set screen, registry provides zones
-                _clickHandler.SetScreen("Main");
-                ModFileLogger.Log("[MainScreen] Screen set to Main via registry");
-            }
-            else
-            {
-                // Legacy way: Set zones directly
-                var zones = MainScreenClickZones.GetAllZones();
-                ModFileLogger.Log($"[MainScreen] Got {zones.Count} zones, setting in ClickHandler");
-                _clickHandler.SetZones(zones);
-                ModFileLogger.Log("[MainScreen] Click zones set");
-            }
+            // New system sets up zones automatically in OnEnter
+            // This method preserved for compatibility
+            ModFileLogger.Log("[MainScreen] SetClickZones() called (compatibility no-op)");
         }
         
         /// <summary>
@@ -239,9 +217,8 @@ namespace CinematicShaders.UI.Screens
         /// </summary>
         public void ClearClickZones()
         {
+            ClickHandler?.ZoneManager?.Clear();
             ModFileLogger.Log("[MainScreen] ClearClickZones() called");
-            _clickHandler.SetZones(new List<ClickZone>());
-            ModFileLogger.Log("[MainScreen] Click zones cleared");
         }
         
         /// <summary>
@@ -249,7 +226,9 @@ namespace CinematicShaders.UI.Screens
         /// </summary>
         private void UpdateClickZoneState(bool hasStarSelected)
         {
-            foreach (var zone in _clickHandler.Zones)
+            if (ClickHandler?.ZoneManager == null) return;
+            
+            foreach (var zone in ClickHandler.ZoneManager.GetAllZones())
             {
                 if (zone.Category == "value")
                 {
@@ -258,14 +237,68 @@ namespace CinematicShaders.UI.Screens
             }
         }
         
-        /// <summary>
-        /// Handles zone click events from ClickHandler (grid-based hit detection).
-        /// Fires OnElementClicked event which is subscribed to by HolographicDisplay.
-        /// </summary>
-        private void HandleZoneClicked(string elementId)
+        // Callback methods invoked by MainScreenClickHandler
+        
+        public void OnValueClicked(string elementId)
         {
-            Debug.Log($"[MainScreen] ClickHandler zone clicked: {elementId}");
+            Debug.Log($"[MainScreen] OnValueClicked: {elementId}");
             OnElementClicked?.Invoke(elementId);
+        }
+        
+        public void OnSaveClicked()
+        {
+            Debug.Log("[MainScreen] OnSaveClicked");
+            OnElementClicked?.Invoke("save_button");
+        }
+        
+        public void OnResetClicked()
+        {
+            Debug.Log("[MainScreen] OnResetClicked");
+            OnElementClicked?.Invoke("reset_button");
+        }
+        
+        public void OnRescanClicked()
+        {
+            Debug.Log("[MainScreen] OnRescanClicked");
+            OnElementClicked?.Invoke("rescan_button");
+        }
+        
+        public void OnSearchClicked()
+        {
+            Debug.Log("[MainScreen] OnSearchClicked");
+            OnElementClicked?.Invoke("search_input");
+        }
+        
+        public void OnSelectedStarClicked()
+        {
+            Debug.Log("[MainScreen] OnSelectedStarClicked");
+            OnElementClicked?.Invoke("selected_star");
+        }
+        
+        public void OnResultClicked(int index)
+        {
+            Debug.Log($"[MainScreen] OnResultClicked: result_{index}");
+            OnElementClicked?.Invoke($"result_{index}");
+        }
+        
+        public void OnElementHoverEnter(string elementId)
+        {
+            // Currently no-op or add highlight logic
+            Debug.Log($"[MainScreen] Hover enter: {elementId}");
+        }
+        
+        public void OnElementHoverExit(string elementId)
+        {
+            // Currently no-op or remove highlight logic
+            Debug.Log($"[MainScreen] Hover exit: {elementId}");
+        }
+        
+        /// <summary>
+        /// IClickHandler implementation - delegates to ClickHandler.
+        /// </summary>
+        public void HandleInput(Rect displayRect)
+        {
+            ClickHandler?.HandleInput(displayRect);
         }
         
         /// <summary>
@@ -277,7 +310,7 @@ namespace CinematicShaders.UI.Screens
             
             // Handle clicks FIRST - this needs to run for all event types (MouseUp, etc.)
             // so that click detection works properly
-            _clickHandler.Update(displayRect);
+            HandleInput(displayRect);
             
             // Only render graphics during Repaint event
             if (Event.current == null || Event.current.type != EventType.Repaint)
