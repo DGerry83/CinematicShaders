@@ -87,14 +87,30 @@ namespace CinematicShaders.UI.Screens
         
         public void OnYesButtonClicked()
         {
-            ModFileLogger.Log("[ConfirmRescanScreen] OnYesButtonClicked");
-            OnYesClicked?.Invoke();
+            ModFileLogger.Log("[ConfirmRescanScreen] OnYesButtonClicked - firing OnYesClicked event");
+            if (OnYesClicked != null)
+            {
+                ModFileLogger.Log("[ConfirmRescanScreen] OnYesClicked has subscribers, invoking...");
+                OnYesClicked.Invoke();
+            }
+            else
+            {
+                ModFileLogger.Log("[ConfirmRescanScreen] WARNING: OnYesClicked has NO subscribers!");
+            }
         }
         
         public void OnNoButtonClicked()
         {
-            ModFileLogger.Log("[ConfirmRescanScreen] OnNoButtonClicked");
-            OnNoClicked?.Invoke();
+            ModFileLogger.Log("[ConfirmRescanScreen] OnNoButtonClicked - firing OnNoClicked event");
+            if (OnNoClicked != null)
+            {
+                ModFileLogger.Log("[ConfirmRescanScreen] OnNoClicked has subscribers, invoking...");
+                OnNoClicked.Invoke();
+            }
+            else
+            {
+                ModFileLogger.Log("[ConfirmRescanScreen] WARNING: OnNoClicked has NO subscribers!");
+            }
         }
         
         public void OnElementHoverEnter(string elementId)

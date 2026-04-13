@@ -71,6 +71,12 @@ namespace CinematicShaders.UI.Screens
                 return;
             }
             
+            // Log mouse down events for debugging
+            if (Event.current.type == EventType.MouseDown && Event.current.button == 0)
+            {
+                ModFileLogger.Log("[ConfirmRescanClickHandler] MouseDown detected");
+            }
+            
             Vector2 mousePos = Event.current.mousePosition;
             
             // Check if mouse is within display
@@ -95,6 +101,15 @@ namespace CinematicShaders.UI.Screens
             // Find zone at grid position
             var zone = ZoneManager.FindZoneAt(gridPos.Column, gridPos.Row);
             
+            // Log zone lookup for debugging
+            if (Event.current.type == EventType.MouseDown && Event.current.button == 0)
+            {
+                if (zone != null)
+                    ModFileLogger.Log($"[ConfirmRescanClickHandler] Zone found: {zone.ElementId} at grid ({gridPos.Column},{gridPos.Row})");
+                else
+                    ModFileLogger.Log($"[ConfirmRescanClickHandler] No zone at grid ({gridPos.Column},{gridPos.Row})");
+            }
+            
             if (zone != null && zone.IsEnabled)
             {
                 // Handle hover enter
@@ -110,6 +125,7 @@ namespace CinematicShaders.UI.Screens
                 // Handle click
                 if (Event.current.type == EventType.MouseDown && Event.current.button == 0)
                 {
+                    ModFileLogger.Log($"[ConfirmRescanClickHandler] Clicking zone: {zone.ElementId}");
                     zone.OnClick?.Invoke();
                 }
             }
