@@ -4,6 +4,8 @@ using System.Linq;
 using UnityEngine;
 using CinematicShaders.Native;
 using CinematicShaders.Core;
+using CinematicShaders.UI.Layout;
+using CinematicShaders.UI.Layout.ScreenLayouts;
 using static CinematicShaders.UI.UnifiedGridConfig;
 using static CinematicShaders.UI.UnifiedGridRegistry;
 
@@ -55,6 +57,11 @@ namespace CinematicShaders.UI.Screens.Layers
         
         // Grid-based content buffer
         private char[,] _gridBuffer = new char[GRID_ROWS, GRID_COLUMNS];
+        
+        // Constraint-based layout system (dual-path support)
+        private MainScreenLayout _constraintLayout;
+        private LayoutEngine _layoutEngine;
+        private bool _layoutBuilt = false;
 
         public ElementLayer(List<HolographicTextElement> elements, float fontSize)
         {
@@ -103,6 +110,129 @@ namespace CinematicShaders.UI.Screens.Layers
         /// Set element text and trigger animation.
         /// Resets ALL element animations to 0 for global character-based animation.
         /// </summary>
+        /// <summary>
+        /// Gets the screen area for the specified element.
+        /// Uses constraint-based layout when LayoutConfig.UseConstraintLayout is true,
+        /// otherwise falls back to legacy UnifiedGridRegistry positions.
+        /// </summary>
+        public Rect GetElementArea(string elementId)
+        {
+            if (LayoutConfig.UseConstraintLayout)
+            {
+                if (!_layoutBuilt)
+                {
+                    BuildConstraintLayout();
+                }
+                return _constraintLayout.GetArea(elementId);
+            }
+            
+            // Legacy path: Get from UnifiedGridRegistry
+            if (MainScreenElements.TryGetValue(elementId, out var definition))
+            {
+                return definition.GetPixelRect();
+            }
+            
+            // Handle search result elements
+            if (elementId.StartsWith("result_"))
+            {
+                int index;
+                if (int.TryParse(elementId.Substring(7), out index) && index >= 0 && index < 10)
+                {
+                    return GetSearchResultElement(index).GetPixelRect();
+                }
+            }
+            
+            return Rect.zero;
+        }
+        
+        /// <summary>
+        /// Gets the grid position for the specified element.
+        /// Converts pixel coordinates to grid coordinates.
+        /// </summary>
+        public GridPosition GetElementGridPosition(string elementId)
+        {
+            Rect area = GetElementArea(elementId);
+            if (area == Rect.zero)
+                return new GridPosition(0, 0);
+            
+            HolographicDisplaySize size = TerminalGridConfig.CurrentDisplaySize;
+            return TerminalGridConfig.PixelToGrid(area.x, area.y, size);
+        }
+        
+        /// <summary>
+        /// Builds the constraint-based layout for the current display size.
+        /// Called lazily when constraint layout is first accessed.
+        /// </summary>
+        private void BuildConstraintLayout()
+        {
+            _constraintLayout = new MainScreenLayout();
+            _layoutEngine = new LayoutEngine();
+            
+            Vector2 displayDims = TerminalGridConfig.GetDisplayDimensions(TerminalGridConfig.CurrentDisplaySize);
+            Rect displayArea = new Rect(0, 0, displayDims.x, displayDims.y);
+            
+            _constraintLayout.Build(_layoutEngine, displayArea);
+            _layoutBuilt = true;
+            
+            ModFileLogger.Log("[ElementLayer] Constraint layout built for " + TerminalGridConfig.CurrentDisplaySize);
+        }
+        
+        /// <summary>
+        /// Invalidates the constraint layout, forcing a rebuild on next access.
+        /// Call this when display size changes.
+        /// </summary>
+        public void InvalidateConstraintLayout()
+        {
+            _layoutBuilt = false;
+            _constraintLayout = null;
+            _layoutEngine = null;
+        }
+        
+#if DEBUG
+        /// <summary>
+        /// Validates constraint layout positions against legacy UnifiedGridRegistry.
+        /// Logs mismatches for debugging. Only available in DEBUG builds.
+        /// </summary>
+        public bool ValidateElementPositions()
+        {
+            if (!LayoutConfig.UseConstraintLayout)
+            {
+                ModFileLogger.Log("[ElementLayer] Validation skipped: UseConstraintLayout is false");
+                return true;
+            }
+            
+            if (!_layoutBuilt)
+            {
+                BuildConstraintLayout();
+            }
+            
+            // Build reference from legacy registry
+            Dictionary<string, Rect> reference = new Dictionary<string, Rect>();
+            foreach (var kvp in MainScreenElements)
+            {
+                reference[kvp.Key] = kvp.Value.GetPixelRect();
+            }
+            for (int i = 0; i < 10; i++)
+            {
+                GridElementDefinition result = GetSearchResultElement(i);
+                reference[result.ElementId] = result.GetPixelRect();
+            }
+            
+            bool valid = _constraintLayout.ValidateAgainst(reference, LayoutConfig.PositionTolerance);
+            
+            if (valid)
+            {
+                ModFileLogger.Log("[ElementLayer] Layout validation PASSED - all positions within tolerance");
+            }
+            else
+            {
+                ModFileLogger.Log("[ElementLayer] Layout validation FAILED - see errors above");
+            }
+            
+            return valid;
+        }
+#endif
+
         public void SetElementText(string elementId, string text)
         {
             var element = _elements.Find(e => e.ElementId == elementId);
@@ -461,6 +591,7 @@ namespace CinematicShaders.UI.Screens.Layers
         /// <summary>
         /// Builds Layer 3 content using unified 59×13 grid system.
         /// This is the new unified implementation that replaces legacy grid-based building.
+        /// Uses dual-path layout: constraint-based when enabled, legacy registry otherwise.
         /// </summary>
         private void BuildLayer3ContentUnified()
         {
@@ -497,14 +628,17 @@ namespace CinematicShaders.UI.Screens.Layers
                     // Get the display text (respecting type-on animation)
                     string text = GetDisplayText(element);
                     
+                    // Get grid position using dual-path method (constraint or legacy)
+                    GridPosition gridPos = GetElementGridPosition(definition.ElementId);
+                    
                     // Place element text at its grid position
                     if (!string.IsNullOrEmpty(text))
                     {
-                        PlaceTextInGrid(text, definition.Position.Column, definition.Position.Row);
+                        PlaceTextInGrid(text, gridPos.Column, gridPos.Row);
                     }
                     
                     // Update element's grid position for reference
-                    element.GridPos = definition.Position;
+                    element.GridPos = gridPos;
                 }
             }
             
@@ -516,15 +650,17 @@ namespace CinematicShaders.UI.Screens.Layers
                 
                 if (resultElement != null && resultElement.IsVisible)
                 {
-                    var definition = GetSearchResultElement(i);
                     string text = GetDisplayText(resultElement);
+                    
+                    // Get grid position using dual-path method
+                    GridPosition gridPos = GetElementGridPosition(resultId);
                     
                     if (!string.IsNullOrEmpty(text))
                     {
-                        PlaceTextInGrid(text, definition.Position.Column, definition.Position.Row);
+                        PlaceTextInGrid(text, gridPos.Column, gridPos.Row);
                     }
                     
-                    resultElement.GridPos = definition.Position;
+                    resultElement.GridPos = gridPos;
                 }
             }
             
