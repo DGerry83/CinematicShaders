@@ -113,54 +113,24 @@ namespace CinematicShaders.UI.Screens.Layers
         /// Resets ALL element animations to 0 for global character-based animation.
         /// </summary>
         /// <summary>
-        /// Gets the screen area for the specified element from the specified screen.
-        /// Uses constraint-based layout when LayoutConfig.UseConstraintLayout is true,
-        /// otherwise falls back to legacy UnifiedGridRegistry positions.
+        /// Gets the pixel rectangle for the specified element from the specified screen.
+        /// Uses constraint-based layout.
         /// </summary>
         public Rect GetElementArea(string screenName, string elementId)
         {
-            if (LayoutConfig.UseConstraintLayout)
-            {
-                EnsureLayoutBuilt(screenName);
-                
-                switch (screenName)
-                {
-                    case "Main":
-                        return _mainScreenLayout?.GetArea(elementId) ?? Rect.zero;
-                    case "Scan":
-                        return _scanScreenLayout?.GetArea(elementId) ?? Rect.zero;
-                    case "ConfirmRescan":
-                        return _confirmRescanScreenLayout?.GetArea(elementId) ?? Rect.zero;
-                    default:
-                        return Rect.zero;
-                }
-            }
+            EnsureLayoutBuilt(screenName);
             
-            // Legacy path: Get from UnifiedGridRegistry
             switch (screenName)
             {
                 case "Main":
-                    if (MainScreenElements.TryGetValue(elementId, out var mainDef))
-                        return mainDef.GetPixelRect();
-                    // Handle search result elements
-                    if (elementId.StartsWith("result_"))
-                    {
-                        int index;
-                        if (int.TryParse(elementId.Substring(7), out index) && index >= 0 && index < 10)
-                            return GetSearchResultElement(index).GetPixelRect();
-                    }
-                    break;
+                    return _mainScreenLayout?.GetArea(elementId) ?? Rect.zero;
                 case "Scan":
-                    if (ScanScreenElements.TryGetValue(elementId, out var scanDef))
-                        return scanDef.GetPixelRect();
-                    break;
+                    return _scanScreenLayout?.GetArea(elementId) ?? Rect.zero;
                 case "ConfirmRescan":
-                    if (ConfirmRescanElements.TryGetValue(elementId, out var confirmDef))
-                        return confirmDef.GetPixelRect();
-                    break;
+                    return _confirmRescanScreenLayout?.GetArea(elementId) ?? Rect.zero;
+                default:
+                    return Rect.zero;
             }
-            
-            return Rect.zero;
         }
         
         /// <summary>
@@ -177,49 +147,19 @@ namespace CinematicShaders.UI.Screens.Layers
         /// </summary>
         public GridRegion GetElementGridRegion(string screenName, string elementId)
         {
-            if (LayoutConfig.UseConstraintLayout)
-            {
-                EnsureLayoutBuilt(screenName);
-                
-                switch (screenName)
-                {
-                    case "Main":
-                        return _mainScreenLayout?.GetGridArea(elementId) ?? new GridRegion(GridPosition.At(0, 0), 0, 0);
-                    case "Scan":
-                        return _scanScreenLayout?.GetGridArea(elementId) ?? new GridRegion(GridPosition.At(0, 0), 0, 0);
-                    case "ConfirmRescan":
-                        return _confirmRescanScreenLayout?.GetGridArea(elementId) ?? new GridRegion(GridPosition.At(0, 0), 0, 0);
-                    default:
-                        return new GridRegion(GridPosition.At(0, 0), 0, 0);
-                }
-            }
+            EnsureLayoutBuilt(screenName);
             
-            // Legacy path: Get from UnifiedGridRegistry and convert
-            GridElementDefinition definition = null;
             switch (screenName)
             {
                 case "Main":
-                    if (MainScreenElements.TryGetValue(elementId, out var mainDef))
-                        definition = mainDef;
-                    else if (elementId.StartsWith("result_"))
-                    {
-                        int index;
-                        if (int.TryParse(elementId.Substring(7), out index) && index >= 0 && index < 10)
-                            definition = GetSearchResultElement(index);
-                    }
-                    break;
+                    return _mainScreenLayout?.GetGridArea(elementId) ?? new GridRegion(GridPosition.At(0, 0), 0, 0);
                 case "Scan":
-                    ScanScreenElements.TryGetValue(elementId, out definition);
-                    break;
+                    return _scanScreenLayout?.GetGridArea(elementId) ?? new GridRegion(GridPosition.At(0, 0), 0, 0);
                 case "ConfirmRescan":
-                    ConfirmRescanElements.TryGetValue(elementId, out definition);
-                    break;
+                    return _confirmRescanScreenLayout?.GetGridArea(elementId) ?? new GridRegion(GridPosition.At(0, 0), 0, 0);
+                default:
+                    return new GridRegion(GridPosition.At(0, 0), 0, 0);
             }
-            
-            if (definition == null)
-                return new GridRegion(GridPosition.At(0, 0), 0, 0);
-            
-            return new GridRegion(definition.Position, definition.Width, definition.Height);
         }
         
         /// <summary>

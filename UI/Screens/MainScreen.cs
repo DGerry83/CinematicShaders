@@ -6,6 +6,8 @@ using CinematicShaders.Native;
 using CinematicShaders.Core;
 using CinematicShaders.UI.Content;
 using CinematicShaders.UI;
+using CinematicShaders.UI.Layout;
+using CinematicShaders.UI.Layout.ScreenLayouts;
 
 namespace CinematicShaders.UI.Screens
 {
@@ -42,6 +44,25 @@ namespace CinematicShaders.UI.Screens
         private RenderTexture _layer2Texture;
         private ElementLayer _elementLayer;
         private RenderTexture _deferredLayer3Texture;
+        private MainScreenLayout _layout;
+        
+        /// <summary>
+        /// Gets the constraint-based layout for this screen.
+        /// </summary>
+        public MainScreenLayout Layout
+        {
+            get
+            {
+                if (_layout == null)
+                {
+                    _layout = new MainScreenLayout();
+                    var engine = new LayoutEngine();
+                    Vector2 dims = TerminalGridConfig.GetDisplayDimensions(TerminalGridConfig.CurrentDisplaySize);
+                    _layout.Build(engine, new Rect(0, 0, dims.x, dims.y));
+                }
+                return _layout;
+            }
+        }
         
         // NEW: Simple click handler
         public MainScreenClickHandler ClickHandler { get; private set; }
