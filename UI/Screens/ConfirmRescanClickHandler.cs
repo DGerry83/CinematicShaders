@@ -1,5 +1,6 @@
 using UnityEngine;
 using CinematicShaders.Core;
+using CinematicShaders.UI;
 
 namespace CinematicShaders.UI.Screens
 {
@@ -23,33 +24,33 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
-        /// Sets up click zones for YES and NO buttons.
+        /// Sets up click zones for YES and NO buttons using constraint layout.
         /// Call this once during screen initialization.
         /// </summary>
         public void SetupZones()
         {
             ZoneManager.Clear();
             
-            // Register YES button
-            var yesDef = UnifiedGridRegistry.ConfirmRescanElements["yes_button"];
+            // Register YES button from constraint layout
+            GridRegion yesRegion = _screen.Layout.GetGridArea("yes_button");
             ZoneManager.RegisterZone(
                 "yes_button",
-                (int)yesDef.Position.Column,
-                (int)yesDef.Position.Row,
-                yesDef.Width,
-                yesDef.Height,
+                yesRegion.TopLeft.Column,
+                yesRegion.TopLeft.Row,
+                yesRegion.Width,
+                yesRegion.Height,
                 "button",
                 () => _screen.OnYesButtonClicked()
             );
             
-            // Register NO button
-            var noDef = UnifiedGridRegistry.ConfirmRescanElements["no_button"];
+            // Register NO button from constraint layout
+            GridRegion noRegion = _screen.Layout.GetGridArea("no_button");
             ZoneManager.RegisterZone(
                 "no_button",
-                (int)noDef.Position.Column,
-                (int)noDef.Position.Row,
-                noDef.Width,
-                noDef.Height,
+                noRegion.TopLeft.Column,
+                noRegion.TopLeft.Row,
+                noRegion.Width,
+                noRegion.Height,
                 "button",
                 () => _screen.OnNoButtonClicked()
             );
