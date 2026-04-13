@@ -977,7 +977,17 @@ namespace CinematicShaders.UI.Tabs
         {
             if (_consoleMode == mode) return;
             
-            // Hide current display
+            // Destroy holographic display if it exists to ensure clean size change
+            // Calling SetDisplaySize() on an active display corrupts internal state
+            if (_holographicDisplay != null)
+            {
+                _holographicDisplay.Hide();
+                UnityEngine.Object.Destroy(_holographicDisplay);
+                _holographicDisplay = null;
+                ModFileLogger.Log("[KartographerTab] Destroyed holographic display for size change");
+            }
+            
+            // Hide legacy display if active
             HideCurrentDisplay();
             
             _consoleMode = mode;
