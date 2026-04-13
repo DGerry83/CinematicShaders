@@ -125,65 +125,7 @@ namespace CinematicShaders.UI
             return fullText.Substring(0, visibleChars);
         }
 
-        /// <summary>
-        /// Creates a HolographicTextElement from a unified grid element definition.
-        /// Calculates pixel position dynamically using current display size.
-        /// </summary>
-        /// <param name="definition">Grid element definition</param>
-        public HolographicTextElement(GridElementDefinition definition)
-        {
-            ElementId = definition.ElementId;
-            StaticText = "";
-            DynamicText = "";
-            Type = ConvertElementType(definition.Type);
-            
-            // Store grid position for reference
-            GridPos = definition.Position;
-            GridWidth = definition.Width;
-            
-            // Calculate pixel position from grid coordinates using current display size
-            Position4K = definition.GetPixelRect();
-            
-            Priority = definition.Priority;
-            IsVisible = definition.VisibleByDefault;
-            
-            // Initialize other fields to defaults
-            IsDirty = true;
-            TypeOnProgress = 1.0f;
-            TypeOnDelay = 0f;
-            TypeOnDuration = 0.5f;
-        }
 
-        /// <summary>
-        /// Converts ElementType to TextElementType.
-        /// </summary>
-        private static TextElementType ConvertElementType(ElementType type)
-        {
-            switch (type)
-            {
-                case ElementType.Editable:
-                    return TextElementType.Editable;
-                case ElementType.Button:
-                    return TextElementType.Button;
-                case ElementType.Input:
-                    return TextElementType.Input;
-                case ElementType.SearchResult:
-                    return TextElementType.SearchResult;
-                case ElementType.Label:
-                    return TextElementType.Label;
-                default:
-                    return TextElementType.Value;
-            }
-        }
-
-        /// <summary>
-        /// Factory method to create a HolographicTextElement from a grid definition.
-        /// Uses current display size for glyph-based calculations.
-        /// </summary>
-        public static HolographicTextElement FromDefinition(GridElementDefinition definition)
-        {
-            return new HolographicTextElement(definition);
-        }
 
         // ============================================================================
         // Grid-based positioning (primary)

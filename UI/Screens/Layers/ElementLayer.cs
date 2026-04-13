@@ -7,7 +7,6 @@ using CinematicShaders.Core;
 using CinematicShaders.UI.Layout;
 using CinematicShaders.UI.Layout.ScreenLayouts;
 using static CinematicShaders.UI.UnifiedGridConfig;
-using static CinematicShaders.UI.UnifiedGridRegistry;
 
 
 namespace CinematicShaders.UI.Screens.Layers
@@ -598,9 +597,8 @@ namespace CinematicShaders.UI.Screens.Layers
         }
         
         /// <summary>
-        /// Builds Layer 3 content using unified 59×13 grid system.
-        /// This is the new unified implementation that replaces legacy grid-based building.
-        /// Uses dual-path layout: constraint-based when enabled, legacy registry otherwise.
+        /// Builds Layer 3 content using constraint-based layout.
+        /// Sources all element positions from the constraint layout system.
         /// </summary>
         private void BuildLayer3ContentUnified()
         {
@@ -614,39 +612,35 @@ namespace CinematicShaders.UI.Screens.Layers
             // Before getting zones
             // ModFileLogger.Log("[ElementLayer] Getting click zones from registry...");
             
-            // Get all main screen elements from unified registry
-            var elementDefinitions = MainScreenElements;
+            // Main screen element IDs in render order
+            // (must match the elements created by StarCatalogHolographicDisplay)
+            string[] mainElementIds = new string[]
+            {
+                "hip_value", "name_value", "distance_value",
+                "spectral_value", "mag_value", "const_value",
+                "selected_star", "search_input"
+            };
             
             // Render each element to the grid buffer
-            foreach (var kvp in elementDefinitions)
+            foreach (string elementId in mainElementIds)
             {
-                var definition = kvp.Value;
-                
-                // Skip elements that shouldn't be visible by default
-                if (!definition.VisibleByDefault)
-                    continue;
-                
-                // Skip buttons - they are drawn in Layer 2, but we need them in registry for click zones
-                if (definition.Type == ElementType.Button)
+                // Skip buttons - they are drawn in Layer 2
+                if (elementId == "save_button" || elementId == "reset_button" || elementId == "rescan_button")
                     continue;
                 
                 // Find the corresponding HolographicTextElement
-                var element = _elements.Find(e => e.ElementId == definition.ElementId);
+                var element = _elements.Find(e => e.ElementId == elementId);
                 if (element != null && element.IsVisible)
                 {
-                    // Get the display text (respecting type-on animation)
                     string text = GetDisplayText(element);
                     
-                    // Get grid position using dual-path method (constraint or legacy)
-                    GridPosition gridPos = GetElementGridPosition(definition.ElementId);
+                    GridPosition gridPos = GetElementGridPosition(elementId);
                     
-                    // Place element text at its grid position
                     if (!string.IsNullOrEmpty(text))
                     {
                         PlaceTextInGrid(text, gridPos.Column, gridPos.Row);
                     }
                     
-                    // Update element's grid position for reference
                     element.GridPos = gridPos;
                 }
             }
@@ -673,23 +667,7 @@ namespace CinematicShaders.UI.Screens.Layers
                 }
             }
             
-            // Debug mode: just call GetClickZonesForScreen() without drawing
-            if (UnifiedGridConfig.DEBUG_DRAW_CLICK_ZONES)
-            {
-                // Get zones but don't draw them - test if just calling this makes it work
-                var zones = UnifiedGridRegistry.GetClickZonesForScreen(
-                    UnifiedGridRegistry.MainScreenElements);
-                
-                // Add search result zones (also without drawing)
-                for (int i = 0; i < 10; i++)
-                {
-                    var resultDef = UnifiedGridRegistry.GetSearchResultElement(i);
-                    zones.Add(new ClickZone(resultDef));
-                }
-                
-                // After getting zones
-                // ModFileLogger.Log($"[ElementLayer] Got {zones.Count} zones from registry");
-            }
+
 
             // Convert grid buffer to string array (same as legacy path)
             _layer3ContentLines = new string[GRID_ROWS];

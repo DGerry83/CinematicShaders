@@ -45,43 +45,7 @@ namespace CinematicShaders.Core
         {
         }
         
-        /// <summary>
-        /// Creates a ClickZone from a unified grid element definition.
-        /// Automatically derives grid rectangle from element position and size.
-        /// </summary>
-        /// <param name="definition">Grid element definition</param>
-        public ClickZone(GridElementDefinition definition)
-        {
-            ElementId = definition.ElementId;
-            GridRect = new Rect(
-                definition.Position.Column, 
-                definition.Position.Row, 
-                definition.Width, 
-                definition.Height);
-            Category = GetCategoryForElementType(definition.Type);
-            IsEnabled = true;
-            ScreenState = "Main"; // Default, can be overridden
-        }
-        
-        /// <summary>
-        /// Maps ElementType to click zone category.
-        /// </summary>
-        private static string GetCategoryForElementType(ElementType type)
-        {
-            switch (type)
-            {
-                case ElementType.Button:
-                    return "button";
-                case ElementType.Editable:
-                    return "value";
-                case ElementType.Input:
-                    return "input";
-                case ElementType.SearchResult:
-                    return "result";
-                default:
-                    return "value";
-            }
-        }
+
         
         /// <summary>
         /// Check if grid coordinates are within this zone (legacy).

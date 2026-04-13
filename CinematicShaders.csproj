@@ -82,8 +82,7 @@
     <Compile Include="UI\HolographicTextElement.cs" />
     <Compile Include="UI\TerminalGridConfig.cs" />
     <Compile Include="UI\UnifiedGridConfig.cs" />
-    <Compile Include="UI\GridElementDefinition.cs" />
-    <Compile Include="UI\UnifiedGridRegistry.cs" />
+
     <Compile Include="UI\StarCatalogEditorWindow.cs" />
     <Compile Include="UI\StarCatalogHolographicDisplay.cs" />
     <Compile Include="UI\Tabs\GTAOTab.cs" />
