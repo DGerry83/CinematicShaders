@@ -9,8 +9,8 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using static FinePrint.ContractDefs;
-using static CinematicShaders.UI.UnifiedGridConfig;
-using static CinematicShaders.UI.UnifiedGridRegistry;
+using CinematicShaders.UI.Layout;
+using CinematicShaders.UI.Layout.ScreenLayouts;
 
 namespace CinematicShaders.UI
 {
@@ -79,6 +79,10 @@ namespace CinematicShaders.UI
 
         // Screen manager for screen state handling
         private ScreenManager _screenManager;
+
+        // Constraint-based layout (replaces UnifiedGridRegistry)
+        private MainScreenLayout _mainScreenLayout;
+        private LayoutEngine _layoutEngine;
         #endregion
 
         // Note: ScreenState enum removed - now using string ScreenName ("Main", "Scan", "ConfirmRescan")
@@ -331,6 +335,10 @@ namespace CinematicShaders.UI
             
             // Update the global current display size for glyph-based calculations
             TerminalGridConfig.CurrentDisplaySize = size;
+
+            // NEW: Invalidate constraint layout so it rebuilds with new dimensions
+            _mainScreenLayout = null;
+            _layoutEngine = null;
             
             // Get glyph-based display dimensions
             Vector2 dimensions = TerminalGridConfig.GetDisplayDimensions(size);
@@ -394,51 +402,226 @@ namespace CinematicShaders.UI
         }
 
         /// <summary>
-        /// Creates elements using unified 59×13 grid system.
-        /// Calculates pixel positions dynamically using current display size.
+        /// Ensures the MainScreenLayout is built and ready for use.
+        /// Called lazily from CreateElementsUnified().
+        /// </summary>
+        private void EnsureLayoutBuilt()
+        {
+            if (_layoutEngine == null)
+            {
+                _layoutEngine = new LayoutEngine();
+            }
+            
+            if (_mainScreenLayout == null)
+            {
+                _mainScreenLayout = new MainScreenLayout();
+                
+                // Get display dimensions for layout
+                Vector2 displayDims = TerminalGridConfig.GetDisplayDimensions(
+                    TerminalGridConfig.CurrentDisplaySize
+                );
+                Rect displayArea = new Rect(0, 0, displayDims.x, displayDims.y);
+                
+                _mainScreenLayout.Build(_layoutEngine, displayArea);
+                
+                Debug.Log("[StarCatalogHolographicDisplay] MainScreenLayout built successfully");
+            }
+        }
+
+        /// <summary>
+        /// Creates a HolographicTextElement from a GridRegion and metadata.
+        /// Replaces HolographicTextElement.FromDefinition().
+        /// </summary>
+        private HolographicTextElement CreateElementFromGridRegion(
+            string elementId, 
+            TextElementType type, 
+            GridRegion region,
+            bool visibleByDefault = true)
+        {
+            var element = new HolographicTextElement
+            {
+                ElementId = elementId,
+                Type = type,
+                StaticText = "",
+                DynamicText = "",
+                
+                // Grid-based positioning (primary)
+                GridPos = region.TopLeft,
+                GridWidth = region.Width,
+                
+                // Legacy Position4K for backward compatibility
+                Position4K = CalculatePixelRect(region),
+                
+                // Visibility and animation
+                IsVisible = visibleByDefault,
+                IsDirty = true,
+                TypeOnProgress = 1.0f,
+                TypeOnDelay = 0f,
+                TypeOnDuration = 0.5f,
+                
+                // Priority based on type
+                Priority = GetPriorityForElement(elementId, type)
+            };
+            
+            return element;
+        }
+
+        /// <summary>
+        /// Calculates pixel Rect from GridRegion using current display size.
+        /// </summary>
+        private Rect CalculatePixelRect(GridRegion region)
+        {
+            Vector2 pixelPos = TerminalGridConfig.GridToPixel(
+                region.TopLeft.Column,
+                region.TopLeft.Row,
+                TerminalGridConfig.CurrentDisplaySize
+            );
+            
+            var (glyphWidth, glyphHeight) = TerminalGridConfig.GlyphMetrics.GetGlyphMetrics(
+                TerminalGridConfig.CurrentDisplaySize
+            );
+            
+            float width = region.Width * glyphWidth;
+            float height = region.Height * glyphHeight;
+            
+            return new Rect(pixelPos.x, pixelPos.y, width, height);
+        }
+
+        /// <summary>
+        /// Gets animation priority for an element based on its ID and type.
+        /// Lower values = earlier in animation sequence.
+        /// </summary>
+        private int GetPriorityForElement(string elementId, TextElementType type)
+        {
+            // Match priorities from UnifiedGridRegistry
+            switch (elementId)
+            {
+                case "hip_value": return 0;
+                case "name_value": return 1;
+                case "distance_value": return 2;
+                case "spectral_value": return 3;
+                case "mag_value": return 4;
+                case "const_value": return 5;
+                case "selected_star": return 6;
+                case "save_button": return 10;
+                case "reset_button": return 11;
+                case "rescan_button": return 12;
+                case "search_input": return 20;
+                case var id when id.StartsWith("result_"):
+                    // Extract index from "result_N"
+                    if (int.TryParse(id.Substring(7), out int idx))
+                        return 30 + idx;
+                    return 30;
+                default:
+                    return 100;
+            }
+        }
+
+        /// <summary>
+        /// Determines the TextElementType for a given element ID.
+        /// Replaces ElementType from GridElementDefinition.
+        /// </summary>
+        private TextElementType GetElementType(string elementId)
+        {
+            switch (elementId)
+            {
+                case "hip_value":
+                case "distance_value":
+                case "spectral_value":
+                case "mag_value":
+                case "const_value":
+                case "selected_star":
+                    return TextElementType.Value;
+                    
+                case "name_value":
+                    return TextElementType.Editable;
+                    
+                case "search_input":
+                    return TextElementType.Input;
+                    
+                case "save_button":
+                case "reset_button":
+                case "rescan_button":
+                    return TextElementType.Button;
+                    
+                case var id when id.StartsWith("result_"):
+                    return TextElementType.SearchResult;
+                    
+                default:
+                    return TextElementType.Value;
+            }
+        }
+
+        /// <summary>
+        /// Creates elements using constraint-based layout system.
+        /// Replaces UnifiedGridRegistry dependency with MainScreenLayout.
         /// </summary>
         private void CreateElementsUnified()
         {
-            // Current display size is set by SetDisplaySize() via TerminalGridConfig.CurrentDisplaySize
-            // Elements calculate their pixel positions using glyph metrics automatically
+            // Ensure layout is built (lazy initialization)
+            EnsureLayoutBuilt();
             
-            // Create main screen elements from unified registry
-            foreach (var kvp in UnifiedGridRegistry.MainScreenElements)
+            // List of main screen element IDs (excluding buttons which are drawn in Layer 2)
+            string[] mainElementIds = new[]
             {
-                var definition = kvp.Value;
+                "hip_value",
+                "name_value", 
+                "distance_value",
+                "spectral_value",
+                "mag_value",
+                "const_value",
+                "search_input",
+                "selected_star"
+                // Note: Buttons (save_button, reset_button, rescan_button) are excluded
+                // because they are drawn in Layer 2 and only needed for click zones
+            };
+            
+            // Create main screen elements from layout
+            foreach (string elementId in mainElementIds)
+            {
+                GridRegion region = _mainScreenLayout.GetGridArea(elementId);
                 
-                // Skip buttons - they are drawn in Layer 2
-                if (definition.Type == ElementType.Button)
-                    continue;
-                
-                // Create element using unified definition (uses CurrentDisplaySize internally)
-                var element = HolographicTextElement.FromDefinition(definition);
-                
-                // Set element types for interactive elements
-                switch (definition.ElementId)
+                // Skip if region is invalid (not found in layout)
+                if (region.Width == 0 || region.Height == 0)
                 {
-                    case "name_value":
-                        element.Type = TextElementType.Editable;
-                        break;
-                    case "search_input":
-                        element.Type = TextElementType.Input;
-                        break;
+                    Debug.LogWarning($"[StarCatalogHolographicDisplay] Layout region not found for: {elementId}");
+                    continue;
                 }
                 
-                _elements[definition.ElementId] = element;
+                TextElementType type = GetElementType(elementId);
+                var element = CreateElementFromGridRegion(elementId, type, region);
+                
+                _elements[elementId] = element;
             }
             
-            // Create search result elements dynamically
-            for (int i = 0; i < 10; i++)
+            // Create search result elements dynamically (result_0 through result_9)
+            for (int i = 0; i < MAX_SEARCH_RESULTS; i++)
             {
-                var definition = UnifiedGridRegistry.GetSearchResultElement(i);
-                var element = HolographicTextElement.FromDefinition(definition);
-                element.IsVisible = false; // Hidden by default
+                string elementId = $"result_{i}";
+                GridRegion region = _mainScreenLayout.GetGridArea(elementId);
+                
+                if (region.Width == 0 || region.Height == 0)
+                {
+                    // Fallback: calculate region manually if not in layout
+                    region = new GridRegion(
+                        GridPosition.At(38, 1 + i),  // Column 38, rows 1-10
+                        20,                           // Width: 20 columns
+                        1                             // Height: 1 row
+                    );
+                }
+                
+                var element = CreateElementFromGridRegion(
+                    elementId, 
+                    TextElementType.SearchResult, 
+                    region,
+                    visibleByDefault: false  // Hidden by default
+                );
+                
                 _resultElements.Add(element);
-                _elements[element.ElementId] = element;
+                _elements[elementId] = element;
             }
             
-            Debug.Log($"[StarCatalogHolographicDisplay] Created {_elements.Count} main elements and {_resultElements.Count} result elements (unified grid)");
+            Debug.Log($"[StarCatalogHolographicDisplay] Created {_elements.Count} elements using constraint layout");
         }
 
         private void AddElement(string id, TextElementType type, string staticText, string dynamicText, Rect pos4K, float typeOnDelay)
