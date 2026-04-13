@@ -1,5 +1,6 @@
 using UnityEngine;
 using CinematicShaders.Core;
+using CinematicShaders.UI;
 
 namespace CinematicShaders.UI.Screens
 {
@@ -23,23 +24,23 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
-        /// Sets up click zone for the SCAN area.
+        /// Sets up click zone for the SCAN area using constraint layout.
         /// Call this once during screen initialization.
         /// </summary>
         public void SetupZones()
         {
             ZoneManager.Clear();
             
-            // Get scan_area definition from UnifiedGridRegistry
-            var definition = UnifiedGridRegistry.ScanScreenElements["scan_area"];
+            // Get scan_area region from constraint layout
+            GridRegion scanRegion = _screen.Layout.GetGridArea("scan_area");
             
-            // Register large scan zone
+            // Register large scan zone using grid coordinates
             ZoneManager.RegisterZone(
                 "scan_area",
-                (int)definition.Position.Column,
-                (int)definition.Position.Row,
-                definition.Width,
-                definition.Height,
+                scanRegion.TopLeft.Column,
+                scanRegion.TopLeft.Row,
+                scanRegion.Width,
+                scanRegion.Height,
                 "scan",
                 () => _screen.OnScanAreaClicked()
             );
