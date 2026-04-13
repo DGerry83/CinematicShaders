@@ -9,7 +9,7 @@ namespace CinematicShaders.UI.Layout
         /// Master feature flag that enables the constraint-based layout path.
         /// Defaults to false for backward compatibility.
         /// </summary>
-        public static bool UseConstraintLayout { get; set; } = false;
+        public static bool UseConstraintLayout { get; set; } = true;
 
         /// <summary>
         /// Enables layout validation in debug builds to compare old and new positions.
