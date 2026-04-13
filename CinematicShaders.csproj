@@ -121,6 +121,8 @@
     <Compile Include="UI\Layout\RectExtensions.cs" />
     <Compile Include="UI\Layout\LayoutConfig.cs" />
     <Compile Include="UI\Layout\ScreenLayouts\MainScreenLayout.cs" />
+    <Compile Include="UI\Layout\ScreenLayouts\ScanScreenLayout.cs" />
+    <Compile Include="UI\Layout\ScreenLayouts\ConfirmRescanScreenLayout.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="KSPBuildTools">

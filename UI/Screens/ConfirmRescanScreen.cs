@@ -7,6 +7,8 @@ using CinematicShaders.Core;
 using CinematicShaders.UI.Animation;
 using CinematicShaders.UI.Content;
 using CinematicShaders.UI;
+using CinematicShaders.UI.Layout;
+using CinematicShaders.UI.Layout.ScreenLayouts;
 
 namespace CinematicShaders.UI.Screens
 {
@@ -43,9 +45,12 @@ namespace CinematicShaders.UI.Screens
         private RenderTexture _layer2Texture;
         private Sequencer _sequencer;
         
-        // Click zones for YES/NO buttons (legacy - kept for compatibility)
+        // Click zones for YES/NO buttons
         private List<ClickZone> _clickZones = new List<ClickZone>();
         private ClickZone _hoveredZone = null;
+        
+        // Constraint-based layout for this screen
+        private ConfirmRescanScreenLayout _layout;
         
         // New click handler (Simplified Click System)
         public ConfirmRescanClickHandler ClickHandler { get; private set; }
@@ -222,6 +227,24 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
+        /// Gets the constraint-based layout for this screen.
+        /// </summary>
+        public ConfirmRescanScreenLayout Layout
+        {
+            get
+            {
+                if (_layout == null)
+                {
+                    _layout = new ConfirmRescanScreenLayout();
+                    var engine = new LayoutEngine();
+                    Vector2 dims = TerminalGridConfig.GetDisplayDimensions(TerminalGridConfig.CurrentDisplaySize);
+                    _layout.Build(engine, new Rect(0, 0, dims.x, dims.y));
+                }
+                return _layout;
+            }
+        }
+        
+        /// <summary>
         /// Called when entering this screen. Initializes animations and click zones.
         /// </summary>
         /// <param name="context">Transition context</param>
@@ -236,12 +259,12 @@ namespace CinematicShaders.UI.Screens
             ClickHandler = new ConfirmRescanClickHandler(this);
             ClickHandler.SetupZones();
             
-            // Initialize YES/NO button zones
+            // Initialize YES/NO button zones using constraint layout
             _clickZones.Clear();
-            var yesDef = UnifiedGridRegistry.ConfirmRescanElements["yes_button"];
-            var noDef = UnifiedGridRegistry.ConfirmRescanElements["no_button"];
-            _clickZones.Add(new ClickZone(yesDef));
-            _clickZones.Add(new ClickZone(noDef));
+            Rect yesArea = Layout.GetArea("yes_button");
+            Rect noArea = Layout.GetArea("no_button");
+            _clickZones.Add(new ClickZone("yes_button", yesArea));
+            _clickZones.Add(new ClickZone("no_button", noArea));
             _hoveredZone = null;
         }
         

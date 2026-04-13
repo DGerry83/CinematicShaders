@@ -7,6 +7,8 @@ using CinematicShaders.Core;
 using CinematicShaders.UI.Animation;
 using CinematicShaders.UI.Content;
 using CinematicShaders.UI;
+using CinematicShaders.UI.Layout;
+using CinematicShaders.UI.Layout.ScreenLayouts;
 
 namespace CinematicShaders.UI.Screens
 {
@@ -127,6 +129,27 @@ namespace CinematicShaders.UI.Screens
                 cl.SetTargetTexture(l2);
         }
         
+        // Constraint-based layout for this screen
+        private ScanScreenLayout _layout;
+        
+        /// <summary>
+        /// Gets the constraint-based layout for this screen.
+        /// </summary>
+        public ScanScreenLayout Layout
+        {
+            get
+            {
+                if (_layout == null)
+                {
+                    _layout = new ScanScreenLayout();
+                    var engine = new LayoutEngine();
+                    Vector2 dims = TerminalGridConfig.GetDisplayDimensions(TerminalGridConfig.CurrentDisplaySize);
+                    _layout.Build(engine, new Rect(0, 0, dims.x, dims.y));
+                }
+                return _layout;
+            }
+        }
+        
         /// <summary>
         /// Called when entering this screen. Initializes animations and click zone.
         /// </summary>
@@ -138,9 +161,9 @@ namespace CinematicShaders.UI.Screens
             _sequencer = new Sequencer(Layer3PriorityOrder);
             OnLayer2Complete += StartLayer3Animation;
             
-            // Initialize click zone for SCAN area
-            var definition = UnifiedGridRegistry.ScanScreenElements["scan_area"];
-            _scanZone = new ClickZone(definition);
+            // Initialize click zone for SCAN area using constraint layout
+            Rect scanArea = Layout.GetArea("scan_area");
+            _scanZone = new ClickZone("scan_area", scanArea);
             
             // NEW: Create and setup click handler
             ClickHandler = new ScanScreenClickHandler(this);

@@ -5,22 +5,24 @@ namespace CinematicShaders.UI.Layout.ScreenLayouts
 {
     /// <summary>
     /// Constraint-based layout definition for the MainScreen.
-    /// Reproduces the legacy 59×13 grid positions from UnifiedGridRegistry
+    /// Reproduces the legacy 59x13 grid positions from UnifiedGridRegistry
     /// using the constraint layout system.
+    /// Stores grid coordinates (cells) and converts to pixels on demand.
     /// </summary>
     public class MainScreenLayout : ILayout
     {
-        private readonly Dictionary<string, Rect> _elementAreas =
-            new Dictionary<string, Rect>();
+        private readonly Dictionary<string, GridRegion> _elementGridAreas =
+            new Dictionary<string, GridRegion>();
 
         /// <summary>
         /// Builds the layout structure within the given display area.
-        /// Uses constraints to divide the display into regions matching the 59×13 grid.
+        /// Stores grid coordinates directly (column, row, width, height in cells).
         /// </summary>
         public void Build(LayoutEngine engine, Rect displayArea)
         {
-            _elementAreas.Clear();
+            _elementGridAreas.Clear();
 
+            // Get glyph metrics for potential pixel calculations
             var (glyphWidth, glyphHeight) = TerminalGridConfig.GlyphMetrics.GetGlyphMetrics(
                 TerminalGridConfig.CurrentDisplaySize
             );
@@ -51,52 +53,42 @@ namespace CinematicShaders.UI.Layout.ScreenLayouts
             Rect[] leftRows = engine.SplitVertical(leftPanel, leftRowConstraints);
 
             // Left column value fields (rows 1-6)
-            _elementAreas["hip_value"] = leftRows[0]
-                .Offset(12f * glyphWidth, 0f)
-                .WithSize(20f * glyphWidth, glyphHeight);
+            // Store as grid coordinates: (column, row, width, height)
+            _elementGridAreas["hip_value"] = new GridRegion(
+                GridPosition.At(12, 1), 20, 1);
 
-            _elementAreas["name_value"] = leftRows[1]
-                .Offset(12f * glyphWidth, 0f)
-                .WithSize(25f * glyphWidth, glyphHeight);
+            _elementGridAreas["name_value"] = new GridRegion(
+                GridPosition.At(12, 2), 25, 1);
 
-            _elementAreas["distance_value"] = leftRows[2]
-                .Offset(12f * glyphWidth, 0f)
-                .WithSize(20f * glyphWidth, glyphHeight);
+            _elementGridAreas["distance_value"] = new GridRegion(
+                GridPosition.At(12, 3), 20, 1);
 
-            _elementAreas["spectral_value"] = leftRows[3]
-                .Offset(12f * glyphWidth, 0f)
-                .WithSize(15f * glyphWidth, glyphHeight);
+            _elementGridAreas["spectral_value"] = new GridRegion(
+                GridPosition.At(12, 4), 15, 1);
 
-            _elementAreas["mag_value"] = leftRows[4]
-                .Offset(12f * glyphWidth, 0f)
-                .WithSize(15f * glyphWidth, glyphHeight);
+            _elementGridAreas["mag_value"] = new GridRegion(
+                GridPosition.At(12, 5), 15, 1);
 
-            _elementAreas["const_value"] = leftRows[5]
-                .Offset(12f * glyphWidth, 0f)
-                .WithSize(20f * glyphWidth, glyphHeight);
+            _elementGridAreas["const_value"] = new GridRegion(
+                GridPosition.At(12, 6), 20, 1);
 
             // Row 8: selected star, save button, reset button
-            _elementAreas["selected_star"] = leftRows[7]
-                .Offset(4f * glyphWidth, 0f)
-                .WithSize(12f * glyphWidth, glyphHeight);
+            _elementGridAreas["selected_star"] = new GridRegion(
+                GridPosition.At(4, 8), 12, 1);
 
-            _elementAreas["save_button"] = leftRows[7]
-                .Offset(17f * glyphWidth, 0f)
-                .WithSize(7f * glyphWidth, glyphHeight);
+            _elementGridAreas["save_button"] = new GridRegion(
+                GridPosition.At(17, 8), 7, 1);
 
-            _elementAreas["reset_button"] = leftRows[7]
-                .Offset(27f * glyphWidth, 0f)
-                .WithSize(8f * glyphWidth, glyphHeight);
+            _elementGridAreas["reset_button"] = new GridRegion(
+                GridPosition.At(27, 8), 8, 1);
 
             // Row 10: rescan button
-            _elementAreas["rescan_button"] = leftRows[9]
-                .Offset(27f * glyphWidth, 0f)
-                .WithSize(8f * glyphWidth, glyphHeight);
+            _elementGridAreas["rescan_button"] = new GridRegion(
+                GridPosition.At(27, 10), 8, 1);
 
             // Row 11: search input
-            _elementAreas["search_input"] = leftRows[10]
-                .Offset(4f * glyphWidth, 0f)
-                .WithSize(25f * glyphWidth, glyphHeight);
+            _elementGridAreas["search_input"] = new GridRegion(
+                GridPosition.At(4, 11), 25, 1);
 
             // Split right panel into 10 rows for search results (rows 1-10)
             Constraint[] resultRowConstraints = new Constraint[10];
@@ -108,19 +100,41 @@ namespace CinematicShaders.UI.Layout.ScreenLayouts
 
             for (int i = 0; i < 10; i++)
             {
-                _elementAreas[string.Format("result_{0}", i)] = resultRows[i]
-                    .WithSize(20f * glyphWidth, glyphHeight);
+                _elementGridAreas[string.Format("result_{0}", i)] = new GridRegion(
+                    GridPosition.At(38, 1 + i), 20, 1);
             }
         }
 
         /// <summary>
-        /// Gets the calculated rectangle for the specified element.
+        /// Gets the grid region for the specified element.
+        /// Grid coordinates are in cells (column, row, width, height).
+        /// </summary>
+        public GridRegion GetGridArea(string elementId)
+        {
+            return _elementGridAreas.TryGetValue(elementId, out GridRegion region)
+                ? region
+                : new GridRegion(GridPosition.At(0, 0), 0, 0);
+        }
+
+        /// <summary>
+        /// Gets the pixel rectangle for the specified element.
+        /// Converts grid coordinates to pixels using current glyph metrics.
         /// </summary>
         public Rect GetArea(string elementId)
         {
-            return _elementAreas.TryGetValue(elementId, out Rect rect)
-                ? rect
-                : Rect.zero;
+            if (!_elementGridAreas.TryGetValue(elementId, out GridRegion gridRegion))
+                return Rect.zero;
+
+            var (glyphWidth, glyphHeight) = TerminalGridConfig.GlyphMetrics.GetGlyphMetrics(
+                TerminalGridConfig.CurrentDisplaySize
+            );
+
+            float x = gridRegion.TopLeft.Column * glyphWidth;
+            float y = gridRegion.TopLeft.Row * glyphHeight;
+            float width = gridRegion.Width * glyphWidth;
+            float height = gridRegion.Height * glyphHeight;
+
+            return new Rect(x, y, width, height);
         }
 
         /// <summary>
@@ -128,7 +142,7 @@ namespace CinematicShaders.UI.Layout.ScreenLayouts
         /// </summary>
         public IEnumerable<string> GetElementIds()
         {
-            return _elementAreas.Keys;
+            return _elementGridAreas.Keys;
         }
 
         /// <summary>
@@ -141,13 +155,16 @@ namespace CinematicShaders.UI.Layout.ScreenLayouts
 
             foreach (KeyValuePair<string, Rect> kvp in reference)
             {
-                if (!_elementAreas.TryGetValue(kvp.Key, out Rect calculated))
+                if (!_elementGridAreas.TryGetValue(kvp.Key, out GridRegion gridRegion))
                 {
                     Debug.LogError(string.Format(
                         "[LayoutValidation] {0}: Missing in calculated layout", kvp.Key));
                     valid = false;
                     continue;
                 }
+
+                // Convert grid region to pixels for comparison
+                Rect calculated = GetArea(kvp.Key);
 
                 float dx = Mathf.Abs(calculated.x - kvp.Value.x);
                 float dy = Mathf.Abs(calculated.y - kvp.Value.y);
@@ -170,7 +187,7 @@ namespace CinematicShaders.UI.Layout.ScreenLayouts
         /// Calculates a search result element position dynamically.
         /// This mirrors UnifiedGridRegistry.GetSearchResultElement() in the new layout system.
         /// </summary>
-        public Rect GetSearchResultElement(int index)
+        public GridRegion GetSearchResultGridElement(int index)
         {
             if (index < 0 || index >= 10)
             {
@@ -178,7 +195,7 @@ namespace CinematicShaders.UI.Layout.ScreenLayouts
             }
 
             string key = string.Format("result_{0}", index);
-            return GetArea(key);
+            return GetGridArea(key);
         }
     }
 }

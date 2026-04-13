@@ -59,9 +59,11 @@ namespace CinematicShaders.UI.Screens.Layers
         private char[,] _gridBuffer = new char[GRID_ROWS, GRID_COLUMNS];
         
         // Constraint-based layout system (dual-path support)
-        private MainScreenLayout _constraintLayout;
+        private MainScreenLayout _mainScreenLayout;
+        private ScanScreenLayout _scanScreenLayout;
+        private ConfirmRescanScreenLayout _confirmRescanScreenLayout;
         private LayoutEngine _layoutEngine;
-        private bool _layoutBuilt = false;
+        private string _currentScreenName = null;
 
         public ElementLayer(List<HolographicTextElement> elements, float fontSize)
         {
@@ -111,81 +113,193 @@ namespace CinematicShaders.UI.Screens.Layers
         /// Resets ALL element animations to 0 for global character-based animation.
         /// </summary>
         /// <summary>
-        /// Gets the screen area for the specified element.
+        /// Gets the screen area for the specified element from the specified screen.
         /// Uses constraint-based layout when LayoutConfig.UseConstraintLayout is true,
         /// otherwise falls back to legacy UnifiedGridRegistry positions.
         /// </summary>
-        public Rect GetElementArea(string elementId)
+        public Rect GetElementArea(string screenName, string elementId)
         {
             if (LayoutConfig.UseConstraintLayout)
             {
-                if (!_layoutBuilt)
+                EnsureLayoutBuilt(screenName);
+                
+                switch (screenName)
                 {
-                    BuildConstraintLayout();
+                    case "Main":
+                        return _mainScreenLayout?.GetArea(elementId) ?? Rect.zero;
+                    case "Scan":
+                        return _scanScreenLayout?.GetArea(elementId) ?? Rect.zero;
+                    case "ConfirmRescan":
+                        return _confirmRescanScreenLayout?.GetArea(elementId) ?? Rect.zero;
+                    default:
+                        return Rect.zero;
                 }
-                return _constraintLayout.GetArea(elementId);
             }
             
             // Legacy path: Get from UnifiedGridRegistry
-            if (MainScreenElements.TryGetValue(elementId, out var definition))
+            switch (screenName)
             {
-                return definition.GetPixelRect();
-            }
-            
-            // Handle search result elements
-            if (elementId.StartsWith("result_"))
-            {
-                int index;
-                if (int.TryParse(elementId.Substring(7), out index) && index >= 0 && index < 10)
-                {
-                    return GetSearchResultElement(index).GetPixelRect();
-                }
+                case "Main":
+                    if (MainScreenElements.TryGetValue(elementId, out var mainDef))
+                        return mainDef.GetPixelRect();
+                    // Handle search result elements
+                    if (elementId.StartsWith("result_"))
+                    {
+                        int index;
+                        if (int.TryParse(elementId.Substring(7), out index) && index >= 0 && index < 10)
+                            return GetSearchResultElement(index).GetPixelRect();
+                    }
+                    break;
+                case "Scan":
+                    if (ScanScreenElements.TryGetValue(elementId, out var scanDef))
+                        return scanDef.GetPixelRect();
+                    break;
+                case "ConfirmRescan":
+                    if (ConfirmRescanElements.TryGetValue(elementId, out var confirmDef))
+                        return confirmDef.GetPixelRect();
+                    break;
             }
             
             return Rect.zero;
         }
         
         /// <summary>
-        /// Gets the grid position for the specified element.
-        /// Converts pixel coordinates to grid coordinates.
+        /// Gets the screen area for the specified element (legacy overload for MainScreen).
         /// </summary>
-        public GridPosition GetElementGridPosition(string elementId)
+        public Rect GetElementArea(string elementId)
         {
-            Rect area = GetElementArea(elementId);
-            if (area == Rect.zero)
-                return new GridPosition(0, 0);
-            
-            HolographicDisplaySize size = TerminalGridConfig.CurrentDisplaySize;
-            return TerminalGridConfig.PixelToGrid(area.x, area.y, size);
+            return GetElementArea("Main", elementId);
         }
         
         /// <summary>
-        /// Builds the constraint-based layout for the current display size.
-        /// Called lazily when constraint layout is first accessed.
+        /// Gets the grid region for the specified element from the specified screen.
+        /// Returns grid coordinates directly (column, row, width, height in cells).
         /// </summary>
-        private void BuildConstraintLayout()
+        public GridRegion GetElementGridRegion(string screenName, string elementId)
         {
-            _constraintLayout = new MainScreenLayout();
-            _layoutEngine = new LayoutEngine();
+            if (LayoutConfig.UseConstraintLayout)
+            {
+                EnsureLayoutBuilt(screenName);
+                
+                switch (screenName)
+                {
+                    case "Main":
+                        return _mainScreenLayout?.GetGridArea(elementId) ?? new GridRegion(GridPosition.At(0, 0), 0, 0);
+                    case "Scan":
+                        return _scanScreenLayout?.GetGridArea(elementId) ?? new GridRegion(GridPosition.At(0, 0), 0, 0);
+                    case "ConfirmRescan":
+                        return _confirmRescanScreenLayout?.GetGridArea(elementId) ?? new GridRegion(GridPosition.At(0, 0), 0, 0);
+                    default:
+                        return new GridRegion(GridPosition.At(0, 0), 0, 0);
+                }
+            }
+            
+            // Legacy path: Get from UnifiedGridRegistry and convert
+            GridElementDefinition definition = null;
+            switch (screenName)
+            {
+                case "Main":
+                    if (MainScreenElements.TryGetValue(elementId, out var mainDef))
+                        definition = mainDef;
+                    else if (elementId.StartsWith("result_"))
+                    {
+                        int index;
+                        if (int.TryParse(elementId.Substring(7), out index) && index >= 0 && index < 10)
+                            definition = GetSearchResultElement(index);
+                    }
+                    break;
+                case "Scan":
+                    ScanScreenElements.TryGetValue(elementId, out definition);
+                    break;
+                case "ConfirmRescan":
+                    ConfirmRescanElements.TryGetValue(elementId, out definition);
+                    break;
+            }
+            
+            if (definition == null)
+                return new GridRegion(GridPosition.At(0, 0), 0, 0);
+            
+            return new GridRegion(definition.Position, definition.Width, definition.Height);
+        }
+        
+        /// <summary>
+        /// Gets the grid region for the specified element (overload for MainScreen).
+        /// </summary>
+        public GridRegion GetElementGridRegion(string elementId)
+        {
+            return GetElementGridRegion("Main", elementId);
+        }
+        
+        /// <summary>
+        /// Gets the grid position for the specified element from the specified screen.
+        /// Converts pixel coordinates to grid coordinates.
+        /// </summary>
+        public GridPosition GetElementGridPosition(string screenName, string elementId)
+        {
+            GridRegion region = GetElementGridRegion(screenName, elementId);
+            return region.TopLeft;
+        }
+        
+        /// <summary>
+        /// Gets the grid position for the specified element (legacy overload for MainScreen).
+        /// </summary>
+        public GridPosition GetElementGridPosition(string elementId)
+        {
+            return GetElementGridPosition("Main", elementId);
+        }
+        
+        /// <summary>
+        /// Ensures the constraint layout for the specified screen is built.
+        /// </summary>
+        private void EnsureLayoutBuilt(string screenName)
+        {
+            if (_layoutEngine == null)
+            {
+                _layoutEngine = new LayoutEngine();
+            }
             
             Vector2 displayDims = TerminalGridConfig.GetDisplayDimensions(TerminalGridConfig.CurrentDisplaySize);
             Rect displayArea = new Rect(0, 0, displayDims.x, displayDims.y);
             
-            _constraintLayout.Build(_layoutEngine, displayArea);
-            _layoutBuilt = true;
+            switch (screenName)
+            {
+                case "Main":
+                    if (_mainScreenLayout == null)
+                    {
+                        _mainScreenLayout = new MainScreenLayout();
+                        _mainScreenLayout.Build(_layoutEngine, displayArea);
+                    }
+                    break;
+                case "Scan":
+                    if (_scanScreenLayout == null)
+                    {
+                        _scanScreenLayout = new ScanScreenLayout();
+                        _scanScreenLayout.Build(_layoutEngine, displayArea);
+                    }
+                    break;
+                case "ConfirmRescan":
+                    if (_confirmRescanScreenLayout == null)
+                    {
+                        _confirmRescanScreenLayout = new ConfirmRescanScreenLayout();
+                        _confirmRescanScreenLayout.Build(_layoutEngine, displayArea);
+                    }
+                    break;
+            }
             
-            ModFileLogger.Log("[ElementLayer] Constraint layout built for " + TerminalGridConfig.CurrentDisplaySize);
+            _currentScreenName = screenName;
         }
         
         /// <summary>
-        /// Invalidates the constraint layout, forcing a rebuild on next access.
+        /// Invalidates all constraint layouts, forcing a rebuild on next access.
         /// Call this when display size changes.
         /// </summary>
         public void InvalidateConstraintLayout()
         {
-            _layoutBuilt = false;
-            _constraintLayout = null;
+            _mainScreenLayout = null;
+            _scanScreenLayout = null;
+            _confirmRescanScreenLayout = null;
             _layoutEngine = null;
+            _currentScreenName = null;
         }
         
 #if DEBUG
@@ -193,7 +307,7 @@ namespace CinematicShaders.UI.Screens.Layers
         /// Validates constraint layout positions against legacy UnifiedGridRegistry.
         /// Logs mismatches for debugging. Only available in DEBUG builds.
         /// </summary>
-        public bool ValidateElementPositions()
+        public bool ValidateElementPositions(string screenName = "Main")
         {
             if (!LayoutConfig.UseConstraintLayout)
             {
@@ -201,32 +315,51 @@ namespace CinematicShaders.UI.Screens.Layers
                 return true;
             }
             
-            if (!_layoutBuilt)
-            {
-                BuildConstraintLayout();
-            }
+            EnsureLayoutBuilt(screenName);
             
             // Build reference from legacy registry
             Dictionary<string, Rect> reference = new Dictionary<string, Rect>();
-            foreach (var kvp in MainScreenElements)
+            ILayout layout = null;
+            
+            switch (screenName)
             {
-                reference[kvp.Key] = kvp.Value.GetPixelRect();
-            }
-            for (int i = 0; i < 10; i++)
-            {
-                GridElementDefinition result = GetSearchResultElement(i);
-                reference[result.ElementId] = result.GetPixelRect();
+                case "Main":
+                    foreach (var kvp in MainScreenElements)
+                        reference[kvp.Key] = kvp.Value.GetPixelRect();
+                    for (int i = 0; i < 10; i++)
+                    {
+                        GridElementDefinition result = GetSearchResultElement(i);
+                        reference[result.ElementId] = result.GetPixelRect();
+                    }
+                    layout = _mainScreenLayout;
+                    break;
+                case "Scan":
+                    foreach (var kvp in ScanScreenElements)
+                        reference[kvp.Key] = kvp.Value.GetPixelRect();
+                    layout = _scanScreenLayout;
+                    break;
+                case "ConfirmRescan":
+                    foreach (var kvp in ConfirmRescanElements)
+                        reference[kvp.Key] = kvp.Value.GetPixelRect();
+                    layout = _confirmRescanScreenLayout;
+                    break;
             }
             
-            bool valid = _constraintLayout.ValidateAgainst(reference, LayoutConfig.PositionTolerance);
+            if (layout == null)
+            {
+                ModFileLogger.Log("[ElementLayer] Validation failed: No layout for screen " + screenName);
+                return false;
+            }
+            
+            bool valid = layout.ValidateAgainst(reference, LayoutConfig.PositionTolerance);
             
             if (valid)
             {
-                ModFileLogger.Log("[ElementLayer] Layout validation PASSED - all positions within tolerance");
+                ModFileLogger.Log("[ElementLayer] Layout validation PASSED for " + screenName);
             }
             else
             {
-                ModFileLogger.Log("[ElementLayer] Layout validation FAILED - see errors above");
+                ModFileLogger.Log("[ElementLayer] Layout validation FAILED for " + screenName);
             }
             
             return valid;

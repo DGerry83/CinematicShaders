@@ -5,6 +5,7 @@ namespace CinematicShaders.UI.Layout
 {
     /// <summary>
     /// Interface for constraint-based screen layouts.
+    /// Layouts store grid coordinates (cells) and convert to pixels on demand.
     /// </summary>
     public interface ILayout
     {
@@ -14,7 +15,14 @@ namespace CinematicShaders.UI.Layout
         void Build(LayoutEngine engine, Rect displayArea);
 
         /// <summary>
-        /// Gets the calculated rectangle for the specified element.
+        /// Gets the grid region for the specified element.
+        /// Grid coordinates are in cells (column, row, width, height).
+        /// </summary>
+        GridRegion GetGridArea(string elementId);
+
+        /// <summary>
+        /// Gets the pixel rectangle for the specified element.
+        /// Converts grid coordinates to pixels using current glyph metrics.
         /// </summary>
         Rect GetArea(string elementId);
 
@@ -24,7 +32,7 @@ namespace CinematicShaders.UI.Layout
         IEnumerable<string> GetElementIds();
 
         /// <summary>
-        /// Validates the calculated layout against reference positions.
+        /// Validates the calculated layout against reference positions (in pixels).
         /// </summary>
         bool ValidateAgainst(Dictionary<string, Rect> reference, float tolerance);
     }
