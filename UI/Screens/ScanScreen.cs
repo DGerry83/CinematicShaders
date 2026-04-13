@@ -162,8 +162,10 @@ namespace CinematicShaders.UI.Screens
             OnLayer2Complete += StartLayer3Animation;
             
             // Initialize click zone for SCAN area using constraint layout
-            Rect scanArea = Layout.GetArea("scan_area");
-            _scanZone = new ClickZone("scan_area", scanArea);
+            GridRegion scanGridRegion = Layout.GetGridArea("scan_area");
+            Rect scanGridRect = new Rect(scanGridRegion.TopLeft.Column, scanGridRegion.TopLeft.Row, 
+                                         scanGridRegion.Width, scanGridRegion.Height);
+            _scanZone = new ClickZone("scan_area", scanGridRect);
             
             // NEW: Create and setup click handler
             ClickHandler = new ScanScreenClickHandler(this);
