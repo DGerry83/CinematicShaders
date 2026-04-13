@@ -355,7 +355,14 @@ namespace CinematicShaders.UI.Screens
         {
             if (textSystem == IntPtr.Zero) return;
             
-            // Only render during Repaint events and when Event.current is valid
+            // Handle input FIRST - for ALL event types including mouse
+            // This must happen before the Repaint check so mouse events are processed
+            if (Event.current != null)
+            {
+                HandleInput(displayRect);
+            }
+            
+            // Only render graphics during Repaint events
             if (Event.current == null || Event.current.type != EventType.Repaint)
                 return;
             
@@ -397,12 +404,6 @@ namespace CinematicShaders.UI.Screens
             
             // Layer 3: YES/NO buttons are rendered separately by the display
             // as they require interactive hover states
-            
-            // Handle mouse interaction via new click handler (Simplified Click System)
-            if (Event.current != null)
-            {
-                HandleInput(displayRect);
-            }
         }
         
         /// <summary>
