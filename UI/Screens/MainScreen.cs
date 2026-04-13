@@ -241,56 +241,56 @@ namespace CinematicShaders.UI.Screens
         
         public void OnValueClicked(string elementId)
         {
-            Debug.Log($"[MainScreen] OnValueClicked: {elementId}");
+            ModFileLogger.Log($"[MainScreen] OnValueClicked: {elementId}");
             OnElementClicked?.Invoke(elementId);
         }
         
         public void OnSaveClicked()
         {
-            Debug.Log("[MainScreen] OnSaveClicked");
+            ModFileLogger.Log("[MainScreen] OnSaveClicked");
             OnElementClicked?.Invoke("save_button");
         }
         
         public void OnResetClicked()
         {
-            Debug.Log("[MainScreen] OnResetClicked");
+            ModFileLogger.Log("[MainScreen] OnResetClicked");
             OnElementClicked?.Invoke("reset_button");
         }
         
         public void OnRescanClicked()
         {
-            Debug.Log("[MainScreen] OnRescanClicked");
+            ModFileLogger.Log("[MainScreen] OnRescanClicked");
             OnElementClicked?.Invoke("rescan_button");
         }
         
         public void OnSearchClicked()
         {
-            Debug.Log("[MainScreen] OnSearchClicked");
+            ModFileLogger.Log("[MainScreen] OnSearchClicked");
             OnElementClicked?.Invoke("search_input");
         }
         
         public void OnSelectedStarClicked()
         {
-            Debug.Log("[MainScreen] OnSelectedStarClicked");
+            ModFileLogger.Log("[MainScreen] OnSelectedStarClicked");
             OnElementClicked?.Invoke("selected_star");
         }
         
         public void OnResultClicked(int index)
         {
-            Debug.Log($"[MainScreen] OnResultClicked: result_{index}");
+            ModFileLogger.Log($"[MainScreen] OnResultClicked: result_{index}");
             OnElementClicked?.Invoke($"result_{index}");
         }
         
         public void OnElementHoverEnter(string elementId)
         {
             // Currently no-op or add highlight logic
-            Debug.Log($"[MainScreen] Hover enter: {elementId}");
+            ModFileLogger.Log($"[MainScreen] Hover enter: {elementId}");
         }
         
         public void OnElementHoverExit(string elementId)
         {
             // Currently no-op or remove highlight logic
-            Debug.Log($"[MainScreen] Hover exit: {elementId}");
+            ModFileLogger.Log($"[MainScreen] Hover exit: {elementId}");
         }
         
         /// <summary>
