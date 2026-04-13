@@ -78,7 +78,6 @@
     <Compile Include="UI\CinematicShadersUIStrings.cs" />
     <Compile Include="UI\CinematicShadersWindow.cs" />
     <Compile Include="UI\GridTypes.cs" />
-    <Compile Include="UI\HolographicGridLayout.cs" />
     <Compile Include="UI\HolographicLayoutConfig.cs" />
     <Compile Include="UI\HolographicTextElement.cs" />
     <Compile Include="UI\TerminalGridConfig.cs" />
@@ -87,12 +86,6 @@
     <Compile Include="UI\UnifiedGridRegistry.cs" />
     <Compile Include="UI\StarCatalogEditorWindow.cs" />
     <Compile Include="UI\StarCatalogHolographicDisplay.cs" />
-    <Compile Include="UI\ClickZones\ClickHandler.cs" />
-    <Compile Include="UI\ClickZones\MainScreenClickZones.cs" />
-    <Compile Include="UI\ClickZones\ScreenZoneRegistry.cs" />
-    <Compile Include="UI\ClickZones\MultiScreenClickZoneRegistry.cs" />
-    <Compile Include="UI\ClickZones\ZoneSetGenerator.cs" />
-    <Compile Include="UI\ClickZones\ZoneRegistryInitializer.cs" />
     <Compile Include="UI\Tabs\GTAOTab.cs" />
     <Compile Include="UI\Tabs\GridLabelDebugUI.cs" />
     <Compile Include="UI\Tabs\KartographerTab.cs" />

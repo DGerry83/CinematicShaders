@@ -4,7 +4,6 @@ using System.Linq;
 using UnityEngine;
 using CinematicShaders.Native;
 using CinematicShaders.Core;
-using static CinematicShaders.UI.HolographicGridLayout;
 using static CinematicShaders.UI.UnifiedGridConfig;
 using static CinematicShaders.UI.UnifiedGridRegistry;
 
@@ -461,11 +460,11 @@ namespace CinematicShaders.UI.Screens.Layers
             {
                 if (!element.IsVisible) continue;
                 
-                // Get grid position from layout
-                if (ElementPositions.TryGetValue(element.ElementId, out GridPosition pos))
+                // Get grid position from unified registry
+                if (UnifiedGridRegistry.MainScreenElements.TryGetValue(element.ElementId, out var definition))
                 {
                     string text = GetDisplayText(element);
-                    PlaceTextInGrid(text, pos.Column, pos.Row);
+                    PlaceTextInGrid(text, definition.Position.Column, definition.Position.Row);
                 }
             }
             
