@@ -254,11 +254,6 @@ namespace CinematicShaders.UI
             // MainScreenClickZones.GetAllZones() is called during InitializeScreens()
             TerminalGridConfig.CurrentDisplaySize = size;
             
-            // DEPRECATED: Paths now managed by StarCatalogStateManager
-            // Subscribe to events for reactive updates
-            StarCatalogStateManager.OnCatalogChanged += HandleCatalogChanged;
-            StarCatalogStateManager.OnJsonStateChanged += HandleJsonStateChanged;
-            
             // Initialize state manager with catalog path (required for JSON state tracking)
             if (!string.IsNullOrEmpty(catalogPath))
             {
@@ -1703,6 +1698,13 @@ namespace CinematicShaders.UI
         #endregion
 
         #region Cleanup
+        private void Awake()
+        {
+            // Subscribe to state manager events once during lifecycle
+            StarCatalogStateManager.OnCatalogChanged += HandleCatalogChanged;
+            StarCatalogStateManager.OnJsonStateChanged += HandleJsonStateChanged;
+        }
+        
         private void OnDestroy()
         {
             // Unsubscribe from state manager events
