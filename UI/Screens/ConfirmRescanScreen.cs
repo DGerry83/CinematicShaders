@@ -424,53 +424,7 @@ namespace CinematicShaders.UI.Screens
             // as they require interactive hover states
         }
         
-        /// <summary>
-        /// Legacy method for updating button hover states and handling clicks.
-        /// </summary>
-        /// <param name="mousePos">Mouse position in screen coordinates</param>
-        /// <param name="displayRect">Display rectangle</param>
-        /// <param name="mouseDown">True if mouse button pressed</param>
-        /// <param name="mouseUp">True if mouse button released</param>
-        /// <remarks>
-        /// This method uses pixel-based positioning rather than grid-based.
-        /// New code should use HandleMouse() for consistency with other screens.
-        /// 
-        /// Kept for backwards compatibility and potential external callers.
-        /// </remarks>
-        [Obsolete("ConfirmRescanScreen now uses ConfirmRescanClickHandler for input handling. This method will be removed in a future version.", error: false)]
-        public void UpdateInteraction(Vector2 mousePos, Rect displayRect, bool mouseDown, bool mouseUp)
-        {
-            // Calculate YES/NO button positions
-            float lineHeight = _fontSize * 1.33f;
-            float charWidth = _fontSize * 0.6f;
-            
-            float yesX = displayRect.x + (charWidth * 3);
-            float yesY = displayRect.y + (lineHeight * 10);
-            Rect yesRect = new Rect(yesX, yesY, charWidth * 6, lineHeight);
-            
-            float noX = displayRect.x + displayRect.width - (charWidth * 8);
-            float noY = displayRect.y + (lineHeight * 10);
-            Rect noRect = new Rect(noX, noY, charWidth * 6, lineHeight);
-            
-            bool wasYesSelected = YesSelected;
-            bool wasNoSelected = NoSelected;
-            
-            YesSelected = yesRect.Contains(mousePos);
-            NoSelected = noRect.Contains(mousePos);
-            
-            if (mouseUp)
-            {
-                if (YesSelected && wasYesSelected)
-                {
-                    OnYesClicked?.Invoke();
-                }
-                else if (NoSelected && wasNoSelected)
-                {
-                    OnNoClicked?.Invoke();
-                }
-            }
-        }
-        
+
         /// <summary>
         /// Resets the YES/NO selection state.
         /// </summary>

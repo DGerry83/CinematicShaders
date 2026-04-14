@@ -193,46 +193,6 @@ namespace CinematicShaders.UI.Screens
             StarfieldNative.CR_SetBoxOutline(0, 0, 0, 0, 0);
         }
         
-        /// <summary>
-        /// Handles mouse interaction for the SCAN area.
-        /// </summary>
-        /// <param name="mousePos">Current mouse position in screen coordinates</param>
-        /// <param name="displayRect">Display rectangle in screen coordinates</param>
-        /// <param name="mouseDown">True if left mouse button was pressed this frame</param>
-        /// <param name="mouseUp">True if left mouse button was released this frame</param>
-        /// <remarks>
-        /// DEPRECATED: Use IClickHandler.HandleInput via ScanScreenClickHandler instead.
-        /// Kept for compatibility with legacy code.
-        /// </remarks>
-        [Obsolete("ScanScreen now uses ScanScreenClickHandler for input handling. This method will be removed in a future version.", error: false)]
-        public void HandleMouse(Vector2 mousePos, Rect displayRect, bool mouseDown, bool mouseUp)
-        {
-            Vector2 gridPos = MouseToGrid(mousePos, displayRect);
-            
-            bool wasHovered = _scanHovered;
-            _scanHovered = _scanZone.Contains(gridPos);
-            
-            // Update box outline on hover change
-            if (_scanHovered != wasHovered)
-            {
-                if (_scanHovered)
-                {
-                    Rect uvRect = _scanZone.GetUVRect();
-                    StarfieldNative.CR_SetBoxOutline(1, uvRect.xMin, uvRect.yMin, uvRect.xMax, uvRect.yMax);
-                }
-                else
-                {
-                    StarfieldNative.CR_SetBoxOutline(0, 0, 0, 0, 0);
-                }
-            }
-            
-            // Handle click
-            if (mouseUp && _scanHovered)
-            {
-                OnScanClicked?.Invoke();
-            }
-        }
-        
         // Callback methods invoked by ScanScreenClickHandler
         
         public void OnScanAreaClicked()

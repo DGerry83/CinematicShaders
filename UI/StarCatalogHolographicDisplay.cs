@@ -775,38 +775,6 @@ namespace CinematicShaders.UI
                 _screenManager.Render(_displayRect);
             }
             
-            // Handle screen-specific interactions (Layer 3 interactions are handled by MainScreen)
-            if (_displayPowered && _screenManager?.CurrentScreen?.ScreenName != "Main")
-            {
-                HandleScreenInteractions();
-            }
-        }
-        
-        private void HandleScreenInteractions()
-        {
-            if (_screenManager?.CurrentScreen == null) return;
-            
-            var currentScreenName = _screenManager.CurrentScreen.ScreenName;
-            Vector2 mousePos = Event.current.mousePosition;
-            bool mouseDown = Event.current.type == EventType.MouseDown && Event.current.button == 0;
-            bool mouseUp = Event.current.type == EventType.MouseUp && Event.current.button == 0;
-            
-            switch (currentScreenName)
-            {
-                case "Scan":
-                    var scanScreen = _screenManager.CurrentScreen as ScanScreen;
-                    scanScreen?.HandleMouse(mousePos, _displayRect, mouseDown, mouseUp);
-                    break;
-                    
-                case "ConfirmRescan":
-                    var confirmScreen = _screenManager.CurrentScreen as ConfirmRescanScreen;
-                    confirmScreen?.UpdateInteraction(mousePos, _displayRect, mouseDown, mouseUp);
-                    break;
-                    
-                case "Main":
-                    // Main screen interactions handled separately via element system
-                    break;
-            }
         }
         
         private void UpdateDisplayRect()
