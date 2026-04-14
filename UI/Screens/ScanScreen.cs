@@ -260,6 +260,13 @@ namespace CinematicShaders.UI.Screens
         {
             if (textSystem == IntPtr.Zero) return;
             
+            // Handle input FIRST - for ALL event types including mouse
+            // This must happen before the Repaint check so mouse events are processed
+            if (Event.current != null)
+            {
+                HandleInput(displayRect);
+            }
+            
             // Only render during Repaint events and when Event.current is valid
             if (Event.current == null || Event.current.type != EventType.Repaint)
                 return;
@@ -299,9 +306,6 @@ namespace CinematicShaders.UI.Screens
                     null
                 );
             }
-            
-            // Handle mouse interaction via new click handler
-            HandleInput(displayRect);
         }
         
     }
