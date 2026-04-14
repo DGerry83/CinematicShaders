@@ -421,101 +421,80 @@ namespace CinematicShaders.Core
         {
             var stars = new List<NamedStar>();
             
-            // Simple JSON parsing (same pattern as existing code)
-            int starsStart = json.IndexOf("\"stars\":");
-            if (starsStart < 0) return stars;
-            
-            int braceStart = json.IndexOf('{', starsStart);
-            if (braceStart < 0) return stars;
-            
-            int pos = braceStart + 1;
-            int depth = 1;
-            
-            while (pos < json.Length && depth > 0)
+            try
             {
-                int quoteStart = json.IndexOf('"', pos);
-                if (quoteStart < 0) break;
+                var root = Json.Deserialize(json) as Dictionary<string, object>;
+                if (root == null) return stars;
                 
-                int quoteEnd = json.IndexOf('"', quoteStart + 1);
-                if (quoteEnd < 0) break;
+                if (!root.TryGetValue("stars", out object starsObj) || !(starsObj is Dictionary<string, object> starDict))
+                    return stars;
                 
-                string hipIdStr = json.Substring(quoteStart + 1, quoteEnd - quoteStart - 1);
-                if (!int.TryParse(hipIdStr, out int hipId))
+                foreach (var kvp in starDict)
                 {
-                    pos = quoteEnd + 1;
-                    continue;
+                    if (!int.TryParse(kvp.Key, out int hipId)) continue;
+                    if (!(kvp.Value is Dictionary<string, object> starData)) continue;
+                    
+                    NamedStar star = ParseStarEntry(hipId, starData);
+                    if (star != null)
+                    {
+                        stars.Add(star);
+                    }
                 }
-                
-                int starBraceStart = json.IndexOf('{', quoteEnd);
-                if (starBraceStart < 0) break;
-                
-                int starBraceEnd = FindMatchingBrace(json, starBraceStart);
-                if (starBraceEnd < 0) break;
-                
-                string starJson = json.Substring(starBraceStart, starBraceEnd - starBraceStart + 1);
-                NamedStar star = ParseStarEntry(hipId, starJson);
-                if (star != null)
-                {
-                    stars.Add(star);
-                }
-                
-                pos = starBraceEnd + 1;
-                
-                int nextChar = pos;
-                while (nextChar < json.Length && char.IsWhiteSpace(json[nextChar])) nextChar++;
-                if (nextChar < json.Length && json[nextChar] == '}')
-                    break;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[StarCatalogStateManager] Failed to parse JSON stars: {ex.Message}");
             }
             
             return stars;
         }
         
-        private static int FindMatchingBrace(string json, int startIndex)
+        private static NamedStar ParseStarEntry(int hipId, Dictionary<string, object> starData)
         {
-            int depth = 1;
-            int pos = startIndex + 1;
-            bool inString = false;
+            string rawName = null;
+            if (starData.TryGetValue("proper", out object properObj) && properObj is string properStr)
+                rawName = properStr;
+            else if (starData.TryGetValue("full_designation", out object desigObj) && desigObj is string desigStr)
+                rawName = desigStr;
             
-            while (pos < json.Length && depth > 0)
-            {
-                char c = json[pos];
-                if (c == '"' && (pos == 0 || json[pos - 1] != '\\'))
-                {
-                    inString = !inString;
-                }
-                else if (!inString)
-                {
-                    if (c == '{') depth++;
-                    else if (c == '}') depth--;
-                }
-                pos++;
-            }
-            
-            return depth == 0 ? pos - 1 : -1;
-        }
-        
-        private static NamedStar ParseStarEntry(int hipId, string starJson)
-        {
-            string rawName = ExtractStringValue(starJson, "proper") ?? ExtractStringValue(starJson, "full_designation");
             var star = new NamedStar
             {
                 HipparcosID = hipId,
                 Name = StripDirectionalSuffix(rawName) ?? $"HIP {hipId}",
-                SpectralType = ExtractStringValue(starJson, "spectral") ?? "?",
-                Magnitude = ExtractFloatValue(starJson, "magnitude", 99f),
-                DistanceLy = ExtractFloatValue(starJson, "distance_ly", 0f),
-                Constellation = ExtractStringValue(starJson, "constellation") ?? "?"
+                SpectralType = starData.TryGetValue("spectral", out object spectralObj) && spectralObj is string spectralStr ? spectralStr : "?",
+                Magnitude = GetFloat(starData, "magnitude", 99f),
+                DistanceLy = GetFloat(starData, "distance_ly", 0f),
+                Constellation = starData.TryGetValue("constellation", out object constObj) && constObj is string constStr ? constStr : "?"
             };
             
-            float x = ExtractFloatValue(starJson, "x", 0f);
-            float y = ExtractFloatValue(starJson, "y", 0f);
-            float z = ExtractFloatValue(starJson, "z", 0f);
+            float x = GetFloat(starData, "x", 0f);
+            float y = GetFloat(starData, "y", 0f);
+            float z = GetFloat(starData, "z", 0f);
             star.Direction = new Vector3(x, y, z).normalized;
             
             if (star.Direction.sqrMagnitude > 0.001f)
                 return star;
             
             return null;
+        }
+        
+        private static float GetFloat(Dictionary<string, object> data, string key, float defaultVal)
+        {
+            if (!data.TryGetValue(key, out object val))
+                return defaultVal;
+            
+            if (val is float f) return f;
+            if (val is double d) return (float)d;
+            if (val is long l) return l;
+            if (val is int i) return i;
+            
+            if (float.TryParse(val.ToString(), System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out float result))
+            {
+                return result;
+            }
+            
+            return defaultVal;
         }
         
         private static string StripDirectionalSuffix(string fullDesignation)
@@ -536,49 +515,6 @@ namespace CinematicShaders.Core
             }
             
             return result.ToUpper();
-        }
-        
-        private static string ExtractStringValue(string json, string key)
-        {
-            string pattern = "\"" + key + "\"";
-            int keyPos = json.IndexOf(pattern);
-            if (keyPos < 0) return null;
-            
-            int colonPos = json.IndexOf(':', keyPos);
-            if (colonPos < 0) return null;
-            
-            int quoteStart = json.IndexOf('"', colonPos);
-            if (quoteStart < 0) return null;
-            
-            int quoteEnd = json.IndexOf('"', quoteStart + 1);
-            if (quoteEnd < 0) return null;
-            
-            return json.Substring(quoteStart + 1, quoteEnd - quoteStart - 1);
-        }
-        
-        private static float ExtractFloatValue(string json, string key, float defaultVal)
-        {
-            string pattern = "\"" + key + "\"";
-            int keyPos = json.IndexOf(pattern);
-            if (keyPos < 0) return defaultVal;
-            
-            int colonPos = json.IndexOf(':', keyPos);
-            if (colonPos < 0) return defaultVal;
-            
-            int commaPos = json.IndexOf(',', colonPos);
-            int bracePos = json.IndexOf('}', colonPos);
-            
-            int endPos = commaPos > 0 && (bracePos < 0 || commaPos < bracePos) ? commaPos : bracePos;
-            if (endPos < 0) endPos = json.Length;
-            
-            string valStr = json.Substring(colonPos + 1, endPos - colonPos - 1).Trim();
-            if (float.TryParse(valStr, System.Globalization.NumberStyles.Float, 
-                System.Globalization.CultureInfo.InvariantCulture, out float result))
-            {
-                return result;
-            }
-            
-            return defaultVal;
         }
     }
 }
