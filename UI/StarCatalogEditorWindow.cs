@@ -480,27 +480,21 @@ namespace CinematicShaders.UI
             try
             {
                 string json = File.ReadAllText(jsonPath);
-                
-                // Find the star entry
-                string hipKey = $"\"{hipId}\":";
-                int starStart = json.IndexOf(hipKey);
-                if (starStart < 0) return null;
-                
-                int braceStart = json.IndexOf('{', starStart);
-                int braceEnd = FindMatchingBrace(json, braceStart);
-                if (braceEnd < 0) return null;
-                
-                string starJson = json.Substring(braceStart, braceEnd - braceStart + 1);
-                
-                // Try to get "proper" name first, then "full_designation"
-                string proper = ExtractStringValue(starJson, "proper");
-                if (!string.IsNullOrEmpty(proper))
+                var root = Json.Deserialize(json) as Dictionary<string, object>;
+                if (root == null) return null;
+
+                if (!root.TryGetValue("stars", out object starsObj) || !(starsObj is Dictionary<string, object> stars))
+                    return null;
+
+                if (!stars.TryGetValue(hipId.ToString(), out object starObj) || !(starObj is Dictionary<string, object> star))
+                    return null;
+
+                if (star.TryGetValue("proper", out object properObj) && properObj is string proper && !string.IsNullOrEmpty(proper))
                     return proper.ToUpper();
-                
-                string designation = ExtractStringValue(starJson, "full_designation");
-                if (!string.IsNullOrEmpty(designation))
+
+                if (star.TryGetValue("full_designation", out object designationObj) && designationObj is string designation && !string.IsNullOrEmpty(designation))
                     return KartographerSelector.StripDirectionalSuffix(designation);
-                
+
                 return null;
             }
             catch (Exception ex)
@@ -541,100 +535,40 @@ namespace CinematicShaders.UI
 
         private void ModifyStarNameInJson(string jsonPath, int hipId, string newName)
         {
-            string json = File.ReadAllText(jsonPath);
-            
-            // Find the star entry
-            string hipKey = $"\"{hipId}\":";
-            int starStart = json.IndexOf(hipKey);
-            if (starStart < 0) 
+            try
             {
-                Debug.LogError($"[StarCatalogEditor] HIP {hipId} not found in JSON");
-                return;
-            }
-            
-            int braceStart = json.IndexOf('{', starStart);
-            int braceEnd = FindMatchingBrace(json, braceStart);
-            if (braceEnd < 0) 
-            {
-                Debug.LogError($"[StarCatalogEditor] Could not find matching brace for HIP {hipId}");
-                return;
-            }
-            
-            string starJson = json.Substring(braceStart, braceEnd - braceStart + 1);
-            
-            // Check if "proper" field exists
-            string properPattern = "\"proper\":";
-            int properPos = starJson.IndexOf(properPattern);
-            
-            string newStarJson;
-            if (properPos >= 0)
-            {
-                // Replace existing "proper" value
-                int quoteStart = starJson.IndexOf('"', properPos + properPattern.Length);
-                int quoteEnd = starJson.IndexOf('"', quoteStart + 1);
-                newStarJson = starJson.Substring(0, quoteStart + 1) + 
-                             EscapeJsonString(newName) + 
-                             starJson.Substring(quoteEnd);
-            }
-            else
-            {
-                // Add "proper" field after opening brace
-                newStarJson = "{\"proper\":\"" + EscapeJsonString(newName) + "\"," + 
-                             starJson.Substring(1);
-            }
-            
-            // Replace in full JSON
-            string newJson = json.Substring(0, braceStart) + newStarJson + json.Substring(braceEnd + 1);
-            File.WriteAllText(jsonPath, newJson);
-            
-            Debug.Log($"[StarCatalogEditor] Updated HIP {hipId} name to \"{newName}\" in {jsonPath}");
-        }
-
-        private string ExtractStringValue(string json, string key)
-        {
-            string pattern = "\"" + key + "\"";
-            int keyPos = json.IndexOf(pattern);
-            if (keyPos < 0) return null;
-
-            int colonPos = json.IndexOf(':', keyPos);
-            if (colonPos < 0) return null;
-
-            int quoteStart = json.IndexOf('"', colonPos);
-            if (quoteStart < 0) return null;
-
-            int quoteEnd = json.IndexOf('"', quoteStart + 1);
-            if (quoteEnd < 0) return null;
-
-            return json.Substring(quoteStart + 1, quoteEnd - quoteStart - 1);
-        }
-
-        private string EscapeJsonString(string s)
-        {
-            return s.Replace("\\", "\\\\").Replace("\"", "\\\"");
-        }
-
-        private int FindMatchingBrace(string json, int startIndex)
-        {
-            int depth = 1;
-            int pos = startIndex + 1;
-            bool inString = false;
-            
-            while (pos < json.Length && depth > 0)
-            {
-                char c = json[pos];
-                if (c == '"' && (pos == 0 || json[pos - 1] != '\\'))
+                string json = File.ReadAllText(jsonPath);
+                var root = Json.Deserialize(json) as Dictionary<string, object>;
+                if (root == null)
                 {
-                    inString = !inString;
+                    Debug.LogError($"[StarCatalogEditor] Failed to parse JSON: {jsonPath}");
+                    return;
                 }
-                else if (!inString)
+
+                if (!root.TryGetValue("stars", out object starsObj) || !(starsObj is Dictionary<string, object> stars))
                 {
-                    if (c == '{') depth++;
-                    else if (c == '}') depth--;
+                    Debug.LogError($"[StarCatalogEditor] Missing 'stars' object in JSON: {jsonPath}");
+                    return;
                 }
-                pos++;
+
+                string hipKey = hipId.ToString();
+                if (!stars.TryGetValue(hipKey, out object starObj) || !(starObj is Dictionary<string, object> star))
+                {
+                    star = new Dictionary<string, object>();
+                    stars[hipKey] = star;
+                }
+
+                star["proper"] = newName;
+
+                string newJson = Json.Serialize(root);
+                File.WriteAllText(jsonPath, newJson);
+
+                Debug.Log($"[StarCatalogEditor] Updated HIP {hipId} name to \"{newName}\" in {jsonPath}");
             }
-            
-            return depth == 0 ? pos - 1 : -1;
+            catch (Exception ex)
+            {
+                Debug.LogError($"[StarCatalogEditor] Failed to modify star name in JSON: {ex.Message}");
+            }
         }
 
         private void RestartKartographer()
