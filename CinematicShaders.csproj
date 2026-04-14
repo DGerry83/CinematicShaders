@@ -110,6 +110,11 @@
     <Compile Include="UI\Screens\ScanScreenClickHandler.cs" />
     <Compile Include="UI\Screens\SplashScreen.cs" />
     <Compile Include="UI\Screens\ConfirmRescanScreen.cs" />
+    <Compile Include="UI\Screens\MainScreenHandler.cs" />
+    <Compile Include="UI\Screens\ScanScreenHandler.cs" />
+    <Compile Include="UI\Screens\ConfirmRescanHandler.cs" />
+    <Compile Include="UI\State\StarConsoleServices.cs" />
+    <Compile Include="UI\State\ScreenRouter.cs" />
     <Compile Include="UI\Content\IScreenContent.cs" />
     <Compile Include="UI\Content\MainScreenContent.cs" />
     <Compile Include="UI\Content\ScanScreenContent.cs" />

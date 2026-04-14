@@ -56,6 +56,9 @@ namespace CinematicShaders.UI.Screens
         public ConfirmRescanClickHandler ClickHandler { get; private set; }
         public ClickZoneManager ZoneManager => ClickHandler?.ZoneManager;
         
+        // NEW: Handler for controller-based click routing
+        public ConfirmRescanHandler Handler { get; set; }
+        
         /// <summary>
         /// Layer 3 priority order for button appearance sequence.
         /// YES button appears first, followed by NO button.

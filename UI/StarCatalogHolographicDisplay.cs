@@ -4,6 +4,7 @@ using CinematicShaders.UI.Screens;
 using CinematicShaders.UI.Screens.Layers;
 using CinematicShaders.UI.Animation;
 using CinematicShaders.UI.Content;
+using CinematicShaders.UI.State;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -83,6 +84,13 @@ namespace CinematicShaders.UI
         // Constraint-based layout (replaces UnifiedGridRegistry)
         private MainScreenLayout _mainScreenLayout;
         private LayoutEngine _layoutEngine;
+        
+        // NEW: Shared infrastructure for controller architecture
+        public StarConsoleServices Services { get; private set; }
+        public ScreenRouter Router { get; private set; }
+        private MainScreenHandler _mainHandler;
+        private ScanScreenHandler _scanHandler;
+        private ConfirmRescanHandler _confirmHandler;
         #endregion
 
         // Note: ScreenState enum removed - now using string ScreenName ("Main", "Scan", "ConfirmRescan")
@@ -281,6 +289,16 @@ namespace CinematicShaders.UI
         {
             float aspectRatio = 0.667f; // 2:3 aspect ratio for text rendering
             
+            // Initialize shared infrastructure
+            Services = new StarConsoleServices
+            {
+                Selector = _selector,
+                CustomJsonPath = StarCatalogStateManager.CurrentJsonPaths.CustomJsonPath,
+                DefaultJsonPath = StarCatalogStateManager.CurrentJsonPaths.DefaultJsonPath
+            };
+            
+            Router = new ScreenRouter(_screenManager, Services);
+            
             // Main screen
             var mainScreen = new MainScreen(MainScreenContent.Default, _fontSize, aspectRatio);
             ModFileLogger.Log($"[HolographicDisplay] Creating MainScreen instance {mainScreen.GetHashCode()}");
@@ -290,16 +308,18 @@ namespace CinematicShaders.UI
             mainScreen.SetElements(mainElements);
             ModFileLogger.Log($"[HolographicDisplay] MainScreen elements set, instance {mainScreen.GetHashCode()}");
             
-            // Subscribe to MainScreen click events (NEW: ClickHandler-based)
-            mainScreen.OnElementClicked += OnMainScreenElementClicked;
+            // Wire controller-based handler
+            _mainHandler = new MainScreenHandler(Services, Router, this);
+            mainScreen.Handler = _mainHandler;
+            mainScreen.OnElementClicked += (id) => _mainHandler.OnElementClicked(id);
             
             _screenManager.RegisterScreen(mainScreen);
             
             // Scan screen
             var scanScreen = new ScanScreen(ScanScreenContent.Default, _fontSize, aspectRatio);
-            scanScreen.OnScanClicked += () => {
-                OnRescanConfirmed?.Invoke();
-            };
+            _scanHandler = new ScanScreenHandler(Router, this);
+            scanScreen.Handler = _scanHandler;
+            scanScreen.OnScanClicked += () => _scanHandler.OnScanClicked();
             _screenManager.RegisterScreen(scanScreen);
             
             // Splash screen (boot logo)
@@ -309,13 +329,10 @@ namespace CinematicShaders.UI
             
             // Confirm screen
             var confirmScreen = new ConfirmRescanScreen(ConfirmRescanScreenContent.Default, _fontSize, aspectRatio);
-            confirmScreen.OnYesClicked += () => {
-                OnRescanConfirmed?.Invoke();
-                _screenManager.TransitionTo("Main");
-            };
-            confirmScreen.OnNoClicked += () => {
-                _screenManager.TransitionTo("Main");
-            };
+            _confirmHandler = new ConfirmRescanHandler(Router, this);
+            confirmScreen.Handler = _confirmHandler;
+            confirmScreen.OnYesClicked += () => _confirmHandler.OnYesClicked();
+            confirmScreen.OnNoClicked += () => _confirmHandler.OnNoClicked();
             _screenManager.RegisterScreen(confirmScreen);
         }
         
@@ -1200,7 +1217,7 @@ namespace CinematicShaders.UI
         /// <summary>
         /// Save the current star name to _Custom.json
         /// </summary>
-        private void SaveStarName(string newName)
+        public void SaveStarName(string newName)
         {
             if (_selectedStar == null) return;
             
@@ -1238,7 +1255,7 @@ namespace CinematicShaders.UI
         /// <summary>
         /// Reset star name to original from default JSON
         /// </summary>
-        private void ResetStarName()
+        public void ResetStarName()
         {
             if (_selectedStar == null) return;
             
@@ -1529,6 +1546,16 @@ namespace CinematicShaders.UI
         public bool IsVisible => _isVisible;
         public Rect DisplayRect => _displayRect;
         public Rect WindowRect => _windowRect;
+        
+        /// <summary>
+        /// Currently editing element ID (for handlers)
+        /// </summary>
+        public string EditingElementId => _editingElementId;
+        
+        /// <summary>
+        /// Current search filtered results (for handlers)
+        /// </summary>
+        public List<NamedStar> FilteredResults => _filteredResults;
         
         /// <summary>
         /// Event fired when window is closed via X button
@@ -1896,60 +1923,6 @@ namespace CinematicShaders.UI
         }
         
         /// <summary>
-        /// Handle element click from MainScreen's ClickHandler (NEW: Contract 7)
-        /// </summary>
-        private void OnMainScreenElementClicked(string elementId)
-        {
-            Debug.Log($"[HolographicDisplay] MainScreen clicked: {elementId}");
-            
-            switch (elementId)
-            {
-                case "name_value":
-                    EnterEditMode("name_value");
-                    break;
-                case "hip_value":
-                case "distance_value":
-                case "spectral_value":
-                case "mag_value":
-                case "const_value":
-                    // Value fields - could implement copy-to-clipboard or other actions
-                    Debug.Log($"[HolographicDisplay] Value field clicked: {elementId}");
-                    break;
-                case "search_input":
-                    EnterEditMode("search_input");
-                    break;
-                case "rescan_button":
-                    ShowRescanConfirmation();
-                    break;
-                case "save_button":
-                    if (!string.IsNullOrEmpty(_editingElementId))
-                    {
-                        ExitEditMode(save: true);
-                    }
-                    else
-                    {
-                        SaveStarName(_selectedStar?.Name);
-                    }
-                    break;
-                case "reset_button":
-                    ResetStarName();
-                    break;
-                default:
-                    // Check for result row clicks
-                    if (elementId.StartsWith("result_"))
-                    {
-                        int resultIndex = int.Parse(elementId.Substring(7));
-                        var resultElement = _resultElements.Find(r => r.ElementId == elementId);
-                        if (resultElement != null)
-                        {
-                            OnSearchResultClicked(resultElement);
-                        }
-                    }
-                    break;
-            }
-        }
-
-        /// <summary>
         /// Callback events for UI integration
         /// </summary>
         public event Action OnSaveClicked;
@@ -2184,9 +2157,17 @@ namespace CinematicShaders.UI
         }
 
         /// <summary>
-        /// Confirm rescan action
+        /// Trigger catalog scan (wrapper for ScanScreen handler)
         /// </summary>
-        private void ConfirmRescan()
+        public void ScanCatalog()
+        {
+            OnRescanConfirmed?.Invoke();
+        }
+
+        /// <summary>
+        /// Confirm rescan action (wrapper for ConfirmRescan handler)
+        /// </summary>
+        public void ConfirmRescan()
         {
             OnRescanConfirmed?.Invoke();
             _screenManager?.TransitionTo("Main");
@@ -2376,6 +2357,15 @@ namespace CinematicShaders.UI
             {
                 _selector.OnStarLockedViaClick = OnExternalStarSelected;
                 _selector.OnStarUnlocked = OnExternalStarCleared;
+            }
+            
+            // Sync with shared services (may be called before or after InitializeScreens)
+            if (Services != null)
+            {
+                Services.Selector = selector;
+                var jsonPaths = StarCatalogStateManager.CurrentJsonPaths;
+                Services.CustomJsonPath = jsonPaths.CustomJsonPath;
+                Services.DefaultJsonPath = jsonPaths.DefaultJsonPath;
             }
         }
 

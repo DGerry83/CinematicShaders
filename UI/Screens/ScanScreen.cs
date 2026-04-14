@@ -50,6 +50,9 @@ namespace CinematicShaders.UI.Screens
         public ScanScreenClickHandler ClickHandler { get; private set; }
         public ClickZoneManager ZoneManager => ClickHandler?.ZoneManager;
         
+        // NEW: Handler for controller-based click routing
+        public ScanScreenHandler Handler { get; set; }
+        
         /// <summary>
         /// Layer 3 priority order (reserved for future interactive elements).
         /// Currently only contains scan_prompt for potential future use.

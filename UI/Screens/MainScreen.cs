@@ -68,6 +68,9 @@ namespace CinematicShaders.UI.Screens
         public MainScreenClickHandler ClickHandler { get; private set; }
         public ClickZoneManager ZoneManager => ClickHandler?.ZoneManager;
         
+        // NEW: Handler for controller-based click routing
+        public MainScreenHandler Handler { get; set; }
+        
         /// <summary>
         /// Event fired when an interactive element is clicked.
         /// String parameter is the element ID (e.g., "name_value", "save_button").
