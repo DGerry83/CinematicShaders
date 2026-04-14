@@ -46,6 +46,7 @@
     <Compile Include="Core\AtmosphericScatteringData.cs" />
     <Compile Include="Core\CinematicShadersAddon.cs" />
     <Compile Include="Core\GTAOSettings.cs" />
+    <Compile Include="Core\MiniJSON.cs" />
     <Compile Include="Core\ModFileLogger.cs" />
     <Compile Include="Core\KartographerMath.cs" />
     <Compile Include="Core\KartographerSelector.cs" />

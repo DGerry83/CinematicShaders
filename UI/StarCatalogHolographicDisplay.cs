@@ -1296,85 +1296,69 @@ namespace CinematicShaders.UI
         }
         
         /// <summary>
-        /// Modify star name in JSON file
+        /// Modify star name in JSON file using MiniJSON.
         /// </summary>
         private void ModifyStarNameInJson(int hipId, string newName, string customJsonPath)
         {
-            string json = File.ReadAllText(customJsonPath);
-            
-            // Find the star entry
-            string hipKey = $"\"{hipId}\":";
-            int starStart = json.IndexOf(hipKey);
-            if (starStart < 0)
+            try
             {
-                Debug.LogError($"[HolographicDisplay] HIP {hipId} not found in JSON");
-                return;
+                string json = File.ReadAllText(customJsonPath);
+                var root = Json.Deserialize(json) as Dictionary<string, object>;
+                if (root == null)
+                {
+                    Debug.LogError($"[HolographicDisplay] Failed to parse JSON: {customJsonPath}");
+                    return;
+                }
+
+                if (!root.TryGetValue("stars", out object starsObj) || !(starsObj is Dictionary<string, object> stars))
+                {
+                    Debug.LogError($"[HolographicDisplay] Missing 'stars' object in JSON: {customJsonPath}");
+                    return;
+                }
+
+                string hipKey = hipId.ToString();
+                if (!stars.TryGetValue(hipKey, out object starObj) || !(starObj is Dictionary<string, object> star))
+                {
+                    // Create minimal star entry if it doesn't exist
+                    star = new Dictionary<string, object>();
+                    stars[hipKey] = star;
+                }
+
+                star["proper"] = newName;
+
+                string newJson = Json.Serialize(root);
+                File.WriteAllText(customJsonPath, newJson);
             }
-            
-            int braceStart = json.IndexOf('{', starStart);
-            int braceEnd = FindMatchingBrace(json, braceStart);
-            if (braceEnd < 0)
+            catch (Exception ex)
             {
-                Debug.LogError($"[HolographicDisplay] Could not find matching brace for HIP {hipId}");
-                return;
+                Debug.LogError($"[HolographicDisplay] Failed to modify star name in JSON: {ex.Message}");
             }
-            
-            string starJson = json.Substring(braceStart, braceEnd - braceStart + 1);
-            
-            // Check if "proper" field exists
-            string properPattern = "\"proper\":";
-            int properPos = starJson.IndexOf(properPattern);
-            
-            string newStarJson;
-            if (properPos >= 0)
-            {
-                // Replace existing "proper" value
-                int quoteStart = starJson.IndexOf('"', properPos + properPattern.Length);
-                int quoteEnd = starJson.IndexOf('"', quoteStart + 1);
-                newStarJson = starJson.Substring(0, quoteStart + 1) + 
-                             EscapeJsonString(newName) + 
-                             starJson.Substring(quoteEnd);
-            }
-            else
-            {
-                // Add "proper" field after opening brace
-                newStarJson = "{\"proper\":\"" + EscapeJsonString(newName) + "\"," + 
-                             starJson.Substring(1);
-            }
-            
-            // Replace in full JSON
-            string newJson = json.Substring(0, braceStart) + newStarJson + json.Substring(braceEnd + 1);
-            File.WriteAllText(customJsonPath, newJson);
         }
         
         /// <summary>
-        /// Get original name from default JSON
+        /// Get original name from default JSON using MiniJSON.
         /// </summary>
         private string GetOriginalNameFromJson(int hipId, string defaultJsonPath)
         {
             try
             {
                 string json = File.ReadAllText(defaultJsonPath);
-                
-                string hipKey = $"\"{hipId}\":";
-                int starStart = json.IndexOf(hipKey);
-                if (starStart < 0) return null;
-                
-                int braceStart = json.IndexOf('{', starStart);
-                int braceEnd = FindMatchingBrace(json, braceStart);
-                if (braceEnd < 0) return null;
-                
-                string starJson = json.Substring(braceStart, braceEnd - braceStart + 1);
-                
+                var root = Json.Deserialize(json) as Dictionary<string, object>;
+                if (root == null) return null;
+
+                if (!root.TryGetValue("stars", out object starsObj) || !(starsObj is Dictionary<string, object> stars))
+                    return null;
+
+                if (!stars.TryGetValue(hipId.ToString(), out object starObj) || !(starObj is Dictionary<string, object> star))
+                    return null;
+
                 // Try "proper" first, then "full_designation"
-                string proper = ExtractStringValue(starJson, "proper");
-                if (!string.IsNullOrEmpty(proper))
+                if (star.TryGetValue("proper", out object properObj) && properObj is string proper && !string.IsNullOrEmpty(proper))
                     return proper.ToUpper();
-                
-                string designation = ExtractStringValue(starJson, "full_designation");
-                if (!string.IsNullOrEmpty(designation))
+
+                if (star.TryGetValue("full_designation", out object designationObj) && designationObj is string designation && !string.IsNullOrEmpty(designation))
                     return StripDirectionalSuffix(designation);
-                
+
                 return null;
             }
             catch (Exception ex)
@@ -1406,62 +1390,7 @@ namespace CinematicShaders.UI
         
         #region JSON Helpers
         
-        /// <summary>
-        /// Find matching closing brace
-        /// </summary>
-        private int FindMatchingBrace(string json, int startIndex)
-        {
-            int depth = 1;
-            int pos = startIndex + 1;
-            bool inString = false;
-            
-            while (pos < json.Length && depth > 0)
-            {
-                char c = json[pos];
-                if (c == '"' && (pos == 0 || json[pos - 1] != '\\'))
-                {
-                    inString = !inString;
-                }
-                else if (!inString)
-                {
-                    if (c == '{') depth++;
-                    else if (c == '}') depth--;
-                }
-                pos++;
-            }
-            
-            return depth == 0 ? pos - 1 : -1;
-        }
-        
-        /// <summary>
-        /// Extract string value from JSON snippet
-        /// </summary>
-        private string ExtractStringValue(string json, string key)
-        {
-            string pattern = "\"" + key + "\"";
-            int keyPos = json.IndexOf(pattern);
-            if (keyPos < 0) return null;
 
-            int colonPos = json.IndexOf(':', keyPos);
-            if (colonPos < 0) return null;
-
-            int quoteStart = json.IndexOf('"', colonPos);
-            if (quoteStart < 0) return null;
-
-            int quoteEnd = json.IndexOf('"', quoteStart + 1);
-            if (quoteEnd < 0) return null;
-
-            return json.Substring(quoteStart + 1, quoteEnd - quoteStart - 1);
-        }
-        
-        /// <summary>
-        /// Escape string for JSON
-        /// </summary>
-        private string EscapeJsonString(string s)
-        {
-            return s.Replace("\\", "\\\\").Replace("\"", "\\\"");
-        }
-        
         /// <summary>
         /// Strip directional suffixes from designation
         /// </summary>
