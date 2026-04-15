@@ -2440,6 +2440,8 @@ void CR_TextDispatch(
     
     CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(textSystem);
     
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
     // Ensure glyph buffer is created and populated
     ID3D11Buffer* glyphBuffer = ts->GetOrCreateGlyphBuffer();
     if (!glyphBuffer) {
@@ -2450,8 +2452,6 @@ void CR_TextDispatch(
     if (!glyphSRV) {
         return;
     }
-    
-    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     
     if (!g_StarfieldState.device) {
         return;
@@ -2572,6 +2572,8 @@ void CR_TextDispatchEx(
     
     CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(textSystem);
     
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
     // Ensure glyph buffer is created and populated
     ID3D11Buffer* glyphBuffer = ts->GetOrCreateGlyphBuffer();
     if (!glyphBuffer) {
@@ -2582,8 +2584,6 @@ void CR_TextDispatchEx(
     if (!glyphSRV) {
         return;
     }
-    
-    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     
     if (!g_StarfieldState.device) {
         return;
@@ -3511,6 +3511,7 @@ void CR_StarfieldSetCameraMatrices(ID3D11Texture2D* deviceSourceTexture, int wid
                 g_StarfieldState.catalogNeedsReload = true;
                 LogToFile("[Starfield] Device acquired with empty catalog, flagging for reload");
             }
+            device->Release();
         }
     }
     // If device is already acquired but dimensions changed, recreate resources
@@ -4362,11 +4363,13 @@ int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize)
         return -1;
     }
     
-    // Don't take the main lock to avoid blocking, but check state
+    // Take the main lock for thread safety during cubemap rendering
     if (!g_StarfieldState.device) {
         LogToFile("[StarfieldCubemap] Error: Device not initialized");
         return -2;
     }
+    
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     
     // Get immediate context
     ID3D11DeviceContext* context = nullptr;
