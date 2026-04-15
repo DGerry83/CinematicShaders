@@ -1450,6 +1450,10 @@ namespace CinematicShaders.Core
         /// </summary>
         public void Dispose()
         {
+            // Clear native SRV references before destroying textures
+            StarfieldNative.CR_SetTextTexture(IntPtr.Zero);
+            StarfieldNative.CR_SetVesselTargetTextTexture(IntPtr.Zero);
+
             // Unsubscribe from state manager events
             StarCatalogStateManager.OnCatalogChanged -= HandleCatalogChanged;
             StarCatalogStateManager.OnJsonStateChanged -= HandleJsonStateChanged;

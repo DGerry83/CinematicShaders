@@ -882,8 +882,12 @@ namespace CinematicShaders.UI.Tabs
         /// </summary>
         private void StopTracking()
         {
-            _selector?.StopTracking();
-            _selector = null;  // Clear selector when disabled
+            if (_selector != null)
+            {
+                _selector.Dispose();
+                _selector = null;
+            }
+            StarfieldCompositor.KartographerSelectorCallback = null;
             StarfieldSettings.KartographerTrackedStarHIP = 0;
             StarfieldSettings.EnablePolarisTracking = false;
             StarfieldSettings.Save();

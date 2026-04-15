@@ -103,6 +103,13 @@ namespace CinematicShaders.Core
                 return false;
             }
             
+            // Destroy previous injected texture to prevent leaking
+            Texture oldTexture = faceRenderer.material.mainTexture;
+            if (oldTexture is Texture2D && oldTexture != null)
+            {
+                UnityEngine.Object.Destroy(oldTexture);
+            }
+            
             // Apply to material
             faceRenderer.material.mainTexture = faceTexture;
             faceRenderer.material.SetTextureScale("_MainTex", new Vector2(1, 1));
@@ -208,6 +215,13 @@ namespace CinematicShaders.Core
             // Fast GPU→GPU copy using Graphics.CopyTexture
             // This avoids the CPU readback stall of ReadPixels/GetPixels
             Graphics.CopyTexture(rt, 0, 0, faceTexture, 0, 0);
+            
+            // Destroy previous injected texture to prevent leaking
+            Texture oldTexture = faceRenderer.material.mainTexture;
+            if (oldTexture is Texture2D && oldTexture != null)
+            {
+                UnityEngine.Object.Destroy(oldTexture);
+            }
             
             // Apply to material
             faceRenderer.material.mainTexture = faceTexture;
