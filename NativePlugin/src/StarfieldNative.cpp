@@ -275,6 +275,9 @@ static struct {
         uint32_t color = 0;
     };
     GridLabelSlot gridLabelSlots[12];
+    
+    // Cached catalog SRV to avoid per-frame recreation
+    ID3D11ShaderResourceView* catalogSRV = nullptr;
 } g_StarfieldState;
 
 // Constant buffer layouts (must match HLSL exactly, 16-byte aligned)
@@ -1261,19 +1264,9 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         context->Unmap(g_StarfieldState.pass1CB, 0);
     }
     
-    // Create SRV for catalog buffer
-    ID3D11ShaderResourceView* catalogSRV = nullptr;
-    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-    srvDesc.Buffer.ElementOffset = 0;
-    srvDesc.Buffer.ElementWidth = sizeof(StarData);
-    srvDesc.Buffer.NumElements = g_StarfieldState.catalogSize;
-    
-    HRESULT hr = device->CreateShaderResourceView(g_StarfieldState.starCatalogBuffer, &srvDesc, &catalogSRV);
-    if (FAILED(hr) || !catalogSRV) {
-        LogToFile("[Starfield] Failed to create catalog SRV (0x%08X)", hr);
-        if (catalogSRV) catalogSRV->Release();
+    // Validate cached catalog SRV
+    if (!g_StarfieldState.catalogSRV) {
+        LogToFile("[Starfield] catalogSRV is null, aborting render");
         currentRTV->Release();
         if (currentDSV) currentDSV->Release();
         device->Release();
@@ -1283,7 +1276,7 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
     // Setup compute shader
     context->CSSetShader(g_StarfieldState.pass1CS, nullptr, 0);
     context->CSSetConstantBuffers(0, 1, &g_StarfieldState.pass1CB);
-    context->CSSetShaderResources(0, 1, &catalogSRV);
+    context->CSSetShaderResources(0, 1, &g_StarfieldState.catalogSRV);
     ID3D11UnorderedAccessView* uavs[1] = {g_StarfieldState.hdrUAV};
     context->CSSetUnorderedAccessViews(0, 1, uavs, nullptr);
     
@@ -1297,7 +1290,6 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
     context->CSSetUnorderedAccessViews(0, 1, nullUAV, nullptr);
     context->CSSetShaderResources(0, 1, nullSRV);
     context->CSSetShader(nullptr, nullptr, 0);
-    catalogSRV->Release();
     
     // ===== PASS 2: Composite HDR to Screen =====
     // Update Pass 2 constant buffer
@@ -3586,6 +3578,7 @@ void CR_StarfieldShutdown()
             g_StarfieldState.catalogSize = 0;
             g_StarfieldState.catalogCapacity = 0;
         }
+        if (g_StarfieldState.catalogSRV) { g_StarfieldState.catalogSRV->Release(); g_StarfieldState.catalogSRV = nullptr; }
         g_StarfieldState.catalogDataCPU.clear();
     if (g_StarfieldState.pass2CB) { g_StarfieldState.pass2CB->Release(); g_StarfieldState.pass2CB = nullptr; }
 
@@ -3705,6 +3698,8 @@ void CR_StarfieldInvalidateResources()
         g_StarfieldState.gridLabelSlots[i].isActive = false;
     }
     
+    if (g_StarfieldState.catalogSRV) { g_StarfieldState.catalogSRV->Release(); g_StarfieldState.catalogSRV = nullptr; }
+    
     if (g_StarfieldState.explicitRenderTarget) {
         g_StarfieldState.explicitRenderTarget->Release();
         g_StarfieldState.explicitRenderTarget = nullptr;
@@ -3801,6 +3796,22 @@ void CR_StarfieldLoadCatalog(const StarData* buffer, int count, int heroCount)
             
             LogToFile("[Starfield] Loaded catalog: %d stars, %d heroes", count, heroCount);
         }
+        
+        // Create cached catalog SRV
+        if (g_StarfieldState.starCatalogBuffer) {
+            if (g_StarfieldState.catalogSRV) {
+                g_StarfieldState.catalogSRV->Release();
+                g_StarfieldState.catalogSRV = nullptr;
+            }
+            D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+            srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+            srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+            srvDesc.Buffer.ElementOffset = 0;
+            srvDesc.Buffer.ElementWidth = sizeof(StarData);
+            srvDesc.Buffer.NumElements = g_StarfieldState.catalogSize;
+            g_StarfieldState.device->CreateShaderResourceView(g_StarfieldState.starCatalogBuffer, &srvDesc, &g_StarfieldState.catalogSRV);
+        }
+        
         context->Release();
     }
 }
@@ -4167,17 +4178,9 @@ static void ExecuteCubemapFaceRender(
             context->Unmap(g_StarfieldState.pass1CB, 0);
         }
         
-        // Create temporary SRV for catalog buffer
-        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-        srvDesc.Format = DXGI_FORMAT_UNKNOWN; // Structured buffer
-        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-        srvDesc.Buffer.FirstElement = 0;
-        srvDesc.Buffer.NumElements = g_StarfieldState.catalogSize;
-        
-        ID3D11ShaderResourceView* catalogSRV = nullptr;
-        HRESULT hr = device->CreateShaderResourceView(g_StarfieldState.starCatalogBuffer, &srvDesc, &catalogSRV);
-        if (FAILED(hr) || !catalogSRV) {
-            if (catalogSRV) catalogSRV->Release();
+        // Validate cached catalog SRV
+        if (!g_StarfieldState.catalogSRV) {
+            LogToFile("[Starfield] catalogSRV is null, aborting cubemap face render");
             tempHDR_SRV->Release();
             tempHDR_UAV->Release();
             tempHDR->Release();
@@ -4189,7 +4192,7 @@ static void ExecuteCubemapFaceRender(
         context->CSSetShader(g_StarfieldState.pass1CS, nullptr, 0);
         context->CSSetConstantBuffers(0, 1, &g_StarfieldState.pass1CB);
         context->CSSetUnorderedAccessViews(0, 1, &tempHDR_UAV, nullptr);
-        context->CSSetShaderResources(0, 1, &catalogSRV);
+        context->CSSetShaderResources(0, 1, &g_StarfieldState.catalogSRV);
         
         int threadGroups = (g_StarfieldState.catalogSize + 255) / 256;
         context->Dispatch(threadGroups, 1, 1);
@@ -4200,7 +4203,6 @@ static void ExecuteCubemapFaceRender(
         ID3D11ShaderResourceView* nullSRV = nullptr;
         context->CSSetShaderResources(0, 1, &nullSRV);
         context->CSSetShader(nullptr, nullptr, 0);
-        catalogSRV->Release();
     }
     
     // =========================================================================
