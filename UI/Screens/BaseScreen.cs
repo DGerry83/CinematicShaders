@@ -276,18 +276,6 @@ namespace CinematicShaders.UI.Screens
         public abstract void Render(Rect displayRect, IntPtr textSystem);
         
         /// <summary>
-        /// Sets the shared textures for this screen's layers.
-        /// </summary>
-        /// <param name="l1">Layer 1 texture</param>
-        /// <param name="l2">Layer 2 texture</param>
-        /// <param name="l3">Layer 3 texture</param>
-        /// <remarks>
-        /// Must be implemented by derived classes. Each screen decides which
-        /// texture parameters to actually use based on its layer configuration.
-        /// </remarks>
-        public abstract void SetTextures(RenderTexture l1, RenderTexture l2, RenderTexture l3);
-        
-        /// <summary>
         /// Adds a layer to this screen and maintains sorted order by Layer.Order.
         /// </summary>
         /// <param name="layer">The layer to add</param>

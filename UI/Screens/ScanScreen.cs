@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using CinematicShaders.UI.Screens.Layers;
 using CinematicShaders.Native;
+using CinematicShaders.Native.Structs;
 using CinematicShaders.Core;
 using CinematicShaders.UI.Animation;
 using CinematicShaders.UI.Content;
@@ -38,8 +39,6 @@ namespace CinematicShaders.UI.Screens
     {
         private readonly float _fontSize;
         private readonly float _aspectRatio;
-        private RenderTexture _layer1Texture;
-        private RenderTexture _layer2Texture;
         private Sequencer _sequencer;
         
         // Click zone for SCAN area
@@ -109,29 +108,7 @@ namespace CinematicShaders.UI.Screens
             }
         }
         
-        /// <summary>
-        /// Sets the shared textures for rendering.
-        /// ScanScreen uses l1 and l2, ignores l3.
-        /// </summary>
-        /// <param name="l1">Layer 1 texture (border)</param>
-        /// <param name="l2">Layer 2 texture (SCAN art)</param>
-        /// <param name="l3">Layer 3 texture (ignored)</param>
-        /// <remarks>
-        /// This is an example of a two-layer screen that ignores the third texture.
-        /// The unused l3 parameter is documented to show the design pattern.
-        /// </remarks>
-        public override void SetTextures(RenderTexture l1, RenderTexture l2, RenderTexture l3)
-        {
-            _layer1Texture = l1;
-            _layer2Texture = l2;
-            // Ignore l3 - this screen doesn't use Layer 3
-            
-            if (Layers.Count > 0 && Layers[0] is BorderLayer bl)
-                bl.SetTargetTexture(l1);
-            if (Layers.Count > 1 && Layers[1] is ContentLayer cl)
-                cl.SetTargetTexture(l2);
-        }
-        
+
         // Constraint-based layout for this screen
         private ScanScreenLayout _layout;
         
@@ -260,51 +237,31 @@ namespace CinematicShaders.UI.Screens
         {
             if (textSystem == IntPtr.Zero) return;
             
-            // Handle input FIRST - for ALL event types including mouse
-            // This must happen before the Repaint check so mouse events are processed
             if (Event.current != null)
-            {
                 HandleInput(displayRect);
-            }
             
-            // Only render during Repaint events and when Event.current is valid
             if (Event.current == null || Event.current.type != EventType.Repaint)
                 return;
             
             uint color = CinematicShadersUIResources.Colors.CRTColors.GetColorUint(StarfieldSettings.KartographerGridColor);
             
-            // Render Layer 1: Border
-            var borderLayer = Layers[0] as BorderLayer;
-            if (borderLayer != null && _layer1Texture != null && _layer1Texture.IsCreated())
-            {
-                borderLayer.RenderToTexture(textSystem, color, _fontSize, _aspectRatio, Layer1Progress);
-                
-                // Draw the texture to screen
-                Graphics.DrawTexture(
-                    displayRect,
-                    _layer1Texture,
-                    new Rect(0, 1, 1, -1),  // Flip Y
-                    0, 0, 0, 0,
-                    Color.white,
-                    null
-                );
-            }
+            var cells = new ConsoleCellInstanceNative[767];
+            int writeIndex = 0;
             
-            // Render Layer 2: SCAN art
+            var borderLayer = Layers[0] as BorderLayer;
+            if (borderLayer != null && Layer1Progress > 0)
+                borderLayer.FillCellData(textSystem, cells, ref writeIndex, Layer1Progress, color, _fontSize, _aspectRatio);
+            
             var contentLayer = Layers[1] as ContentLayer;
-            if (contentLayer != null && _layer2Texture != null && _layer2Texture.IsCreated() && Layer2Progress > 0)
+            if (contentLayer != null && Layer2Progress > 0)
+                contentLayer.FillCellData(textSystem, cells, ref writeIndex, Layer2Progress, color, _fontSize, _aspectRatio);
+            
+            if (writeIndex > 0)
             {
-                contentLayer.RenderToTexture(textSystem, color, _fontSize, _aspectRatio, Layer2Progress);
-                
-                // Draw the texture to screen
-                Graphics.DrawTexture(
-                    displayRect,
-                    _layer2Texture,
-                    new Rect(0, 1, 1, -1),  // Flip Y
-                    0, 0, 0, 0,
-                    Color.white,
-                    null
-                );
+                StarfieldNative.CR_DrawConsoleGrid(
+                    textSystem, cells, writeIndex,
+                    displayRect.x, displayRect.y, displayRect.width, displayRect.height,
+                    _fontSize, color);
             }
         }
         

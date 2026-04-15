@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using CinematicShaders.UI.Screens.Layers;
 using CinematicShaders.Native;
+using CinematicShaders.Native.Structs;
 using CinematicShaders.Core;
 
 namespace CinematicShaders.UI.Screens
@@ -31,7 +32,6 @@ namespace CinematicShaders.UI.Screens
     {
         private readonly float _fontSize;
         private readonly float _aspectRatio;
-        private RenderTexture _layer2Texture;
         
         // Splash-specific timing (pop-on then fade)
         private const float VISIBLE_DURATION = 0.75f;
@@ -86,19 +86,7 @@ namespace CinematicShaders.UI.Screens
             AddLayer(new ContentLayer(SPLASH_LINES));
         }
         
-        /// <summary>
-        /// Sets the shared textures for rendering.
-        /// SplashScreen only uses Layer 2 texture for the logo.
-        /// </summary>
-        public override void SetTextures(RenderTexture l1, RenderTexture l2, RenderTexture l3)
-        {
-            _layer2Texture = l2;
-            // Ignore l1 and l3 - this screen only uses Layer 2
-            
-            if (Layers.Count > 0 && Layers[0] is ContentLayer cl)
-                cl.SetTargetTexture(l2);
-        }
-        
+
         /// <summary>
         /// Called when entering this screen.
         /// Reads target screen from context and resets animation state.
@@ -156,7 +144,6 @@ namespace CinematicShaders.UI.Screens
         {
             if (textSystem == IntPtr.Zero) return;
             
-            // Only render during Repaint events
             if (Event.current == null || Event.current.type != EventType.Repaint)
                 return;
             
@@ -168,32 +155,25 @@ namespace CinematicShaders.UI.Screens
                 alpha = Mathf.Clamp01(1.0f - fadeProgress);
             }
             
-            // Skip rendering if fully faded
             if (alpha <= 0.01f)
                 return;
             
-            uint color = CinematicShadersUIResources.Colors.CRTColors.GetColorUint(StarfieldSettings.KartographerGridColor);
+            uint baseColor = CinematicShadersUIResources.Colors.CRTColors.GetColorUint(StarfieldSettings.KartographerGridColor);
+            uint color = (baseColor & 0x00FFFFFF) | ((uint)(alpha * 255) << 24);
             
-            // Render Layer 2: Logo
+            var cells = new ConsoleCellInstanceNative[767];
+            int writeIndex = 0;
+            
             var contentLayer = Layers[0] as ContentLayer;
-            if (contentLayer != null && _layer2Texture != null && _layer2Texture.IsCreated())
+            if (contentLayer != null)
+                contentLayer.FillCellData(textSystem, cells, ref writeIndex, 1.0f, color, _fontSize, _aspectRatio);
+            
+            if (writeIndex > 0)
             {
-                // Render full content (no type-on for splash)
-                contentLayer.RenderToTexture(textSystem, color, _fontSize, _aspectRatio, 1.0f);
-                
-                // Draw with calculated alpha for fade effect
-                Color drawColor = new Color(1f, 1f, 1f, alpha);
-                Graphics.DrawTexture(
-                    displayRect,
-                    _layer2Texture,
-                    new Rect(0, 1, 1, -1),  // Flip Y
-                    0, 0, 0, 0,
-                    drawColor,
-                    null
-                );
-                
-                // Reset GUI color
-                GUI.color = Color.white;
+                StarfieldNative.CR_DrawConsoleGrid(
+                    textSystem, cells, writeIndex,
+                    displayRect.x, displayRect.y, displayRect.width, displayRect.height,
+                    _fontSize, color);
             }
         }
         

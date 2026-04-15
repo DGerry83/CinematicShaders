@@ -13,27 +13,19 @@ namespace CinematicShaders.UI.Screens
     /// <remarks>
     /// <para><b>Architecture Overview:</b></para>
     /// The ScreenManager maintains a registry of all available screens and manages
-    /// transitions between them. It owns the shared RenderTexture pool (one texture
-    /// per layer) that screens use for rendering.
-    /// 
-    /// <para><b>Texture Pool:</b></para>
-    /// Textures are created once and reused across screen transitions. Each layer
-    /// (1, 2, 3) has its own texture. Textures are assigned to screens only when
-    /// the screen changes, not every frame, for efficiency.
+    /// transitions between them.
     /// 
     /// <para><b>Screen Lifecycle:</b></para>
     /// 1. Register screens via RegisterScreen()
-    /// 2. Initialize texture pool via InitializeTextures()
-    /// 3. Transition between screens via TransitionTo()
-    /// 4. Call Update() and Render() each frame for the current screen
-    /// 5. Cleanup via Shutdown() when console closes
+    /// 2. Transition between screens via TransitionTo()
+    /// 3. Call Update() and Render() each frame for the current screen
+    /// 4. Cleanup via Shutdown() when console closes
     /// 
     /// <para><b>Usage Example:</b></para>
     /// <code>
     /// var manager = new ScreenManager(textSystemPtr);
     /// manager.RegisterScreen(new MainScreen(border, labels, fontSize));
     /// manager.RegisterScreen(new ScanScreen(border, art, fontSize));
-    /// manager.InitializeTextures(width, height);
     /// manager.TransitionTo("Main");
     /// </code>
     /// </remarks>
@@ -42,14 +34,6 @@ namespace CinematicShaders.UI.Screens
         private readonly Dictionary<string, IScreen> _screens = new Dictionary<string, IScreen>();
         private IScreen _currentScreen;
         private readonly IntPtr _textSystem;
-        
-        // Shared textures - one per layer order (1, 2, 3)
-        private readonly Dictionary<int, RenderTexture> _layerTextures = new Dictionary<int, RenderTexture>();
-        private int _textureWidth;
-        private int _textureHeight;
-        
-        // Track which screen has textures assigned to avoid redundant SetTextures calls
-        private IScreen _screenWithAssignedTextures;
         
         /// <summary>
         /// Gets the currently active screen, or null if no transition has occurred.
@@ -95,28 +79,7 @@ namespace CinematicShaders.UI.Screens
         public void InitializeTextures(int width, int height)
         {
             // Unified grid: Use actual display dimensions for dynamic sizing
-            _textureWidth = width;
-            _textureHeight = height;
             Debug.Log($"[ScreenManager] Initialized textures at display size: {width}x{height}");
-            
-            // Create shared textures for layers 1, 2, and 3
-            EnsureTexture(1);
-            EnsureTexture(2);
-            EnsureTexture(3);
-        }
-        
-        /// <summary>
-        /// Gets or creates a shared texture for the specified layer order.
-        /// </summary>
-        /// <param name="layerOrder">The layer order (1, 2, or 3)</param>
-        /// <returns>The RenderTexture for this layer</returns>
-        public RenderTexture GetLayerTexture(int layerOrder)
-        {
-            if (!_layerTextures.ContainsKey(layerOrder))
-            {
-                EnsureTexture(layerOrder);
-            }
-            return _layerTextures[layerOrder];
         }
         
         /// <summary>
@@ -162,8 +125,7 @@ namespace CinematicShaders.UI.Screens
         /// 1. Calls OnExit() on the current screen
         /// 2. Updates the transition context with previous screen info
         /// 3. Switches to the new screen
-        /// 4. Forces texture reassignment for the new screen
-        /// 5. Calls OnEnter() on the new screen
+        /// 4. Calls OnEnter() on the new screen
         /// 
         /// If the screen name is not registered, logs an error and does nothing.
         /// </remarks>
@@ -187,7 +149,6 @@ namespace CinematicShaders.UI.Screens
             
             // Switch to new screen
             _currentScreen = newScreen;
-            _screenWithAssignedTextures = null;  // Force texture reassignment for new screen
             _currentScreen.OnEnter(context);
             
             Debug.Log($"[ScreenManager] Transitioned to {screenName}");
@@ -210,23 +171,20 @@ namespace CinematicShaders.UI.Screens
         /// Validates all layer textures and recreates any that are invalid.
         /// </summary>
         /// <remarks>
-        /// This is called automatically by Render() as a defensive measure against
-        /// device loss (e.g., when the GPU device is reset). It checks each texture
-        /// and recreates it if null or not created.
+        /// No-op stub: texture validation removed during instanced rendering refactor.
+        /// Kept for backward compatibility with external callers.
         /// </remarks>
         public void ValidateTextures()
         {
-            // Check and recreate layer textures if needed
-            for (int i = 1; i <= 3; i++)
-            {
-                if (!_layerTextures.TryGetValue(i, out var texture) || 
-                    texture == null || 
-                    !texture.IsCreated())
-                {
-                    Debug.Log($"[ScreenManager] Layer {i} texture invalid, recreating...");
-                    EnsureTexture(i);
-                }
-            }
+        }
+        
+        /// <summary>
+        /// Gets a copy of all layer textures for debugging or export purposes.
+        /// </summary>
+        /// <returns>Empty dictionary: texture pool removed during instanced rendering refactor.</returns>
+        public Dictionary<int, RenderTexture> GetAllLayerTextures()
+        {
+            return new Dictionary<int, RenderTexture>();
         }
         
         /// <summary>
@@ -234,11 +192,6 @@ namespace CinematicShaders.UI.Screens
         /// </summary>
         /// <param name="displayRect">Screen-space rectangle for rendering</param>
         /// <remarks>
-        /// This method:
-        /// 1. Validates textures (recreates if needed)
-        /// 2. Assigns textures to the current screen (only if screen changed)
-        /// 3. Calls Render() on the current screen
-        /// 
         /// Call this during the Repaint event from the console's OnGUI().
         /// </remarks>
         public void Render(Rect displayRect)
@@ -249,43 +202,7 @@ namespace CinematicShaders.UI.Screens
                 return;
             }
             
-            // Validate textures before rendering (defensive against device loss)
-            ValidateTextures();
-            
-            // Only assign textures when screen changes, not every frame
-            bool shouldAssignTextures = _screenWithAssignedTextures != _currentScreen;
-            
-            if (shouldAssignTextures)
-            {
-                AssignTexturesToCurrentScreen();
-                _screenWithAssignedTextures = _currentScreen;
-            }
-            
             _currentScreen.Render(displayRect, _textSystem);
-        }
-        
-        /// <summary>
-        /// Assigns shared textures to the current screen.
-        /// Called internally when the screen changes.
-        /// </summary>
-        private void AssignTexturesToCurrentScreen()
-        {
-            var layer1Texture = GetLayerTexture(1);
-            var layer2Texture = GetLayerTexture(2);
-            var layer3Texture = GetLayerTexture(3);
-            
-            // Assign all textures via unified interface
-            _currentScreen?.SetTextures(layer1Texture, layer2Texture, layer3Texture);
-
-        }
-        
-        /// <summary>
-        /// Gets a copy of all layer textures for debugging or export purposes.
-        /// </summary>
-        /// <returns>Dictionary mapping layer order to RenderTexture</returns>
-        public Dictionary<int, RenderTexture> GetAllLayerTextures()
-        {
-            return new Dictionary<int, RenderTexture>(_layerTextures);
         }
         
         /// <summary>
@@ -294,8 +211,7 @@ namespace CinematicShaders.UI.Screens
         /// <remarks>
         /// Call this when the console is shutting down. This will:
         /// 1. Call OnExit() on the current screen
-        /// 2. Release and destroy all shared textures
-        /// 3. Clear internal collections
+        /// 2. Clear internal collections
         /// 
         /// The ScreenManager should not be used after Shutdown() is called.
         /// </remarks>
@@ -303,33 +219,6 @@ namespace CinematicShaders.UI.Screens
         {
             _currentScreen?.OnExit();
             _currentScreen = null;
-            _screenWithAssignedTextures = null;
-            
-            foreach (var texture in _layerTextures.Values)
-            {
-                if (texture != null)
-                {
-                    texture.Release();
-                    UnityEngine.Object.Destroy(texture);
-                }
-            }
-            _layerTextures.Clear();
-        }
-        
-        /// <summary>
-        /// Creates or recreates a texture for the specified layer order.
-        /// </summary>
-        /// <param name="layerOrder">The layer order (1, 2, or 3)</param>
-        private void EnsureTexture(int layerOrder)
-        {
-            if (_layerTextures.ContainsKey(layerOrder) && _layerTextures[layerOrder] != null)
-                return;
-                
-            var texture = new RenderTexture(_textureWidth, _textureHeight, 0, RenderTextureFormat.ARGB32);
-            texture.enableRandomWrite = true;
-            texture.Create();
-            
-            _layerTextures[layerOrder] = texture;
         }
     }
 }

@@ -47,20 +47,7 @@ namespace CinematicShaders.UI.Screens.Layers
             // This method just prepares the text content for interface compliance
         }
         
-        /// <summary>
-        /// Legacy no-op stub for screen compatibility during refactor.
-        /// </summary>
-        public void RenderToTexture(IntPtr textSystem, uint color, float fontSize, float aspectRatio, float typeOnProgress = 1f)
-        {
-        }
-        
-        /// <summary>
-        /// Legacy no-op stub for screen compatibility during refactor.
-        /// </summary>
-        public void SetTargetTexture(RenderTexture texture)
-        {
-        }
-        
+
         public void MarkDirty()
         {
             IsDirty = true;

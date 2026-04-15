@@ -71,21 +71,5 @@ namespace CinematicShaders.UI.Screens
         /// <param name="textSystem">Native text system pointer for GPU text rendering</param>
         void Render(Rect displayRect, IntPtr textSystem);
         
-        /// <summary>
-        /// Set the shared textures for rendering. All screens implement this.
-        /// Each screen decides which layers to use (l1, l2, l3).
-        /// </summary>
-        /// <remarks>
-        /// This unified approach allows screens to:
-        /// - Use all three layers (e.g., MainScreen with border, labels, and values)
-        /// - Use only layers 1-2 (e.g., ScanScreen with border and art)
-        /// - Extend to more layers in the future without interface changes
-        /// 
-        /// Textures are assigned once per screen transition, not every frame.
-        /// </remarks>
-        /// <param name="l1">Layer 1 texture (border/frame elements)</param>
-        /// <param name="l2">Layer 2 texture (labels and static content)</param>
-        /// <param name="l3">Layer 3 texture (interactive elements and values)</param>
-        void SetTextures(RenderTexture l1, RenderTexture l2, RenderTexture l3);
     }
 }

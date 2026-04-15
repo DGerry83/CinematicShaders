@@ -74,26 +74,11 @@ namespace CinematicShaders.UI.Screens.Layers
         }
         
         /// <summary>
-        /// Legacy no-op stub for screen compatibility during refactor.
-        /// </summary>
-        public void SetLayer3Texture(RenderTexture texture)
-        {
-        }
-        
-        /// <summary>
-        /// No-op: texture dirty tracking removed during instanced rendering refactor.
-        /// </summary>
-        public void MarkLayer3Dirty()
-        {
-        }
-        
-        /// <summary>
         /// Mark this layer as dirty (ILayer implementation).
         /// </summary>
         public void MarkDirty()
         {
             IsDirty = true;
-            MarkLayer3Dirty();
         }
         
         public void Render(float typeOnProgress)
@@ -248,8 +233,6 @@ namespace CinematicShaders.UI.Screens.Layers
                 
                 // Reset ALL element animations to 0 for global character-based animation
                 ResetAllElementAnimations();
-                
-                MarkLayer3Dirty();
             }
         }
         
@@ -369,13 +352,7 @@ namespace CinematicShaders.UI.Screens.Layers
         /// Uses Layer3Progress (0-1) as global character position across ALL elements.
         /// Elements animate as ONE continuous character stream (like reading a book).
         /// </summary>
-        /// <summary>
-        /// Legacy no-op stub for screen compatibility during refactor.
-        /// </summary>
-        public void RenderToTexture(IntPtr textSystem, Rect displayRect, float layer3Progress)
-        {
-        }
-        
+
         public void FillCellData(
             IntPtr textSystem,
             ConsoleCellInstanceNative[] buffer,
@@ -801,7 +778,6 @@ namespace CinematicShaders.UI.Screens.Layers
             {
                 _cursorVisible = !_cursorVisible;
                 _cursorTimer = 0f;
-                MarkLayer3Dirty();
             }
         }
         
@@ -812,7 +788,6 @@ namespace CinematicShaders.UI.Screens.Layers
         {
             _editingElementId = editingElementId;
             _cursorVisible = cursorVisible;
-            MarkLayer3Dirty();
         }
         
         /// <summary>
@@ -829,7 +804,6 @@ namespace CinematicShaders.UI.Screens.Layers
             if (element != null)
             {
                 element.IsVisible = visible;
-                MarkLayer3Dirty();
             }
         }
         
@@ -842,7 +816,6 @@ namespace CinematicShaders.UI.Screens.Layers
             {
                 element.IsVisible = visible;
             }
-            MarkLayer3Dirty();
         }
         
         /// <summary>
