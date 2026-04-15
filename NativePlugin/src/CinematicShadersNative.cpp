@@ -187,7 +187,6 @@ static struct {
     ID3D11ShaderResourceView* rawAOSRVCached = nullptr;
     ID3D11ShaderResourceView* filterNormalSRVCached = nullptr;
     ID3D11ShaderResourceView* aoSRVCached = nullptr;
-    ID3D11ShaderResourceView* sceneSRVCached = nullptr;
 } g_GTAOState;
 
 struct GTAOUserSettings {
@@ -418,7 +417,6 @@ static void EnsureComputeResources(ID3D11Device* device, int width, int height)
         if (g_GTAOState.rawAOSRVCached) { g_GTAOState.rawAOSRVCached->Release(); g_GTAOState.rawAOSRVCached = nullptr; }
         if (g_GTAOState.filterNormalSRVCached) { g_GTAOState.filterNormalSRVCached->Release(); g_GTAOState.filterNormalSRVCached = nullptr; }
         if (g_GTAOState.aoSRVCached) { g_GTAOState.aoSRVCached->Release(); g_GTAOState.aoSRVCached = nullptr; }
-        if (g_GTAOState.sceneSRVCached) { g_GTAOState.sceneSRVCached->Release(); g_GTAOState.sceneSRVCached = nullptr; }
     }
     
     // AO Output Texture (RG32_FLOAT)
@@ -613,12 +611,17 @@ void CR_GTAODebugSetInput(ID3D11Texture2D* depthTex, ID3D11Texture2D* normalTex,
 {
     std::lock_guard<std::mutex> lock(g_GTAOState.stateMutex);
     
+    // Invalidate cached SRVs when the underlying textures change (e.g., GTAO toggle off/on)
+    if (g_GTAOState.depthTexture != depthTex) {
+        if (g_GTAOState.depthSRVCached) { g_GTAOState.depthSRVCached->Release(); g_GTAOState.depthSRVCached = nullptr; }
+    }
+    if (g_GTAOState.normalTexture != normalTex) {
+        if (g_GTAOState.normalSRVCached) { g_GTAOState.normalSRVCached->Release(); g_GTAOState.normalSRVCached = nullptr; }
+        if (g_GTAOState.filterNormalSRVCached) { g_GTAOState.filterNormalSRVCached->Release(); g_GTAOState.filterNormalSRVCached = nullptr; }
+    }
+    
     g_GTAOState.depthTexture = depthTex;
     g_GTAOState.normalTexture = normalTex;
-    if (!depthTex) {
-        if (g_GTAOState.depthSRVCached) { g_GTAOState.depthSRVCached->Release(); g_GTAOState.depthSRVCached = nullptr; }
-        if (g_GTAOState.normalSRVCached) { g_GTAOState.normalSRVCached->Release(); g_GTAOState.normalSRVCached = nullptr; }
-    }
     g_GTAOState.width = width;
     g_GTAOState.height = height;
     g_GTAOState.nearPlane = nearPlane;
@@ -757,21 +760,13 @@ static void ExecuteComposite(ID3D11DeviceContext* context, ID3D11RenderTargetVie
             srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
             srvDesc.Texture2D.MipLevels = 1;
             
-            // Release old cached scene SRV before creating a new one
-            if (g_GTAOState.sceneSRVCached) {
-                g_GTAOState.sceneSRVCached->Release();
-                g_GTAOState.sceneSRVCached = nullptr;
-            }
-            
-            HRESULT hr = device->CreateShaderResourceView(sourceSceneTexture, &srvDesc, &g_GTAOState.sceneSRVCached);
+            HRESULT hr = device->CreateShaderResourceView(sourceSceneTexture, &srvDesc, &sceneSRV);
             if (FAILED(hr)) {
                 LogToFile("[GTAO] Failed to create scene SRV (0x%08X), format: %d", hr, srcDesc.Format);
                 // Fallback: treat as same-texture case using intermediate
                 context->CopyResource(g_GTAOState.intermediateTexture, sourceSceneTexture);
                 sceneSRV = g_GTAOState.intermediateSRV;
                 sceneSRV->AddRef();
-            } else {
-                sceneSRV = g_GTAOState.sceneSRVCached;
             }
         }
         if (rtvRes) rtvRes->Release();
@@ -838,6 +833,7 @@ static void ExecuteComposite(ID3D11DeviceContext* context, ID3D11RenderTargetVie
     context->PSSetShader(nullPS, nullptr, 0);
     context->PSSetSamplers(0, 1, &nullSampler);
     
+    if (sceneSRV && sceneSRV != g_GTAOState.intermediateSRV) sceneSRV->Release();
     if (sceneSRV == g_GTAOState.intermediateSRV) sceneSRV->Release(); // Release our AddRef
     
     device->Release();
@@ -1251,7 +1247,6 @@ void CR_GTAOShutdown()
     if (g_GTAOState.rawAOSRVCached) { g_GTAOState.rawAOSRVCached->Release(); g_GTAOState.rawAOSRVCached = nullptr; }
     if (g_GTAOState.filterNormalSRVCached) { g_GTAOState.filterNormalSRVCached->Release(); g_GTAOState.filterNormalSRVCached = nullptr; }
     if (g_GTAOState.aoSRVCached) { g_GTAOState.aoSRVCached->Release(); g_GTAOState.aoSRVCached = nullptr; }
-    if (g_GTAOState.sceneSRVCached) { g_GTAOState.sceneSRVCached->Release(); g_GTAOState.sceneSRVCached = nullptr; }
     
     g_GTAOState.cachedWidth = 0;
     g_GTAOState.cachedHeight = 0;
