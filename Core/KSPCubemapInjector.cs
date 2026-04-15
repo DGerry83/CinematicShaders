@@ -76,6 +76,20 @@ namespace CinematicShaders.Core
         }
         
         /// <summary>
+        /// Checks whether a texture is one of the original backed-up skybox textures.
+        /// </summary>
+        private static bool IsOriginalSkyboxTexture(Texture tex)
+        {
+            if (tex == null) return false;
+            for (int i = 0; i < 6; i++)
+            {
+                if (tex == _originalSkyboxTextures[i])
+                    return true;
+            }
+            return false;
+        }
+        
+        /// <summary>
         /// Injects a single cubemap face into the corresponding GalaxyCubeControl child renderer.
         /// </summary>
         private static bool InjectFace(GalaxyCubeControl galaxyCube, string faceName, CubemapFace face, Cubemap cubemap)
@@ -103,9 +117,9 @@ namespace CinematicShaders.Core
                 return false;
             }
             
-            // Destroy previous injected texture to prevent leaking
+            // Destroy previous injected texture to prevent leaking, but never destroy originals
             Texture oldTexture = faceRenderer.material.mainTexture;
-            if (oldTexture is Texture2D && oldTexture != null)
+            if (oldTexture is Texture2D && oldTexture != null && !IsOriginalSkyboxTexture(oldTexture))
             {
                 UnityEngine.Object.Destroy(oldTexture);
             }
@@ -216,9 +230,9 @@ namespace CinematicShaders.Core
             // This avoids the CPU readback stall of ReadPixels/GetPixels
             Graphics.CopyTexture(rt, 0, 0, faceTexture, 0, 0);
             
-            // Destroy previous injected texture to prevent leaking
+            // Destroy previous injected texture to prevent leaking, but never destroy originals
             Texture oldTexture = faceRenderer.material.mainTexture;
-            if (oldTexture is Texture2D && oldTexture != null)
+            if (oldTexture is Texture2D && oldTexture != null && !IsOriginalSkyboxTexture(oldTexture))
             {
                 UnityEngine.Object.Destroy(oldTexture);
             }
