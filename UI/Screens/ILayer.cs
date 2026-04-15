@@ -1,3 +1,6 @@
+using System;
+using CinematicShaders.Native.Structs;
+
 namespace CinematicShaders.UI.Screens
 {
     public interface ILayer
@@ -8,5 +11,14 @@ namespace CinematicShaders.UI.Screens
         
         void Render(float typeOnProgress);
         void MarkDirty();
+
+        void FillCellData(
+            IntPtr textSystem,
+            ConsoleCellInstanceNative[] buffer,
+            ref int writeIndex,
+            float typeOnProgress,
+            uint color,
+            float fontSize,
+            float aspectRatio);
     }
 }

@@ -1,6 +1,8 @@
 using System;
+using System.Runtime.InteropServices;
 using UnityEngine;
 using CinematicShaders.Native;
+using CinematicShaders.Native.Structs;
 
 namespace CinematicShaders.UI.Screens.Layers
 {
@@ -14,11 +16,6 @@ namespace CinematicShaders.UI.Screens.Layers
         public bool IsDirty { get; set; } = true;
         
         private readonly string[] _contentLines;
-        private RenderTexture _targetTexture;
-        
-        // Track last rendered progress and color to avoid redundant renders
-        private float _lastRenderedProgress = -1f;
-        private uint _lastRenderedColor = 0;
         
         public ContentLayer(string[] contentLines)
         {
@@ -30,88 +27,108 @@ namespace CinematicShaders.UI.Screens.Layers
         /// </summary>
         public void Render(float typeOnProgress)
         {
-            // Content layer rendering happens in RenderToTexture
+            // Content layer rendering happens in FillCellData
             // This method exists for interface compliance
         }
         
         /// <summary>
-        /// Render to the target texture using the native text system.
-        /// Called by the screen with proper setup.
+        /// Legacy no-op stub for screen compatibility during refactor.
         /// </summary>
         public void RenderToTexture(IntPtr textSystem, uint color, float fontSize, float aspectRatio, float typeOnProgress)
         {
-            if (_targetTexture == null) return;
-            
-            // Skip if not dirty and progress hasn't changed and color hasn't changed
-            // Always render if progress is changing (animation in progress)
-            bool progressChanged = Mathf.Abs(typeOnProgress - _lastRenderedProgress) > 0.001f;
-            bool colorChanged = color != _lastRenderedColor;
-            if (!IsDirty && typeOnProgress >= 1f && !progressChanged && !colorChanged) return;
-            
-            // Join lines with newlines
-            string text = string.Join("\n", _contentLines);
-            
-            // Apply type-on: only show portion based on progress (with cursor)
-            if (typeOnProgress < 1f)
-            {
-                int endIndex = GetTypeOnEndIndex(text, typeOnProgress);
-                
-                // Add cursor when typing is in progress
-                if (endIndex <= 0)
-                    text = " ";  // Space when nothing visible yet
-                else
-                    text = text.Substring(0, endIndex) + "^|";
-            }
-            
-            // Layout the text
-            int glyphCount = StarfieldNative.CR_TextLayoutEx(textSystem, text, fontSize, 
-                color, 0f, 0f, 0f, aspectRatio);
-            
-            if (glyphCount <= 0) return;
-            
-            // Render to texture with proper active texture handling
-            RenderTexture prevActive = RenderTexture.active;
-            try
-            {
-                RenderTexture.active = _targetTexture;
-                
-                // Clear texture
-                GL.Clear(true, true, Color.clear);
-                
-                // Dispatch to render - texture must be active for this
-                StarfieldNative.CR_TextDispatch(
-                    textSystem,
-                    _targetTexture.GetNativeTexturePtr(),
-                    glyphCount,
-                    _targetTexture.width,
-                    _targetTexture.height);
-            }
-            finally
-            {
-                // Always reset active render texture, even if an exception occurred
-                RenderTexture.active = prevActive;
-            }
-            
-            // Update tracking state
-            IsDirty = false;
-            _lastRenderedProgress = typeOnProgress;
-            _lastRenderedColor = color;
         }
         
         /// <summary>
-        /// Set the target texture for this layer
+        /// Legacy no-op stub for screen compatibility during refactor.
         /// </summary>
         public void SetTargetTexture(RenderTexture texture)
         {
-            _targetTexture = texture;
-            IsDirty = true;
-            _lastRenderedProgress = -1f;  // Force re-render on texture change
-            _lastRenderedColor = 0;       // Force re-render on texture change
         }
         
         public void MarkDirty()
         {
             IsDirty = true;
+        }
+        
+        public void FillCellData(
+            IntPtr textSystem,
+            ConsoleCellInstanceNative[] buffer,
+            ref int writeIndex,
+            float typeOnProgress,
+            uint color,
+            float fontSize,
+            float aspectRatio)
+        {
+            if (textSystem == IntPtr.Zero || buffer == null || writeIndex >= buffer.Length)
+                return;
+
+            string text = GetTextForProgress(typeOnProgress);
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            int glyphCount = StarfieldNative.CR_TextLayoutEx(textSystem, text, fontSize,
+                color, 0f, 0f, 0f, aspectRatio);
+
+            if (glyphCount <= 0)
+                return;
+
+            IntPtr glyphPtr = StarfieldNative.CR_TextGetGlyphPtr(textSystem);
+            int glyphSize = Marshal.SizeOf<StarfieldNative.GlyphData>();
+            int glyphIndex = 0;
+
+            string[] lines = text.Split('\n');
+            for (int y = 0; y < lines.Length && writeIndex < buffer.Length; y++)
+            {
+                string line = lines[y];
+                for (int x = 0; x < line.Length && writeIndex < buffer.Length; x++)
+                {
+                    char c = line[x];
+                    if (c == ' ')
+                        continue;
+
+                    if (glyphIndex >= glyphCount)
+                        break;
+
+                    var glyph = Marshal.PtrToStructure<StarfieldNative.GlyphData>(
+                        IntPtr.Add(glyphPtr, glyphIndex * glyphSize));
+
+                    ushort glyphID = StarfieldNative.CR_TextGetGlyphID(textSystem, c);
+
+                    buffer[writeIndex] = new ConsoleCellInstanceNative
+                    {
+                        GridX = (ushort)x,
+                        GridY = (ushort)y,
+                        GlyphID = glyphID,
+                        Color = color,
+                        U0 = glyph.UvX,
+                        V0 = glyph.UvY,
+                        U1 = glyph.UvX + glyph.UvW,
+                        V1 = glyph.UvY + glyph.UvH
+                    };
+                    writeIndex++;
+                    glyphIndex++;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Get the current text content for type-on rendering
+        /// </summary>
+        private string GetTextForProgress(float typeOnProgress)
+        {
+            string text = string.Join("\n", _contentLines);
+            
+            if (typeOnProgress < 1f)
+            {
+                int endIndex = GetTypeOnEndIndex(text, typeOnProgress);
+                
+                if (endIndex <= 0)
+                    return " ";
+                else
+                    return text.Substring(0, endIndex) + "^|";
+            }
+            
+            return text;
         }
         
         /// <summary>

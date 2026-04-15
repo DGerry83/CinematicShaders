@@ -62,6 +62,9 @@ namespace CinematicShaders.Native
         public static extern int CR_TextGetGlyphCount(IntPtr textSystem);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern ushort CR_TextGetGlyphID(IntPtr textSystem, int codepoint);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_TextExportAtlas(IntPtr textSystem, [MarshalAs(UnmanagedType.LPStr)] string filename);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
@@ -106,6 +109,18 @@ namespace CinematicShaders.Native
         
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_ClearGridLabelSlot(int slot);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_DrawConsoleGrid(
+            IntPtr textSystem,
+            [In] ConsoleCellInstanceNative[] cells,
+            int cellCount,
+            float displayX,
+            float displayY,
+            float displayW,
+            float displayH,
+            float fontSize,
+            uint color);
 
         /// <summary>
         /// Draw a box outline on the CRT UI surface.

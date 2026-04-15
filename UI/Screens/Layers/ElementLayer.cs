@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using CinematicShaders.Native;
+using CinematicShaders.Native.Structs;
 using CinematicShaders.Core;
 using CinematicShaders.UI.Layout;
 using CinematicShaders.UI.Layout.ScreenLayouts;
@@ -26,10 +27,6 @@ namespace CinematicShaders.UI.Screens.Layers
         private readonly float _fontSize;
         private IntPtr _textSystem;
         
-        // Single texture for entire Layer 3
-        private RenderTexture _layer3Texture;
-        private bool _isTextureDirty = true;
-
         // Layer 3 content strings
         private string[] _layer3ContentLines;
         private const int LAYER_3_LINE_COUNT = 17;
@@ -77,19 +74,17 @@ namespace CinematicShaders.UI.Screens.Layers
         }
         
         /// <summary>
-        /// Set the shared Layer 3 texture from ScreenManager.
+        /// Legacy no-op stub for screen compatibility during refactor.
         /// </summary>
         public void SetLayer3Texture(RenderTexture texture)
         {
-            _layer3Texture = texture;
         }
         
         /// <summary>
-        /// Mark the single Layer 3 texture as dirty (needs re-render).
+        /// No-op: texture dirty tracking removed during instanced rendering refactor.
         /// </summary>
         public void MarkLayer3Dirty()
         {
-            _isTextureDirty = true;
         }
         
         /// <summary>
@@ -374,35 +369,85 @@ namespace CinematicShaders.UI.Screens.Layers
         /// Uses Layer3Progress (0-1) as global character position across ALL elements.
         /// Elements animate as ONE continuous character stream (like reading a book).
         /// </summary>
+        /// <summary>
+        /// Legacy no-op stub for screen compatibility during refactor.
+        /// </summary>
         public void RenderToTexture(IntPtr textSystem, Rect displayRect, float layer3Progress)
         {
-            if (textSystem == IntPtr.Zero || _layer3Texture == null) return;
-            if (Event.current?.type != EventType.Repaint) return;
-            
-            _textSystem = textSystem;
-            
-            if (layer3Progress > 0)
+        }
+        
+        public void FillCellData(
+            IntPtr textSystem,
+            ConsoleCellInstanceNative[] buffer,
+            ref int writeIndex,
+            float typeOnProgress,
+            uint color,
+            float fontSize,
+            float aspectRatio)
+        {
+            IntPtr ts = textSystem != IntPtr.Zero ? textSystem : _textSystem;
+            if (ts == IntPtr.Zero || buffer == null || writeIndex >= buffer.Length)
+                return;
+
+            if (typeOnProgress > 0f)
             {
-                DistributeGlobalProgressAcrossElements(layer3Progress);
+                DistributeGlobalProgressAcrossElements(typeOnProgress);
             }
-            
-            // Re-render to texture if dirty and texture is valid
-            if (_isTextureDirty && _layer3Texture != null && _layer3Texture.IsCreated())
+
+            BuildLayer3Content();
+
+            var sb = new System.Text.StringBuilder();
+            for (int row = 0; row < GRID_ROWS; row++)
             {
-                RenderLayer3ToTexture();
+                for (int col = 0; col < GRID_COLUMNS; col++)
+                {
+                    sb.Append(_gridBuffer[row, col] == '\0' ? ' ' : _gridBuffer[row, col]);
+                }
+                if (row < GRID_ROWS - 1)
+                    sb.Append('\n');
             }
-            
-            // Draw the Layer 3 texture to screen
-            if (_layer3Texture != null && _layer3Texture.IsCreated())
+            string fullText = sb.ToString();
+
+            if (string.IsNullOrEmpty(fullText))
+                return;
+
+            int glyphCount = StarfieldNative.CR_TextLayoutEx(ts, fullText, fontSize, color, 0f, 0f, 0f, aspectRatio);
+            if (glyphCount <= 0)
+                return;
+
+            IntPtr glyphPtr = StarfieldNative.CR_TextGetGlyphPtr(ts);
+            int glyphSize = System.Runtime.InteropServices.Marshal.SizeOf<StarfieldNative.GlyphData>();
+            int glyphIndex = 0;
+
+            for (int row = 0; row < GRID_ROWS && writeIndex < buffer.Length; row++)
             {
-                Graphics.DrawTexture(
-                    displayRect,
-                    _layer3Texture,
-                    new Rect(0, 1, 1, -1),
-                    0, 0, 0, 0,
-                    Color.white,
-                    null
-                );
+                for (int col = 0; col < GRID_COLUMNS && writeIndex < buffer.Length; col++)
+                {
+                    char c = _gridBuffer[row, col];
+                    if (c == '\0' || c == ' ')
+                        continue;
+
+                    if (glyphIndex >= glyphCount)
+                        break;
+
+                    var glyph = System.Runtime.InteropServices.Marshal.PtrToStructure<StarfieldNative.GlyphData>(
+                        IntPtr.Add(glyphPtr, glyphIndex * glyphSize));
+                    ushort glyphID = StarfieldNative.CR_TextGetGlyphID(ts, c);
+
+                    buffer[writeIndex] = new ConsoleCellInstanceNative
+                    {
+                        GridX = (ushort)col,
+                        GridY = (ushort)row,
+                        GlyphID = glyphID,
+                        Color = color,
+                        U0 = glyph.UvX,
+                        V0 = glyph.UvY,
+                        U1 = glyph.UvX + glyph.UvW,
+                        V1 = glyph.UvY + glyph.UvH
+                    };
+                    writeIndex++;
+                    glyphIndex++;
+                }
             }
         }
         
@@ -468,7 +513,6 @@ namespace CinematicShaders.UI.Screens.Layers
                 if (Mathf.Abs(element.TypeOnProgress - prevProgress) > 0.001f)
                 {
                     element.IsDirty = true;
-                    _isTextureDirty = true;
                     hasChanges = true;
                 }
             }
@@ -492,50 +536,7 @@ namespace CinematicShaders.UI.Screens.Layers
             return count;
         }
         
-        /// <summary>
-        /// Render all Layer 3 content to single texture.
-        /// </summary>
-        private void RenderLayer3ToTexture()
-        {
-            if (_layer3Texture == null || !_layer3Texture.IsCreated() || _textSystem == IntPtr.Zero) return;
-            
-            BuildLayer3Content();
-            
-            string fullText = string.Join("\n", _layer3ContentLines);
-            
-            uint color = CinematicShadersUIResources.Colors.CRTColors.GetColorUint(StarfieldSettings.KartographerGridColor);
-            int glyphCount = StarfieldNative.CR_TextLayoutEx(
-                _textSystem, 
-                fullText, 
-                _fontSize, 
-                color, 
-                0f, 0f, 0f, 0.667f
-            );
-            
-            if (glyphCount <= 0) return;
-            
-            RenderTexture prevActive = RenderTexture.active;
-            try
-            {
-                RenderTexture.active = _layer3Texture;
-                GL.Clear(true, true, Color.clear);
-                
-                StarfieldNative.CR_TextDispatch(
-                    _textSystem,
-                    _layer3Texture.GetNativeTexturePtr(),
-                    glyphCount,
-                    _layer3Texture.width,
-                    _layer3Texture.height
-                );
-            }
-            finally
-            {
-                RenderTexture.active = prevActive;
-            }
-            
-            _isTextureDirty = false;
-        }
-        
+
         /// <summary>
         /// Initialize grid buffer with spaces.
         /// </summary>
@@ -849,7 +850,6 @@ namespace CinematicShaders.UI.Screens.Layers
         /// </summary>
         public void Cleanup()
         {
-            _layer3Texture = null;
         }
     }
 }
