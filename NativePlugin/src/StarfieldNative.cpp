@@ -3617,8 +3617,30 @@ void CR_StarfieldShutdown()
         }
     }
     
+    // Cleanup grid label slot SRVs
+    for (int i = 0; i < 12; i++) {
+        if (g_StarfieldState.gridLabelSlots[i].textureSRV) {
+            g_StarfieldState.gridLabelSlots[i].textureSRV->Release();
+            g_StarfieldState.gridLabelSlots[i].textureSRV = nullptr;
+        }
+        g_StarfieldState.gridLabelSlots[i].isActive = false;
+    }
+    
+    if (g_StarfieldState.kartographerVS) { g_StarfieldState.kartographerVS->Release(); g_StarfieldState.kartographerVS = nullptr; }
+    if (g_StarfieldState.kartographerPS) { g_StarfieldState.kartographerPS->Release(); g_StarfieldState.kartographerPS = nullptr; }
+    if (g_StarfieldState.kartographerBlendState) { g_StarfieldState.kartographerBlendState->Release(); g_StarfieldState.kartographerBlendState = nullptr; }
+    if (g_StarfieldState.kartographerCB) { g_StarfieldState.kartographerCB->Release(); g_StarfieldState.kartographerCB = nullptr; }
+    
+    if (g_StarfieldState.textCS) { g_StarfieldState.textCS->Release(); g_StarfieldState.textCS = nullptr; }
+    if (g_StarfieldState.textCB) { g_StarfieldState.textCB->Release(); g_StarfieldState.textCB = nullptr; }
+    if (g_StarfieldState.textSampler) { g_StarfieldState.textSampler->Release(); g_StarfieldState.textSampler = nullptr; }
+    
+    if (g_StarfieldState.navballIconArray) { g_StarfieldState.navballIconArray->Release(); g_StarfieldState.navballIconArray = nullptr; }
+    if (g_StarfieldState.navballIconArraySRV) { g_StarfieldState.navballIconArraySRV->Release(); g_StarfieldState.navballIconArraySRV = nullptr; }
     if (g_StarfieldState.pointingIconSRV) { g_StarfieldState.pointingIconSRV->Release(); g_StarfieldState.pointingIconSRV = nullptr; }
     if (g_StarfieldState.maneuverTextSRV) { g_StarfieldState.maneuverTextSRV->Release(); g_StarfieldState.maneuverTextSRV = nullptr; }
+    
+    if (g_StarfieldState.explicitRenderTarget) { g_StarfieldState.explicitRenderTarget->Release(); g_StarfieldState.explicitRenderTarget = nullptr; }
     
     if (g_StarfieldState.device) { g_StarfieldState.device->Release(); g_StarfieldState.device = nullptr; }
     
@@ -3672,6 +3694,20 @@ void CR_StarfieldInvalidateResources()
     if (g_StarfieldState.maneuverTextSRV) { 
         g_StarfieldState.maneuverTextSRV->Release(); 
         g_StarfieldState.maneuverTextSRV = nullptr; 
+    }
+    
+    // Cleanup grid label slot SRVs
+    for (int i = 0; i < 12; i++) {
+        if (g_StarfieldState.gridLabelSlots[i].textureSRV) {
+            g_StarfieldState.gridLabelSlots[i].textureSRV->Release();
+            g_StarfieldState.gridLabelSlots[i].textureSRV = nullptr;
+        }
+        g_StarfieldState.gridLabelSlots[i].isActive = false;
+    }
+    
+    if (g_StarfieldState.explicitRenderTarget) {
+        g_StarfieldState.explicitRenderTarget->Release();
+        g_StarfieldState.explicitRenderTarget = nullptr;
     }
     
     // Reset initialized flag so resources get recreated
