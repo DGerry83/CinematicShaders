@@ -14,6 +14,8 @@
 #include "../include/KartographerVS.h"
 #include "../include/KartographerPS.h"
 #include "../include/KartographerText.h"
+#include "../include/ConsoleVS.h"
+#include "../include/ConsolePS.h"
 #include <vector>
 #include <mutex>
 #include <algorithm>
@@ -277,6 +279,18 @@ static struct {
         uint32_t color = 0;
     };
     GridLabelSlot gridLabelSlots[12];
+    
+    // Console instanced renderer resources
+    ID3D11Buffer* consoleQuadVB = nullptr;
+    ID3D11Buffer* consoleQuadIB = nullptr;
+    ID3D11Buffer* consoleInstanceVB = nullptr;
+    ID3D11InputLayout* consoleInputLayout = nullptr;
+    ID3D11VertexShader* consoleVS = nullptr;
+    ID3D11PixelShader* consolePS = nullptr;
+    ID3D11Buffer* consoleConstantsCB = nullptr;
+    ID3D11SamplerState* consoleSampler = nullptr;
+    ID3D11BlendState* consoleBlendState = nullptr;
+    bool consoleRendererInitialized = false;
     
     // Cached catalog SRV to avoid per-frame recreation
     ID3D11ShaderResourceView* catalogSRV = nullptr;
@@ -2684,6 +2698,109 @@ void CR_TextDispatchEx(
     context->Release();
 }
 
+// Console renderer lazy initialization
+static bool EnsureConsoleRenderer(ID3D11Device* device) {
+    if (g_StarfieldState.consoleRendererInitialized)
+        return true;
+
+    // Unit quad (4 vertices, 6 indices)
+    struct QuadVertex {
+        float pos[2];
+        float uv[2];
+    };
+    QuadVertex vertices[] = {
+        { {0.0f, 0.0f}, {0.0f, 0.0f} },
+        { {1.0f, 0.0f}, {1.0f, 0.0f} },
+        { {1.0f, 1.0f}, {1.0f, 1.0f} },
+        { {0.0f, 1.0f}, {0.0f, 1.0f} },
+    };
+    uint16_t indices[] = { 0, 1, 2, 0, 2, 3 };
+
+    D3D11_BUFFER_DESC vbDesc = {};
+    vbDesc.ByteWidth = sizeof(vertices);
+    vbDesc.Usage = D3D11_USAGE_IMMUTABLE;
+    vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    D3D11_SUBRESOURCE_DATA vbData = { vertices, 0, 0 };
+    if (FAILED(device->CreateBuffer(&vbDesc, &vbData, &g_StarfieldState.consoleQuadVB)))
+        return false;
+
+    D3D11_BUFFER_DESC ibDesc = {};
+    ibDesc.ByteWidth = sizeof(indices);
+    ibDesc.Usage = D3D11_USAGE_IMMUTABLE;
+    ibDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+    D3D11_SUBRESOURCE_DATA ibData = { indices, 0, 0 };
+    if (FAILED(device->CreateBuffer(&ibDesc, &ibData, &g_StarfieldState.consoleQuadIB)))
+        return false;
+
+    D3D11_BUFFER_DESC instDesc = {};
+    instDesc.ByteWidth = 767 * sizeof(ConsoleCellInstance); // max console cells
+    instDesc.Usage = D3D11_USAGE_DYNAMIC;
+    instDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    instDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    if (FAILED(device->CreateBuffer(&instDesc, nullptr, &g_StarfieldState.consoleInstanceVB)))
+        return false;
+
+    D3D11_BUFFER_DESC cbDesc = {};
+    cbDesc.ByteWidth = sizeof(ConsoleConstants);
+    cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+    cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    if (FAILED(device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.consoleConstantsCB)))
+        return false;
+
+    // Input layout: per-vertex (float2 pos, float2 uv) + per-instance (uint2 grid, uint color, float4 uvrect)
+    D3D11_INPUT_ELEMENT_DESC layoutDesc[] = {
+        { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,       0, 0,  D3D11_INPUT_PER_VERTEX_DATA,   0 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, 8,  D3D11_INPUT_PER_VERTEX_DATA,   0 },
+        { "TEXCOORD", 1, DXGI_FORMAT_R16G16_UINT,        1, 0,  D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 2, DXGI_FORMAT_R32_UINT,           1, 4,  D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 8,  D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+    };
+    if (FAILED(device->CreateInputLayout(layoutDesc, ARRAYSIZE(layoutDesc), g_ConsoleVS, sizeof(g_ConsoleVS), &g_StarfieldState.consoleInputLayout)))
+        return false;
+
+    if (FAILED(device->CreateVertexShader(g_ConsoleVS, sizeof(g_ConsoleVS), nullptr, &g_StarfieldState.consoleVS)))
+        return false;
+    if (FAILED(device->CreatePixelShader(g_ConsolePS, sizeof(g_ConsolePS), nullptr, &g_StarfieldState.consolePS)))
+        return false;
+
+    D3D11_SAMPLER_DESC sampDesc = {};
+    sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+    sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+    sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+    sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+    if (FAILED(device->CreateSamplerState(&sampDesc, &g_StarfieldState.consoleSampler)))
+        return false;
+
+    D3D11_BLEND_DESC blendDesc = {};
+    blendDesc.RenderTarget[0].BlendEnable = TRUE;
+    blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+    blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+    blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+    blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+    blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+    blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+    blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+    if (FAILED(device->CreateBlendState(&blendDesc, &g_StarfieldState.consoleBlendState)))
+        return false;
+
+    g_StarfieldState.consoleRendererInitialized = true;
+    return true;
+}
+
+static void ReleaseConsoleRenderer() {
+    if (g_StarfieldState.consoleBlendState) { g_StarfieldState.consoleBlendState->Release(); g_StarfieldState.consoleBlendState = nullptr; }
+    if (g_StarfieldState.consoleSampler) { g_StarfieldState.consoleSampler->Release(); g_StarfieldState.consoleSampler = nullptr; }
+    if (g_StarfieldState.consolePS) { g_StarfieldState.consolePS->Release(); g_StarfieldState.consolePS = nullptr; }
+    if (g_StarfieldState.consoleVS) { g_StarfieldState.consoleVS->Release(); g_StarfieldState.consoleVS = nullptr; }
+    if (g_StarfieldState.consoleInputLayout) { g_StarfieldState.consoleInputLayout->Release(); g_StarfieldState.consoleInputLayout = nullptr; }
+    if (g_StarfieldState.consoleConstantsCB) { g_StarfieldState.consoleConstantsCB->Release(); g_StarfieldState.consoleConstantsCB = nullptr; }
+    if (g_StarfieldState.consoleInstanceVB) { g_StarfieldState.consoleInstanceVB->Release(); g_StarfieldState.consoleInstanceVB = nullptr; }
+    if (g_StarfieldState.consoleQuadIB) { g_StarfieldState.consoleQuadIB->Release(); g_StarfieldState.consoleQuadIB = nullptr; }
+    if (g_StarfieldState.consoleQuadVB) { g_StarfieldState.consoleQuadVB->Release(); g_StarfieldState.consoleQuadVB = nullptr; }
+    g_StarfieldState.consoleRendererInitialized = false;
+}
+
 extern "C" __declspec(dllexport)
 void CR_SetTextTexture(ID3D11Texture2D* texture)
 {
@@ -3637,6 +3754,8 @@ void CR_StarfieldShutdown()
     
     if (g_StarfieldState.explicitRenderTarget) { g_StarfieldState.explicitRenderTarget->Release(); g_StarfieldState.explicitRenderTarget = nullptr; }
     
+    ReleaseConsoleRenderer();
+    
     if (g_StarfieldState.device) { g_StarfieldState.device->Release(); g_StarfieldState.device = nullptr; }
     
     g_StarfieldState.cachedHDRFormat = DXGI_FORMAT_UNKNOWN;
@@ -3706,6 +3825,8 @@ void CR_StarfieldInvalidateResources()
         g_StarfieldState.explicitRenderTarget->Release();
         g_StarfieldState.explicitRenderTarget = nullptr;
     }
+    
+    ReleaseConsoleRenderer();
     
     // Reset initialized flag so resources get recreated
     g_StarfieldState.initialized = false;
@@ -4553,4 +4674,242 @@ int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize)
     
     LogToFile("[StarfieldCubemap] Render complete");
     return 0;
+}
+
+extern "C" __declspec(dllexport)
+void CR_DrawConsoleGrid(
+    void* textSystem,
+    const ConsoleCellInstance* cells,
+    int cellCount,
+    float displayX,
+    float displayY,
+    float displayW,
+    float displayH,
+    float fontSize,
+    uint32_t color)
+{
+    if (!textSystem || !cells || cellCount <= 0 || !g_StarfieldState.device)
+        return;
+
+    CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(textSystem);
+    ID3D11ShaderResourceView* atlasSRV = ts->GetAtlasSRV();
+    if (!atlasSRV)
+        return;
+
+    if (!EnsureConsoleRenderer(g_StarfieldState.device))
+        return;
+
+    ID3D11DeviceContext* context = nullptr;
+    g_StarfieldState.device->GetImmediateContext(&context);
+    if (!context)
+        return;
+
+    // --- Save D3D11 state ---
+    ID3D11RenderTargetView* prevRTVs[1] = { nullptr };
+    ID3D11DepthStencilView* prevDSV = nullptr;
+    context->OMGetRenderTargets(1, prevRTVs, &prevDSV);
+
+    ID3D11BlendState* prevBlend = nullptr;
+    FLOAT prevBlendFactor[4] = { 0,0,0,0 };
+    UINT prevSampleMask = 0;
+    context->OMGetBlendState(&prevBlend, prevBlendFactor, &prevSampleMask);
+
+    ID3D11DepthStencilState* prevDSState = nullptr;
+    UINT prevStencilRef = 0;
+    context->OMGetDepthStencilState(&prevDSState, &prevStencilRef);
+
+    D3D11_VIEWPORT prevViewport;
+    UINT prevViewportCount = 1;
+    context->RSGetViewports(&prevViewportCount, &prevViewport);
+
+    ID3D11RasterizerState* prevRS = nullptr;
+    context->RSGetState(&prevRS);
+
+    ID3D11Buffer* prevVSBuffers[1] = { nullptr };
+    ID3D11Buffer* prevVSBuffers1[1] = { nullptr };
+    UINT prevVBStrides[2] = { 0, 0 };
+    UINT prevVBOffsets[2] = { 0, 0 };
+    context->IAGetVertexBuffers(0, 1, prevVSBuffers, &prevVBStrides[0], &prevVBOffsets[0]);
+    context->IAGetVertexBuffers(1, 1, prevVSBuffers1, &prevVBStrides[1], &prevVBOffsets[1]);
+
+    ID3D11Buffer* prevIB = nullptr;
+    DXGI_FORMAT prevIBFormat = DXGI_FORMAT_UNKNOWN;
+    UINT prevIBOffset = 0;
+    context->IAGetIndexBuffer(&prevIB, &prevIBFormat, &prevIBOffset);
+
+    ID3D11InputLayout* prevIL = nullptr;
+    context->IAGetInputLayout(&prevIL);
+
+    D3D11_PRIMITIVE_TOPOLOGY prevTopology = D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
+    context->IAGetPrimitiveTopology(&prevTopology);
+
+    ID3D11VertexShader* prevVS = nullptr;
+    context->VSGetShader(&prevVS, nullptr, nullptr);
+    ID3D11Buffer* prevVSCB = nullptr;
+    context->VSGetConstantBuffers(0, 1, &prevVSCB);
+    ID3D11ShaderResourceView* prevVSSRV = nullptr;
+    context->VSGetShaderResources(0, 1, &prevVSSRV);
+    ID3D11SamplerState* prevVSSampler = nullptr;
+    context->VSGetSamplers(0, 1, &prevVSSampler);
+
+    ID3D11PixelShader* prevPS = nullptr;
+    context->PSGetShader(&prevPS, nullptr, nullptr);
+    ID3D11Buffer* prevPSCB = nullptr;
+    context->PSGetConstantBuffers(0, 1, &prevPSCB);
+    ID3D11ShaderResourceView* prevPSSRV = nullptr;
+    context->PSGetShaderResources(0, 1, &prevPSSRV);
+    ID3D11SamplerState* prevPSSampler = nullptr;
+    context->PSGetSamplers(0, 1, &prevPSSampler);
+
+    // --- Map instance data ---
+    D3D11_MAPPED_SUBRESOURCE mapped;
+    if (SUCCEEDED(context->Map(g_StarfieldState.consoleInstanceVB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+        memcpy(mapped.pData, cells, cellCount * sizeof(ConsoleCellInstance));
+        context->Unmap(g_StarfieldState.consoleInstanceVB, 0);
+    }
+
+    // --- Update constant buffer ---
+    if (SUCCEEDED(context->Map(g_StarfieldState.consoleConstantsCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+        ConsoleConstants* cb = (ConsoleConstants*)mapped.pData;
+        // Orthographic projection: left=displayX, right=displayX+displayW, top=displayY, bottom=displayY+displayH
+        float left   = displayX;
+        float right  = displayX + displayW;
+        float top    = displayY;
+        float bottom = displayY + displayH;
+        float nearZ  = 0.0f;
+        float farZ   = 1.0f;
+
+        cb->ProjectionM00 = 2.0f / (right - left);
+        cb->ProjectionM01 = 0.0f;
+        cb->ProjectionM02 = 0.0f;
+        cb->ProjectionM03 = 0.0f;
+
+        cb->ProjectionM10 = 0.0f;
+        cb->ProjectionM11 = 2.0f / (top - bottom);
+        cb->ProjectionM12 = 0.0f;
+        cb->ProjectionM13 = 0.0f;
+
+        cb->ProjectionM20 = 0.0f;
+        cb->ProjectionM21 = 0.0f;
+        cb->ProjectionM22 = 1.0f / (farZ - nearZ);
+        cb->ProjectionM23 = 0.0f;
+
+        cb->ProjectionM30 = -(right + left) / (right - left);
+        cb->ProjectionM31 = -(top + bottom) / (top - bottom);
+        cb->ProjectionM32 = -nearZ / (farZ - nearZ);
+        cb->ProjectionM33 = 1.0f;
+
+        cb->CellSizeX = fontSize * 0.5f; // adjust if needed; C# side controls actual sizing via GridOffset
+        cb->CellSizeY = fontSize;
+        cb->GridOffsetX = displayX;
+        cb->GridOffsetY = displayY;
+        cb->TypeOnProgress = 1.0f; // C# handles type-on by culling cells; leave at 1.0
+        cb->AtlasSize = (float)ts->GetAtlasSize();
+        cb->_pad1 = 0.0f;
+        cb->_pad2 = 0.0f;
+        context->Unmap(g_StarfieldState.consoleConstantsCB, 0);
+    }
+
+    // --- Set pipeline state ---
+    D3D11_VIEWPORT vp = {};
+    vp.TopLeftX = displayX;
+    vp.TopLeftY = displayY;
+    vp.Width = displayW;
+    vp.Height = displayH;
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 1.0f;
+    context->RSSetViewports(1, &vp);
+
+    UINT strides[2] = { sizeof(float) * 4, sizeof(ConsoleCellInstance) };
+    UINT offsets[2] = { 0, 0 };
+    ID3D11Buffer* vbs[2] = { g_StarfieldState.consoleQuadVB, g_StarfieldState.consoleInstanceVB };
+    context->IASetVertexBuffers(0, 2, vbs, strides, offsets);
+    context->IASetIndexBuffer(g_StarfieldState.consoleQuadIB, DXGI_FORMAT_R16_UINT, 0);
+    context->IASetInputLayout(g_StarfieldState.consoleInputLayout);
+    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    context->VSSetShader(g_StarfieldState.consoleVS, nullptr, 0);
+    context->VSSetConstantBuffers(0, 1, &g_StarfieldState.consoleConstantsCB);
+
+    context->PSSetShader(g_StarfieldState.consolePS, nullptr, 0);
+    context->PSSetShaderResources(0, 1, &atlasSRV);
+    context->PSSetSamplers(0, 1, &g_StarfieldState.consoleSampler);
+
+    float blendFactor[4] = { 0, 0, 0, 0 };
+    context->OMSetBlendState(g_StarfieldState.consoleBlendState, blendFactor, 0xFFFFFFFF);
+
+    D3D11_DEPTH_STENCIL_DESC dsDesc = {};
+    dsDesc.DepthEnable = FALSE;
+    dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+    dsDesc.StencilEnable = FALSE;
+    ID3D11DepthStencilState* dsState = nullptr;
+    g_StarfieldState.device->CreateDepthStencilState(&dsDesc, &dsState);
+    if (dsState) {
+        context->OMSetDepthStencilState(dsState, 0);
+    }
+
+    // --- Draw ---
+    context->DrawIndexedInstanced(6, cellCount, 0, 0, 0);
+
+    // --- Cleanup temporary DS state ---
+    if (dsState) {
+        dsState->Release();
+    }
+
+    // --- Restore D3D11 state ---
+    context->OMSetRenderTargets(1, prevRTVs, prevDSV);
+    if (prevRTVs[0]) prevRTVs[0]->Release();
+    if (prevDSV) prevDSV->Release();
+
+    context->OMSetBlendState(prevBlend, prevBlendFactor, prevSampleMask);
+    if (prevBlend) prevBlend->Release();
+
+    context->OMSetDepthStencilState(prevDSState, prevStencilRef);
+    if (prevDSState) prevDSState->Release();
+
+    if (prevViewportCount > 0)
+        context->RSSetViewports(prevViewportCount, &prevViewport);
+
+    context->RSSetState(prevRS);
+    if (prevRS) prevRS->Release();
+
+    // Clear our bindings first
+    ID3D11Buffer* nullVBS[2] = { nullptr, nullptr };
+    UINT nullStrides[2] = { 0, 0 };
+    UINT nullOffsets[2] = { 0, 0 };
+    context->IASetVertexBuffers(0, 2, nullVBS, nullStrides, nullOffsets);
+
+    // Restore original
+    context->IASetVertexBuffers(0, 1, prevVSBuffers, &prevVBStrides[0], &prevVBOffsets[0]);
+    context->IASetVertexBuffers(1, 1, prevVSBuffers1, &prevVBStrides[1], &prevVBOffsets[1]);
+    if (prevVSBuffers[0]) prevVSBuffers[0]->Release();
+    if (prevVSBuffers1[0]) prevVSBuffers1[0]->Release();
+
+    context->IASetIndexBuffer(prevIB, prevIBFormat, prevIBOffset);
+    if (prevIB) prevIB->Release();
+
+    context->IASetInputLayout(prevIL);
+    if (prevIL) prevIL->Release();
+
+    context->IASetPrimitiveTopology(prevTopology);
+
+    context->VSSetShader(prevVS, nullptr, 0);
+    if (prevVS) prevVS->Release();
+    context->VSSetConstantBuffers(0, 1, &prevVSCB);
+    if (prevVSCB) prevVSCB->Release();
+    context->VSSetShaderResources(0, 1, &prevVSSRV);
+    if (prevVSSRV) prevVSSRV->Release();
+    context->VSSetSamplers(0, 1, &prevVSSampler);
+    if (prevVSSampler) prevVSSampler->Release();
+
+    context->PSSetShader(prevPS, nullptr, 0);
+    if (prevPS) prevPS->Release();
+    context->PSSetConstantBuffers(0, 1, &prevPSCB);
+    if (prevPSCB) prevPSCB->Release();
+    context->PSSetShaderResources(0, 1, &prevPSSRV);
+    if (prevPSSRV) prevPSSRV->Release();
+    context->PSSetSamplers(0, 1, &prevPSSampler);
+    if (prevPSSampler) prevPSSampler->Release();
+
+    context->Release();
 }
