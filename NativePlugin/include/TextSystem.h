@@ -91,6 +91,10 @@ public:
     // Debug: Export first glyph's bitmap from atlas
     void ExportGlyphDebug(const char* baseFilename);
     
+    // Stable glyph ID for instanced console rendering
+    uint16_t GetOrAssignGlyphID(int codepoint);
+    bool GetGlyphUVRect(uint16_t glyphID, float* outU0, float* outV0, float* outU1, float* outV1) const;
+    
 private:
     // Ensure glyph is packed into atlas (rasterizes if needed)
     bool PackGlyph(int codepoint);
@@ -126,6 +130,10 @@ private:
     // Glyph cache (cleared when font size changes)
     std::unordered_map<int, GlyphMetric> m_glyphCache;
     int m_cachedFontPx = 0;  // Quantized font size to avoid float comparison issues
+    
+    // Stable glyph ID mapping for instanced rendering
+    std::unordered_map<int, uint16_t> m_glyphIDMap;
+    uint16_t m_nextGlyphID = 0;
     
     // Clear atlas and glyph cache (called when font size changes)
     void ClearAtlasAndCache();
@@ -172,4 +180,7 @@ typedef void* TextSystemHandle;
     // Debug export
     __declspec(dllexport) void CR_TextExportAtlas(TextSystemHandle handle, const char* filename);
     __declspec(dllexport) void CR_TextExportGlyphDebug(TextSystemHandle handle, const char* baseFilename);
+    
+    // Get stable glyph ID for a codepoint (for instanced rendering)
+    __declspec(dllexport) uint16_t CR_TextGetGlyphID(TextSystemHandle handle, int codepoint);
 }

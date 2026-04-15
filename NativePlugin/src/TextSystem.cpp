@@ -276,6 +276,9 @@ bool TextSystem::PackGlyph(int codepoint) {
     // Cache metric
     m_glyphCache[codepoint] = metric;
 
+    // Assign stable glyph ID for instanced rendering
+    GetOrAssignGlyphID(codepoint);
+
     // Update packing state
     m_atlasX += bmpW + GLYPH_PADDING;
     m_atlasRowHeight = std::max(m_atlasRowHeight, bmpH);
@@ -294,6 +297,9 @@ void TextSystem::ClearAtlasAndCache() {
     if (m_context && m_atlasTex) {
         m_context->UpdateSubresource(m_atlasTex, 0, nullptr, m_atlasPixels.data(), m_atlasWidth, 0);
     }
+    
+    m_glyphIDMap.clear();
+    m_nextGlyphID = 0;
 }
 
 int TextSystem::LayoutString(const char* text, float fontSize, uint32_t color) {
@@ -497,6 +503,37 @@ void TextSystem::MeasureString(const char* text, float fontSize, float& outWidth
     
     // Restore old scale
     m_fontScale = oldScale;
+}
+
+uint16_t TextSystem::GetOrAssignGlyphID(int codepoint) {
+    auto it = m_glyphIDMap.find(codepoint);
+    if (it != m_glyphIDMap.end()) {
+        return it->second;
+    }
+    uint16_t id = m_nextGlyphID++;
+    m_glyphIDMap[codepoint] = id;
+    return id;
+}
+
+bool TextSystem::GetGlyphUVRect(uint16_t glyphID, float* outU0, float* outV0, float* outU1, float* outV1) const {
+    if (!outU0 || !outV0 || !outU1 || !outV1)
+        return false;
+    // Search for the codepoint that maps to this glyphID
+    for (const auto& pair : m_glyphIDMap) {
+        if (pair.second == glyphID) {
+            auto cacheIt = m_glyphCache.find(pair.first);
+            if (cacheIt != m_glyphCache.end()) {
+                const GlyphMetric& m = cacheIt->second;
+                *outU0 = m.u0;
+                *outV0 = m.v0;
+                *outU1 = m.u1;
+                *outV1 = m.v1;
+                return true;
+            }
+            break;
+        }
+    }
+    return false;
 }
 
 void TextSystem::ExportAtlasToFile(const char* filename) {
@@ -751,4 +788,10 @@ void CR_TextExportGlyphDebug(TextSystemHandle handle, const char* baseFilename) 
     if (!handle) return;
     TextSystem* ts = static_cast<TextSystem*>(handle);
     ts->ExportGlyphDebug(baseFilename);
+}
+
+uint16_t CR_TextGetGlyphID(TextSystemHandle handle, int codepoint) {
+    if (!handle) return 0xFFFF; // Invalid glyph ID
+    TextSystem* ts = static_cast<TextSystem*>(handle);
+    return ts->GetOrAssignGlyphID(codepoint);
 }
