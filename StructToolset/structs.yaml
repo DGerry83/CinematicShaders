@@ -843,3 +843,97 @@ structs:
       - name: _padManeuverText2
         type: float
         comment: Padding to 16-byte boundary
+
+  # ============================================================================
+  # ConsoleCellInstance - GPU instance data for Star Console text grid
+  # Total: 24 bytes, packed (no padding required)
+  # ============================================================================
+  - name: ConsoleCellInstance
+    size_align: 4
+    fields:
+      - name: GridX
+        type: uint16
+        comment: Grid column index
+      - name: GridY
+        type: uint16
+        comment: Grid row index
+      - name: GlyphID
+        type: uint16
+        comment: Stable glyph ID from TextSystem
+      - name: _pad1
+        type: uint16
+        comment: Padding to 4-byte boundary
+      - name: Color
+        type: uint32
+        comment: Packed ARGB color
+      - name: U0
+        type: float
+        comment: Atlas UV left
+      - name: V0
+        type: float
+        comment: Atlas UV top
+      - name: U1
+        type: float
+        comment: Atlas UV right
+      - name: V1
+        type: float
+        comment: Atlas UV bottom
+
+  # ============================================================================
+  # ConsoleConstants - HLSL constant buffer for console renderer
+  # Total: 96 bytes, 16-byte aligned
+  # ============================================================================
+  - name: ConsoleConstants
+    size_align: 16
+    fields:
+      # Projection matrix (64 bytes)
+      - name: ProjectionM00
+        type: float
+      - name: ProjectionM01
+        type: float
+      - name: ProjectionM02
+        type: float
+      - name: ProjectionM03
+        type: float
+      - name: ProjectionM10
+        type: float
+      - name: ProjectionM11
+        type: float
+      - name: ProjectionM12
+        type: float
+      - name: ProjectionM13
+        type: float
+      - name: ProjectionM20
+        type: float
+      - name: ProjectionM21
+        type: float
+      - name: ProjectionM22
+        type: float
+      - name: ProjectionM23
+        type: float
+      - name: ProjectionM30
+        type: float
+      - name: ProjectionM31
+        type: float
+      - name: ProjectionM32
+        type: float
+      - name: ProjectionM33
+        type: float
+      # Cell params (16 bytes)
+      - name: CellSizeX
+        type: float
+      - name: CellSizeY
+        type: float
+      - name: GridOffsetX
+        type: float
+      - name: GridOffsetY
+        type: float
+      # Misc (16 bytes with padding)
+      - name: TypeOnProgress
+        type: float
+      - name: AtlasSize
+        type: float
+      - name: _pad1
+        type: float
+      - name: _pad2
+        type: float
