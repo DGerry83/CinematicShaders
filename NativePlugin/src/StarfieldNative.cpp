@@ -4687,7 +4687,9 @@ void CR_DrawConsoleGrid(
     float displayH,
     float fontSize,
     uint32_t color,
-    ID3D11Texture2D* targetTexture)
+    ID3D11Texture2D* targetTexture,
+    float cellSizeX,
+    float cellSizeY)
 {
     if (!textSystem || !cells || cellCount <= 0 || !targetTexture)
         return;
@@ -4780,11 +4782,11 @@ void CR_DrawConsoleGrid(
     // --- Update constant buffer ---
     if (SUCCEEDED(context->Map(g_StarfieldState.consoleConstantsCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
         ConsoleConstants* cb = (ConsoleConstants*)mapped.pData;
-        // Orthographic projection: left=displayX, right=displayX+displayW, top=displayY, bottom=displayY+displayH
-        float left   = displayX;
-        float right  = displayX + displayW;
-        float top    = displayY;
-        float bottom = displayY + displayH;
+        // RT-local orthographic projection
+        float left   = 0.0f;
+        float right  = displayW;
+        float top    = 0.0f;
+        float bottom = displayH;
         float nearZ  = 0.0f;
         float farZ   = 1.0f;
 
@@ -4808,10 +4810,10 @@ void CR_DrawConsoleGrid(
         cb->ProjectionM32 = -nearZ / (farZ - nearZ);
         cb->ProjectionM33 = 1.0f;
 
-        cb->CellSizeX = fontSize * 0.5f; // adjust if needed; C# side controls actual sizing via GridOffset
-        cb->CellSizeY = fontSize;
-        cb->GridOffsetX = displayX;
-        cb->GridOffsetY = displayY;
+        cb->CellSizeX = cellSizeX;
+        cb->CellSizeY = cellSizeY;
+        cb->GridOffsetX = 0.0f;
+        cb->GridOffsetY = 0.0f;
         cb->TypeOnProgress = 1.0f; // C# handles type-on by culling cells; leave at 1.0
         cb->AtlasSize = (float)ts->GetAtlasSize();
         cb->_pad1 = 0.0f;
@@ -4830,10 +4832,14 @@ void CR_DrawConsoleGrid(
     }
     context->OMSetRenderTargets(1, &rtv, nullptr);
 
+    // --- Clear RTV ---
+    float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    context->ClearRenderTargetView(rtv, clearColor);
+
     // --- Set pipeline state ---
     D3D11_VIEWPORT vp = {};
-    vp.TopLeftX = displayX;
-    vp.TopLeftY = displayY;
+    vp.TopLeftX = 0.0f;
+    vp.TopLeftY = 0.0f;
     vp.Width = displayW;
     vp.Height = displayH;
     vp.MinDepth = 0.0f;

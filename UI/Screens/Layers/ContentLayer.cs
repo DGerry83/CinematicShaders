@@ -71,7 +71,10 @@ namespace CinematicShaders.UI.Screens.Layers
                 {
                     char c = line[x];
                     if (c == ' ')
+                    {
+                        glyphIndex++;
                         continue;
+                    }
 
                     if (glyphIndex >= glyphCount)
                         break;

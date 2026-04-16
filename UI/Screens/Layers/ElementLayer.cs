@@ -402,7 +402,10 @@ namespace CinematicShaders.UI.Screens.Layers
                 {
                     char c = _gridBuffer[row, col];
                     if (c == '\0' || c == ' ')
+                    {
+                        glyphIndex++;
                         continue;
+                    }
 
                     if (glyphIndex >= glyphCount)
                         break;
