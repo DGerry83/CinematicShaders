@@ -767,7 +767,13 @@ namespace CinematicShaders.UI
             // Render current screen via ScreenManager (SplashScreen, MainScreen, or ScanScreen)
             if (_displayPowered && _screenManager != null)
             {
-                _screenManager.Render(_displayRect);
+                // Convert window-local display rect to screen-space for native backbuffer draw
+                Rect screenDisplayRect = new Rect(
+                    _windowRect.x + _displayRect.x,
+                    _windowRect.y + _displayRect.y,
+                    _displayRect.width,
+                    _displayRect.height);
+                _screenManager.Render(screenDisplayRect);
             }
             
         }

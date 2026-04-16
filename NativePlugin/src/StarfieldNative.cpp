@@ -20,6 +20,7 @@
 #include <mutex>
 #include <algorithm>
 #include <cmath>
+#include <unordered_map>
 
 // External declarations from main module
 extern void LogToFile(const char* fmt, ...);
@@ -294,6 +295,9 @@ static struct {
     
     // Cached catalog SRV to avoid per-frame recreation
     ID3D11ShaderResourceView* catalogSRV = nullptr;
+    
+    // Cached UAVs for text dispatch to avoid CreateUnorderedAccessView per frame
+    std::unordered_map<ID3D11Texture2D*, ID3D11UnorderedAccessView*> textUAVCache;
 } g_StarfieldState;
 
 // Constant buffer layouts (must match HLSL exactly, 16-byte aligned)
@@ -2501,21 +2505,26 @@ void CR_TextDispatch(
         g_StarfieldState.device->CreateSamplerState(&sampDesc, &g_StarfieldState.textSampler);
     }
     
-    // Create UAV for output texture
+    // Get or create cached UAV for output texture
     ID3D11UnorderedAccessView* outputUAV = nullptr;
-    D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-    uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
-    HRESULT hr = g_StarfieldState.device->CreateUnorderedAccessView(outputTexture, &uavDesc, &outputUAV);
-    if (FAILED(hr)) {
-        context->Release();
-        return;
+    auto uavIt = g_StarfieldState.textUAVCache.find(outputTexture);
+    if (uavIt != g_StarfieldState.textUAVCache.end()) {
+        outputUAV = uavIt->second;
+    } else {
+        D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+        uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+        HRESULT hr = g_StarfieldState.device->CreateUnorderedAccessView(outputTexture, &uavDesc, &outputUAV);
+        if (FAILED(hr)) {
+            context->Release();
+            return;
+        }
+        g_StarfieldState.textUAVCache[outputTexture] = outputUAV;
     }
     
     // Get atlas texture from text system
     ID3D11ShaderResourceView* atlasSRV = ts->GetAtlasSRV();
     if (!atlasSRV) {
-        outputUAV->Release();
         context->Release();
         return;
     }
@@ -2560,7 +2569,6 @@ void CR_TextDispatch(
     context->CSSetShaderResources(0, 2, nullSRV);
     context->CSSetShader(nullptr, nullptr, 0);
     
-    outputUAV->Release();
     context->Release();
 }
 
@@ -2633,21 +2641,26 @@ void CR_TextDispatchEx(
         g_StarfieldState.device->CreateSamplerState(&sampDesc, &g_StarfieldState.textSampler);
     }
     
-    // Create UAV for output texture
+    // Get or create cached UAV for output texture
     ID3D11UnorderedAccessView* outputUAV = nullptr;
-    D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-    uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
-    HRESULT hr = g_StarfieldState.device->CreateUnorderedAccessView(outputTexture, &uavDesc, &outputUAV);
-    if (FAILED(hr)) {
-        context->Release();
-        return;
+    auto uavIt = g_StarfieldState.textUAVCache.find(outputTexture);
+    if (uavIt != g_StarfieldState.textUAVCache.end()) {
+        outputUAV = uavIt->second;
+    } else {
+        D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+        uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+        HRESULT hr = g_StarfieldState.device->CreateUnorderedAccessView(outputTexture, &uavDesc, &outputUAV);
+        if (FAILED(hr)) {
+            context->Release();
+            return;
+        }
+        g_StarfieldState.textUAVCache[outputTexture] = outputUAV;
     }
     
     // Get atlas texture from text system
     ID3D11ShaderResourceView* atlasSRV = ts->GetAtlasSRV();
     if (!atlasSRV) {
-        outputUAV->Release();
         context->Release();
         return;
     }
@@ -2694,7 +2707,6 @@ void CR_TextDispatchEx(
     context->CSSetShaderResources(0, 2, nullSRV);
     context->CSSetShader(nullptr, nullptr, 0);
     
-    outputUAV->Release();
     context->Release();
 }
 
@@ -3746,6 +3758,10 @@ void CR_StarfieldShutdown()
     if (g_StarfieldState.textCS) { g_StarfieldState.textCS->Release(); g_StarfieldState.textCS = nullptr; }
     if (g_StarfieldState.textCB) { g_StarfieldState.textCB->Release(); g_StarfieldState.textCB = nullptr; }
     if (g_StarfieldState.textSampler) { g_StarfieldState.textSampler->Release(); g_StarfieldState.textSampler = nullptr; }
+    for (auto& pair : g_StarfieldState.textUAVCache) {
+        if (pair.second) pair.second->Release();
+    }
+    g_StarfieldState.textUAVCache.clear();
     
     if (g_StarfieldState.navballIconArray) { g_StarfieldState.navballIconArray->Release(); g_StarfieldState.navballIconArray = nullptr; }
     if (g_StarfieldState.navballIconArraySRV) { g_StarfieldState.navballIconArraySRV->Release(); g_StarfieldState.navballIconArraySRV = nullptr; }
@@ -3820,6 +3836,11 @@ void CR_StarfieldInvalidateResources()
     }
     
     if (g_StarfieldState.catalogSRV) { g_StarfieldState.catalogSRV->Release(); g_StarfieldState.catalogSRV = nullptr; }
+    
+    for (auto& pair : g_StarfieldState.textUAVCache) {
+        if (pair.second) pair.second->Release();
+    }
+    g_StarfieldState.textUAVCache.clear();
     
     if (g_StarfieldState.explicitRenderTarget) {
         g_StarfieldState.explicitRenderTarget->Release();
