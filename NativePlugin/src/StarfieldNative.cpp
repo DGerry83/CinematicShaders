@@ -2753,8 +2753,8 @@ static bool EnsureConsoleRenderer(ID3D11Device* device) {
         { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,       0, 0,  D3D11_INPUT_PER_VERTEX_DATA,   0 },
         { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, 8,  D3D11_INPUT_PER_VERTEX_DATA,   0 },
         { "TEXCOORD", 1, DXGI_FORMAT_R16G16_UINT,        1, 0,  D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-        { "TEXCOORD", 2, DXGI_FORMAT_R32_UINT,           1, 4,  D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-        { "TEXCOORD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 8,  D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 2, DXGI_FORMAT_R32_UINT,           1, 8,  D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 12, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
     };
     if (FAILED(device->CreateInputLayout(layoutDesc, ARRAYSIZE(layoutDesc), g_ConsoleVS, sizeof(g_ConsoleVS), &g_StarfieldState.consoleInputLayout)))
         return false;
@@ -4686,9 +4686,10 @@ void CR_DrawConsoleGrid(
     float displayW,
     float displayH,
     float fontSize,
-    uint32_t color)
+    uint32_t color,
+    ID3D11Texture2D* targetTexture)
 {
-    if (!textSystem || !cells || cellCount <= 0)
+    if (!textSystem || !cells || cellCount <= 0 || !targetTexture)
         return;
 
     CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(textSystem);
@@ -4818,6 +4819,17 @@ void CR_DrawConsoleGrid(
         context->Unmap(g_StarfieldState.consoleConstantsCB, 0);
     }
 
+    // --- Create and bind RTV for target texture ---
+    ID3D11RenderTargetView* rtv = nullptr;
+    D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+    rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+    if (FAILED(device->CreateRenderTargetView(targetTexture, &rtvDesc, &rtv))) {
+        context->Release();
+        return;
+    }
+    context->OMSetRenderTargets(1, &rtv, nullptr);
+
     // --- Set pipeline state ---
     D3D11_VIEWPORT vp = {};
     vp.TopLeftX = displayX;
@@ -4862,6 +4874,11 @@ void CR_DrawConsoleGrid(
     // --- Cleanup temporary DS state ---
     if (dsState) {
         dsState->Release();
+    }
+
+    // --- Release temporary RTV ---
+    if (rtv) {
+        rtv->Release();
     }
 
     // --- Restore D3D11 state ---

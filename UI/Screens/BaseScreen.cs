@@ -43,6 +43,51 @@ namespace CinematicShaders.UI.Screens
         /// </summary>
         public List<ILayer> Layers { get; protected set; } = new List<ILayer>();
         
+        // RenderTexture cache for instanced console rendering (one per screen)
+        private RenderTexture _consoleRenderTexture;
+        private Vector2 _consoleRenderTextureSize;
+        
+        /// <summary>
+        /// Gets or creates a RenderTexture sized to the display rectangle for native console drawing.
+        /// Caches and reuses the texture if dimensions haven't changed.
+        /// </summary>
+        protected RenderTexture GetOrCreateConsoleRenderTexture(Rect displayRect)
+        {
+            int w = Mathf.Max(1, Mathf.RoundToInt(displayRect.width));
+            int h = Mathf.Max(1, Mathf.RoundToInt(displayRect.height));
+            Vector2 size = new Vector2(w, h);
+            
+            if (_consoleRenderTexture != null && _consoleRenderTextureSize == size)
+            {
+                return _consoleRenderTexture;
+            }
+            
+            if (_consoleRenderTexture != null)
+            {
+                _consoleRenderTexture.Release();
+                UnityEngine.Object.Destroy(_consoleRenderTexture);
+            }
+            
+            _consoleRenderTexture = new RenderTexture(w, h, 0, RenderTextureFormat.ARGB32);
+            _consoleRenderTexture.Create();
+            _consoleRenderTextureSize = size;
+            return _consoleRenderTexture;
+        }
+        
+        /// <summary>
+        /// Releases the cached console RenderTexture.
+        /// </summary>
+        protected void ReleaseConsoleRenderTexture()
+        {
+            if (_consoleRenderTexture != null)
+            {
+                _consoleRenderTexture.Release();
+                UnityEngine.Object.Destroy(_consoleRenderTexture);
+                _consoleRenderTexture = null;
+                _consoleRenderTextureSize = Vector2.zero;
+            }
+        }
+        
         // Animation state - per screen (customizable)
         
         /// <summary>
@@ -181,6 +226,7 @@ namespace CinematicShaders.UI.Screens
         public virtual void OnExit()
         {
             // Override in derived classes if cleanup needed
+            ReleaseConsoleRenderTexture();
         }
         
         /// <summary>
