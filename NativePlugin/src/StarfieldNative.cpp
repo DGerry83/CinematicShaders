@@ -4633,10 +4633,10 @@ static void ExecuteConsoleDraw(ID3D11DeviceContext* context)
     // --- Update constant buffer ---
     if (SUCCEEDED(context->Map(g_StarfieldState.consoleConstantsCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
         ConsoleConstants* cb = (ConsoleConstants*)mapped.pData;
-        float left   = displayX;
-        float right  = displayX + displayW;
-        float top    = displayY;
-        float bottom = displayY + displayH;
+        float left   = 0.0f;
+        float right  = displayW;
+        float top    = 0.0f;
+        float bottom = displayH;
         float nearZ  = 0.0f;
         float farZ   = 1.0f;
 
