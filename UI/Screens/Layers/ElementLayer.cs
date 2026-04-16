@@ -422,8 +422,8 @@ namespace CinematicShaders.UI.Screens.Layers
                         Color = color,
                         U0 = glyph.UvX,
                         V0 = glyph.UvY,
-                        U1 = glyph.UvX + glyph.UvW,
-                        V1 = glyph.UvY + glyph.UvH
+                        U1 = glyph.UvW,
+                        V1 = glyph.UvH
                     };
                     writeIndex++;
                     glyphIndex++;
