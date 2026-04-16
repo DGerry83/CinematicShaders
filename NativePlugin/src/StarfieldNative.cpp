@@ -298,6 +298,20 @@ static struct {
     
     // Cached UAVs for text dispatch to avoid CreateUnorderedAccessView per frame
     std::unordered_map<ID3D11Texture2D*, ID3D11UnorderedAccessView*> textUAVCache;
+    
+    // Console render staging
+    struct ConsoleDrawJob {
+        ConsoleCellInstance cells[767];
+        int cellCount = 0;
+        float displayX = 0;
+        float displayY = 0;
+        float displayW = 0;
+        float displayH = 0;
+        float fontSize = 0;
+        uint32_t color = 0;
+        void* textSystem = nullptr;
+        bool hasData = false;
+    } consoleDrawJob;
 } g_StarfieldState;
 
 // Constant buffer layouts (must match HLSL exactly, 16-byte aligned)
@@ -4712,7 +4726,33 @@ void CR_DrawConsoleGrid(
     if (!textSystem || !cells || cellCount <= 0)
         return;
 
-    CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(textSystem);
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+
+    int count = cellCount > 767 ? 767 : cellCount;
+    memcpy(g_StarfieldState.consoleDrawJob.cells, cells, count * sizeof(ConsoleCellInstance));
+    g_StarfieldState.consoleDrawJob.cellCount = count;
+    g_StarfieldState.consoleDrawJob.displayX = displayX;
+    g_StarfieldState.consoleDrawJob.displayY = displayY;
+    g_StarfieldState.consoleDrawJob.displayW = displayW;
+    g_StarfieldState.consoleDrawJob.displayH = displayH;
+    g_StarfieldState.consoleDrawJob.fontSize = fontSize;
+    g_StarfieldState.consoleDrawJob.color = color;
+    g_StarfieldState.consoleDrawJob.textSystem = textSystem;
+    g_StarfieldState.consoleDrawJob.hasData = true;
+}
+
+static void ExecuteConsoleDraw(ID3D11DeviceContext* context)
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+
+    if (!g_StarfieldState.consoleDrawJob.hasData)
+        return;
+
+    auto& job = g_StarfieldState.consoleDrawJob;
+    CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(job.textSystem);
+    if (!ts)
+        return;
+
     ID3D11ShaderResourceView* atlasSRV = ts->GetAtlasSRV();
     if (!atlasSRV)
         return;
@@ -4723,15 +4763,14 @@ void CR_DrawConsoleGrid(
     if (!device)
         return;
 
-    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
-
     if (!EnsureConsoleRenderer(device))
         return;
 
-    ID3D11DeviceContext* context = nullptr;
-    device->GetImmediateContext(&context);
-    if (!context)
-        return;
+    int cellCount = job.cellCount;
+    float displayX = job.displayX;
+    float displayY = job.displayY;
+    float displayW = job.displayW;
+    float displayH = job.displayH;
 
     // --- Save D3D11 state ---
     ID3D11RenderTargetView* prevRTVs[1] = { nullptr };
@@ -4793,14 +4832,13 @@ void CR_DrawConsoleGrid(
     // --- Map instance data ---
     D3D11_MAPPED_SUBRESOURCE mapped;
     if (SUCCEEDED(context->Map(g_StarfieldState.consoleInstanceVB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
-        memcpy(mapped.pData, cells, cellCount * sizeof(ConsoleCellInstance));
+        memcpy(mapped.pData, job.cells, cellCount * sizeof(ConsoleCellInstance));
         context->Unmap(g_StarfieldState.consoleInstanceVB, 0);
     }
 
     // --- Update constant buffer ---
     if (SUCCEEDED(context->Map(g_StarfieldState.consoleConstantsCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
         ConsoleConstants* cb = (ConsoleConstants*)mapped.pData;
-        // Screen-pixel orthographic projection for the console rectangle
         float left   = displayX;
         float right  = displayX + displayW;
         float top    = displayY;
@@ -4828,10 +4866,10 @@ void CR_DrawConsoleGrid(
         cb->ProjectionM32 = -nearZ / (farZ - nearZ);
         cb->ProjectionM33 = 1.0f;
 
-        cb->CellSizeX = 0.0f;   // unused
-        cb->CellSizeY = 0.0f;   // unused
-        cb->GridOffsetX = 0.0f; // unused
-        cb->GridOffsetY = 0.0f; // unused
+        cb->CellSizeX = 0.0f;
+        cb->CellSizeY = 0.0f;
+        cb->GridOffsetX = 0.0f;
+        cb->GridOffsetY = 0.0f;
         cb->TypeOnProgress = 1.0f;
         cb->AtlasSize = (float)ts->GetAtlasSize();
         cb->_pad1 = 0.0f;
@@ -4902,15 +4940,13 @@ void CR_DrawConsoleGrid(
     context->RSSetState(prevRS);
     if (prevRS) prevRS->Release();
 
-    // Clear our bindings first
     ID3D11Buffer* nullVBS[2] = { nullptr, nullptr };
     UINT nullStrides[2] = { 0, 0 };
     UINT nullOffsets[2] = { 0, 0 };
     context->IASetVertexBuffers(0, 2, nullVBS, nullStrides, nullOffsets);
 
-    // Restore original
     context->IASetVertexBuffers(0, 1, prevVSBuffers, &prevVBStrides[0], &prevVBOffsets[0]);
-    context->IASetVertexBuffers(1, 1, prevVSBuffers1, &prevVBStrides[1], &prevVBOffsets[1]);
+    context->IAGetVertexBuffers(1, 1, prevVSBuffers1, &prevVBStrides[1], &prevVBOffsets[1]);
     if (prevVSBuffers[0]) prevVSBuffers[0]->Release();
     if (prevVSBuffers1[0]) prevVSBuffers1[0]->Release();
 
@@ -4940,5 +4976,25 @@ void CR_DrawConsoleGrid(
     context->PSSetSamplers(0, 1, &prevPSSampler);
     if (prevPSSampler) prevPSSampler->Release();
 
+    job.hasData = false;
+}
+
+static void UNITY_INTERFACE_API OnConsoleRenderEvent(int eventId)
+{
+    if (!g_StarfieldState.device)
+        return;
+
+    ID3D11DeviceContext* context = nullptr;
+    g_StarfieldState.device->GetImmediateContext(&context);
+    if (!context)
+        return;
+
+    ExecuteConsoleDraw(context);
     context->Release();
+}
+
+extern "C" __declspec(dllexport)
+UnityRenderingEvent CR_GetConsoleRenderEventFunc()
+{
+    return OnConsoleRenderEvent;
 }

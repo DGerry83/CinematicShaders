@@ -774,6 +774,9 @@ namespace CinematicShaders.UI
                     _displayRect.width,
                     _displayRect.height);
                 _screenManager.Render(screenDisplayRect);
+                
+                // Execute console draw on the render thread (matches Starfield/GTAO pattern)
+                GL.IssuePluginEvent(StarfieldNative.CR_GetConsoleRenderEventFunc(), 0);
             }
             
         }
