@@ -506,6 +506,7 @@ namespace CinematicShaders.Core
                 RenderTexture.active = _textTexture;
                 
                 StarfieldNative.CR_TextDispatch(_textSystem, _textTexture.GetNativeTexturePtr(), glyphCount, 1024, 1024);
+                GL.IssuePluginEvent(StarfieldNative.CR_GetTextDispatchRenderEventFunc(), 0);
                 
                 // IMPORTANT: Set texture for shader sampling (use separate slot from star selector)
                 StarfieldNative.CR_SetVesselTargetTextTexture(_textTexture.GetNativeTexturePtr());

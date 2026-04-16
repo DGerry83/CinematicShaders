@@ -26,6 +26,15 @@
 extern void LogToFile(const char* fmt, ...);
 
 
+struct TextDispatchJob {
+    void* textSystem = nullptr;
+    ID3D11Texture2D* outputTexture = nullptr;
+    int glyphCount = 0;
+    int outputWidth = 0;
+    int outputHeight = 0;
+    int clearOutput = 0;  // 0 for CR_TextDispatch (always clear), 1/0 for CR_TextDispatchEx
+};
+
 static struct {
     ID3D11Device* device = nullptr;
     ID3D11Texture2D* hdrTexture = nullptr;
@@ -312,6 +321,8 @@ static struct {
         void* textSystem = nullptr;
         bool hasData = false;
     } consoleDrawJob;
+    
+    std::vector<TextDispatchJob> textDispatchQueue;
 } g_StarfieldState;
 
 // Constant buffer layouts (must match HLSL exactly, 16-byte aligned)
@@ -2464,126 +2475,17 @@ void CR_TextDispatch(
         return;
     }
     
-    CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(textSystem);
-    
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     
-    // Ensure glyph buffer is created and populated
-    ID3D11Buffer* glyphBuffer = ts->GetOrCreateGlyphBuffer();
-    if (!glyphBuffer) {
-        return;
-    }
+    TextDispatchJob job;
+    job.textSystem = textSystem;
+    job.outputTexture = outputTexture;
+    job.glyphCount = glyphCount;
+    job.outputWidth = outputWidth;
+    job.outputHeight = outputHeight;
+    job.clearOutput = 1;  // CR_TextDispatch always clears
     
-    ID3D11ShaderResourceView* glyphSRV = ts->GetGlyphBufferSRV();
-    if (!glyphSRV) {
-        return;
-    }
-    
-    if (!g_StarfieldState.device) {
-        return;
-    }
-    
-    ID3D11DeviceContext* context = nullptr;
-    g_StarfieldState.device->GetImmediateContext(&context);
-    if (!context) {
-        return;
-    }
-    
-    // Create compute shader if not already created
-    if (!g_StarfieldState.textCS) {
-        HRESULT hr = g_StarfieldState.device->CreateComputeShader(
-            g_KartographerTextCS, sizeof(g_KartographerTextCS), nullptr, &g_StarfieldState.textCS);
-        if (FAILED(hr)) {
-            context->Release();
-            return;
-        }
-    }
-    
-    // Create constant buffer if not already created
-    if (!g_StarfieldState.textCB) {
-        D3D11_BUFFER_DESC cbDesc = {};
-        cbDesc.ByteWidth = sizeof(TextParams);
-        cbDesc.Usage = D3D11_USAGE_DYNAMIC;
-        cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-        cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        g_StarfieldState.device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.textCB);
-    }
-    
-    // Create sampler if not already created
-    if (!g_StarfieldState.textSampler) {
-        D3D11_SAMPLER_DESC sampDesc = {};
-        sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-        sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-        sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-        sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-        g_StarfieldState.device->CreateSamplerState(&sampDesc, &g_StarfieldState.textSampler);
-    }
-    
-    // Get or create cached UAV for output texture
-    ID3D11UnorderedAccessView* outputUAV = nullptr;
-    auto uavIt = g_StarfieldState.textUAVCache.find(outputTexture);
-    if (uavIt != g_StarfieldState.textUAVCache.end()) {
-        outputUAV = uavIt->second;
-    } else {
-        D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-        uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
-        HRESULT hr = g_StarfieldState.device->CreateUnorderedAccessView(outputTexture, &uavDesc, &outputUAV);
-        if (FAILED(hr)) {
-            context->Release();
-            return;
-        }
-        g_StarfieldState.textUAVCache[outputTexture] = outputUAV;
-    }
-    
-    // Get atlas texture from text system
-    ID3D11ShaderResourceView* atlasSRV = ts->GetAtlasSRV();
-    if (!atlasSRV) {
-        context->Release();
-        return;
-    }
-    
-    // Update constant buffer
-    D3D11_MAPPED_SUBRESOURCE mapped;
-    if (SUCCEEDED(context->Map(g_StarfieldState.textCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
-        TextParams* params = (TextParams*)mapped.pData;
-        params->GlyphCount = glyphCount;
-        params->OutputSizeX = (float)outputWidth;
-        params->OutputSizeY = (float)outputHeight;
-        params->Pad = 0.0f;
-        
-        context->Unmap(g_StarfieldState.textCB, 0);
-    }
-    
-    // Clear output texture
-    UINT clearColor[4] = {0, 0, 0, 0};
-    context->ClearUnorderedAccessViewUint(outputUAV, clearColor);
-    
-    // Set compute shader and resources
-    context->CSSetShader(g_StarfieldState.textCS, nullptr, 0);
-    context->CSSetConstantBuffers(0, 1, &g_StarfieldState.textCB);
-    ID3D11ShaderResourceView* srvs[2] = {atlasSRV, glyphSRV}; // t0 = atlas, t1 = glyph buffer
-    context->CSSetShaderResources(0, 2, srvs);
-    context->CSSetSamplers(0, 1, &g_StarfieldState.textSampler);
-    
-    ID3D11UnorderedAccessView* uavs[1] = {outputUAV};
-    context->CSSetUnorderedAccessViews(0, 1, uavs, nullptr);
-    
-    // Dispatch compute shader
-    // +1 for box drawing thread if enabled
-    int totalThreads = glyphCount;
-    UINT dispatchX = (totalThreads + 63) / 64;  // 64 threads per group
-    UINT dispatchY = 1;
-    context->Dispatch(dispatchX, dispatchY, 1);
-    
-    // Unbind resources
-    ID3D11UnorderedAccessView* nullUAV[1] = {nullptr};
-    ID3D11ShaderResourceView* nullSRV[2] = {nullptr, nullptr};
-    context->CSSetUnorderedAccessViews(0, 1, nullUAV, nullptr);
-    context->CSSetShaderResources(0, 2, nullSRV);
-    context->CSSetShader(nullptr, nullptr, 0);
-    
-    context->Release();
+    g_StarfieldState.textDispatchQueue.push_back(job);
 }
 
 extern "C" __declspec(dllexport)
@@ -2600,128 +2502,17 @@ void CR_TextDispatchEx(
         return;
     }
     
-    CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(textSystem);
-    
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     
-    // Ensure glyph buffer is created and populated
-    ID3D11Buffer* glyphBuffer = ts->GetOrCreateGlyphBuffer();
-    if (!glyphBuffer) {
-        return;
-    }
+    TextDispatchJob job;
+    job.textSystem = textSystem;
+    job.outputTexture = outputTexture;
+    job.glyphCount = glyphCount;
+    job.outputWidth = outputWidth;
+    job.outputHeight = outputHeight;
+    job.clearOutput = clearOutput;
     
-    ID3D11ShaderResourceView* glyphSRV = ts->GetGlyphBufferSRV();
-    if (!glyphSRV) {
-        return;
-    }
-    
-    if (!g_StarfieldState.device) {
-        return;
-    }
-    
-    ID3D11DeviceContext* context = nullptr;
-    g_StarfieldState.device->GetImmediateContext(&context);
-    if (!context) {
-        return;
-    }
-    
-    // Create compute shader if not already created
-    if (!g_StarfieldState.textCS) {
-        HRESULT hr = g_StarfieldState.device->CreateComputeShader(
-            g_KartographerTextCS, sizeof(g_KartographerTextCS), nullptr, &g_StarfieldState.textCS);
-        if (FAILED(hr)) {
-            context->Release();
-            return;
-        }
-    }
-    
-    // Create constant buffer if not already created
-    if (!g_StarfieldState.textCB) {
-        D3D11_BUFFER_DESC cbDesc = {};
-        cbDesc.ByteWidth = sizeof(TextParams);
-        cbDesc.Usage = D3D11_USAGE_DYNAMIC;
-        cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-        cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        g_StarfieldState.device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.textCB);
-    }
-    
-    // Create sampler if not already created
-    if (!g_StarfieldState.textSampler) {
-        D3D11_SAMPLER_DESC sampDesc = {};
-        sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-        sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-        sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-        sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-        g_StarfieldState.device->CreateSamplerState(&sampDesc, &g_StarfieldState.textSampler);
-    }
-    
-    // Get or create cached UAV for output texture
-    ID3D11UnorderedAccessView* outputUAV = nullptr;
-    auto uavIt = g_StarfieldState.textUAVCache.find(outputTexture);
-    if (uavIt != g_StarfieldState.textUAVCache.end()) {
-        outputUAV = uavIt->second;
-    } else {
-        D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-        uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
-        HRESULT hr = g_StarfieldState.device->CreateUnorderedAccessView(outputTexture, &uavDesc, &outputUAV);
-        if (FAILED(hr)) {
-            context->Release();
-            return;
-        }
-        g_StarfieldState.textUAVCache[outputTexture] = outputUAV;
-    }
-    
-    // Get atlas texture from text system
-    ID3D11ShaderResourceView* atlasSRV = ts->GetAtlasSRV();
-    if (!atlasSRV) {
-        context->Release();
-        return;
-    }
-    
-    // Update constant buffer
-    D3D11_MAPPED_SUBRESOURCE mapped;
-    if (SUCCEEDED(context->Map(g_StarfieldState.textCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
-        TextParams* params = (TextParams*)mapped.pData;
-        params->GlyphCount = glyphCount;
-        params->OutputSizeX = (float)outputWidth;
-        params->OutputSizeY = (float)outputHeight;
-        params->Pad = 0.0f;
-        
-        context->Unmap(g_StarfieldState.textCB, 0);
-    }
-    
-    // Clear output texture only if requested
-    if (clearOutput != 0) {
-        UINT clearColor[4] = {0, 0, 0, 0};
-        context->ClearUnorderedAccessViewUint(outputUAV, clearColor);
-    }
-    
-    // Set compute shader and resources
-    context->CSSetShader(g_StarfieldState.textCS, nullptr, 0);
-    context->CSSetConstantBuffers(0, 1, &g_StarfieldState.textCB);
-    ID3D11ShaderResourceView* srvs[2] = {atlasSRV, glyphSRV}; // t0 = atlas, t1 = glyph buffer
-    context->CSSetShaderResources(0, 2, srvs);
-    context->CSSetSamplers(0, 1, &g_StarfieldState.textSampler);
-    
-    ID3D11UnorderedAccessView* uavs[1] = {outputUAV};
-    context->CSSetUnorderedAccessViews(0, 1, uavs, nullptr);
-    
-    // Dispatch compute shader
-    // +1 for box drawing thread if enabled
-    int totalThreads = glyphCount;
-    UINT dispatchX = (totalThreads + 63) / 64;  // 64 threads per group
-    UINT dispatchY = 1;
-    context->Dispatch(dispatchX, dispatchY, 1);
-    
-    // Unbind resources
-    ID3D11UnorderedAccessView* nullUAV[1] = {nullptr};
-    ID3D11ShaderResourceView* nullSRV[2] = {nullptr, nullptr};
-    context->CSSetUnorderedAccessViews(0, 1, nullUAV, nullptr);
-    context->CSSetShaderResources(0, 2, nullSRV);
-    context->CSSetShader(nullptr, nullptr, 0);
-    
-    context->Release();
+    g_StarfieldState.textDispatchQueue.push_back(job);
 }
 
 // Console renderer lazy initialization
@@ -4979,6 +4770,120 @@ static void ExecuteConsoleDraw(ID3D11DeviceContext* context)
     job.hasData = false;
 }
 
+static void ExecuteTextDispatches(ID3D11DeviceContext* context)
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
+    if (g_StarfieldState.textDispatchQueue.empty())
+        return;
+    
+    if (!g_StarfieldState.device)
+        return;
+    
+    // Lazy-create compute shader, constant buffer, sampler
+    if (!g_StarfieldState.textCS) {
+        HRESULT hr = g_StarfieldState.device->CreateComputeShader(
+            g_KartographerTextCS, sizeof(g_KartographerTextCS), nullptr, &g_StarfieldState.textCS);
+        if (FAILED(hr)) {
+            g_StarfieldState.textDispatchQueue.clear();
+            return;
+        }
+    }
+    
+    if (!g_StarfieldState.textCB) {
+        D3D11_BUFFER_DESC cbDesc = {};
+        cbDesc.ByteWidth = sizeof(TextParams);
+        cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+        cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        g_StarfieldState.device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.textCB);
+    }
+    
+    if (!g_StarfieldState.textSampler) {
+        D3D11_SAMPLER_DESC sampDesc = {};
+        sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+        sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+        sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+        sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+        g_StarfieldState.device->CreateSamplerState(&sampDesc, &g_StarfieldState.textSampler);
+    }
+    
+    for (auto& job : g_StarfieldState.textDispatchQueue) {
+        CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(job.textSystem);
+        if (!ts)
+            continue;
+        
+        ID3D11Buffer* glyphBuffer = ts->GetOrCreateGlyphBuffer();
+        if (!glyphBuffer)
+            continue;
+        
+        ID3D11ShaderResourceView* glyphSRV = ts->GetGlyphBufferSRV();
+        if (!glyphSRV)
+            continue;
+        
+        ID3D11ShaderResourceView* atlasSRV = ts->GetAtlasSRV();
+        if (!atlasSRV)
+            continue;
+        
+        // Get or create cached UAV for output texture
+        ID3D11UnorderedAccessView* outputUAV = nullptr;
+        auto uavIt = g_StarfieldState.textUAVCache.find(job.outputTexture);
+        if (uavIt != g_StarfieldState.textUAVCache.end()) {
+            outputUAV = uavIt->second;
+        } else {
+            D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+            uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+            uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+            HRESULT hr = g_StarfieldState.device->CreateUnorderedAccessView(job.outputTexture, &uavDesc, &outputUAV);
+            if (FAILED(hr))
+                continue;
+            g_StarfieldState.textUAVCache[job.outputTexture] = outputUAV;
+        }
+        
+        // Update constant buffer
+        D3D11_MAPPED_SUBRESOURCE mapped;
+        if (SUCCEEDED(context->Map(g_StarfieldState.textCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+            TextParams* params = (TextParams*)mapped.pData;
+            params->GlyphCount = job.glyphCount;
+            params->OutputSizeX = (float)job.outputWidth;
+            params->OutputSizeY = (float)job.outputHeight;
+            params->Pad = 0.0f;
+            context->Unmap(g_StarfieldState.textCB, 0);
+        }
+        
+        // Clear output texture if requested
+        if (job.clearOutput != 0) {
+            UINT clearColor[4] = {0, 0, 0, 0};
+            context->ClearUnorderedAccessViewUint(outputUAV, clearColor);
+        }
+        
+        // Set compute shader and resources
+        context->CSSetShader(g_StarfieldState.textCS, nullptr, 0);
+        context->CSSetConstantBuffers(0, 1, &g_StarfieldState.textCB);
+        ID3D11ShaderResourceView* srvs[2] = {atlasSRV, glyphSRV}; // t0 = atlas, t1 = glyph buffer
+        context->CSSetShaderResources(0, 2, srvs);
+        context->CSSetSamplers(0, 1, &g_StarfieldState.textSampler);
+        
+        ID3D11UnorderedAccessView* uavs[1] = {outputUAV};
+        context->CSSetUnorderedAccessViews(0, 1, uavs, nullptr);
+        
+        // Dispatch compute shader
+        int totalThreads = job.glyphCount;
+        UINT dispatchX = (totalThreads + 63) / 64;  // 64 threads per group
+        UINT dispatchY = 1;
+        context->Dispatch(dispatchX, dispatchY, 1);
+    }
+    
+    // Unbind resources after all jobs
+    ID3D11UnorderedAccessView* nullUAV[1] = {nullptr};
+    ID3D11ShaderResourceView* nullSRV[2] = {nullptr, nullptr};
+    context->CSSetUnorderedAccessViews(0, 1, nullUAV, nullptr);
+    context->CSSetShaderResources(0, 2, nullSRV);
+    context->CSSetShader(nullptr, nullptr, 0);
+    
+    g_StarfieldState.textDispatchQueue.clear();
+}
+
 static void UNITY_INTERFACE_API OnConsoleRenderEvent(int eventId)
 {
     if (!g_StarfieldState.device)
@@ -4993,8 +4898,28 @@ static void UNITY_INTERFACE_API OnConsoleRenderEvent(int eventId)
     context->Release();
 }
 
+static void UNITY_INTERFACE_API OnTextDispatchRenderEvent(int eventId)
+{
+    if (!g_StarfieldState.device)
+        return;
+
+    ID3D11DeviceContext* context = nullptr;
+    g_StarfieldState.device->GetImmediateContext(&context);
+    if (!context)
+        return;
+
+    ExecuteTextDispatches(context);
+    context->Release();
+}
+
 extern "C" __declspec(dllexport)
 UnityRenderingEvent CR_GetConsoleRenderEventFunc()
 {
     return OnConsoleRenderEvent;
+}
+
+extern "C" __declspec(dllexport)
+UnityRenderingEvent CR_GetTextDispatchRenderEventFunc()
+{
+    return OnTextDispatchRenderEvent;
 }

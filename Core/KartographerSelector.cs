@@ -532,6 +532,7 @@ namespace CinematicShaders.Core
                 glyphCount,
                 1024,
                 1024);
+            GL.IssuePluginEvent(StarfieldNative.CR_GetTextDispatchRenderEventFunc(), 0);
             
             // Set text texture for pixel shader sampling
             StarfieldNative.CR_SetTextTexture(_textTexture.GetNativeTexturePtr());
@@ -667,6 +668,7 @@ namespace CinematicShaders.Core
                     glyphCount,
                     GRID_LABEL_TEXTURE_SIZE,
                     GRID_LABEL_TEXTURE_SIZE);
+                GL.IssuePluginEvent(StarfieldNative.CR_GetTextDispatchRenderEventFunc(), 0);
 
                 // Set the grid label texture for shader (slot 0 - legacy compatibility)
                 StarfieldNative.CR_SetGridLabelTexture(0, texturePtr);

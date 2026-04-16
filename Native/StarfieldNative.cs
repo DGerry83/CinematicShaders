@@ -125,6 +125,9 @@ namespace CinematicShaders.Native
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr CR_GetConsoleRenderEventFunc();
 
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr CR_GetTextDispatchRenderEventFunc();
+
         /// <summary>
         /// Draw a box outline on the CRT UI surface.
         /// Call every frame while hovering. No persistent state.

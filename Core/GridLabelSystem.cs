@@ -792,6 +792,7 @@ namespace CinematicShaders.Core
                             TEXTURE_SIZE,
                             TEXTURE_SIZE,
                             1);
+                        GL.IssuePluginEvent(StarfieldNative.CR_GetTextDispatchRenderEventFunc(), 0);
                     }
                     
                     // Pass 2: render body next to initials (no clear)
@@ -805,6 +806,7 @@ namespace CinematicShaders.Core
                             TEXTURE_SIZE,
                             TEXTURE_SIZE,
                             0);
+                        GL.IssuePluginEvent(StarfieldNative.CR_GetTextDispatchRenderEventFunc(), 0);
                     }
                 }
                 finally
@@ -869,6 +871,7 @@ namespace CinematicShaders.Core
                         TEXTURE_SIZE,
                         TEXTURE_SIZE,
                         1);
+                    GL.IssuePluginEvent(StarfieldNative.CR_GetTextDispatchRenderEventFunc(), 0);
                 }
                 finally
                 {

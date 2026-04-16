@@ -359,6 +359,7 @@ namespace CinematicShaders.Core
                     MANEUVER_TEXT_WIDTH,
                     MANEUVER_TEXT_HEIGHT,
                     1);
+                GL.IssuePluginEvent(StarfieldNative.CR_GetTextDispatchRenderEventFunc(), 0);
 
                 StarfieldNative.CR_SetManeuverTextTexture(_maneuverTextTexture.GetNativeTexturePtr());
             }
