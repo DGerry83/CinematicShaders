@@ -113,6 +113,7 @@ namespace CinematicShaders.Native
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_DrawConsoleGrid(
             IntPtr textSystem,
+            IntPtr targetTexture,
             [In] ConsoleCellInstanceNative[] cells,
             int cellCount,
             float displayX,

@@ -767,16 +767,7 @@ namespace CinematicShaders.UI
             // Render current screen via ScreenManager (SplashScreen, MainScreen, or ScanScreen)
             if (_displayPowered && _screenManager != null)
             {
-                // Convert window-local display rect to screen-space for native backbuffer draw
-                Rect screenDisplayRect = new Rect(
-                    _windowRect.x + _displayRect.x,
-                    _windowRect.y + _displayRect.y,
-                    _displayRect.width,
-                    _displayRect.height);
-                _screenManager.Render(screenDisplayRect);
-                
-                // Execute console draw on the render thread (matches Starfield/GTAO pattern)
-                GL.IssuePluginEvent(StarfieldNative.CR_GetConsoleRenderEventFunc(), 0);
+                _screenManager.Render(_displayRect);
             }
             
         }

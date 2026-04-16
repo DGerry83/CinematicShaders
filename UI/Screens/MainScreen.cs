@@ -326,10 +326,18 @@ namespace CinematicShaders.UI.Screens
             
             if (writeIndex > 0)
             {
+                var rt = GetOrCreateConsoleRenderTexture(displayRect);
+                RenderTexture.active = rt;
+                
                 StarfieldNative.CR_DrawConsoleGrid(
-                    textSystem, cells, writeIndex,
+                    textSystem, rt.GetNativeTexturePtr(), cells, writeIndex,
                     displayRect.x, displayRect.y, displayRect.width, displayRect.height,
                     _fontSize, color);
+                
+                GL.IssuePluginEvent(StarfieldNative.CR_GetConsoleRenderEventFunc(), 0);
+                
+                RenderTexture.active = null;
+                GUI.DrawTexture(displayRect, rt);
             }
         }
         

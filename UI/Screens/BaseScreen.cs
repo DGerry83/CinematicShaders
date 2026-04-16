@@ -147,6 +147,51 @@ namespace CinematicShaders.UI.Screens
         // Expose as IReadOnlyList for interface
         IReadOnlyList<ILayer> IScreen.Layers => Layers;
         
+        // RenderTexture cache for instanced console rendering (one per screen)
+        private RenderTexture _consoleRenderTexture;
+        private Vector2 _consoleRenderTextureSize;
+        
+        /// <summary>
+        /// Gets or creates a RenderTexture sized to the display rectangle for native console drawing.
+        /// Caches and reuses the texture if dimensions haven't changed.
+        /// </summary>
+        protected RenderTexture GetOrCreateConsoleRenderTexture(Rect displayRect)
+        {
+            int w = Mathf.Max(1, Mathf.RoundToInt(displayRect.width));
+            int h = Mathf.Max(1, Mathf.RoundToInt(displayRect.height));
+            Vector2 size = new Vector2(w, h);
+            
+            if (_consoleRenderTexture != null && _consoleRenderTextureSize == size)
+            {
+                return _consoleRenderTexture;
+            }
+            
+            if (_consoleRenderTexture != null)
+            {
+                _consoleRenderTexture.Release();
+                UnityEngine.Object.Destroy(_consoleRenderTexture);
+            }
+            
+            _consoleRenderTexture = new RenderTexture(w, h, 0, RenderTextureFormat.ARGB32);
+            _consoleRenderTexture.Create();
+            _consoleRenderTextureSize = size;
+            return _consoleRenderTexture;
+        }
+        
+        /// <summary>
+        /// Releases the cached console RenderTexture.
+        /// </summary>
+        protected void ReleaseConsoleRenderTexture()
+        {
+            if (_consoleRenderTexture != null)
+            {
+                _consoleRenderTexture.Release();
+                UnityEngine.Object.Destroy(_consoleRenderTexture);
+                _consoleRenderTexture = null;
+                _consoleRenderTextureSize = Vector2.zero;
+            }
+        }
+        
         /// <summary>
         /// Called when entering this screen. Resets animation state and marks layers dirty.
         /// </summary>
@@ -175,12 +220,12 @@ namespace CinematicShaders.UI.Screens
         /// </summary>
         /// <remarks>
         /// Override this method to clean up resources, unsubscribe from events,
-        /// and stop any ongoing animations. No need to call base.OnExit() unless
-        /// you need the default behavior (which does nothing).
+        /// and stop any ongoing animations. Call base.OnExit() to release the
+        /// console RenderTexture.
         /// </remarks>
         public virtual void OnExit()
         {
-            // Override in derived classes if cleanup needed
+            ReleaseConsoleRenderTexture();
         }
         
         /// <summary>

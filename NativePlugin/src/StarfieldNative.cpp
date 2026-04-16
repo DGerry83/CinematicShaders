@@ -319,8 +319,13 @@ static struct {
         float fontSize = 0;
         uint32_t color = 0;
         void* textSystem = nullptr;
+        ID3D11Texture2D* targetTexture = nullptr;
         bool hasData = false;
     } consoleDrawJob;
+    
+    // Cached console RTV (avoids per-frame CreateRenderTargetView crash)
+    ID3D11RenderTargetView* consoleRTV = nullptr;
+    ID3D11Texture2D* consoleRTTexture = nullptr;
     
     std::vector<TextDispatchJob> textDispatchQueue;
 } g_StarfieldState;
@@ -4505,6 +4510,7 @@ int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize)
 extern "C" __declspec(dllexport)
 void CR_DrawConsoleGrid(
     void* textSystem,
+    ID3D11Texture2D* targetTexture,
     const ConsoleCellInstance* cells,
     int cellCount,
     float displayX,
@@ -4529,6 +4535,7 @@ void CR_DrawConsoleGrid(
     g_StarfieldState.consoleDrawJob.fontSize = fontSize;
     g_StarfieldState.consoleDrawJob.color = color;
     g_StarfieldState.consoleDrawJob.textSystem = textSystem;
+    g_StarfieldState.consoleDrawJob.targetTexture = targetTexture;
     g_StarfieldState.consoleDrawJob.hasData = true;
 }
 
@@ -4570,6 +4577,23 @@ static void ExecuteConsoleDraw(ID3D11DeviceContext* context)
     ID3D11RenderTargetView* prevRTVs[1] = { nullptr };
     ID3D11DepthStencilView* prevDSV = nullptr;
     context->OMGetRenderTargets(1, prevRTVs, &prevDSV);
+
+    // --- Bind target texture RTV if provided ---
+    if (job.targetTexture) {
+        if (g_StarfieldState.consoleRTTexture != job.targetTexture) {
+            if (g_StarfieldState.consoleRTV) {
+                g_StarfieldState.consoleRTV->Release();
+                g_StarfieldState.consoleRTV = nullptr;
+            }
+            g_StarfieldState.consoleRTTexture = job.targetTexture;
+            device->CreateRenderTargetView(job.targetTexture, nullptr, &g_StarfieldState.consoleRTV);
+        }
+        if (g_StarfieldState.consoleRTV) {
+            context->OMSetRenderTargets(1, &g_StarfieldState.consoleRTV, nullptr);
+            float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+            context->ClearRenderTargetView(g_StarfieldState.consoleRTV, clearColor);
+        }
+    }
 
     ID3D11BlendState* prevBlend = nullptr;
     FLOAT prevBlendFactor[4] = { 0,0,0,0 };
@@ -4673,8 +4697,13 @@ static void ExecuteConsoleDraw(ID3D11DeviceContext* context)
 
     // --- Set pipeline state ---
     D3D11_VIEWPORT vp = {};
-    vp.TopLeftX = displayX;
-    vp.TopLeftY = displayY;
+    if (job.targetTexture) {
+        vp.TopLeftX = 0.0f;
+        vp.TopLeftY = 0.0f;
+    } else {
+        vp.TopLeftX = displayX;
+        vp.TopLeftY = displayY;
+    }
     vp.Width = displayW;
     vp.Height = displayH;
     vp.MinDepth = 0.0f;
