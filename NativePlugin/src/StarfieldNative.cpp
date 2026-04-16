@@ -4688,7 +4688,7 @@ void CR_DrawConsoleGrid(
     float fontSize,
     uint32_t color)
 {
-    if (!textSystem || !cells || cellCount <= 0 || !g_StarfieldState.device)
+    if (!textSystem || !cells || cellCount <= 0)
         return;
 
     CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(textSystem);
@@ -4696,11 +4696,19 @@ void CR_DrawConsoleGrid(
     if (!atlasSRV)
         return;
 
-    if (!EnsureConsoleRenderer(g_StarfieldState.device))
+    ID3D11Device* device = ts->GetDevice();
+    if (!device)
+        device = g_StarfieldState.device;
+    if (!device)
+        return;
+
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+
+    if (!EnsureConsoleRenderer(device))
         return;
 
     ID3D11DeviceContext* context = nullptr;
-    g_StarfieldState.device->GetImmediateContext(&context);
+    device->GetImmediateContext(&context);
     if (!context)
         return;
 
@@ -4843,7 +4851,7 @@ void CR_DrawConsoleGrid(
     dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
     dsDesc.StencilEnable = FALSE;
     ID3D11DepthStencilState* dsState = nullptr;
-    g_StarfieldState.device->CreateDepthStencilState(&dsDesc, &dsState);
+    device->CreateDepthStencilState(&dsDesc, &dsState);
     if (dsState) {
         context->OMSetDepthStencilState(dsState, 0);
     }

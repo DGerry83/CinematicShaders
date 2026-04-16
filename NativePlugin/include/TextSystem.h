@@ -75,6 +75,7 @@ public:
     void MeasureString(const char* text, float fontSize, float& outWidth, float& outHeight);
     
     // Accessors for C# interop
+    ID3D11Device* GetDevice() const { return m_device; }
     ID3D11ShaderResourceView* GetAtlasSRV() const { return m_atlasSRV; }
     ID3D11Texture2D* GetAtlasTexture() const { return m_atlasTex; }
     const GlyphInstance* GetGlyphPtr() const { return m_instances.empty() ? nullptr : m_instances.data(); }
