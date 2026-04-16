@@ -14,6 +14,7 @@ namespace CinematicShaders.UI.Screens.Layers
         public int Order => 2;
         public string LayerName => "Content";
         public bool IsDirty { get; set; } = true;
+        public Vector2? CursorPosition { get; private set; }
         
         private readonly string[] _contentLines;
         
@@ -98,6 +99,17 @@ namespace CinematicShaders.UI.Screens.Layers
                     glyphIndex++;
                 }
             }
+
+            if (typeOnProgress > 0f && typeOnProgress < 1f && glyphCount > 0)
+            {
+                var lastGlyph = Marshal.PtrToStructure<StarfieldNative.GlyphData>(
+                    IntPtr.Add(glyphPtr, (glyphCount - 1) * glyphSize));
+                CursorPosition = new Vector2(lastGlyph.PosX + lastGlyph.SizeX, lastGlyph.PosY);
+            }
+            else
+            {
+                CursorPosition = null;
+            }
         }
 
         /// <summary>
@@ -114,7 +126,7 @@ namespace CinematicShaders.UI.Screens.Layers
                 if (endIndex <= 0)
                     return " ";
                 else
-                    return text.Substring(0, endIndex) + "\u258C";
+                    return text.Substring(0, endIndex);
             }
             
             return text;

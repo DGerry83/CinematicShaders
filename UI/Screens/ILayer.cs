@@ -1,4 +1,5 @@
 using System;
+using UnityEngine;
 using CinematicShaders.Native.Structs;
 
 namespace CinematicShaders.UI.Screens
@@ -11,6 +12,9 @@ namespace CinematicShaders.UI.Screens
         
         void Render(float typeOnProgress);
         void MarkDirty();
+
+        // NEW: cursor overlay support
+        Vector2? CursorPosition { get; }
 
         void FillCellData(
             IntPtr textSystem,

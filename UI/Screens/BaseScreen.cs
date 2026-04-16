@@ -191,7 +191,20 @@ namespace CinematicShaders.UI.Screens
                 _consoleRenderTextureSize = Vector2.zero;
             }
         }
-        
+
+        protected void DrawCursorOverlay(Rect displayRect, Vector2? cursorPos, float cursorWidth, float cursorHeight, Color color)
+        {
+            if (!cursorPos.HasValue) return;
+            Rect cursorRect = new Rect(
+                displayRect.x + cursorPos.Value.x,
+                displayRect.y + cursorPos.Value.y,
+                cursorWidth,
+                cursorHeight);
+            GUI.color = color;
+            GUI.DrawTexture(cursorRect, Texture2D.whiteTexture);
+            GUI.color = Color.white;
+        }
+
         /// <summary>
         /// Called when entering this screen. Resets animation state and marks layers dirty.
         /// </summary>

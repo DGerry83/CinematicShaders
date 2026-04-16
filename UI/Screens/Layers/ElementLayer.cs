@@ -22,6 +22,7 @@ namespace CinematicShaders.UI.Screens.Layers
         public int Order => 3;
         public string LayerName => "Elements";
         public bool IsDirty { get; set; } = true;
+        public Vector2? CursorPosition { get; private set; }
         
         private readonly List<HolographicTextElement> _elements;
         private readonly float _fontSize;
@@ -428,6 +429,17 @@ namespace CinematicShaders.UI.Screens.Layers
                     glyphIndex++;
                 }
             }
+
+            if (typeOnProgress > 0f && typeOnProgress < 1f && glyphCount > 0)
+            {
+                var lastGlyph = System.Runtime.InteropServices.Marshal.PtrToStructure<StarfieldNative.GlyphData>(
+                    IntPtr.Add(glyphPtr, (glyphCount - 1) * glyphSize));
+                CursorPosition = new Vector2(lastGlyph.PosX + lastGlyph.SizeX, lastGlyph.PosY);
+            }
+            else
+            {
+                CursorPosition = null;
+            }
         }
         
         /// <summary>
@@ -715,7 +727,7 @@ namespace CinematicShaders.UI.Screens.Layers
                 if (endIndex <= 0)
                     return " ";
                 else
-                    return fullText.Substring(0, endIndex) + "\u258C";
+                    return fullText.Substring(0, endIndex);
             }
             
             return fullText;

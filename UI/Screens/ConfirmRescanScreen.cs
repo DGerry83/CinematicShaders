@@ -383,6 +383,18 @@ namespace CinematicShaders.UI.Screens
                 
                 RenderTexture.active = null;
                 GUI.DrawTexture(displayRect, rt);
+
+                Color cursorColor = GetGridColor();
+                Vector2? cursorPos = null;
+                if (contentLayer != null && Layer2Progress > 0f && Layer2Progress < 1f)
+                    cursorPos = contentLayer.CursorPosition;
+                else if (borderLayer != null && Layer1Progress > 0f && Layer1Progress < 1f)
+                    cursorPos = borderLayer.CursorPosition;
+
+                if (cursorPos.HasValue)
+                {
+                    DrawCursorOverlay(displayRect, cursorPos, _fontSize * 0.5f, _fontSize, cursorColor);
+                }
             }
         }
         
