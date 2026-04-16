@@ -20,9 +20,10 @@ struct PSInput {
 
 PSInput Main(VSInput input) {
     PSInput output;
+    float2 glyphSize = input.UVRect.zw * g_consoleConstants.AtlasSize;
     float2 worldPos = g_consoleConstants.GridOffset
                     + (input.GridPos * g_consoleConstants.CellSize)
-                    + (input.LocalPos * g_consoleConstants.CellSize);
+                    + (input.LocalPos * glyphSize);
 
     float4x4 Projection = float4x4(
         g_consoleConstants.ProjectionM00, g_consoleConstants.ProjectionM01, g_consoleConstants.ProjectionM02, g_consoleConstants.ProjectionM03,

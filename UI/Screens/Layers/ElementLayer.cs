@@ -708,7 +708,7 @@ namespace CinematicShaders.UI.Screens.Layers
                 // DIAGNOSTIC: (Disabled) Log when animation is starting (progress < 0.5) to verify truncation
                 // if (element.TypeOnProgress < 0.5f)
                 // {
-                //     string result = endIndex <= 0 ? " " : fullText.Substring(0, endIndex) + "^|";
+                //     string result = endIndex <= 0 ? " " : fullText.Substring(0, endIndex) + "\u258C";
                 //     ModFileLogger.Log($"[ElementLayer] GetDisplayText({element.ElementId}): progress={element.TypeOnProgress:F3}, endIndex={endIndex}, result='{result}'");
                 //     return result;
                 // }
@@ -716,7 +716,7 @@ namespace CinematicShaders.UI.Screens.Layers
                 if (endIndex <= 0)
                     return " ";
                 else
-                    return fullText.Substring(0, endIndex) + "^|";
+                    return fullText.Substring(0, endIndex) + "\u258C";
             }
             
             return fullText;
