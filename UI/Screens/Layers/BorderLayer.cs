@@ -36,11 +36,11 @@ namespace CinematicShaders.UI.Screens.Layers
             {
                 int endIndex = GetTypeOnEndIndex(borderText, typeOnProgress);
                 
-                // Add cursor when typing is in progress
+                // Type-on only: no cursor appended here to avoid render-target accumulation artifacts
                 if (endIndex <= 0)
                     borderText = " ";  // Space when nothing visible yet
                 else
-                    borderText = borderText.Substring(0, endIndex) + "\u258C";
+                    borderText = borderText.Substring(0, endIndex);
             }
             
             // Note: Actual rendering happens in FillCellData with native text system
@@ -130,7 +130,7 @@ namespace CinematicShaders.UI.Screens.Layers
                 if (endIndex <= 0)
                     return " ";
                 else
-                    return borderText.Substring(0, endIndex) + "\u258C";
+                    return borderText.Substring(0, endIndex);
             }
             
             return borderText;

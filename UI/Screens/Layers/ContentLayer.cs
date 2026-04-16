@@ -114,7 +114,7 @@ namespace CinematicShaders.UI.Screens.Layers
                 if (endIndex <= 0)
                     return " ";
                 else
-                    return text.Substring(0, endIndex) + "\u258C";
+                    return text.Substring(0, endIndex);
             }
             
             return text;
