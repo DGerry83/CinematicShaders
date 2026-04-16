@@ -4661,6 +4661,11 @@ static void ExecuteConsoleDraw(ID3D11DeviceContext* context)
         float right  = displayW;
         float top    = 0.0f;
         float bottom = displayH;
+        // RenderTextures are Y-flipped relative to backbuffer in Unity's GUI.DrawTexture
+        if (job.targetTexture) {
+            top = displayH;
+            bottom = 0.0f;
+        }
         float nearZ  = 0.0f;
         float farZ   = 1.0f;
 
