@@ -4544,6 +4544,9 @@ static void ExecuteConsoleDraw(ID3D11DeviceContext* context)
     if (!ts)
         return;
 
+    // Flush any pending atlas uploads before using the atlas
+    ts->FlushAtlasUpdates(context);
+
     ID3D11ShaderResourceView* atlasSRV = ts->GetAtlasSRV();
     if (!atlasSRV)
         return;
@@ -4812,6 +4815,9 @@ static void ExecuteTextDispatches(ID3D11DeviceContext* context)
         CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(job.textSystem);
         if (!ts)
             continue;
+        
+        // Flush any pending atlas uploads before using the atlas
+        ts->FlushAtlasUpdates(context);
         
         ID3D11Buffer* glyphBuffer = ts->GetOrCreateGlyphBuffer();
         if (!glyphBuffer)

@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
+#include <mutex>
 
 // Forward declare stbtt_fontinfo to avoid including stb_truetype.h in header
 struct stbtt_fontinfo;
@@ -86,6 +87,9 @@ public:
     ID3D11Buffer* GetOrCreateGlyphBuffer();
     ID3D11ShaderResourceView* GetGlyphBufferSRV() { return m_glyphBufferSRV; }
     
+    // Flush pending atlas uploads on the render thread (must be called before draw/dispatch)
+    void FlushAtlasUpdates(ID3D11DeviceContext* context);
+    
     // Debug: Export atlas to PGM file
     void ExportAtlasToFile(const char* filename);
     
@@ -102,6 +106,14 @@ private:
     
     // Upload glyph bitmap to atlas texture
     void UpdateAtlasRegion(int x, int y, int w, int h, const uint8_t* data);
+    
+    struct AtlasUpdateJob {
+        D3D11_BOX box;
+        std::vector<uint8_t> pixels;
+        bool fullClear = false;
+    };
+    std::vector<AtlasUpdateJob> m_atlasUpdateQueue;
+    std::mutex m_atlasQueueMutex;
     
 private:
     bool m_initialized;

@@ -3,6 +3,7 @@
 #include <cmath>
 #include <fstream>
 #include <algorithm>
+#include <mutex>
 
 // Logging from main native module
 extern void LogToFile(const char* fmt, ...);
@@ -177,16 +178,18 @@ void TextSystem::UpdateAtlasRegion(int x, int y, int w, int h, const uint8_t* da
                     copyW);
     }
     
-    // Update GPU texture
-    D3D11_BOX box = {};
-    box.left = x;
-    box.top = y;
-    box.front = 0;
-    box.right = x + w;
-    box.bottom = y + h;
-    box.back = 1;
+    // Stage GPU update for render thread
+    AtlasUpdateJob job;
+    job.box.left = x;
+    job.box.top = y;
+    job.box.front = 0;
+    job.box.right = x + w;
+    job.box.bottom = y + h;
+    job.box.back = 1;
+    job.pixels.assign(data, data + (w * h));
     
-    m_context->UpdateSubresource(m_atlasTex, 0, &box, data, w, 0);
+    std::lock_guard<std::mutex> lock(m_atlasQueueMutex);
+    m_atlasUpdateQueue.push_back(std::move(job));
 }
 
 bool TextSystem::PackGlyph(int codepoint) {
@@ -293,13 +296,34 @@ void TextSystem::ClearAtlasAndCache() {
     m_atlasRowHeight = 0;
     std::fill(m_atlasPixels.begin(), m_atlasPixels.end(), static_cast<uint8_t>(0));
     
-    // Clear the D3D texture as well
-    if (m_context && m_atlasTex) {
-        m_context->UpdateSubresource(m_atlasTex, 0, nullptr, m_atlasPixels.data(), m_atlasWidth, 0);
-    }
+    // Stage full clear for render thread
+    AtlasUpdateJob job;
+    job.fullClear = true;
+    
+    std::lock_guard<std::mutex> lock(m_atlasQueueMutex);
+    m_atlasUpdateQueue.push_back(std::move(job));
     
     m_glyphIDMap.clear();
     m_nextGlyphID = 0;
+}
+
+void TextSystem::FlushAtlasUpdates(ID3D11DeviceContext* context) {
+    if (!context || !m_atlasTex)
+        return;
+    
+    std::vector<AtlasUpdateJob> jobs;
+    {
+        std::lock_guard<std::mutex> lock(m_atlasQueueMutex);
+        jobs.swap(m_atlasUpdateQueue);
+    }
+    
+    for (auto& job : jobs) {
+        if (job.fullClear) {
+            context->UpdateSubresource(m_atlasTex, 0, nullptr, m_atlasPixels.data(), m_atlasWidth, 0);
+        } else {
+            context->UpdateSubresource(m_atlasTex, 0, &job.box, job.pixels.data(), job.box.right - job.box.left, 0);
+        }
+    }
 }
 
 int TextSystem::LayoutString(const char* text, float fontSize, uint32_t color) {
