@@ -412,13 +412,12 @@ namespace CinematicShaders.UI.Screens.Layers
 
                     var glyph = System.Runtime.InteropServices.Marshal.PtrToStructure<StarfieldNative.GlyphData>(
                         IntPtr.Add(glyphPtr, glyphIndex * glyphSize));
-                    ushort glyphID = StarfieldNative.CR_TextGetGlyphID(ts, c);
-
                     buffer[writeIndex] = new ConsoleCellInstanceNative
                     {
-                        GridX = (ushort)col,
-                        GridY = (ushort)row,
-                        GlyphID = glyphID,
+                        PosX = glyph.PosX,
+                        PosY = glyph.PosY,
+                        SizeX = glyph.SizeX,
+                        SizeY = glyph.SizeY,
                         Color = color,
                         U0 = glyph.UvX,
                         V0 = glyph.UvY,

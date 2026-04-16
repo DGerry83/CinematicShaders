@@ -120,10 +120,7 @@ namespace CinematicShaders.Native
             float displayW,
             float displayH,
             float fontSize,
-            uint color,
-            IntPtr targetTexture,
-            float cellSizeX,
-            float cellSizeY);
+            uint color);
 
         /// <summary>
         /// Draw a box outline on the CRT UI surface.

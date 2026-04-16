@@ -2748,13 +2748,13 @@ static bool EnsureConsoleRenderer(ID3D11Device* device) {
     if (FAILED(device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.consoleConstantsCB)))
         return false;
 
-    // Input layout: per-vertex (float2 pos, float2 uv) + per-instance (uint2 grid, uint color, float4 uvrect)
     D3D11_INPUT_ELEMENT_DESC layoutDesc[] = {
         { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,       0, 0,  D3D11_INPUT_PER_VERTEX_DATA,   0 },
         { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, 8,  D3D11_INPUT_PER_VERTEX_DATA,   0 },
-        { "TEXCOORD", 1, DXGI_FORMAT_R16G16_UINT,        1, 0,  D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-        { "TEXCOORD", 2, DXGI_FORMAT_R32_UINT,           1, 8,  D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-        { "TEXCOORD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 12, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT,       1, 0,  D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 2, DXGI_FORMAT_R32G32_FLOAT,       1, 8,  D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 4, DXGI_FORMAT_R32_UINT,           1, 32, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
     };
     if (FAILED(device->CreateInputLayout(layoutDesc, ARRAYSIZE(layoutDesc), g_ConsoleVS, sizeof(g_ConsoleVS), &g_StarfieldState.consoleInputLayout)))
         return false;
@@ -4686,12 +4686,9 @@ void CR_DrawConsoleGrid(
     float displayW,
     float displayH,
     float fontSize,
-    uint32_t color,
-    ID3D11Texture2D* targetTexture,
-    float cellSizeX,
-    float cellSizeY)
+    uint32_t color)
 {
-    if (!textSystem || !cells || cellCount <= 0 || !targetTexture)
+    if (!textSystem || !cells || cellCount <= 0)
         return;
 
     CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(textSystem);
@@ -4782,11 +4779,11 @@ void CR_DrawConsoleGrid(
     // --- Update constant buffer ---
     if (SUCCEEDED(context->Map(g_StarfieldState.consoleConstantsCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
         ConsoleConstants* cb = (ConsoleConstants*)mapped.pData;
-        // RT-local orthographic projection
-        float left   = 0.0f;
-        float right  = displayW;
-        float top    = 0.0f;
-        float bottom = displayH;
+        // Screen-pixel orthographic projection for the console rectangle
+        float left   = displayX;
+        float right  = displayX + displayW;
+        float top    = displayY;
+        float bottom = displayY + displayH;
         float nearZ  = 0.0f;
         float farZ   = 1.0f;
 
@@ -4810,36 +4807,21 @@ void CR_DrawConsoleGrid(
         cb->ProjectionM32 = -nearZ / (farZ - nearZ);
         cb->ProjectionM33 = 1.0f;
 
-        cb->CellSizeX = cellSizeX;
-        cb->CellSizeY = cellSizeY;
-        cb->GridOffsetX = 0.0f;
-        cb->GridOffsetY = 0.0f;
-        cb->TypeOnProgress = 1.0f; // C# handles type-on by culling cells; leave at 1.0
+        cb->CellSizeX = 0.0f;   // unused
+        cb->CellSizeY = 0.0f;   // unused
+        cb->GridOffsetX = 0.0f; // unused
+        cb->GridOffsetY = 0.0f; // unused
+        cb->TypeOnProgress = 1.0f;
         cb->AtlasSize = (float)ts->GetAtlasSize();
         cb->_pad1 = 0.0f;
         cb->_pad2 = 0.0f;
         context->Unmap(g_StarfieldState.consoleConstantsCB, 0);
     }
 
-    // --- Create and bind RTV for target texture ---
-    ID3D11RenderTargetView* rtv = nullptr;
-    D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-    rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-    if (FAILED(device->CreateRenderTargetView(targetTexture, &rtvDesc, &rtv))) {
-        context->Release();
-        return;
-    }
-    context->OMSetRenderTargets(1, &rtv, nullptr);
-
-    // --- Clear RTV ---
-    float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-    context->ClearRenderTargetView(rtv, clearColor);
-
     // --- Set pipeline state ---
     D3D11_VIEWPORT vp = {};
-    vp.TopLeftX = 0.0f;
-    vp.TopLeftY = 0.0f;
+    vp.TopLeftX = displayX;
+    vp.TopLeftY = displayY;
     vp.Width = displayW;
     vp.Height = displayH;
     vp.MinDepth = 0.0f;
@@ -4880,11 +4862,6 @@ void CR_DrawConsoleGrid(
     // --- Cleanup temporary DS state ---
     if (dsState) {
         dsState->Release();
-    }
-
-    // --- Release temporary RTV ---
-    if (rtv) {
-        rtv->Release();
     }
 
     // --- Restore D3D11 state ---

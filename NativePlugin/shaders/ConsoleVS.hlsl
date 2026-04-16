@@ -7,9 +7,10 @@ cbuffer ConsoleConstantsBuffer : register(b0) {
 struct VSInput {
     float2 LocalPos : POSITION;
     float2 LocalUV  : TEXCOORD0;
-    uint2  GridPos  : TEXCOORD1;
-    uint   Color    : TEXCOORD2;
+    float2 Pos      : TEXCOORD1;
+    float2 Size     : TEXCOORD2;
     float4 UVRect   : TEXCOORD3;
+    uint   Color    : TEXCOORD4;
 };
 
 struct PSInput {
@@ -20,10 +21,7 @@ struct PSInput {
 
 PSInput Main(VSInput input) {
     PSInput output;
-    float2 glyphSize = input.UVRect.zw * g_consoleConstants.AtlasSize;
-    float2 worldPos = g_consoleConstants.GridOffset
-                    + (input.GridPos * g_consoleConstants.CellSize)
-                    + (input.LocalPos * glyphSize);
+    float2 worldPos = input.Pos + input.LocalPos * input.Size;
 
     float4x4 Projection = float4x4(
         g_consoleConstants.ProjectionM00, g_consoleConstants.ProjectionM01, g_consoleConstants.ProjectionM02, g_consoleConstants.ProjectionM03,

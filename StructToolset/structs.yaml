@@ -846,38 +846,29 @@ structs:
 
   # ============================================================================
   # ConsoleCellInstance - GPU instance data for Star Console text grid
-  # Total: 24 bytes, packed (no padding required)
+  # Total: 36 bytes, packed (no padding required)
   # ============================================================================
   - name: ConsoleCellInstance
     size_align: 4
     fields:
-      - name: GridX
-        type: uint16
-        comment: Grid column index
-      - name: GridY
-        type: uint16
-        comment: Grid row index
-      - name: GlyphID
-        type: uint16
-        comment: Stable glyph ID from TextSystem
-      - name: _pad1
-        type: uint16
-        comment: Padding to 4-byte boundary
-      - name: Color
-        type: uint32
-        comment: Packed ARGB color
+      - name: PosX
+        type: float
+      - name: PosY
+        type: float
+      - name: SizeX
+        type: float
+      - name: SizeY
+        type: float
       - name: U0
         type: float
-        comment: Atlas UV left
       - name: V0
         type: float
-        comment: Atlas UV top
       - name: U1
         type: float
-        comment: Atlas UV right
       - name: V1
         type: float
-        comment: Atlas UV bottom
+      - name: Color
+        type: uint32
 
   # ============================================================================
   # ConsoleConstants - HLSL constant buffer for console renderer

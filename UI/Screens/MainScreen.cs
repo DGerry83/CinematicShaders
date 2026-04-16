@@ -326,14 +326,10 @@ namespace CinematicShaders.UI.Screens
             
             if (writeIndex > 0)
             {
-                RenderTexture rt = GetOrCreateConsoleRenderTexture(displayRect);
-                var (cellW, cellH) = TerminalGridConfig.GlyphMetrics.GetGlyphMetrics(TerminalGridConfig.CurrentDisplaySize);
                 StarfieldNative.CR_DrawConsoleGrid(
                     textSystem, cells, writeIndex,
                     displayRect.x, displayRect.y, displayRect.width, displayRect.height,
-                    _fontSize, color, rt.GetNativeTexturePtr(),
-                    cellW, cellH);
-                GUI.DrawTextureWithTexCoords(displayRect, rt, new Rect(0, 1, 1, -1));
+                    _fontSize, color);
             }
         }
         
