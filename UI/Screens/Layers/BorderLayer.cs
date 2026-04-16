@@ -36,11 +36,10 @@ namespace CinematicShaders.UI.Screens.Layers
             {
                 int endIndex = GetTypeOnEndIndex(borderText, typeOnProgress);
                 
-                // Type-on only: no cursor appended here to avoid render-target accumulation artifacts
                 if (endIndex <= 0)
                     borderText = " ";  // Space when nothing visible yet
                 else
-                    borderText = borderText.Substring(0, endIndex);
+                    borderText = borderText.Substring(0, endIndex) + "\u258C";
             }
             
             // Note: Actual rendering happens in FillCellData with native text system
@@ -130,7 +129,7 @@ namespace CinematicShaders.UI.Screens.Layers
                 if (endIndex <= 0)
                     return " ";
                 else
-                    return borderText.Substring(0, endIndex);
+                    return borderText.Substring(0, endIndex) + "\u258C";
             }
             
             return borderText;

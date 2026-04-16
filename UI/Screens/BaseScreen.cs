@@ -213,6 +213,8 @@ namespace CinematicShaders.UI.Screens
             {
                 layer.MarkDirty();
             }
+            
+            ReleaseConsoleRenderTexture();
         }
         
         /// <summary>

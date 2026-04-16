@@ -433,6 +433,7 @@ namespace CinematicShaders.UI.Screens
             // Enable value field click zones
             UpdateClickZoneState(true);
             UpdateElementVisibility(true);
+            ReleaseConsoleRenderTexture();
             
             ModFileLogger.Log($"[MainScreen] OnStarSelected complete - animation should start from 0");
         }
