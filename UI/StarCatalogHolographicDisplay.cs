@@ -1280,6 +1280,8 @@ namespace CinematicShaders.UI
         
         private void PowerOff()
         {
+            ExitEditMode(save: false);
+            
             _displayPowered = false;
             
             // Ensure typing sound stops even if animation is mid-type-on
@@ -1499,7 +1501,6 @@ namespace CinematicShaders.UI
             
             // Clear search and show empty state
             _searchQuery = "";
-            _inputBuffer = "";
             UpdateSearchResults();
             
             // Update search input display
@@ -1722,8 +1723,6 @@ namespace CinematicShaders.UI
         #region Keyboard Input
 
         // Input state
-        private bool _capturingInput = false;
-        private string _inputBuffer = "";
 
         /// <summary>
         /// Process keyboard events (updated for edit mode)
@@ -1778,37 +1777,8 @@ namespace CinematicShaders.UI
                 return;
             }
             
-            // Handle typing for search input
-            if (e.character != '\0' && !char.IsControl(e.character))
-            {
-                ModFileLogger.Log($"[SearchDebug] Typing: char='{e.character}', adding to buffer");
-                _inputBuffer += char.ToUpper(e.character);
-                ModFileLogger.Log($"[SearchDebug] Buffer now: '{_inputBuffer}'");
-                UpdateSearch(_inputBuffer);
-                e.Use();
-                return;
-            }
-            
-            // Handle backspace
-            if (e.keyCode == KeyCode.Backspace)
-            {
-                if (_inputBuffer.Length > 0)
-                {
-                    _inputBuffer = _inputBuffer.Substring(0, _inputBuffer.Length - 1);
-                    UpdateSearch(_inputBuffer);
-                    e.Use();
-                }
-                return;
-            }
-            
-            // Handle delete (clear search)
-            if (e.keyCode == KeyCode.Delete)
-            {
-                _inputBuffer = "";
-                UpdateSearch("");
-                e.Use();
-                return;
-            }
+            // Note: Global type-to-search removed. Search only works via
+            // explicit edit mode on the search_input field.
         }
 
         #endregion
