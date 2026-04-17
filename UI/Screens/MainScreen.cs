@@ -351,7 +351,7 @@ namespace CinematicShaders.UI.Screens
 
                 if (cursorPos.HasValue)
                 {
-                    DrawCursorOverlay(displayRect, cursorPos, _fontSize * 0.5f, _fontSize, cursorColor);
+                    DrawCursorOverlay(displayRect, cursorPos, cursorColor);
                 }
             }
         }

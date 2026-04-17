@@ -466,7 +466,7 @@ namespace CinematicShaders.UI.Screens.Layers
             if (totalChars == 0) return;
             
             // Calculate how many characters should be visible at this progress
-            int visibleCharCount = Mathf.FloorToInt(globalProgress * totalChars);
+            int visibleCharCount = Mathf.Max(1, Mathf.FloorToInt(globalProgress * totalChars));
             
             // Distribute across elements
             int charsAssigned = 0;

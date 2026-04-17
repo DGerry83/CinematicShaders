@@ -192,14 +192,30 @@ namespace CinematicShaders.UI.Screens
             }
         }
 
-        protected void DrawCursorOverlay(Rect displayRect, Vector2? cursorPos, float cursorWidth, float cursorHeight, Color color)
+        protected void DrawCursorOverlay(Rect displayRect, Vector2? cursorPos, Color color)
         {
             if (!cursorPos.HasValue) return;
-            Rect cursorRect = new Rect(
-                displayRect.x + cursorPos.Value.x,
-                displayRect.y + cursorPos.Value.y,
-                cursorWidth,
-                cursorHeight);
+
+            float cellWidth = displayRect.width / TerminalGridConfig.GRID_COLUMNS;
+            float cellHeight = displayRect.height / TerminalGridConfig.GRID_ROWS;
+
+            float cursorX = displayRect.x + cursorPos.Value.x;
+            float cursorY = displayRect.y + cursorPos.Value.y;
+            // Snap Y to the top of the cell row to align with text baseline grid
+            cursorY = Mathf.Floor(cursorY / cellHeight) * cellHeight;
+
+            float cursorW = cellWidth * 0.5f;
+            float cursorH = cellHeight;
+
+            // Clip to displayRect so the cursor doesn't bleed outside the console screen
+            float clippedX = Mathf.Max(cursorX, displayRect.x);
+            float clippedY = Mathf.Max(cursorY, displayRect.y);
+            float maxRight = Mathf.Min(cursorX + cursorW, displayRect.x + displayRect.width);
+            float maxBottom = Mathf.Min(cursorY + cursorH, displayRect.y + displayRect.height);
+            float clippedW = Mathf.Max(0f, maxRight - clippedX);
+            float clippedH = Mathf.Max(0f, maxBottom - clippedY);
+
+            Rect cursorRect = new Rect(clippedX, clippedY, clippedW, clippedH);
             GUI.color = color;
             GUI.DrawTexture(cursorRect, Texture2D.whiteTexture);
             GUI.color = Color.white;
