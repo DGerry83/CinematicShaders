@@ -1200,7 +1200,6 @@ namespace CinematicShaders.UI
             
             // Play power-on jingle if enabled
             ModAudioManager.PlayOneShot(AudioGroup.StarConsole, "CinematicShaders/Sounds/StarJingle", _playJingleOnNextPowerOn);
-            _playJingleOnNextPowerOn = false;
             
             // Determine target screen based on JSON availability
             bool hasJson = HasJsonCatalog();

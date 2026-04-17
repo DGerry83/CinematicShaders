@@ -25,6 +25,11 @@ namespace CinematicShaders.Core
         private static GameObject _audioRoot;
 
         // ------------------------------------------------------------------------
+        // Coroutine Host (for fade-outs from static context)
+        // ------------------------------------------------------------------------
+        private class AudioCoroutineHost : MonoBehaviour { }
+
+        // ------------------------------------------------------------------------
         // Clip Cache
         // ------------------------------------------------------------------------
         private static readonly Dictionary<string, AudioClip> _clipCache = new Dictionary<string, AudioClip>();
@@ -48,6 +53,7 @@ namespace CinematicShaders.Core
             {
                 _audioRoot = new GameObject("CinematicShaders_AudioRoot");
                 Object.DontDestroyOnLoad(_audioRoot);
+                _audioRoot.AddComponent<AudioCoroutineHost>();
             }
             return _audioRoot;
         }
@@ -205,14 +211,45 @@ namespace CinematicShaders.Core
         /// <summary>
         /// Stops a named looping sound and destroys its GameObject.
         /// </summary>
-        public static void StopLoop(string loopId)
+        /// <param name="loopId">The loop identifier.</param>
+        /// <param name="fadeOutSeconds">Optional fade-out duration in seconds. Zero = immediate hard stop.</param>
+        public static void StopLoop(string loopId, float fadeOutSeconds = 0f)
         {
-            if (_activeLoops.TryGetValue(loopId, out AudioSource src) && src != null)
+            if (!_activeLoops.TryGetValue(loopId, out AudioSource src) || src == null)
             {
-                src.Stop();
-                Object.Destroy(src.gameObject);
+                _activeLoops.Remove(loopId);
+                return;
             }
+
+            // Remove from tracking immediately so a new loop with the same ID can start
             _activeLoops.Remove(loopId);
+
+            if (fadeOutSeconds > 0.001f && src.isPlaying)
+            {
+                var host = _audioRoot?.GetComponent<AudioCoroutineHost>();
+                if (host != null)
+                {
+                    host.StartCoroutine(FadeAndKill(src, fadeOutSeconds));
+                    return;
+                }
+            }
+
+            src.Stop();
+            Object.Destroy(src.gameObject);
+        }
+
+        private static System.Collections.IEnumerator FadeAndKill(AudioSource src, float duration)
+        {
+            float startVol = src.volume;
+            float timer = 0f;
+            while (timer < duration)
+            {
+                timer += Time.deltaTime;
+                src.volume = Mathf.Lerp(startVol, 0f, timer / duration);
+                yield return null;
+            }
+            src.Stop();
+            Object.Destroy(src.gameObject);
         }
 
         /// <summary>

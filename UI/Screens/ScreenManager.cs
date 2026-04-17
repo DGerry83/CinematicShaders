@@ -157,7 +157,7 @@ namespace CinematicShaders.UI.Screens
             }
             else if (!isTyping && _wasTypingLastFrame)
             {
-                ModAudioManager.StopLoop("starconsole_typing");
+                ModAudioManager.StopLoop("starconsole_typing", 0.025f);
             }
             _wasTypingLastFrame = isTyping;
         }
