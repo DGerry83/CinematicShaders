@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine;
 
 namespace CinematicShaders.Core
 {
@@ -22,6 +23,11 @@ namespace CinematicShaders.Core
         /// </returns>
         public static List<NamedStar> SearchStars(List<NamedStar> allStars, string query, int maxResults = 0)
         {
+            return SearchStars(allStars, query, maxResults, 0);
+        }
+
+        public static List<NamedStar> SearchStars(List<NamedStar> allStars, string query, int maxResults, int offset)
+        {
             if (allStars == null || allStars.Count == 0)
                 return new List<NamedStar>();
 
@@ -29,7 +35,7 @@ namespace CinematicShaders.Core
             {
                 var sorted = new List<NamedStar>(allStars);
                 sorted.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
-                return sorted;
+                return SliceResults(sorted, maxResults, offset);
             }
 
             string queryLower = query.ToLowerInvariant();
@@ -50,12 +56,24 @@ namespace CinematicShaders.Core
                 return string.Compare(a.Star.Name, b.Star.Name, StringComparison.OrdinalIgnoreCase);
             });
 
-            var results = new List<NamedStar>();
-            int limit = maxResults > 0 ? Math.Min(maxResults, scored.Count) : scored.Count;
-            for (int i = 0; i < limit; i++)
-                results.Add(scored[i].Star);
+            var allMatches = new List<NamedStar>(scored.Count);
+            for (int i = 0; i < scored.Count; i++)
+                allMatches.Add(scored[i].Star);
 
-            return results;
+            return SliceResults(allMatches, maxResults, offset);
+        }
+
+        private static List<NamedStar> SliceResults(List<NamedStar> sortedResults, int maxResults, int offset)
+        {
+            if (offset <= 0 && maxResults <= 0)
+                return sortedResults;
+
+            var sliced = new List<NamedStar>();
+            int start = Mathf.Max(0, offset);
+            int end = maxResults > 0 ? Mathf.Min(start + maxResults, sortedResults.Count) : sortedResults.Count;
+            for (int i = start; i < end; i++)
+                sliced.Add(sortedResults[i]);
+            return sliced;
         }
 
         /// <summary>

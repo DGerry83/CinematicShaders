@@ -389,6 +389,7 @@ namespace CinematicShaders.UI
                 case "reset_button": return 11;
                 case "rescan_button": return 12;
                 case "search_input": return 20;
+                case "page_number": return 35;
                 case var id when id.StartsWith("result_"):
                     // Extract index from "result_N"
                     if (int.TryParse(id.Substring(7), out int idx))
@@ -428,6 +429,9 @@ namespace CinematicShaders.UI
                     
                 case var id when id.StartsWith("result_"):
                     return TextElementType.SearchResult;
+                
+                case "page_number":
+                    return TextElementType.Value;
                     
                 default:
                     return TextElementType.Value;
@@ -497,6 +501,19 @@ namespace CinematicShaders.UI
                 
                 _resultElements.Add(element);
                 _elements[elementId] = element;
+            }
+            
+            // Create page number element for pagination display
+            GridRegion pageRegion = _mainScreenLayout.GetGridArea("page_number");
+            if (pageRegion.Width > 0 && pageRegion.Height > 0)
+            {
+                var pageElement = CreateElementFromGridRegion(
+                    "page_number",
+                    TextElementType.Value,
+                    pageRegion,
+                    visibleByDefault: false  // Hidden by default
+                );
+                _elements["page_number"] = pageElement;
             }
             
             Debug.Log($"[StarCatalogHolographicDisplay] Created {_elements.Count} elements using constraint layout");
@@ -1484,6 +1501,10 @@ namespace CinematicShaders.UI
         // Search debounce
         private float _lastSearchTime = 0f;
         private const float SEARCH_DEBOUNCE = 0.1f;  // 100ms debounce
+        
+        // Pagination state
+        private int _searchPageIndex = 0;
+        private List<NamedStar> _allFilteredResults = new List<NamedStar>();
 
         /// <summary>
         /// Initialize with star list from selector
@@ -1501,6 +1522,8 @@ namespace CinematicShaders.UI
             
             // Clear search and show empty state
             _searchQuery = "";
+            _searchPageIndex = 0;
+            _allFilteredResults.Clear();
             UpdateSearchResults();
             
             // Update search input display
@@ -1525,6 +1548,9 @@ namespace CinematicShaders.UI
             _searchQuery = query?.ToUpper() ?? "";
             ModFileLogger.Log($"[SearchDebug] Setting searchQuery='{_searchQuery}'");
             
+            // Reset to first page on any search change
+            _searchPageIndex = 0;
+            
             // Update search input display
             SetElementText("search_input", string.IsNullOrEmpty(_searchQuery) ? "..." : _searchQuery);
             
@@ -1545,16 +1571,90 @@ namespace CinematicShaders.UI
             
             if (string.IsNullOrWhiteSpace(_searchQuery))
             {
+                _allFilteredResults.Clear();
                 _filteredResults.Clear();
+                _searchPageIndex = 0;
                 UpdateResultElements();
+                UpdatePageNumberDisplay();
                 return;
             }
             
-            _filteredResults = StarSearchUtility.SearchStars(_allStars, _searchQuery, MAX_SEARCH_RESULTS);
+            // Get all matching results (unlimited) for pagination
+            _allFilteredResults = StarSearchUtility.SearchStars(_allStars, _searchQuery, 0);
             
-            ModFileLogger.Log($"[SearchDebug] Found {_filteredResults.Count} relevance-ranked matches");
+            ModFileLogger.Log($"[SearchDebug] Found {_allFilteredResults.Count} total matches");
+            
+            RefreshResultPage();
+        }
+        
+        /// <summary>
+        /// Refresh the current page of results from _allFilteredResults based on _searchPageIndex.
+        /// </summary>
+        private void RefreshResultPage()
+        {
+            int startIndex = _searchPageIndex * MAX_SEARCH_RESULTS;
+            
+            // Clamp page index if out of bounds
+            int maxPage = _allFilteredResults.Count > 0 ? (_allFilteredResults.Count - 1) / MAX_SEARCH_RESULTS : 0;
+            if (_searchPageIndex > maxPage)
+            {
+                _searchPageIndex = maxPage;
+                startIndex = _searchPageIndex * MAX_SEARCH_RESULTS;
+            }
+            
+            _filteredResults.Clear();
+            int endIndex = Mathf.Min(startIndex + MAX_SEARCH_RESULTS, _allFilteredResults.Count);
+            for (int i = startIndex; i < endIndex; i++)
+            {
+                _filteredResults.Add(_allFilteredResults[i]);
+            }
+            
+            ModFileLogger.Log($"[SearchDebug] Showing page {_searchPageIndex + 1}/{maxPage + 1} (results {startIndex + 1}-{endIndex})");
             
             UpdateResultElements();
+            UpdatePageNumberDisplay();
+        }
+        
+        /// <summary>
+        /// Scroll search results by a page delta (+1 or -1).
+        /// </summary>
+        public void ScrollSearchResults(int delta)
+        {
+            if (_allFilteredResults.Count == 0) return;
+            
+            int maxPage = (_allFilteredResults.Count - 1) / MAX_SEARCH_RESULTS;
+            int newPage = Mathf.Clamp(_searchPageIndex + delta, 0, maxPage);
+            
+            if (newPage != _searchPageIndex)
+            {
+                _searchPageIndex = newPage;
+                RefreshResultPage();
+            }
+        }
+        
+        /// <summary>
+        /// Update the page number display element between the scroll arrows.
+        /// </summary>
+        private void UpdatePageNumberDisplay()
+        {
+            int totalPages = Mathf.Max(1, (_allFilteredResults.Count + MAX_SEARCH_RESULTS - 1) / MAX_SEARCH_RESULTS);
+            
+            if (_allFilteredResults.Count == 0 || totalPages <= 1)
+            {
+                SetElementText("page_number", "");
+                return;
+            }
+            
+            string pageText = $"{_searchPageIndex + 1}/{totalPages}";
+            // Center in 15-column region between arrows (cols 40-54)
+            int regionWidth = 15;
+            int padding = (regionWidth - pageText.Length) / 2;
+            if (padding > 0)
+            {
+                pageText = new string(' ', padding) + pageText + new string(' ', regionWidth - padding - pageText.Length);
+            }
+            
+            SetElementText("page_number", pageText);
         }
 
         /// <summary>

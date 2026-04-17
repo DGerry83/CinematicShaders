@@ -53,11 +53,11 @@ namespace CinematicShaders.UI.Screens
                     break;
                     
                 case "scroll_up_glyph":
-                    // TODO: Implement scroll up functionality
+                    _display.ScrollSearchResults(-1);
                     break;
                     
                 case "scroll_down_glyph":
-                    // TODO: Implement scroll down functionality
+                    _display.ScrollSearchResults(1);
                     break;
                     
                 default:

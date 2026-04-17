@@ -54,9 +54,9 @@ namespace CinematicShaders.UI.Layout.ScreenLayouts
             }
             Rect[] leftRows = engine.SplitVertical(leftPanel, leftRowConstraints);
 
-            // Split right panel into 10 rows for search results (rows 1-10)
-            Constraint[] resultRowConstraints = new Constraint[10];
-            for (int i = 0; i < 10; i++)
+            // Split right panel into 11 rows (10 for results + 1 for pagination)
+            Constraint[] resultRowConstraints = new Constraint[11];
+            for (int i = 0; i < 11; i++)
             {
                 resultRowConstraints[i] = Constraint.Length(cellHeight);
             }
@@ -145,6 +145,16 @@ namespace CinematicShaders.UI.Layout.ScreenLayouts
             {
                 _pixelAreas[string.Format("result_{0}", i)] = resultRows[i];
             }
+            
+            // Page number row (row 11) — narrow region between arrows at cols 39 and 55
+            Rect[] pageNumberSplits = engine.SplitHorizontal(resultRows[10],
+                Constraint.Length(cellWidth * 1),   // col 38 (right panel start)
+                Constraint.Length(cellWidth * 1),   // col 39 (▲ arrow)
+                Constraint.Length(cellWidth * 15),  // cols 40-54 (page number)
+                Constraint.Length(cellWidth * 1),   // col 55 (▼ arrow)
+                Constraint.Fill(1)                  // cols 56-58 (remainder)
+            );
+            _pixelAreas["page_number"] = pageNumberSplits[2];
 
             // Convert pixel areas to grid areas
             foreach (var kvp in _pixelAreas)
