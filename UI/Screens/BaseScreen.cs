@@ -24,9 +24,8 @@ namespace CinematicShaders.UI.Screens
     /// 1. Inherit from BaseScreen
     /// 2. Set ScreenName in constructor
     /// 3. Add layers using AddLayer()
-    /// 4. Override SetTextures() to assign textures to your layers
-    /// 5. Override OnEnter()/OnExit() for setup/cleanup
-    /// 6. Override Render() to implement custom rendering
+    /// 4. Override OnEnter()/OnExit() for setup/cleanup
+    /// 5. Override Render() to implement custom rendering
     /// </remarks>
     public abstract class BaseScreen : IScreen
     {

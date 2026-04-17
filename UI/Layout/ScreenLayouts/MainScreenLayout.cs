@@ -62,13 +62,53 @@ namespace CinematicShaders.UI.Layout.ScreenLayouts
             }
             Rect[] resultRows = engine.SplitVertical(rightPanel, resultRowConstraints);
 
+            // NOTE: All element positions must be derived from engine.Split...() results.
+            // For label/value rows, use nested SplitHorizontal:
+            //   engine.SplitHorizontal(row, Constraint.Length(labelWidth), Constraint.Length(valueWidth), Constraint.Fill(1));
+            // Never use new Rect(...) with manual arithmetic.
+
             // Left column value fields (rows 1-6) — derived from leftRows sub-rects
-            _pixelAreas["hip_value"] = new Rect(leftRows[0].x + cellWidth * 12, leftRows[0].y, cellWidth * 20, cellHeight);
-            _pixelAreas["name_value"] = new Rect(leftRows[1].x + cellWidth * 12, leftRows[1].y, cellWidth * 25, cellHeight);
-            _pixelAreas["distance_value"] = new Rect(leftRows[2].x + cellWidth * 12, leftRows[2].y, cellWidth * 20, cellHeight);
-            _pixelAreas["spectral_value"] = new Rect(leftRows[3].x + cellWidth * 12, leftRows[3].y, cellWidth * 15, cellHeight);
-            _pixelAreas["mag_value"] = new Rect(leftRows[4].x + cellWidth * 12, leftRows[4].y, cellWidth * 15, cellHeight);
-            _pixelAreas["const_value"] = new Rect(leftRows[5].x + cellWidth * 12, leftRows[5].y, cellWidth * 20, cellHeight);
+            Rect[] row0Splits = engine.SplitHorizontal(leftRows[0],
+                Constraint.Length(cellWidth * 12),
+                Constraint.Length(cellWidth * 20),
+                Constraint.Fill(1)
+            );
+            _pixelAreas["hip_value"] = row0Splits[1];
+
+            Rect[] row1Splits = engine.SplitHorizontal(leftRows[1],
+                Constraint.Length(cellWidth * 12),
+                Constraint.Length(cellWidth * 25),
+                Constraint.Fill(1)
+            );
+            _pixelAreas["name_value"] = row1Splits[1];
+
+            Rect[] row2Splits = engine.SplitHorizontal(leftRows[2],
+                Constraint.Length(cellWidth * 12),
+                Constraint.Length(cellWidth * 20),
+                Constraint.Fill(1)
+            );
+            _pixelAreas["distance_value"] = row2Splits[1];
+
+            Rect[] row3Splits = engine.SplitHorizontal(leftRows[3],
+                Constraint.Length(cellWidth * 12),
+                Constraint.Length(cellWidth * 15),
+                Constraint.Fill(1)
+            );
+            _pixelAreas["spectral_value"] = row3Splits[1];
+
+            Rect[] row4Splits = engine.SplitHorizontal(leftRows[4],
+                Constraint.Length(cellWidth * 12),
+                Constraint.Length(cellWidth * 15),
+                Constraint.Fill(1)
+            );
+            _pixelAreas["mag_value"] = row4Splits[1];
+
+            Rect[] row5Splits = engine.SplitHorizontal(leftRows[5],
+                Constraint.Length(cellWidth * 12),
+                Constraint.Length(cellWidth * 20),
+                Constraint.Fill(1)
+            );
+            _pixelAreas["const_value"] = row5Splits[1];
 
             // Row 8: selected_star, save_button, reset_button
             Rect[] row8Splits = engine.SplitHorizontal(leftRows[7],

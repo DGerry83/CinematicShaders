@@ -13,9 +13,9 @@ namespace CinematicShaders.UI.Screens
     /// - Layer 2: Content labels and static text (types on after Layer 1)
     /// - Layer 3: Interactive elements and value fields (types on after Layer 2)
     /// 
-    /// Each screen receives all three textures via <see cref="SetTextures"/> but decides
-    /// which layers to actually use. This allows screens to be simple (1-2 layers) or
-    /// complex (all 3 layers) without interface changes.
+    /// Each screen adds layers in its constructor and renders them via <see cref="Render"/>.
+    /// This allows screens to be simple (1-2 layers) or complex (all 3 layers) without
+    /// interface changes.
     /// </remarks>
     public interface IScreen
     {

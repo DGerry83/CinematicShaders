@@ -484,12 +484,8 @@ namespace CinematicShaders.UI
                 
                 if (region.Width == 0 || region.Height == 0)
                 {
-                    // Fallback: calculate region manually if not in layout
-                    region = new GridRegion(
-                        GridPosition.At(38, 1 + i),  // Column 38, rows 1-10
-                        20,                           // Width: 20 columns
-                        1                             // Height: 1 row
-                    );
+                    Debug.LogWarning($"[StarCatalogHolographicDisplay] Layout region not found for: {elementId}");
+                    continue;
                 }
                 
                 var element = CreateElementFromGridRegion(
