@@ -237,6 +237,18 @@ namespace CinematicShaders.UI.Screens.Layers
             }
         }
         
+        public void UpdateElementText(string elementId, string text)
+        {
+            var element = _elements.Find(e => e.ElementId == elementId);
+            if (element != null && element.DynamicText != text)
+            {
+                element.DynamicText = text;
+                element.IsVisible = !string.IsNullOrEmpty(text);
+                element.IsDirty = true;
+                ResetAllElementAnimations();
+            }
+        }
+        
         /// <summary>
         /// Reset TypeOnProgress for ALL elements to 0.
         /// Called when any element text changes to restart the global animation.

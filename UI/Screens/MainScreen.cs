@@ -440,5 +440,10 @@ namespace CinematicShaders.UI.Screens
             UpdateElementVisibility(false);
         }
         
+        public void ForceRenderTextureReload()
+        {
+            ReleaseConsoleRenderTexture();
+        }
+        
     }
 }

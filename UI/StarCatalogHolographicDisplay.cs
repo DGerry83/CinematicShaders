@@ -838,17 +838,15 @@ namespace CinematicShaders.UI
         /// </summary>
         private void UpdateEditDisplay()
         {
-            // Update the element display with edit buffer + cursor
             var element = GetElement(_editingElementId);
             if (element != null)
             {
-                // Append cursor character if visible
                 string displayText = _editBuffer + (_cursorVisible ? "▌" : "");
-                element.DynamicText = displayText;
-                element.IsDirty = true;
+                var mainScreen = _screenManager?.CurrentScreen as MainScreen;
+                var elementLayer = mainScreen?.GetElementLayer();
+                elementLayer?.UpdateElementText(_editingElementId, displayText);
+                mainScreen?.ForceRenderTextureReload();
             }
-            
-            // Layer 3 redraw is triggered by ElementLayer dirty flags internally
         }
         
         /// <summary>
@@ -1330,15 +1328,19 @@ namespace CinematicShaders.UI
 
         private void SetElementText(string elementId, string text)
         {
+            string newText = text?.ToUpper() ?? "";
             if (_elements.TryGetValue(elementId, out var element))
             {
-                string newText = text?.ToUpper() ?? "";
                 if (element.DynamicText != newText)
                 {
                     element.DynamicText = newText;
                     element.IsDirty = true;
                 }
             }
+            var mainScreen = _screenManager?.CurrentScreen as MainScreen;
+            var elementLayer = mainScreen?.GetElementLayer();
+            elementLayer?.UpdateElementText(elementId, newText);
+            mainScreen?.ForceRenderTextureReload();
         }
 
         /// <summary>
@@ -1576,10 +1578,14 @@ namespace CinematicShaders.UI
                 }
                 else
                 {
+                    string resultId = $"result_{i}";
                     element.IsVisible = false;
                     element.AssociatedData = null;
+                    (_screenManager?.CurrentScreen as MainScreen)?.GetElementLayer()?.UpdateElementText(resultId, "");
                 }
             }
+            var mainScreen = _screenManager?.CurrentScreen as MainScreen;
+            mainScreen?.ForceRenderTextureReload();
         }
 
         #endregion
@@ -1679,10 +1685,10 @@ namespace CinematicShaders.UI
             if (_screenManager?.CurrentScreen is MainScreen mainScreen)
             {
                 mainScreen.OnStarDeselected();
+                mainScreen.ForceRenderTextureReload();
             }
             
             _selectedStar = null;
-            // ClearStarData called by OnStarDeselected
         }
 
         #endregion
