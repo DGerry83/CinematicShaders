@@ -267,10 +267,13 @@ namespace CinematicShaders.UI
             ModFileLogger.Log($"[HolographicDisplay] New window size: {_windowRect.width}x{_windowRect.height}");
             ModFileLogger.Log($"[HolographicDisplay] CurrentDisplaySize set to: {TerminalGridConfig.CurrentDisplaySize}");
             
+            // Recreate elements with new dimensions FIRST so InitializeScreens gets fresh data
+            CreateElements();
+            
             if (_screenManager != null)
             {
                 // Unified grid: Reinitialize ScreenManager textures at new size
-                ModFileLogger.Log("[HolographicDisplay] Recreating elements for unified grid");
+                ModFileLogger.Log("[HolographicDisplay] Recreating screens for unified grid");
                 _screenManager.Shutdown();
                 _screenManager = new ScreenManager(_textSystem);
                 _screenManager.InitializeTextures(
@@ -287,9 +290,6 @@ namespace CinematicShaders.UI
                 
                 Debug.Log($"[HolographicDisplay] ScreenManager textures resized to: {dimensions.x}x{dimensions.y}");
             }
-            
-            // Recreate elements with new dimensions
-            CreateElements();
             
             // Mark all elements dirty for re-render
             foreach (var element in _elements.Values)

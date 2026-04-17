@@ -170,7 +170,7 @@ namespace CinematicShaders.UI.Screens
             int h = Mathf.Max(1, Mathf.RoundToInt(displayRect.height));
             Vector2 size = new Vector2(w, h);
             
-            if (_consoleRenderTexture != null && _consoleRenderTextureSize == size)
+            if (_consoleRenderTexture != null && _consoleRenderTexture.IsCreated() && _consoleRenderTextureSize == size)
             {
                 return _consoleRenderTexture;
             }
