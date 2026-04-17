@@ -34,8 +34,7 @@ namespace CinematicShaders.UI.Screens.Layers
         
         // Character-based animation constants
         private const float FIELD_CHARS_PER_SECOND = 30f;
-        private const float RESULT_WEIGHT = 0.5f;  // Results animate at 2x speed (120 chars/sec effective)
-        private const float MIN_TYPEON_DURATION = 0.5f;
+        private const float RESULT_WEIGHT = 0.5f;  // Results animate at 2x speed (60 chars/sec effective)
         
         // Cursor state
         private bool _cursorVisible = true;
@@ -343,7 +342,7 @@ namespace CinematicShaders.UI.Screens.Layers
             float weightedCharCount = GetWeightedAnimationCharacterCount();
             if (weightedCharCount <= 0f) return 0f;
             float duration = weightedCharCount / FIELD_CHARS_PER_SECOND;
-            return Mathf.Max(MIN_TYPEON_DURATION, duration);
+            return duration;
         }
         
         /// <summary>
