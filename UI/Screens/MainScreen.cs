@@ -78,7 +78,7 @@ namespace CinematicShaders.UI.Screens
         {
             "hip_value", "name_value", "distance_value",
             "spectral_value", "mag_value", "const_value",
-            "selected_star", "search_input",
+            "search_input",
             "result_0", "result_1", "result_2", "result_3", "result_4",
             "result_5", "result_6", "result_7", "result_8", "result_9",
             "page_number",
@@ -245,12 +245,6 @@ namespace CinematicShaders.UI.Screens
             Handler?.OnElementClicked("search_input");
         }
         
-        public void OnSelectedStarClicked()
-        {
-            ModFileLogger.Log("[MainScreen] OnSelectedStarClicked");
-            Handler?.OnElementClicked("selected_star");
-        }
-        
         public void OnScrollUpClicked()
         {
             ModFileLogger.Log("[MainScreen] OnScrollUpClicked");
@@ -368,7 +362,7 @@ namespace CinematicShaders.UI.Screens
             if (_elementLayer == null) return;
             
             string[] valueIds = { "hip_value", "name_value", "distance_value", 
-                                  "spectral_value", "mag_value", "const_value", "selected_star" };
+                                  "spectral_value", "mag_value", "const_value" };
             foreach (var id in valueIds)
             {
                 _elementLayer.SetElementVisibility(id, hasStarSelected);
@@ -469,12 +463,6 @@ namespace CinematicShaders.UI.Screens
                 _elementLayer?.SetElementText("const_value", star.Constellation);
                 anyFieldChanged = true;
             }
-            if (_lastDisplayedStar?.Name != star.Name)
-            {
-                _elementLayer?.SetElementText("selected_star", star.Name);
-                anyFieldChanged = true;
-            }
-            
             // Only restart animation if something actually changed
             if (anyFieldChanged)
             {
@@ -487,7 +475,6 @@ namespace CinematicShaders.UI.Screens
                 _elementLayer?.ResetAnimationForElement("spectral_value");
                 _elementLayer?.ResetAnimationForElement("mag_value");
                 _elementLayer?.ResetAnimationForElement("const_value");
-                _elementLayer?.ResetAnimationForElement("selected_star");
                 
                 RestartLayer3Animation();
             }

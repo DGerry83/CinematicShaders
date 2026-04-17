@@ -51,9 +51,6 @@ namespace CinematicShaders.UI.Screens
             // Input field
             RegisterZoneFromLayout("search_input", "input", () => _screen.OnSearchClicked());
             
-            // Selected star
-            RegisterZoneFromLayout("selected_star", "value", () => _screen.OnSelectedStarClicked());
-            
             // Search results (0-9)
             for (int i = 0; i < 10; i++)
             {

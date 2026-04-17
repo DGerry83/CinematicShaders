@@ -384,7 +384,6 @@ namespace CinematicShaders.UI
                 case "spectral_value": return 3;
                 case "mag_value": return 4;
                 case "const_value": return 5;
-                case "selected_star": return 6;
                 case "save_button": return 10;
                 case "reset_button": return 11;
                 case "rescan_button": return 12;
@@ -413,7 +412,6 @@ namespace CinematicShaders.UI
                 case "spectral_value":
                 case "mag_value":
                 case "const_value":
-                case "selected_star":
                     return TextElementType.Value;
                     
                 case "name_value":
@@ -456,8 +454,7 @@ namespace CinematicShaders.UI
                 "spectral_value",
                 "mag_value",
                 "const_value",
-                "search_input",
-                "selected_star"
+                "search_input"
                 // Note: Buttons (save_button, reset_button, rescan_button) are excluded
                 // because they are drawn in Layer 2 and only needed for click zones
             };
@@ -1333,7 +1330,6 @@ namespace CinematicShaders.UI
             SetElementText("spectral_value", star.SpectralType);
             SetElementText("mag_value", star.Magnitude.ToString("F2"));
             SetElementText("const_value", star.Constellation);
-            SetElementText("selected_star", $"{star.Name}");
             
             // Notify MainScreen of star selection for animation
             if (_screenManager?.CurrentScreen is MainScreen mainScreen)
@@ -1371,15 +1367,7 @@ namespace CinematicShaders.UI
                 }
             }
             
-            // Selected star indicator last
-            if (_elements.TryGetValue("selected_star", out var selElem))
-            {
-                selElem.TypeOnDelay = startTime + currentDelay;
-                selElem.TypeOnDuration = 0.5f;
-                selElem.TypeOnProgress = 0f;
-                selElem.IsVisible = true;
-                selElem.IsDirty = true;
-            }
+
         }
 
         private void SetElementText(string elementId, string text)
@@ -1411,7 +1399,6 @@ namespace CinematicShaders.UI
             SetElementText("spectral_value", "");
             SetElementText("mag_value", "");
             SetElementText("const_value", "");
-            SetElementText("selected_star", "");
             
             // Trigger type-on animation for the clear (elements will type-on empty)
             TriggerValueTypeOnAnimation();
