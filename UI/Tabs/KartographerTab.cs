@@ -495,34 +495,7 @@ namespace CinematicShaders.UI.Tabs
                 }
             }
 
-            /* GRID ORIENTATION SLIDERS DISABLED - Code preserved for future use
-            GUILayout.Space(5);
-            GUILayout.Label("<b>Grid Orientation</b>", HighLogic.Skin.label);
 
-            // Rotation Yaw: -180 to 180 degrees, stored as radians
-            float yawDegrees = StarfieldSettings.KartographerRotationYaw * Mathf.Rad2Deg;
-            GUILayout.Label(new GUIContent($"Yaw: {yawDegrees:F0}°", 
-                "Rotate the grid left/right around the vertical axis"));
-            float newYaw = GUILayout.HorizontalSlider(yawDegrees, -180f, 180f);
-            if (!Mathf.Approximately(newYaw, yawDegrees))
-            {
-                StarfieldSettings.KartographerRotationYaw = newYaw * Mathf.Deg2Rad;
-                PushKartographerParams();
-                StarfieldSettings.Save();
-            }
-
-            // Rotation Pitch: -90 to 90 degrees, stored as radians
-            float pitchDegrees = StarfieldSettings.KartographerRotationPitch * Mathf.Rad2Deg;
-            GUILayout.Label(new GUIContent($"Pitch: {pitchDegrees:F0}°", 
-                "Rotate the grid up/down around the horizontal axis"));
-            float newPitch = GUILayout.HorizontalSlider(pitchDegrees, -90f, 90f);
-            if (!Mathf.Approximately(newPitch, pitchDegrees))
-            {
-                StarfieldSettings.KartographerRotationPitch = newPitch * Mathf.Deg2Rad;
-                PushKartographerParams();
-                StarfieldSettings.Save();
-            }
-            */
 
             // Reset button
             GUILayout.Space(10);
