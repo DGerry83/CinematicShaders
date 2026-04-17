@@ -302,7 +302,7 @@ namespace CinematicShaders.UI.Screens.Layers
         public void ResetAnimationForElement(string elementId)
         {
             var element = _elements.Find(e => e.ElementId == elementId);
-            if (element != null)
+            if (element != null && !element.IsEditing)
             {
                 element.NeedsTypeOnAnimation = true;
                 element.TypeOnProgress = 0f;

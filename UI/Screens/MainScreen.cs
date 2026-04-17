@@ -416,7 +416,7 @@ namespace CinematicShaders.UI.Screens
             
             bool anyFieldChanged = false;
             
-            // Compare each field against last displayed star and only animate changed ones
+            // Update text only for fields that actually changed
             if (_lastDisplayedStar?.HipparcosID != star.HipparcosID)
             {
                 _elementLayer?.SetElementText("hip_value", star.HipparcosID.ToString());
@@ -456,6 +456,17 @@ namespace CinematicShaders.UI.Screens
             // Only restart animation if something actually changed
             if (anyFieldChanged)
             {
+                // Reset animation for ALL star info fields so the entire data set refreshes together.
+                // Otherwise unchanged fields would stay at 1.0 progress and the snapshot would be
+                // tiny, making the animation feel instant and broken.
+                _elementLayer?.ResetAnimationForElement("hip_value");
+                _elementLayer?.ResetAnimationForElement("name_value");
+                _elementLayer?.ResetAnimationForElement("distance_value");
+                _elementLayer?.ResetAnimationForElement("spectral_value");
+                _elementLayer?.ResetAnimationForElement("mag_value");
+                _elementLayer?.ResetAnimationForElement("const_value");
+                _elementLayer?.ResetAnimationForElement("selected_star");
+                
                 RestartLayer3Animation();
             }
             
