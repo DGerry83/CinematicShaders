@@ -116,11 +116,18 @@ namespace CinematicShaders.UI.Screens
         /// <summary>
         /// Returns true while any layer's type-on animation is actively playing
         /// (progress is between 0 and 1, exclusive).
+        /// Skips Layer 3 if the screen has no ElementLayer (Order 3) content.
         /// </summary>
-        public bool IsTypeOnAnimationActive =>
-            (Layer1Progress > 0f && Layer1Progress < 1f) ||
-            (Layer2Progress > 0f && Layer2Progress < 1f) ||
-            (Layer3Progress > 0f && Layer3Progress < 1f);
+        public bool IsTypeOnAnimationActive
+        {
+            get
+            {
+                bool hasLayer3 = Layers.Exists(l => l.Order == 3);
+                return (Layer1Progress > 0f && Layer1Progress < 1f) ||
+                       (Layer2Progress > 0f && Layer2Progress < 1f) ||
+                       (hasLayer3 && Layer3Progress > 0f && Layer3Progress < 1f);
+            }
+        }
         
         /// <summary>
         /// Event fired when Layer 2 animation completes.
