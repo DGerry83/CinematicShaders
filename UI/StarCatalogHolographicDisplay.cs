@@ -516,6 +516,36 @@ namespace CinematicShaders.UI
             // Handle keyboard input (even when window not focused for convenience)
             HandleKeyboardInput();
             
+            // Click-away defocus: any mouse click outside the editing element exits edit mode
+            if (Event.current.type == EventType.MouseDown && Event.current.button == 0 && !string.IsNullOrEmpty(_editingElementId))
+            {
+                bool shouldExit = true;
+                if (_mainScreenLayout != null)
+                {
+                    var region = _mainScreenLayout.GetGridArea(_editingElementId);
+                    if (region.Width > 0 && region.Height > 0)
+                    {
+                        var (glyphW, glyphH) = TerminalGridConfig.GlyphMetrics.GetGlyphMetrics(TerminalGridConfig.CurrentDisplaySize);
+                        float displayScreenX = _windowRect.x + BORDER_THICKNESS;
+                        float displayScreenY = _windowRect.y + TITLE_BAR_HEIGHT + BORDER_THICKNESS;
+                        Rect editScreenRect = new Rect(
+                            displayScreenX + region.TopLeft.Column * glyphW,
+                            displayScreenY + region.TopLeft.Row * glyphH,
+                            region.Width * glyphW,
+                            region.Height * glyphH
+                        );
+                        if (editScreenRect.Contains(Event.current.mousePosition))
+                        {
+                            shouldExit = false;
+                        }
+                    }
+                }
+                if (shouldExit)
+                {
+                    ExitEditMode(save: true);
+                }
+            }
+            
             // Draw the IMGUI window with title bar and borders
             // Use GUI.Window (not GUILayout.Window) to prevent auto-sizing
             _windowRect = GUI.Window(
@@ -715,6 +745,8 @@ namespace CinematicShaders.UI
             var mainScreen = _screenManager?.CurrentScreen as MainScreen;
             mainScreen?.SetCursorState(_editingElementId, _cursorVisible);
             
+            InputLockManager.SetControlLock(ControlTypes.KEYBOARDINPUT | ControlTypes.PAUSE, "CinematicShaders_StarConsoleEdit");
+            
             Debug.Log($"[HolographicDisplay] Entered edit mode for: {elementId}");
         }
         
@@ -724,6 +756,8 @@ namespace CinematicShaders.UI
         public void ExitEditMode(bool save)
         {
             if (string.IsNullOrEmpty(_editingElementId)) return;
+            
+            InputLockManager.RemoveControlLock("CinematicShaders_StarConsoleEdit");
             
             var element = GetElement(_editingElementId);
             if (element != null)
