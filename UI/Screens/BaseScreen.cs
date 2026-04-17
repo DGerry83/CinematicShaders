@@ -424,6 +424,12 @@ namespace CinematicShaders.UI.Screens
         protected string _hoveredElementId = null;
 
         /// <summary>
+        /// Global toggle for the hover outline overlay.
+        /// Set to false to temporarily disable box drawing while refining visuals.
+        /// </summary>
+        protected static bool HoverOverlayEnabled = false;
+
+        /// <summary>
         /// Gets the hover border thickness appropriate for the current display size.
         /// </summary>
         protected float GetHoverBorderThickness()
@@ -453,6 +459,9 @@ namespace CinematicShaders.UI.Screens
         protected void DrawHoverOverlay(Rect displayRect, ClickZoneManager zoneManager,
             System.Func<string, float> getContentWidth = null)
         {
+            if (!HoverOverlayEnabled)
+                return;
+
             if (zoneManager == null || string.IsNullOrEmpty(_hoveredElementId))
                 return;
 
