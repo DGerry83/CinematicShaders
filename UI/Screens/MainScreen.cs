@@ -505,6 +505,7 @@ namespace CinematicShaders.UI.Screens
         /// </summary>
         public void OnStarDeselected()
         {
+            _lastDisplayedStar = null;
             _elementLayer?.ClearValueFields();
             UpdateClickZoneState(false);
             UpdateElementVisibility(false);
