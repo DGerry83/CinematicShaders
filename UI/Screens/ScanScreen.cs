@@ -41,7 +41,6 @@ namespace CinematicShaders.UI.Screens
         
         // Click zone for SCAN area
         private ClickZone _scanZone;
-        private bool _scanHovered = false;
         
         // NEW: Simple click handler
         public ScanScreenClickHandler ClickHandler { get; private set; }
@@ -148,7 +147,6 @@ namespace CinematicShaders.UI.Screens
             ClickHandler = new ScanScreenClickHandler(this);
             ClickHandler.SetupZones();
             
-            _scanHovered = false;
         }
         
         /// <summary>
@@ -160,8 +158,6 @@ namespace CinematicShaders.UI.Screens
             
             OnLayer2Complete -= StartLayer3Animation;
             
-            // Clear hover state
-            _scanHovered = false;
             StarfieldNative.CR_SetBoxOutline(0, 0, 0, 0, 0);
         }
         
@@ -176,7 +172,6 @@ namespace CinematicShaders.UI.Screens
         public void OnElementHoverEnter(string elementId)
         {
             // Show hover highlight for scan_area
-            _scanHovered = true;
             if (_scanZone != null)
             {
                 Rect uvRect = _scanZone.GetUVRect();
@@ -187,7 +182,6 @@ namespace CinematicShaders.UI.Screens
         public void OnElementHoverExit(string elementId)
         {
             // Clear hover highlight
-            _scanHovered = false;
             StarfieldNative.CR_SetBoxOutline(0, 0, 0, 0, 0);
         }
         

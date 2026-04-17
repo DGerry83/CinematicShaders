@@ -67,39 +67,6 @@ namespace CinematicShaders.UI.Layout.ScreenLayouts
             return _gridAreas.Keys;
         }
 
-        public bool ValidateAgainst(Dictionary<string, Rect> reference, float tolerance)
-        {
-            bool valid = true;
-
-            foreach (KeyValuePair<string, Rect> kvp in reference)
-            {
-                if (!_gridAreas.TryGetValue(kvp.Key, out GridRegion gridRegion))
-                {
-                    Debug.LogError(string.Format(
-                        "[LayoutValidation] {0}: Missing in calculated layout", kvp.Key));
-                    valid = false;
-                    continue;
-                }
-
-                Rect calculated = GetArea(kvp.Key);
-
-                float dx = Mathf.Abs(calculated.x - kvp.Value.x);
-                float dy = Mathf.Abs(calculated.y - kvp.Value.y);
-                float dw = Mathf.Abs(calculated.width - kvp.Value.width);
-                float dh = Mathf.Abs(calculated.height - kvp.Value.height);
-
-                if (dx > tolerance || dy > tolerance || dw > tolerance || dh > tolerance)
-                {
-                    Debug.LogError(string.Format(
-                        "[LayoutValidation] {0}: Legacy={1}, Calculated={2}",
-                        kvp.Key, kvp.Value, calculated));
-                    valid = false;
-                }
-            }
-
-            return valid;
-        }
-
         public void Invalidate()
         {
             _isBuilt = false;

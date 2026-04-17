@@ -31,9 +31,5 @@ namespace CinematicShaders.UI.Layout
         /// </summary>
         IEnumerable<string> GetElementIds();
 
-        /// <summary>
-        /// Validates the calculated layout against reference positions (in pixels).
-        /// </summary>
-        bool ValidateAgainst(Dictionary<string, Rect> reference, float tolerance);
     }
 }

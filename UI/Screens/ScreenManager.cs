@@ -150,26 +150,6 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
-        /// Validates all layer textures and recreates any that are invalid.
-        /// </summary>
-        /// <remarks>
-        /// No-op stub: texture validation removed during instanced rendering refactor.
-        /// Kept for backward compatibility with external callers.
-        /// </remarks>
-        public void ValidateTextures()
-        {
-        }
-        
-        /// <summary>
-        /// Gets a copy of all layer textures for debugging or export purposes.
-        /// </summary>
-        /// <returns>Empty dictionary: texture pool removed during instanced rendering refactor.</returns>
-        public Dictionary<int, RenderTexture> GetAllLayerTextures()
-        {
-            return new Dictionary<int, RenderTexture>();
-        }
-        
-        /// <summary>
         /// Renders the currently active screen.
         /// </summary>
         /// <param name="displayRect">Screen-space rectangle for rendering</param>

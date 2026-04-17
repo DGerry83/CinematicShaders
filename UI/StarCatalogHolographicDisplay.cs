@@ -166,7 +166,6 @@ namespace CinematicShaders.UI
             }
 
             CreateElements();
-            InitializeTextures();
             
             // Initialize ScreenManager
             _screenManager = new ScreenManager(_textSystem);
@@ -270,10 +269,6 @@ namespace CinematicShaders.UI
             
             ModFileLogger.Log($"[HolographicDisplay] New window size: {_windowRect.width}x{_windowRect.height}");
             ModFileLogger.Log($"[HolographicDisplay] CurrentDisplaySize set to: {TerminalGridConfig.CurrentDisplaySize}");
-            
-            // Recreate textures for new size
-            CleanupRenderTextures();
-            InitializeTextures();
             
             if (_screenManager != null)
             {
@@ -514,20 +509,6 @@ namespace CinematicShaders.UI
             Debug.Log($"[StarCatalogHolographicDisplay] Created {_elements.Count} elements using constraint layout");
         }
 
-        private void InitializeTextures()
-        {
-            // Textures are now managed by ScreenManager
-            // This method is kept for future texture initialization if needed
-        }
-        
-        /// <summary>
-        /// Clean up all render textures before recreating them
-        /// </summary>
-        private void CleanupRenderTextures()
-        {
-            // Textures are now managed by ScreenManager
-            // This method is kept for future cleanup if needed
-        }
         #endregion
 
         #region IMGUI Window Rendering
@@ -1203,15 +1184,11 @@ namespace CinematicShaders.UI
         }
 
         /// <summary>
-        /// Validates that ScreenManager textures are ready before powering on.
+        /// Validates that ScreenManager is ready before powering on.
         /// </summary>
         private bool ValidateBeforePowerOn()
         {
-            if (_screenManager == null) return false;
-            
-            // Validate textures are ready
-            _screenManager.ValidateTextures();
-            return true;
+            return _screenManager != null;
         }
 
         private void PowerOn()
@@ -1806,14 +1783,6 @@ namespace CinematicShaders.UI
             }
         }
 
-        /// <summary>
-        /// Enable/disable input capture mode
-        /// </summary>
-        public void SetInputCapture(bool capture)
-        {
-            _capturingInput = capture;
-        }
-
         #endregion
         
         #region Unity Lifecycle
@@ -1852,73 +1821,6 @@ namespace CinematicShaders.UI
         public bool HasStars()
         {
             return _allStars != null && _allStars.Count > 0;
-        }
-
-        /// <summary>
-        /// Get count of filtered results
-        /// </summary>
-        public int GetResultCount()
-        {
-            return _filteredResults?.Count ?? 0;
-        }
-
-        /// <summary>
-        /// Export all display textures to PNG files for debugging/layout.
-        /// Files are saved to PluginData/TextureExports/
-        /// </summary>
-        public void ExportAllTexturesToPng()
-        {
-            try
-            {
-                string exportDir = Path.Combine(KSPUtil.ApplicationRootPath, "GameData", "CinematicShaders", "PluginData", "TextureExports");
-                if (!Directory.Exists(exportDir))
-                    Directory.CreateDirectory(exportDir);
-                
-                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                int exportedCount = 0;
-                
-                // Export ScreenManager layers (1, 2, 3)
-                if (_screenManager != null)
-                {
-                    var layerTextures = _screenManager.GetAllLayerTextures();
-                    foreach (var kvp in layerTextures)
-                    {
-                        if (kvp.Value != null)
-                        {
-                            string layerName = kvp.Key == 1 ? "Layer1" : kvp.Key == 2 ? "Layer2" : "Layer3";
-                            ExportRenderTextureToPng(kvp.Value, Path.Combine(exportDir, $"ScreenManager_{layerName}_{timestamp}.png"));
-                            exportedCount++;
-                        }
-                    }
-                }
-                
-                Debug.Log($"[HolographicDisplay] Exported {exportedCount} textures to: {exportDir}");
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"[HolographicDisplay] Failed to export textures: {ex.Message}");
-            }
-        }
-        
-        /// <summary>
-        /// Helper to export a single RenderTexture to PNG
-        /// </summary>
-        private void ExportRenderTextureToPng(RenderTexture rt, string filePath)
-        {
-            if (rt == null) return;
-            
-            // Create temporary Texture2D to read the RenderTexture
-            RenderTexture.active = rt;
-            Texture2D tex = new Texture2D(rt.width, rt.height, TextureFormat.RGBA32, false);
-            tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
-            tex.Apply();
-            RenderTexture.active = null;
-            
-            // Encode to PNG and save
-            byte[] pngData = tex.EncodeToPNG();
-            File.WriteAllBytes(filePath, pngData);
-            
-            UnityEngine.Object.Destroy(tex);
         }
 
         #endregion
