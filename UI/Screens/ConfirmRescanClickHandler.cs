@@ -12,7 +12,7 @@ namespace CinematicShaders.UI.Screens
     {
         public ClickZoneManager ZoneManager { get; private set; }
         private ConfirmRescanScreen _screen;
-        private string _hoveredElementId = null;
+        private ClickZoneInputProcessor _processor;
         
         /// <summary>
         /// Creates a new click handler for the specified ConfirmRescanScreen.
@@ -21,6 +21,19 @@ namespace CinematicShaders.UI.Screens
         {
             _screen = screen;
             ZoneManager = new ClickZoneManager();
+            _processor = new ClickZoneInputProcessor(
+                ZoneManager,
+                elementId => _screen.OnElementHoverEnter(elementId),
+                elementId => _screen.OnElementHoverExit(elementId),
+                onMouseDown: () => ModFileLogger.Log("[ConfirmRescanClickHandler] MouseDown detected"),
+                onZoneEvaluated: (zone, col, row) =>
+                {
+                    if (zone != null)
+                        ModFileLogger.Log($"[ConfirmRescanClickHandler] Zone found: {zone.ElementId} at grid ({col},{row})");
+                    else
+                        ModFileLogger.Log($"[ConfirmRescanClickHandler] No zone at grid ({col},{row})");
+                },
+                onZoneClick: (zone) => ModFileLogger.Log($"[ConfirmRescanClickHandler] Clicking zone: {zone.ElementId}"));
         }
         
         /// <summary>
@@ -62,83 +75,7 @@ namespace CinematicShaders.UI.Screens
         /// </summary>
         public void HandleInput(Rect displayRect)
         {
-            if (Event.current == null) return;
-            
-            // Only process mouse events
-            if (Event.current.type != EventType.MouseDown && 
-                Event.current.type != EventType.MouseMove &&
-                Event.current.type != EventType.MouseUp)
-            {
-                return;
-            }
-            
-            // Log mouse down events for debugging
-            if (Event.current.type == EventType.MouseDown && Event.current.button == 0)
-            {
-                ModFileLogger.Log("[ConfirmRescanClickHandler] MouseDown detected");
-            }
-            
-            Vector2 mousePos = Event.current.mousePosition;
-            
-            // Check if mouse is within display
-            if (!displayRect.Contains(mousePos))
-            {
-                if (_hoveredElementId != null)
-                {
-                    _screen.OnElementHoverExit(_hoveredElementId);
-                    _hoveredElementId = null;
-                }
-                return;
-            }
-            
-            // Convert to local coordinates
-            float localX = mousePos.x - displayRect.x;
-            float localY = mousePos.y - displayRect.y;
-            
-            // Convert to grid coordinates
-            GridPosition gridPos = TerminalGridConfig.PixelToGrid(
-                localX, localY, TerminalGridConfig.CurrentDisplaySize);
-            
-            // Find zone at grid position
-            var zone = ZoneManager.FindZoneAt(gridPos.Column, gridPos.Row);
-            
-            // Log zone lookup for debugging
-            if (Event.current.type == EventType.MouseDown && Event.current.button == 0)
-            {
-                if (zone != null)
-                    ModFileLogger.Log($"[ConfirmRescanClickHandler] Zone found: {zone.ElementId} at grid ({gridPos.Column},{gridPos.Row})");
-                else
-                    ModFileLogger.Log($"[ConfirmRescanClickHandler] No zone at grid ({gridPos.Column},{gridPos.Row})");
-            }
-            
-            if (zone != null && zone.IsEnabled)
-            {
-                // Handle hover enter
-                if (zone.ElementId != _hoveredElementId)
-                {
-                    if (_hoveredElementId != null)
-                        _screen.OnElementHoverExit(_hoveredElementId);
-                    
-                    _hoveredElementId = zone.ElementId;
-                    _screen.OnElementHoverEnter(zone.ElementId);
-                }
-                
-                // Handle click
-                if (Event.current.type == EventType.MouseDown && Event.current.button == 0)
-                {
-                    ModFileLogger.Log($"[ConfirmRescanClickHandler] Clicking zone: {zone.ElementId}");
-                    zone.OnClick?.Invoke();
-                }
-            }
-            else
-            {
-                // Handle hover exit
-                if (_hoveredElementId != null)
-                {
-                    _screen.OnElementHoverExit(_hoveredElementId);
-                    _hoveredElementId = null;
-                }
-            }
+            _processor.ProcessInput(displayRect);
         }
     }
 }
