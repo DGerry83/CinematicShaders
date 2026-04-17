@@ -71,6 +71,12 @@ namespace CinematicShaders.UI
         public int Priority;
 
         /// <summary>
+        /// When true, this element participates in the Layer 3 type-on animation.
+        /// Auto-cleared when TypeOnProgress reaches 1.0.
+        /// </summary>
+        public bool NeedsTypeOnAnimation = true;
+
+        /// <summary>
         /// Mark this element as needing re-render
         /// </summary>
         public void MarkDirty()

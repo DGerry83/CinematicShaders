@@ -33,7 +33,8 @@ namespace CinematicShaders.UI.Screens.Layers
         private const int LAYER_3_LINE_COUNT = 17;
         
         // Character-based animation constants
-        private const float CHARS_PER_SECOND = 60f;
+        private const float FIELD_CHARS_PER_SECOND = 60f;
+        private const float RESULT_WEIGHT = 0.5f;  // Results animate at 2x speed (120 chars/sec effective)
         private const float MIN_TYPEON_DURATION = 0.5f;
         
         // Cursor state
@@ -227,13 +228,12 @@ namespace CinematicShaders.UI.Screens.Layers
             var element = _elements.Find(e => e.ElementId == elementId);
             if (element != null && element.DynamicText != text)
             {
-                ModFileLogger.Log($"[ElementLayer] SetElementText({elementId}): '{element.DynamicText}' -> '{text}', resetting ALL animations");
+                ModFileLogger.Log($"[ElementLayer] SetElementText({elementId}): '{element.DynamicText}' -> '{text}', flagging for animation");
                 element.DynamicText = text;
                 element.IsVisible = !string.IsNullOrEmpty(text);
                 element.IsDirty = true;
-                
-                // Reset ALL element animations to 0 for global character-based animation
-                ResetAllElementAnimations();
+                element.NeedsTypeOnAnimation = true;
+                element.TypeOnProgress = 0f;
             }
         }
         
@@ -245,7 +245,8 @@ namespace CinematicShaders.UI.Screens.Layers
                 element.DynamicText = text;
                 element.IsVisible = !string.IsNullOrEmpty(text);
                 element.IsDirty = true;
-                ResetAllElementAnimations();
+                element.NeedsTypeOnAnimation = true;
+                element.TypeOnProgress = 0f;
             }
         }
         
@@ -257,10 +258,38 @@ namespace CinematicShaders.UI.Screens.Layers
         {
             foreach (var e in _elements)
             {
+                e.NeedsTypeOnAnimation = true;
                 e.TypeOnProgress = 0f;
                 e.IsDirty = true;
             }
             ModFileLogger.Log("[ElementLayer] All element animations reset to 0");
+        }
+
+        /// <summary>
+        /// Returns true if any visible element still needs type-on animation.
+        /// </summary>
+        public bool HasElementsNeedingAnimation()
+        {
+            foreach (var element in _elements)
+            {
+                if (element.IsVisible && element.NeedsTypeOnAnimation)
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Flags a single element for type-on animation and resets its progress.
+        /// </summary>
+        public void ResetAnimationForElement(string elementId)
+        {
+            var element = _elements.Find(e => e.ElementId == elementId);
+            if (element != null)
+            {
+                element.NeedsTypeOnAnimation = true;
+                element.TypeOnProgress = 0f;
+                element.IsDirty = true;
+            }
         }
         
         /// <summary>
@@ -311,9 +340,9 @@ namespace CinematicShaders.UI.Screens.Layers
         /// </summary>
         public float CalculateTypeOnDuration()
         {
-            int totalCharCount = GetTotalVisibleCharacterCount();
-            if (totalCharCount == 0) return 0f;
-            float duration = totalCharCount / CHARS_PER_SECOND;
+            float weightedCharCount = GetWeightedAnimationCharacterCount();
+            if (weightedCharCount <= 0f) return 0f;
+            float duration = weightedCharCount / FIELD_CHARS_PER_SECOND;
             return Mathf.Max(MIN_TYPEON_DURATION, duration);
         }
         
@@ -321,19 +350,28 @@ namespace CinematicShaders.UI.Screens.Layers
         /// Get total visible character count across ALL visible elements.
         /// Used for global character-based animation.
         /// </summary>
-        private int GetTotalVisibleCharacterCount()
+        private float GetWeightedAnimationCharacterCount()
         {
-            int total = 0;
+            float total = 0f;
             var visibleElements = GetSortedVisibleElements();
             
             foreach (var element in visibleElements)
             {
+                if (!element.NeedsTypeOnAnimation) continue;
+                
                 string text = element.FullDisplayText;
+                int charCount = 0;
                 foreach (char c in text)
                 {
                     if (c != ' ' && c != '\n' && c != '\r' && c != '\t')
-                        total++;
+                        charCount++;
                 }
+                
+                // Search results animate at 2x effective speed (0.5x weight)
+                if (element.ElementId.StartsWith("result_") || element.Type == TextElementType.SearchResult)
+                    total += charCount * RESULT_WEIGHT;
+                else
+                    total += charCount;
             }
             return total;
         }
@@ -466,10 +504,14 @@ namespace CinematicShaders.UI.Screens.Layers
             var sortedElements = GetSortedVisibleElements();
             if (sortedElements.Count == 0) return;
             
-            // Calculate total character count
+            // Filter to only elements that need animation
+            var animatingElements = sortedElements.FindAll(e => e.NeedsTypeOnAnimation);
+            if (animatingElements.Count == 0) return;
+            
+            // Calculate total character count for animating elements only
             int totalChars = 0;
             var elementCharCounts = new List<int>();
-            foreach (var element in sortedElements)
+            foreach (var element in animatingElements)
             {
                 int charCount = CountNonSpaceChars(element.FullDisplayText);
                 elementCharCounts.Add(charCount);
@@ -478,52 +520,49 @@ namespace CinematicShaders.UI.Screens.Layers
             
             if (totalChars == 0) return;
             
-            // Calculate how many characters should be visible at this progress
             int visibleCharCount = Mathf.Max(1, Mathf.FloorToInt(globalProgress * totalChars));
             
-            // Distribute across elements
             int charsAssigned = 0;
             bool hasChanges = false;
             
-            for (int i = 0; i < sortedElements.Count; i++)
+            for (int i = 0; i < animatingElements.Count; i++)
             {
-                var element = sortedElements[i];
+                var element = animatingElements[i];
                 int elementCharCount = elementCharCounts[i];
                 float prevProgress = element.TypeOnProgress;
                 
                 if (elementCharCount == 0)
                 {
-                    // Element has no characters (e.g., empty text) - show it fully
                     element.TypeOnProgress = 1.0f;
                 }
                 else if (charsAssigned + elementCharCount <= visibleCharCount)
                 {
-                    // Entire element visible
                     element.TypeOnProgress = 1.0f;
                     charsAssigned += elementCharCount;
                 }
                 else if (charsAssigned >= visibleCharCount)
                 {
-                    // Element not started yet
                     element.TypeOnProgress = 0.0f;
                 }
                 else
                 {
-                    // Partially visible - calculate exact progress within this element
                     int charsIntoElement = visibleCharCount - charsAssigned;
                     element.TypeOnProgress = (float)charsIntoElement / elementCharCount;
                     charsAssigned += elementCharCount;
                 }
                 
-                // Mark dirty if progress changed
+                // Auto-clear flag when animation completes
+                if (element.TypeOnProgress >= 1.0f)
+                {
+                    element.NeedsTypeOnAnimation = false;
+                }
+                
                 if (Mathf.Abs(element.TypeOnProgress - prevProgress) > 0.001f)
                 {
                     element.IsDirty = true;
                     hasChanges = true;
                 }
             }
-            
-
         }
         
         /// <summary>

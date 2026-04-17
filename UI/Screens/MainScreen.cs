@@ -43,6 +43,7 @@ namespace CinematicShaders.UI.Screens
         private readonly float _aspectRatio;
         private ElementLayer _elementLayer;
         private MainScreenLayout _layout;
+        private NamedStar _lastDisplayedStar;
         
         /// <summary>
         /// Gets the constraint-based layout for this screen.
@@ -168,6 +169,8 @@ namespace CinematicShaders.UI.Screens
                 _elementLayer?.SetElementVisibility("rescan_button", true);
                 _elementLayer?.SetElementVisibility("search_input", true);
             }
+            
+            _lastDisplayedStar = null;
         }
         
         /// <summary>
@@ -392,6 +395,16 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
+        /// Restarts the Layer 3 type-on animation from the beginning.
+        /// Safe to call even if Layer 1/2 are already complete — they stay at 1.0.
+        /// </summary>
+        public void RestartLayer3Animation()
+        {
+            PowerOnTime = Layer3Delay;
+            Layer3Progress = 0f;
+        }
+
+        /// <summary>
         /// Called when a star is selected.
         /// Resets Layer 3 animation for type-on effect when new star data is displayed.
         /// </summary>
@@ -399,35 +412,57 @@ namespace CinematicShaders.UI.Screens
         {
             if (star == null) return;
             
-            ModFileLogger.Log($"[MainScreen] OnStarSelected called for HIP {star.HipparcosID} - Resetting Layer 3 animation");
-            ModFileLogger.Log($"[MainScreen] BEFORE reset: PowerOnTime={PowerOnTime:F3}, Layer3Progress={Layer3Progress:F3}");
+            bool anyFieldChanged = false;
             
-            // CRITICAL FIX: Reset Layer 3 animation timing to trigger type-on effect
-            // This ensures text animates character-by-character instead of appearing instantly
-            PowerOnTime = Layer3Delay;  // Reset to start of Layer 3
-            Layer3Progress = 0f;        // Force progress to 0
+            // Compare each field against last displayed star and only animate changed ones
+            if (_lastDisplayedStar?.HipparcosID != star.HipparcosID)
+            {
+                _elementLayer?.SetElementText("hip_value", star.HipparcosID.ToString());
+                anyFieldChanged = true;
+            }
+            if (_lastDisplayedStar?.Name != star.Name)
+            {
+                _elementLayer?.SetElementText("name_value", star.Name);
+                anyFieldChanged = true;
+            }
+            if (_lastDisplayedStar?.DistanceLy != star.DistanceLy)
+            {
+                _elementLayer?.SetElementText("distance_value", $"{star.DistanceLy:F1} LY");
+                anyFieldChanged = true;
+            }
+            if (_lastDisplayedStar?.SpectralType != star.SpectralType)
+            {
+                _elementLayer?.SetElementText("spectral_value", star.SpectralType);
+                anyFieldChanged = true;
+            }
+            if (_lastDisplayedStar?.Magnitude != star.Magnitude)
+            {
+                _elementLayer?.SetElementText("mag_value", star.Magnitude.ToString("F2"));
+                anyFieldChanged = true;
+            }
+            if (_lastDisplayedStar?.Constellation != star.Constellation)
+            {
+                _elementLayer?.SetElementText("const_value", star.Constellation);
+                anyFieldChanged = true;
+            }
+            if (_lastDisplayedStar?.Name != star.Name)
+            {
+                _elementLayer?.SetElementText("selected_star", star.Name);
+                anyFieldChanged = true;
+            }
             
-            ModFileLogger.Log($"[MainScreen] AFTER reset: PowerOnTime={PowerOnTime:F3}, Layer3Progress={Layer3Progress:F3}");
+            // Only restart animation if something actually changed
+            if (anyFieldChanged)
+            {
+                RestartLayer3Animation();
+            }
             
-            // Reset all element animations to 0 (this also happens in SetElementText, but doing it
-            // explicitly here ensures all elements are reset even if text doesn't change)
-            _elementLayer?.ResetAllElementAnimations();
-            
-            // Set text values - this will also call ResetAllElementAnimations() internally
-            _elementLayer?.SetElementText("hip_value", star.HipparcosID.ToString());
-            _elementLayer?.SetElementText("name_value", star.Name);
-            _elementLayer?.SetElementText("distance_value", $"{star.DistanceLy:F1} LY");
-            _elementLayer?.SetElementText("spectral_value", star.SpectralType);
-            _elementLayer?.SetElementText("mag_value", star.Magnitude.ToString("F2"));
-            _elementLayer?.SetElementText("const_value", star.Constellation);
-            _elementLayer?.SetElementText("selected_star", star.Name);
+            _lastDisplayedStar = star;
             
             // Enable value field click zones
             UpdateClickZoneState(true);
             UpdateElementVisibility(true);
             ReleaseConsoleRenderTexture();
-            
-            ModFileLogger.Log($"[MainScreen] OnStarSelected complete - animation should start from 0");
         }
 
         /// <summary>

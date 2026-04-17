@@ -855,7 +855,7 @@ namespace CinematicShaders.UI
             // Check if we're in edit mode
             if (string.IsNullOrEmpty(_editingElementId)) return;
             
-            _cursorBlinkTimer += Time.deltaTime;
+            _cursorBlinkTimer += Time.unscaledDeltaTime;
             
             if (_cursorBlinkTimer >= CURSOR_BLINK_INTERVAL)
             {
@@ -1495,6 +1495,10 @@ namespace CinematicShaders.UI
             
             // Filter results
             UpdateSearchResults();
+            
+            // Restart animation so the search input types on
+            var mainScreen = _screenManager?.CurrentScreen as MainScreen;
+            mainScreen?.RestartLayer3Animation();
         }
 
         /// <summary>
@@ -1523,6 +1527,8 @@ namespace CinematicShaders.UI
         /// </summary>
         private void UpdateResultElements()
         {
+            bool anyResultsChanged = false;
+            
             for (int i = 0; i < MAX_SEARCH_RESULTS; i++)
             {
                 var element = _resultElements[i];
@@ -1530,22 +1536,48 @@ namespace CinematicShaders.UI
                 if (i < _filteredResults.Count)
                 {
                     var star = _filteredResults[i];
+                    
+                    // Only flag for animation if the content actually changed
+                    bool textChanged = element.DynamicText != star.Name || element.StaticText != "•" || !element.IsVisible;
+                    
                     element.IsVisible = true;
                     element.StaticText = "•";
                     element.DynamicText = star.Name;
                     element.AssociatedData = star;
                     element.IsDirty = true;
+                    
+                    if (textChanged)
+                    {
+                        element.NeedsTypeOnAnimation = true;
+                        element.TypeOnProgress = 0f;
+                        anyResultsChanged = true;
+                    }
                 }
                 else
                 {
                     string resultId = $"result_{i}";
+                    bool wasVisible = element.IsVisible;
+                    
                     element.IsVisible = false;
                     element.AssociatedData = null;
-                    (_screenManager?.CurrentScreen as MainScreen)?.GetElementLayer()?.UpdateElementText(resultId, "");
+                    
+                    if (wasVisible)
+                    {
+                        // Clear the element text in the layer as well
+                        (_screenManager?.CurrentScreen as MainScreen)?.GetElementLayer()?.UpdateElementText(resultId, "");
+                    }
                 }
             }
-            var mainScreen = _screenManager?.CurrentScreen as MainScreen;
-            mainScreen?.ForceRenderTextureReload();
+            
+            // Restart Layer 3 animation if any result content changed
+            if (anyResultsChanged)
+            {
+                var mainScreen = _screenManager?.CurrentScreen as MainScreen;
+                mainScreen?.RestartLayer3Animation();
+            }
+            
+            var screen = _screenManager?.CurrentScreen as MainScreen;
+            screen?.ForceRenderTextureReload();
         }
 
         #endregion
@@ -1759,7 +1791,7 @@ namespace CinematicShaders.UI
             // Update screen manager animations ONLY when powered on
             if (_displayPowered)
             {
-                _screenManager?.Update(Time.deltaTime);
+                _screenManager?.Update(Time.unscaledDeltaTime);
             }
             
         }
