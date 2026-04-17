@@ -1504,14 +1504,7 @@ namespace CinematicShaders.UI
             
             ModFileLogger.Log($"[SearchDebug] UpdateSearchResults called. Query='{_searchQuery}', _allStars.Count={_allStars?.Count ?? 0}");
             
-            if (string.IsNullOrWhiteSpace(_searchQuery))
-            {
-                // Show empty state message in results
-                ShowEmptyResultsState();
-                return;
-            }
-            
-            string query = _searchQuery.ToLowerInvariant();
+            string query = string.IsNullOrWhiteSpace(_searchQuery) ? "" : _searchQuery.ToLowerInvariant();
             
             // Filter: match name or HIP ID
             int checkCount = 0;
@@ -1535,31 +1528,6 @@ namespace CinematicShaders.UI
             
             // Update result elements
             UpdateResultElements();
-        }
-
-        /// <summary>
-        /// Show empty state (ENTER TERMS or NO RESULT)
-        /// </summary>
-        private void ShowEmptyResultsState()
-        {
-            // Hide all result rows
-            for (int i = 0; i < MAX_SEARCH_RESULTS; i++)
-            {
-                var element = _resultElements[i];
-                element.IsVisible = false;
-                element.IsDirty = true;
-            }
-            
-            // Show message in first row
-            if (_resultElements.Count > 0)
-            {
-                var msgElement = _resultElements[0];
-                msgElement.IsVisible = true;
-                msgElement.StaticText = "";
-                msgElement.DynamicText = string.IsNullOrEmpty(_searchQuery) ? "ENTER TERMS" : "NO RESULT";
-                msgElement.AssociatedData = null;
-                msgElement.IsDirty = true;
-            }
         }
 
         /// <summary>
