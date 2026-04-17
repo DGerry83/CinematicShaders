@@ -69,12 +69,7 @@ namespace CinematicShaders.UI.Screens
         // NEW: Handler for controller-based click routing
         public MainScreenHandler Handler { get; set; }
         
-        /// <summary>
-        /// Event fired when an interactive element is clicked.
-        /// String parameter is the element ID (e.g., "name_value", "save_button").
-        /// </summary>
-        public event Action<string> OnElementClicked;
-        
+
         /// <summary>
         /// Layer 3 priority order for type-on animation sequence.
         /// </summary>
@@ -217,43 +212,43 @@ namespace CinematicShaders.UI.Screens
         public void OnValueClicked(string elementId)
         {
             ModFileLogger.Log($"[MainScreen] OnValueClicked: {elementId}");
-            OnElementClicked?.Invoke(elementId);
+            Handler?.OnElementClicked(elementId);
         }
         
         public void OnSaveClicked()
         {
             ModFileLogger.Log("[MainScreen] OnSaveClicked");
-            OnElementClicked?.Invoke("save_button");
+            Handler?.OnElementClicked("save_button");
         }
         
         public void OnResetClicked()
         {
             ModFileLogger.Log("[MainScreen] OnResetClicked");
-            OnElementClicked?.Invoke("reset_button");
+            Handler?.OnElementClicked("reset_button");
         }
         
         public void OnRescanClicked()
         {
             ModFileLogger.Log("[MainScreen] OnRescanClicked");
-            OnElementClicked?.Invoke("rescan_button");
+            Handler?.OnElementClicked("rescan_button");
         }
         
         public void OnSearchClicked()
         {
             ModFileLogger.Log("[MainScreen] OnSearchClicked");
-            OnElementClicked?.Invoke("search_input");
+            Handler?.OnElementClicked("search_input");
         }
         
         public void OnSelectedStarClicked()
         {
             ModFileLogger.Log("[MainScreen] OnSelectedStarClicked");
-            OnElementClicked?.Invoke("selected_star");
+            Handler?.OnElementClicked("selected_star");
         }
         
         public void OnResultClicked(int index)
         {
             ModFileLogger.Log($"[MainScreen] OnResultClicked: result_{index}");
-            OnElementClicked?.Invoke($"result_{index}");
+            Handler?.OnElementClicked($"result_{index}");
         }
         
         public void OnElementHoverEnter(string elementId)

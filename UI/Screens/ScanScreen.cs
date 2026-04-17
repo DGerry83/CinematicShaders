@@ -58,12 +58,7 @@ namespace CinematicShaders.UI.Screens
             "scan_prompt" // If we add interactive elements later
         };
         
-        /// <summary>
-        /// Event fired when the SCAN art is clicked.
-        /// Subscribe to this to trigger catalog rescan.
-        /// </summary>
-        public event System.Action OnScanClicked;
-        
+
         /// <summary>
         /// Initializes a new ScanScreen with the specified content and styling.
         /// </summary>
@@ -166,7 +161,7 @@ namespace CinematicShaders.UI.Screens
         public void OnScanAreaClicked()
         {
             ModFileLogger.Log("[ScanScreen] OnScanAreaClicked");
-            OnScanClicked?.Invoke();
+            Handler?.OnScanClicked();
         }
         
         public void OnElementHoverEnter(string elementId)

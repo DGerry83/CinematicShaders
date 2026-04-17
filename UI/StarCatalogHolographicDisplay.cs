@@ -210,7 +210,6 @@ namespace CinematicShaders.UI
             // Wire controller-based handler
             _mainHandler = new MainScreenHandler(Services, Router, this);
             mainScreen.Handler = _mainHandler;
-            mainScreen.OnElementClicked += (id) => _mainHandler.OnElementClicked(id);
             
             _screenManager.RegisterScreen(mainScreen);
             
@@ -218,7 +217,6 @@ namespace CinematicShaders.UI
             var scanScreen = new ScanScreen(ScanScreenContent.Default, _fontSize, aspectRatio);
             _scanHandler = new ScanScreenHandler(Router, this);
             scanScreen.Handler = _scanHandler;
-            scanScreen.OnScanClicked += () => _scanHandler.OnScanClicked();
             _screenManager.RegisterScreen(scanScreen);
             
             // Splash screen (boot logo)
@@ -230,8 +228,6 @@ namespace CinematicShaders.UI
             var confirmScreen = new ConfirmRescanScreen(ConfirmRescanScreenContent.Default, _fontSize, aspectRatio);
             _confirmHandler = new ConfirmRescanHandler(Router, this);
             confirmScreen.Handler = _confirmHandler;
-            confirmScreen.OnYesClicked += () => _confirmHandler.OnYesClicked();
-            confirmScreen.OnNoClicked += () => _confirmHandler.OnNoClicked();
             _screenManager.RegisterScreen(confirmScreen);
         }
         

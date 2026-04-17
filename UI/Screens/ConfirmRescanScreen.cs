@@ -62,46 +62,19 @@ namespace CinematicShaders.UI.Screens
             "no_button"
         };
         
-        /// <summary>
-        /// Event fired when the YES button is clicked.
-        /// Subscribe to proceed with the rescan operation.
-        /// </summary>
-        public event System.Action OnYesClicked;
-        
-        /// <summary>
-        /// Event fired when the NO button is clicked.
-        /// Subscribe to cancel and return to the previous screen.
-        /// </summary>
-        public event System.Action OnNoClicked;
-        
+
         // Callback methods invoked by ConfirmRescanClickHandler
         
         public void OnYesButtonClicked()
         {
-            ModFileLogger.Log("[ConfirmRescanScreen] OnYesButtonClicked - firing OnYesClicked event");
-            if (OnYesClicked != null)
-            {
-                ModFileLogger.Log("[ConfirmRescanScreen] OnYesClicked has subscribers, invoking...");
-                OnYesClicked.Invoke();
-            }
-            else
-            {
-                ModFileLogger.Log("[ConfirmRescanScreen] WARNING: OnYesClicked has NO subscribers!");
-            }
+            ModFileLogger.Log("[ConfirmRescanScreen] OnYesButtonClicked");
+            Handler?.OnYesClicked();
         }
         
         public void OnNoButtonClicked()
         {
-            ModFileLogger.Log("[ConfirmRescanScreen] OnNoButtonClicked - firing OnNoClicked event");
-            if (OnNoClicked != null)
-            {
-                ModFileLogger.Log("[ConfirmRescanScreen] OnNoClicked has subscribers, invoking...");
-                OnNoClicked.Invoke();
-            }
-            else
-            {
-                ModFileLogger.Log("[ConfirmRescanScreen] WARNING: OnNoClicked has NO subscribers!");
-            }
+            ModFileLogger.Log("[ConfirmRescanScreen] OnNoButtonClicked");
+            Handler?.OnNoClicked();
         }
         
         public void OnElementHoverEnter(string elementId)
