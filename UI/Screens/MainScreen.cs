@@ -250,6 +250,18 @@ namespace CinematicShaders.UI.Screens
             Handler?.OnElementClicked("selected_star");
         }
         
+        public void OnScrollUpClicked()
+        {
+            ModFileLogger.Log("[MainScreen] OnScrollUpClicked");
+            Handler?.OnElementClicked("scroll_up_glyph");
+        }
+        
+        public void OnScrollDownClicked()
+        {
+            ModFileLogger.Log("[MainScreen] OnScrollDownClicked");
+            Handler?.OnElementClicked("scroll_down_glyph");
+        }
+        
         public void OnResultClicked(int index)
         {
             ModFileLogger.Log($"[MainScreen] OnResultClicked: result_{index}");

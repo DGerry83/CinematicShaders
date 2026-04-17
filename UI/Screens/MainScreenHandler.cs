@@ -52,6 +52,14 @@ namespace CinematicShaders.UI.Screens
                     _router.ShowConfirmRescan();
                     break;
                     
+                case "scroll_up_glyph":
+                    // TODO: Implement scroll up functionality
+                    break;
+                    
+                case "scroll_down_glyph":
+                    // TODO: Implement scroll down functionality
+                    break;
+                    
                 default:
                     if (elementId.StartsWith("result_"))
                         HandleResultClick(elementId);

@@ -60,6 +60,10 @@ namespace CinematicShaders.UI.Screens
                 int resultIndex = i; // Capture for closure
                 RegisterZoneFromLayout($"result_{i}", "result", () => _screen.OnResultClicked(resultIndex));
             }
+            
+            // Scroll glyphs (Layer 2, row 11)
+            ZoneManager.RegisterZone("scroll_up_glyph", 39, 11, 1, 1, "button", () => _screen.OnScrollUpClicked());
+            ZoneManager.RegisterZone("scroll_down_glyph", 55, 11, 1, 1, "button", () => _screen.OnScrollDownClicked());
         }
         
         /// <summary>
