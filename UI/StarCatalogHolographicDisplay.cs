@@ -1646,12 +1646,13 @@ namespace CinematicShaders.UI
             }
             
             string pageText = $"{_searchPageIndex + 1}/{totalPages}";
-            // Center in 15-column region between arrows (cols 40-54)
-            int regionWidth = 15;
-            int padding = (regionWidth - pageText.Length) / 2;
-            if (padding > 0)
+            // Pin slash at column 48; left number grows leftward, right number grows rightward
+            int regionStartCol = 43;
+            int slashIndex = pageText.IndexOf('/');
+            int leftPadding = 48 - regionStartCol - slashIndex;
+            if (leftPadding > 0)
             {
-                pageText = new string(' ', padding) + pageText + new string(' ', regionWidth - padding - pageText.Length);
+                pageText = new string(' ', leftPadding) + pageText;
             }
             
             SetElementText("page_number", pageText);

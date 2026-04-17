@@ -42,7 +42,9 @@ namespace CinematicShaders.UI
         /// <summary>
         /// Full display text combining static and dynamic portions
         /// </summary>
-        public string FullDisplayText => $"{StaticText} {DynamicText}".Trim().ToUpper();
+        public string FullDisplayText => string.IsNullOrEmpty(StaticText)
+            ? (DynamicText ?? "").ToUpper()
+            : $"{StaticText} {DynamicText}".Trim().ToUpper();
 
         // Position is grid-based only; legacy 4K fallback removed in Phase 1 cleanup
 

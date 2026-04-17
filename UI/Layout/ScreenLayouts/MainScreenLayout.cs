@@ -146,15 +146,17 @@ namespace CinematicShaders.UI.Layout.ScreenLayouts
                 _pixelAreas[string.Format("result_{0}", i)] = resultRows[i];
             }
             
-            // Page number row (row 11) — narrow region between arrows at cols 39 and 55
+            // Page number row (row 11) — centered region with slash at col 48
             Rect[] pageNumberSplits = engine.SplitHorizontal(resultRows[10],
                 Constraint.Length(cellWidth * 1),   // col 38 (right panel start)
                 Constraint.Length(cellWidth * 1),   // col 39 (▲ arrow)
-                Constraint.Length(cellWidth * 15),  // cols 40-54 (page number)
+                Constraint.Length(cellWidth * 3),   // cols 40-42 (left gap)
+                Constraint.Length(cellWidth * 10),  // cols 43-52 (page number)
+                Constraint.Length(cellWidth * 2),   // cols 53-54 (right gap)
                 Constraint.Length(cellWidth * 1),   // col 55 (▼ arrow)
                 Constraint.Fill(1)                  // cols 56-58 (remainder)
             );
-            _pixelAreas["page_number"] = pageNumberSplits[2];
+            _pixelAreas["page_number"] = pageNumberSplits[3];
 
             // Convert pixel areas to grid areas
             foreach (var kvp in _pixelAreas)
