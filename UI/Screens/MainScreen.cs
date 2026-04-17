@@ -271,13 +271,13 @@ namespace CinematicShaders.UI.Screens
         
         public void OnElementHoverEnter(string elementId)
         {
-            // Currently no-op or add highlight logic
+            _hoveredElementId = elementId;
             ModFileLogger.Log($"[MainScreen] Hover enter: {elementId}");
         }
         
         public void OnElementHoverExit(string elementId)
         {
-            // Currently no-op or remove highlight logic
+            _hoveredElementId = null;
             ModFileLogger.Log($"[MainScreen] Hover exit: {elementId}");
         }
         
@@ -348,6 +348,8 @@ namespace CinematicShaders.UI.Screens
                 {
                     DrawCursorOverlay(displayRect, cursorPos, cursorColor);
                 }
+
+                DrawHoverOverlay(displayRect, ClickHandler?.ZoneManager);
             }
         }
         

@@ -79,38 +79,12 @@ namespace CinematicShaders.UI.Screens
         
         public void OnElementHoverEnter(string elementId)
         {
-            // Show hover highlight
-            var zone = ClickHandler.ZoneManager.FindZoneById(elementId);
-            if (zone != null)
-            {
-                // Convert grid rect to UV rect for native outline
-                Rect uvRect = GridToUVRect(zone.GridRect);
-                StarfieldNative.CR_SetBoxOutline(1, uvRect.xMin, uvRect.yMin, uvRect.xMax, uvRect.yMax);
-            }
+            _hoveredElementId = elementId;
         }
         
         public void OnElementHoverExit(string elementId)
         {
-            // Clear hover highlight
-            StarfieldNative.CR_SetBoxOutline(0, 0, 0, 0, 0);
-        }
-        
-        /// <summary>
-        /// Converts a grid rect to UV coordinates for the native outline renderer.
-        /// </summary>
-        private Rect GridToUVRect(Rect gridRect)
-        {
-            float col = gridRect.x;
-            float row = gridRect.y;
-            float width = gridRect.width;
-            float height = gridRect.height;
-            
-            float xMin = col / TerminalGridConfig.GRID_COLUMNS;
-            float yMin = 1.0f - ((row + height) / TerminalGridConfig.GRID_ROWS);
-            float xMax = (col + width) / TerminalGridConfig.GRID_COLUMNS;
-            float yMax = 1.0f - (row / TerminalGridConfig.GRID_ROWS);
-            
-            return new Rect(xMin, yMin, xMax - xMin, yMax - yMin);
+            _hoveredElementId = null;
         }
         
         /// <summary>
@@ -205,7 +179,6 @@ namespace CinematicShaders.UI.Screens
             base.OnExit();
             
             OnLayer2Complete -= StartLayer3Animation;
-            StarfieldNative.CR_SetBoxOutline(0, 0, 0, 0, 0);
         }
         
         /// <summary>
@@ -277,6 +250,8 @@ namespace CinematicShaders.UI.Screens
                 {
                     DrawCursorOverlay(displayRect, cursorPos, cursorColor);
                 }
+
+                DrawHoverOverlay(displayRect, ClickHandler?.ZoneManager);
             }
         }
         

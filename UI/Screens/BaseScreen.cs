@@ -416,6 +416,47 @@ namespace CinematicShaders.UI.Screens
             uint b = (uint)(c.b * 255) & 0xFF;
             return 0xFF000000 | (r << 16) | (g << 8) | b;  // ARGB format (A=FF)
         }
+
+        /// <summary>
+        /// Tracks the currently hovered element for hover overlay rendering.
+        /// Set by derived screen hover callbacks; cleared on hover exit.
+        /// </summary>
+        protected string _hoveredElementId = null;
+
+        /// <summary>
+        /// Draws a 2px border around the hovered click zone using IMGUI.
+        /// Call this after GUI.DrawTexture in the screen's Render method.
+        /// </summary>
+        protected void DrawHoverOverlay(Rect displayRect, ClickZoneManager zoneManager)
+        {
+            if (zoneManager == null || string.IsNullOrEmpty(_hoveredElementId))
+                return;
+
+            var zone = zoneManager.FindZoneById(_hoveredElementId);
+            if (zone == null || !zone.IsEnabled)
+                return;
+
+            var (glyphW, glyphH) = TerminalGridConfig.GlyphMetrics.GetGlyphMetrics(TerminalGridConfig.CurrentDisplaySize);
+
+            float x = displayRect.x + zone.GridRect.x * glyphW;
+            float y = displayRect.y + zone.GridRect.y * glyphH;
+            float w = zone.GridRect.width * glyphW;
+            float h = zone.GridRect.height * glyphH;
+
+            Color color = GetGridColor();
+            GUI.color = color;
+
+            // Top border
+            GUI.DrawTexture(new Rect(x, y, w, 2f), Texture2D.whiteTexture);
+            // Bottom border
+            GUI.DrawTexture(new Rect(x, y + h - 2f, w, 2f), Texture2D.whiteTexture);
+            // Left border
+            GUI.DrawTexture(new Rect(x, y, 2f, h), Texture2D.whiteTexture);
+            // Right border
+            GUI.DrawTexture(new Rect(x + w - 2f, y, 2f, h), Texture2D.whiteTexture);
+
+            GUI.color = Color.white;
+        }
         
     }
 }

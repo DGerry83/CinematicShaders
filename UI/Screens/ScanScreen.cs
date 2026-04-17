@@ -39,9 +39,6 @@ namespace CinematicShaders.UI.Screens
         private readonly float _fontSize;
         private readonly float _aspectRatio;
         
-        // Click zone for SCAN area
-        private ClickZone _scanZone;
-        
         // NEW: Simple click handler
         public ScanScreenClickHandler ClickHandler { get; private set; }
         public ClickZoneManager ZoneManager => ClickHandler?.ZoneManager;
@@ -132,12 +129,6 @@ namespace CinematicShaders.UI.Screens
             
             OnLayer2Complete += StartLayer3Animation;
             
-            // Initialize click zone for SCAN area using constraint layout
-            GridRegion scanGridRegion = Layout.GetGridArea("scan_area");
-            Rect scanGridRect = new Rect(scanGridRegion.TopLeft.Column, scanGridRegion.TopLeft.Row, 
-                                         scanGridRegion.Width, scanGridRegion.Height);
-            _scanZone = new ClickZone("scan_area", scanGridRect);
-            
             // NEW: Create and setup click handler
             ClickHandler = new ScanScreenClickHandler(this);
             ClickHandler.SetupZones();
@@ -152,8 +143,6 @@ namespace CinematicShaders.UI.Screens
             base.OnExit();
             
             OnLayer2Complete -= StartLayer3Animation;
-            
-            StarfieldNative.CR_SetBoxOutline(0, 0, 0, 0, 0);
         }
         
         // Callback methods invoked by ScanScreenClickHandler
@@ -166,18 +155,12 @@ namespace CinematicShaders.UI.Screens
         
         public void OnElementHoverEnter(string elementId)
         {
-            // Show hover highlight for scan_area
-            if (_scanZone != null)
-            {
-                Rect uvRect = _scanZone.GetUVRect();
-                StarfieldNative.CR_SetBoxOutline(1, uvRect.xMin, uvRect.yMin, uvRect.xMax, uvRect.yMax);
-            }
+            _hoveredElementId = elementId;
         }
         
         public void OnElementHoverExit(string elementId)
         {
-            // Clear hover highlight
-            StarfieldNative.CR_SetBoxOutline(0, 0, 0, 0, 0);
+            _hoveredElementId = null;
         }
         
         /// <summary>
@@ -255,6 +238,8 @@ namespace CinematicShaders.UI.Screens
                 {
                     DrawCursorOverlay(displayRect, cursorPos, cursorColor);
                 }
+
+                DrawHoverOverlay(displayRect, ClickHandler?.ZoneManager);
             }
         }
         
