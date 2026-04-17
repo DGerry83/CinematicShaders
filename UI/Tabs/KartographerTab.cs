@@ -938,13 +938,6 @@ namespace CinematicShaders.UI.Tabs
             }
             
             GUILayout.EndHorizontal();
-            
-            // Debug: Export textures button
-            GUILayout.Space(5);
-            if (GUILayout.Button("Export Textures (Debug)", HighLogic.Skin.button))
-            {
-                ExportHolographicTextures();
-            }
         }
 
         /// <summary>
@@ -1171,21 +1164,6 @@ namespace CinematicShaders.UI.Tabs
                 var stars = GetNamedStarsFromSelector();
                 _holographicDisplay.SetStarList(stars);
             }
-        }
-
-        /// <summary>
-        /// Export all holographic display textures to PNG for debugging/layout
-        /// Files are saved to PluginData/TextureExports/
-        /// </summary>
-        private void ExportHolographicTextures()
-        {
-            if (_holographicDisplay == null)
-            {
-                Debug.Log("[KartographerTab] No holographic display to export");
-                return;
-            }
-            
-            _holographicDisplay.ExportAllTexturesToPng();
         }
 
         /// <summary>
