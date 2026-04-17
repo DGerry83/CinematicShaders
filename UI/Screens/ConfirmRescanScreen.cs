@@ -5,7 +5,6 @@ using CinematicShaders.UI.Screens.Layers;
 using CinematicShaders.Native;
 using CinematicShaders.Native.Structs;
 using CinematicShaders.Core;
-using CinematicShaders.UI.Animation;
 using CinematicShaders.UI.Content;
 using CinematicShaders.UI;
 using CinematicShaders.UI.Layout;
@@ -42,11 +41,6 @@ namespace CinematicShaders.UI.Screens
     {
         private readonly float _fontSize;
         private readonly float _aspectRatio;
-        private Sequencer _sequencer;
-        
-        // Click zones for YES/NO buttons
-        private List<ClickZone> _clickZones = new List<ClickZone>();
-        private ClickZone _hoveredZone = null;
         
         // Constraint-based layout for this screen
         private ConfirmRescanScreenLayout _layout;
@@ -67,16 +61,6 @@ namespace CinematicShaders.UI.Screens
             "yes_button",
             "no_button"
         };
-        
-        /// <summary>
-        /// Gets whether the YES button is currently selected (hovered).
-        /// </summary>
-        public bool YesSelected { get; private set; }
-        
-        /// <summary>
-        /// Gets whether the NO button is currently selected (hovered).
-        /// </summary>
-        public bool NoSelected { get; private set; }
         
         /// <summary>
         /// Event fired when the YES button is clicked.
@@ -232,20 +216,12 @@ namespace CinematicShaders.UI.Screens
         {
             base.OnEnter(context);
             
-            _sequencer = new Sequencer(Layer3PriorityOrder);
             OnLayer2Complete += StartLayer3Animation;
             
             // NEW: Create and setup click handler (Simplified Click System)
             ClickHandler = new ConfirmRescanClickHandler(this);
             ClickHandler.SetupZones();
             
-            // Initialize YES/NO button zones using constraint layout
-            _clickZones.Clear();
-            Rect yesArea = Layout.GetArea("yes_button");
-            Rect noArea = Layout.GetArea("no_button");
-            _clickZones.Add(new ClickZone("yes_button", yesArea));
-            _clickZones.Add(new ClickZone("no_button", noArea));
-            _hoveredZone = null;
         }
         
         /// <summary>
@@ -256,63 +232,7 @@ namespace CinematicShaders.UI.Screens
             base.OnExit();
             
             OnLayer2Complete -= StartLayer3Animation;
-            _sequencer?.StopSequence();
-            _sequencer = null;
-            
-            // Clear click zones and hover state
-            _clickZones.Clear();
-            _hoveredZone = null;
             StarfieldNative.CR_SetBoxOutline(0, 0, 0, 0, 0);
-        }
-        
-        /// <summary>
-        /// Handles mouse interaction for YES/NO buttons.
-        /// </summary>
-        /// <param name="mousePos">Current mouse position in screen coordinates</param>
-        /// <param name="displayRect">Display rectangle in screen coordinates</param>
-        /// <param name="mouseDown">True if left mouse button was pressed this frame</param>
-        /// <param name="mouseUp">True if left mouse button was released this frame</param>
-        /// <remarks>
-        /// Detects hover over button zones, updates the box outline visual,
-        /// and fires OnYesClicked or OnNoClicked when a button is clicked.
-        /// </remarks>
-        [Obsolete("ConfirmRescanScreen now uses ConfirmRescanClickHandler for input handling. This method will be removed in a future version.", error: false)]
-        public void HandleMouse(Vector2 mousePos, Rect displayRect, bool mouseDown, bool mouseUp)
-        {
-            Vector2 gridPos = MouseToGrid(mousePos, displayRect);
-            
-            ClickZone newHovered = null;
-            foreach (var zone in _clickZones)
-            {
-                if (zone.IsEnabled && zone.Contains(gridPos))
-                {
-                    newHovered = zone;
-                    break;
-                }
-            }
-            
-            if (newHovered?.ElementId != _hoveredZone?.ElementId)
-            {
-                _hoveredZone = newHovered;
-                
-                if (_hoveredZone != null)
-                {
-                    Rect uvRect = _hoveredZone.GetUVRect();
-                    StarfieldNative.CR_SetBoxOutline(1, uvRect.xMin, uvRect.yMin, uvRect.xMax, uvRect.yMax);
-                }
-                else
-                {
-                    StarfieldNative.CR_SetBoxOutline(0, 0, 0, 0, 0);
-                }
-            }
-            
-            if (mouseUp && _hoveredZone != null)
-            {
-                if (_hoveredZone.ElementId == "yes_button")
-                    OnYesClicked?.Invoke();
-                else if (_hoveredZone.ElementId == "no_button")
-                    OnNoClicked?.Invoke();
-            }
         }
         
         /// <summary>
@@ -321,17 +241,6 @@ namespace CinematicShaders.UI.Screens
         private void StartLayer3Animation()
         {
             Debug.Log("[ConfirmRescanScreen] Layer 2 complete, starting Layer 3");
-            _sequencer?.StartSequence();
-        }
-        
-        /// <summary>
-        /// Updates this screen's animations.
-        /// </summary>
-        /// <param name="deltaTime">Time elapsed since last frame</param>
-        public override void Update(float deltaTime)
-        {
-            base.Update(deltaTime);
-            _sequencer?.Update();
         }
         
         /// <summary>
@@ -399,17 +308,5 @@ namespace CinematicShaders.UI.Screens
         }
         
 
-        /// <summary>
-        /// Resets the YES/NO selection state.
-        /// </summary>
-        /// <remarks>
-        /// Call this when transitioning away to ensure clean state
-        /// for the next time this screen is shown.
-        /// </remarks>
-        public void ResetSelection()
-        {
-            YesSelected = false;
-            NoSelected = false;
-        }
     }
 }

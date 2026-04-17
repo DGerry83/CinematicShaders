@@ -20,12 +20,5 @@ namespace CinematicShaders.UI.State
         // JSON paths for persistence
         public string CustomJsonPath { get; set; } = "";
         public string DefaultJsonPath { get; set; } = "";
-        
-        // Shared persistence helper (extracted from StarCatalogHolographicDisplay.SaveStarName)
-        public void PersistStarName(int hipId, string name)
-        {
-            // Stub for future extraction from StarCatalogHolographicDisplay
-            // For now, handlers call display.SaveStarName() directly
-        }
     }
 }

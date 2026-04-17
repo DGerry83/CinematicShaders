@@ -83,24 +83,6 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
-        /// Marks all layers of the current screen as dirty, forcing a redraw.
-        /// </summary>
-        /// <remarks>
-        /// Call this when visual properties change (e.g., grid color) to ensure
-        /// all layers are re-rendered with the new settings.
-        /// </remarks>
-        public void MarkAllLayersDirty()
-        {
-            if (_currentScreen != null)
-            {
-                foreach (var layer in _currentScreen.Layers)
-                {
-                    layer.MarkDirty();
-                }
-            }
-        }
-        
-        /// <summary>
         /// Registers a screen with this manager.
         /// </summary>
         /// <param name="screen">The screen to register</param>

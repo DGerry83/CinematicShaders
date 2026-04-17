@@ -185,30 +185,5 @@ namespace CinematicShaders.UI.Screens
             }
         }
         
-        /// <summary>
-        /// Gets the grid color from StarfieldSettings.
-        /// </summary>
-        private Color GetGridColor()
-        {
-            int colorIndex = StarfieldSettings.KartographerGridColor;
-            switch (colorIndex)
-            {
-                case 0: return new Color(0.1f, 0.9f, 0.7f);
-                case 1: return new Color(1.0f, 0.65f, 0.0f);
-                case 2: return new Color(0.85f, 0.95f, 1.0f);
-                case 3: return new Color(0.25f, 1.0f, 0.0f);
-                default: return new Color(0.1f, 0.9f, 0.7f);
-            }
-        }
-        
-        private uint GetGridColorUint()
-        {
-            Color c = GetGridColor();
-            uint r = (uint)(c.r * 255) & 0xFF;
-            uint g = (uint)(c.g * 255) & 0xFF;
-            uint b = (uint)(c.b * 255) & 0xFF;
-            return 0xFF000000 | (r << 16) | (g << 8) | b;
-        }
-        
     }
 }

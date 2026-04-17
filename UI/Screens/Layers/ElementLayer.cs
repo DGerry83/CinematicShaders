@@ -676,28 +676,6 @@ namespace CinematicShaders.UI.Screens.Layers
             }
         }
 
-/// <summary>
-        /// Export grid layout visualization for debugging.
-        /// Shows the grid with visible characters and dots for spaces.
-        /// </summary>
-        public string ExportGridVisualization()
-        {
-            BuildLayer3ContentGridBased();
-            
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine("Grid Layout (59×13):");
-            sb.AppendLine("Col:" + string.Join("", System.Linq.Enumerable.Range(0, 10).Select(i => i % 10)));
-            
-            for (int row = 0; row < GRID_ROWS; row++)
-            {
-                string line = _layer3ContentLines[row];
-                string visible = line.Replace(' ', '·');
-                sb.AppendLine($"{row:D2} {visible}");
-            }
-            
-            return sb.ToString();
-        }
-        
         private string GetElementValue(string elementId)
         {
             var element = _elements.Find(e => e.ElementId == elementId);
@@ -761,29 +739,7 @@ namespace CinematicShaders.UI.Screens.Layers
             
             return text.Length;
         }
-        
-        private Color GetGridColor()
-        {
-            int colorIndex = StarfieldSettings.KartographerGridColor;
-            switch (colorIndex)
-            {
-                case 0: return new Color(0.1f, 0.9f, 0.7f);
-                case 1: return new Color(1.0f, 0.65f, 0.0f);
-                case 2: return new Color(0.85f, 0.95f, 1.0f);
-                case 3: return new Color(0.25f, 1.0f, 0.0f);
-                default: return new Color(0.1f, 0.9f, 0.7f);
-            }
-        }
-        
-        private uint GetGridColorUint()
-        {
-            Color c = GetGridColor();
-            uint r = (uint)(c.r * 255) & 0xFF;
-            uint g = (uint)(c.g * 255) & 0xFF;
-            uint b = (uint)(c.b * 255) & 0xFF;
-            return 0xFF000000 | (r << 16) | (g << 8) | b;
-        }
-        
+
         /// <summary>
         /// Update cursor blink. Call this from Update().
         /// </summary>

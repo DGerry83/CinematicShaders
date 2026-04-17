@@ -183,19 +183,5 @@ namespace CinematicShaders.UI.Layout.ScreenLayouts
             return valid;
         }
 
-        /// <summary>
-        /// Calculates a search result element position dynamically.
-        /// This mirrors UnifiedGridRegistry.GetSearchResultElement() in the new layout system.
-        /// </summary>
-        public GridRegion GetSearchResultGridElement(int index)
-        {
-            if (index < 0 || index >= 10)
-            {
-                throw new System.ArgumentOutOfRangeException(nameof(index));
-            }
-
-            string key = string.Format("result_{0}", index);
-            return GetGridArea(key);
-        }
     }
 }

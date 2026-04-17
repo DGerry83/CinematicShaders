@@ -5,7 +5,6 @@ using CinematicShaders.UI.Screens.Layers;
 using CinematicShaders.Native;
 using CinematicShaders.Native.Structs;
 using CinematicShaders.Core;
-using CinematicShaders.UI.Animation;
 using CinematicShaders.UI.Content;
 using CinematicShaders.UI;
 using CinematicShaders.UI.Layout;
@@ -39,7 +38,6 @@ namespace CinematicShaders.UI.Screens
     {
         private readonly float _fontSize;
         private readonly float _aspectRatio;
-        private Sequencer _sequencer;
         
         // Click zone for SCAN area
         private ClickZone _scanZone;
@@ -138,7 +136,6 @@ namespace CinematicShaders.UI.Screens
         {
             base.OnEnter(context);
             
-            _sequencer = new Sequencer(Layer3PriorityOrder);
             OnLayer2Complete += StartLayer3Animation;
             
             // Initialize click zone for SCAN area using constraint layout
@@ -162,8 +159,6 @@ namespace CinematicShaders.UI.Screens
             base.OnExit();
             
             OnLayer2Complete -= StartLayer3Animation;
-            _sequencer?.StopSequence();
-            _sequencer = null;
             
             // Clear hover state
             _scanHovered = false;
@@ -210,17 +205,6 @@ namespace CinematicShaders.UI.Screens
         private void StartLayer3Animation()
         {
             Debug.Log("[ScanScreen] Layer 2 complete, starting Layer 3");
-            _sequencer?.StartSequence();
-        }
-        
-        /// <summary>
-        /// Updates this screen's animations.
-        /// </summary>
-        /// <param name="deltaTime">Time elapsed since last frame</param>
-        public override void Update(float deltaTime)
-        {
-            base.Update(deltaTime);
-            _sequencer?.Update();
         }
         
         /// <summary>

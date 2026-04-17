@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using CinematicShaders.UI.Animation;
 using CinematicShaders.Core;
 
 namespace CinematicShaders.UI.Screens
@@ -122,12 +121,6 @@ namespace CinematicShaders.UI.Screens
         
         // Track if we already fired the event (so it only fires once)
         private bool _layer2CompleteFired = false;
-        
-        /// <summary>
-        /// Sequencer for Layer 3 element animations.
-        /// Created in OnEnter() if this screen has Layer 3 elements.
-        /// </summary>
-        protected Sequencer _sequencer;
         
         /// <summary>
         /// Gets the priority order for Layer 3 elements.
@@ -299,8 +292,6 @@ namespace CinematicShaders.UI.Screens
                 OnLayer2Complete?.Invoke();
             }
             
-            // Update sequencer if we have one
-            _sequencer?.Update();
         }
         
         /// <summary>
@@ -392,25 +383,5 @@ namespace CinematicShaders.UI.Screens
             return 0xFF000000 | (r << 16) | (g << 8) | b;  // ARGB format (A=FF)
         }
         
-        /// <summary>
-        /// Converts a screen-space mouse position to grid coordinates for hit detection.
-        /// </summary>
-        /// <param name="mousePos">Mouse position in screen coordinates</param>
-        /// <param name="displayRect">The display rectangle in screen coordinates</param>
-        /// <returns>Grid coordinates (grid cells from top-left)</returns>
-        /// <remarks>
-        /// Grid coordinates are based on TerminalGridConfig grid cell dimensions.
-        /// Use these coordinates with ClickZone for element hit detection.
-        /// </remarks>
-        protected Vector2 MouseToGrid(Vector2 mousePos, Rect displayRect)
-        {
-            float localX = mousePos.x - displayRect.x;
-            float localY = mousePos.y - displayRect.y;
-            float cellWidth = displayRect.width / TerminalGridConfig.GRID_COLUMNS;
-            float cellHeight = displayRect.height / TerminalGridConfig.GRID_ROWS;
-            float gridX = localX / cellWidth;
-            float gridY = localY / cellHeight;
-            return new Vector2(gridX, gridY);
-        }
     }
 }

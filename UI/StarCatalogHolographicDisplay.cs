@@ -2,7 +2,6 @@ using CinematicShaders.Core;
 using CinematicShaders.Native;
 using CinematicShaders.UI.Screens;
 using CinematicShaders.UI.Screens.Layers;
-using CinematicShaders.UI.Animation;
 using CinematicShaders.UI.Content;
 using CinematicShaders.UI.State;
 using System;
@@ -98,100 +97,7 @@ namespace CinematicShaders.UI
 
 
 
-        // Layer 2 content strings (for reference)
-        // Main screen Layer 2 content (border + labels)
-        private static readonly string[] MAIN_LAYER2_LINES = new string[]
-        {
-            "                                                           ",
-            "  HIP:                                                     ",
-            "  NAME:                                                    ",
-            "  DISTANCE:                                                ",
-            "  SPECTRAL:                                                ",
-            "  MAG:                                                     ",
-            "  CONST:                                                   ",
-            "                                                           ",
-            "                 [SAVE]   [RESET]                          ",
-            "                                                           ",
-            "  SEARCH                  [RESCAN]                         ",
-            "  ►                                                        ",
-            "                                                           "
-        };
-
-        // SCAN screen Layer 2 content (border + SCAN ASCII art)
-        private static readonly string[] SCAN_LAYER2_LINES = new string[]
-        {
-            "                                                           ",
-            "                                                           ",
-            "                                                           ",
-            "          ╔════════════════════════════════════╗           ",
-            "          ║ ███████╗ ██████╗ █████╗ ███╗   ██╗ ║           ",
-            "          ║ ██╔════╝██╔════╝██╔══██╗████╗  ██║ ║           ",
-            "          ║ ███████╗██║     ███████║██╔██╗ ██║ ║           ",
-            "          ║ ╚════██║██║     ██╔══██║██║╚██╗██║ ║           ",
-            "          ║ ███████║╚██████╗██║  ██║██║ ╚████║ ║           ",
-            "          ║ ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═══╝ ║           ",
-            "          ╚════════════════════════════════════╝           ",
-            "                                                           ",
-            "                                                           "
-        };
-
-        // Confirm screen Layer 2 content (border + text)
-        private static readonly string[] CONFIRM_LAYER2_LINES = new string[]
-        {
-            "                                                           ",
-            "                                                           ",
-            "                                                           ",
-            "                !STAR NAMES WILL BE RESET!                 ",
-            "                                                           ",
-            "                                                           ",
-            "                                                           ",
-            "                                                           ",
-            "                                                           ",
-            "                                                           ",
-            "   [YES]                                            [NO]   ",
-            "                                                           ",
-            "                                                           "
-        };
-
-        /// <summary>
-        /// LAYER 3 DUMMY CONTENT - For layout calibration in design software
-        /// 
-        /// INSTRUCTIONS FOR MANUAL FILL-IN:
-        /// 1. Replace the placeholder values below with data from a known star
-        /// 2. Build and run the mod
-        /// 3. Open the Star Console and click "Export Textures (Debug)"
-        /// 4. Find DummyLayer3_{timestamp}.png in TextureExports folder
-        /// 5. Load this PNG in your design software along with Layer1 and Layer2
-        /// 6. Position Layer 3 elements to match the text positions
-        /// 7. Record the top-left pixel coordinates of each element
-        /// 8. Provide coordinates for conversion to UV/screen space
-        /// </summary>
-        private static readonly string[] LAYER3_DUMMY_LINES = new string[]
-        {
-            "╔════[STAR DATA]═══════════════════╦╦═════[RESULTS]═══════╗",
-            "║ HIP:      32349                  ║║ •Star 1             ║",
-            "║ NAME:     Sirius                 ║║ •Star 2             ║",
-            "║ DISTANCE: 8.6 LY                 ║║ •Star 3             ║",
-            "║ SPECTRAL: A                      ║║ •Star 4             ║",
-            "║ MAG:      -1.44                  ║║ •Star 5             ║",
-            "║ CONST:    Canis Major            ║║ •Star 6             ║",
-            "║                                  ║║ •Star 7             ║",
-            "║                [SAVE]   [RESET]  ║║ •Star 8             ║",
-            "╟──────────────────────────────────╢║ •Star 9             ║",
-            "║ SEARCH                  [RESCAN] ║║ •Star 10            ║",
-            "║ ► Sirius                         ║║ •Star 11            ║",
-            "╚══════════════════════════════════╩╩═════════════════════╝"
-        };
-
-        #region JSON Paths (DEPRECATED - Now managed by StarCatalogStateManager)
-        
-        public void SetJsonPaths(string customPath, string defaultPath)
-        {
-            // DEPRECATED: Paths now managed by StarCatalogStateManager
-            // This method kept for backward compatibility but does nothing
-            Debug.Log("[HolographicDisplay] SetJsonPaths is deprecated, using StarCatalogStateManager");
-        }
-        
+        // Note: Layer content strings are now defined in UI/Content/*ScreenContent.cs
         /// <summary>
         /// Event handler for catalog changed events from StarCatalogStateManager
         /// </summary>
@@ -225,7 +131,6 @@ namespace CinematicShaders.UI
                 _screenManager.TransitionTo("Scan");
             }
         }
-        #endregion
 
         #region Initialization
         public void Initialize(IntPtr sharedTextSystem, float x, float y, 
@@ -385,10 +290,7 @@ namespace CinematicShaders.UI
                 // This ensures zones are calculated for the new display size
                 if (_displayPowered)
                 {
-                    // Use GetScreen since CurrentScreen is null after Shutdown()
-                    var mainScreen = _screenManager.GetScreen("Main") as MainScreen;
-                    mainScreen?.SetClickZones();
-                    ModFileLogger.Log("[HolographicDisplay] Click zones reinitialized after size change");
+                    ModFileLogger.Log("[HolographicDisplay] Size change handled by ScreenManager restart");
                 }
                 
                 Debug.Log($"[HolographicDisplay] ScreenManager textures resized to: {dimensions.x}x{dimensions.y}");
@@ -473,27 +375,6 @@ namespace CinematicShaders.UI
             };
             
             return element;
-        }
-
-        /// <summary>
-        /// Calculates pixel Rect from GridRegion using current display size.
-        /// </summary>
-        private Rect CalculatePixelRect(GridRegion region)
-        {
-            Vector2 pixelPos = TerminalGridConfig.GridToPixel(
-                region.TopLeft.Column,
-                region.TopLeft.Row,
-                TerminalGridConfig.CurrentDisplaySize
-            );
-            
-            var (glyphWidth, glyphHeight) = TerminalGridConfig.GlyphMetrics.GetGlyphMetrics(
-                TerminalGridConfig.CurrentDisplaySize
-            );
-            
-            float width = region.Width * glyphWidth;
-            float height = region.Height * glyphHeight;
-            
-            return new Rect(pixelPos.x, pixelPos.y, width, height);
         }
 
         /// <summary>
@@ -814,139 +695,7 @@ namespace CinematicShaders.UI
         
         #endregion
         
-        #region CRT Display Rendering
-        
-        private void DrawBackground()
-        {
-            // Pure black background for CRT area
-            GUI.color = Color.black;
-            GUI.DrawTexture(_displayRect, Texture2D.whiteTexture);
-            GUI.color = Color.white;
-        }
-
-        private string GetDisplayText(HolographicTextElement element)
-        {
-            string fullText = element.FullDisplayText;
-
-            // Apply type-on truncation (spaces skip - they appear immediately)
-            if (element.TypeOnProgress < 1f && !string.IsNullOrEmpty(fullText))
-            {
-                int endIndex = GetTypeOnEndIndex(fullText, element.TypeOnProgress);
-                
-                // FIX: Return space when no characters visible, cursor only when text has started
-                if (endIndex <= 0)
-                    return " ";  // Space = nothing visible
-                else
-                    return fullText.Substring(0, endIndex) + "^|";
-            }
-
-            return fullText;
-        }
-
-        /// <summary>
-        /// Calculate the end index for type-on animation, counting only non-space characters.
-        /// Spaces are included in the result but don't consume type-on time.
-        /// </summary>
-        private int GetTypeOnEndIndex(string text, float progress)
-        {
-            if (progress <= 0f) return 0;
-            if (progress >= 1f || string.IsNullOrEmpty(text)) return text?.Length ?? 0;
-            
-            // Count non-space characters
-            int totalNonSpace = 0;
-            for (int i = 0; i < text.Length; i++)
-                if (text[i] != ' ') totalNonSpace++;
-            
-            // All spaces = show all immediately
-            if (totalNonSpace == 0) return text.Length;
-            
-            // How many non-space chars should be visible?
-            int targetNonSpace = Mathf.Max(1, Mathf.RoundToInt(totalNonSpace * progress));
-            
-            // Find the index that includes targetNonSpace non-space characters
-            int seenNonSpace = 0;
-            for (int i = 0; i < text.Length; i++)
-            {
-                if (text[i] != ' ')
-                {
-                    seenNonSpace++;
-                    if (seenNonSpace >= targetNonSpace)
-                        return i + 1; // Include this character
-                }
-            }
-            
-            return text.Length;
-        }
-
-        #endregion
-
-        #region Color Helpers
-        // NOTE: GetGridColor() and GetGridColorUint() have been consolidated to BaseScreen
-        // as protected methods. All screens now inherit these methods from BaseScreen.
-        // HolographicDisplay uses the StarfieldSettings directly for color lookup.
-        
-        /// <summary>
-        /// Get the grid color based on Kartographer settings.
-        /// Note: This is a local copy since HolographicDisplay doesn't inherit from BaseScreen.
-        /// </summary>
-        private Color GetGridColor()
-        {
-            int colorIndex = StarfieldSettings.KartographerGridColor;
-            switch (colorIndex)
-            {
-                case 0: return new Color(0.1f, 0.9f, 0.7f);  // Seafoam
-                case 1: return new Color(1.0f, 0.65f, 0.0f); // Amber
-                case 2: return new Color(0.85f, 0.95f, 1.0f); // White
-                case 3: return new Color(0.25f, 1.0f, 0.0f);  // Green
-                default: return new Color(0.1f, 0.9f, 0.7f);  // Default seafoam
-            }
-        }
-
-        /// <summary>
-        /// Get the grid color as a uint in ARGB format for native rendering.
-        /// Note: This is a local copy since HolographicDisplay doesn't inherit from BaseScreen.
-        /// </summary>
-        private uint GetGridColorUint()
-        {
-            Color c = GetGridColor();
-            uint r = (uint)(c.r * 255) & 0xFF;
-            uint g = (uint)(c.g * 255) & 0xFF;
-            uint b = (uint)(c.b * 255) & 0xFF;
-            return 0xFF000000 | (r << 16) | (g << 8) | b;  // ARGB format (A=FF)
-        }
-
-        /// <summary>
-        /// Gets the CRT display color based on Kartographer settings.
-        /// These are custom-tuned colors for the CRT text display that may differ
-        /// from the actual Kartographer grid colors for visual consistency.
-        /// Note: This is a local copy since HolographicDisplay doesn't inherit from BaseScreen.
-        /// </summary>
-        private Color GetCRTColor()
-        {
-            int colorIndex = StarfieldSettings.KartographerGridColor;
-            switch (colorIndex)
-            {
-                case 0: return new Color(1.0f, 0.0f, 0.0f);  // Seafoam -> RED (test)
-                case 1: return new Color(0.0f, 0.0f, 1.0f);  // Amber -> BLUE (test)
-                case 2: return new Color(0.0f, 1.0f, 0.0f);  // White -> GREEN (test)
-                case 3: return new Color(1.0f, 0.0f, 1.0f);  // Green -> MAGENTA (test)
-                default: return new Color(1.0f, 0.0f, 0.0f);  // Default -> RED
-            }
-        }
-
-        /// <summary>
-        /// Gets the CRT display color as a uint in ARGB format for native rendering.
-        /// Note: This is a local copy since HolographicDisplay doesn't inherit from BaseScreen.
-        /// </summary>
-        private uint GetCRTColorUint()
-        {
-            Color c = GetCRTColor();
-            uint r = (uint)(c.r * 255) & 0xFF;
-            uint g = (uint)(c.g * 255) & 0xFF;
-            uint b = (uint)(c.b * 255) & 0xFF;
-            return 0xFF000000 | (r << 16) | (g << 8) | b;  // ARGB format (A=FF)
-        }
-        #endregion
+        // Note: CRT display rendering and color helpers are handled by the screen/layer system.
 
         #region Edit Mode
         
@@ -993,15 +742,6 @@ namespace CinematicShaders.UI
             mainScreen?.SetCursorState(_editingElementId, _cursorVisible);
             
             Debug.Log($"[HolographicDisplay] Entered edit mode for: {elementId}");
-        }
-        
-        /// <summary>
-        /// Legacy EnterEditMode for NAME field (backward compatibility)
-        /// </summary>
-        private void EnterEditMode()
-        {
-            if (_selectedStar == null) return;
-            EnterEditMode("name_value");
         }
         
         /// <summary>
@@ -1131,9 +871,7 @@ namespace CinematicShaders.UI
                 element.IsDirty = true;
             }
             
-            // Trigger Layer 3 redraw via ElementLayer public method
-            var mainScreen = _screenManager?.CurrentScreen as MainScreen;
-            mainScreen?.MarkElementLayerDirty();
+            // Layer 3 redraw is triggered by ElementLayer dirty flags internally
         }
         
         /// <summary>
@@ -1156,18 +894,6 @@ namespace CinematicShaders.UI
                 UpdateEditDisplay();
                 
                 // Pass cursor state to ElementLayer via public method
-                var mainScreen = _screenManager?.CurrentScreen as MainScreen;
-                mainScreen?.SetCursorState(_editingElementId, _cursorVisible);
-            }
-        }
-        
-        /// <summary>
-        /// Pass cursor state to ElementLayer. Call from Update() when in edit mode.
-        /// </summary>
-        private void UpdateElementLayerCursor()
-        {
-            if (!string.IsNullOrEmpty(_editingElementId))
-            {
                 var mainScreen = _screenManager?.CurrentScreen as MainScreen;
                 mainScreen?.SetCursorState(_editingElementId, _cursorVisible);
             }
@@ -1500,9 +1226,6 @@ namespace CinematicShaders.UI
             _displayPowered = true;
             _powerOnTime = 0f; // Reset power on time
             
-            // Reset AnimationController for fresh animations
-            AnimationController.Instance.Reset();
-            
             // Determine target screen based on JSON availability
             bool hasJson = HasJsonCatalog();
             string targetScreen = hasJson ? "Main" : "Scan";
@@ -1538,10 +1261,6 @@ namespace CinematicShaders.UI
             {
                 _screenManager.TransitionTo("Main", context);
                 
-                // Initialize click zones for MainScreen
-                var mainScreen = _screenManager.CurrentScreen as MainScreen;
-                mainScreen?.SetClickZones();
-                
                 // Notify subscribers that we're powered on
                 OnPoweredOn?.Invoke();
                 
@@ -1554,41 +1273,12 @@ namespace CinematicShaders.UI
             }
         }
         
-        public void OnCatalogChanged()
-        {
-            if (_screenManager == null) return;
-            
-            // Use centralized state manager
-            bool hasValidData = StarCatalogStateManager.HasValidJson();
-            var currentScreenName = _screenManager.CurrentScreenName;
-            
-            // If we have JSON but are on SCAN screen, transition to Main
-            if (hasValidData && currentScreenName == "Scan")
-            {
-                var context = new ScreenTransitionContext 
-                { 
-                    HasStarSelected = _selectedStar != null 
-                };
-                _screenManager.TransitionTo("Main", context);
-                Debug.Log("[HolographicDisplay] Catalog changed - transitioning to Main (JSON found)");
-            }
-            // If we don't have JSON but are on Main screen, transition to SCAN
-            else if (!hasValidData && currentScreenName == "Main")
-            {
-                _screenManager.TransitionTo("Scan");
-                Debug.Log("[HolographicDisplay] Catalog changed - transitioning to Scan (no JSON)");
-            }
-        }
-
         private void PowerOff()
         {
             _displayPowered = false;
             
             // Clear all element text (don't just hide - clear the data)
             ClearStarData();
-            
-            // Reset AnimationController
-            AnimationController.Instance.Reset();
             
             // Hide all elements
             foreach (var element in _elements.Values)
@@ -1721,106 +1411,6 @@ namespace CinematicShaders.UI
 
         
 
-        #region Mouse Interaction
-
-        // State
-        private HolographicTextElement _hoveredElement = null;
-        private HolographicTextElement _pressedElement = null;
-        private Vector2 _mousePosition = Vector2.zero;
-
-        /// <summary>
-        /// Check if mouse is over a specific element
-        /// </summary>
-        private bool IsMouseOverElement(HolographicTextElement element)
-        {
-            if (!element.IsVisible) return false;
-
-            Rect pixelRect = element.GetPixelRect();
-            Rect screenPos = new Rect(
-                _displayRect.x + pixelRect.x,
-                _displayRect.y + pixelRect.y,
-                pixelRect.width,
-                pixelRect.height
-            );
-
-            return screenPos.Contains(_mousePosition);
-        }
-
-        /// <summary>
-        /// Check if an element is clickable
-        /// </summary>
-        private bool IsClickable(HolographicTextElement element)
-        {
-            switch (element.Type)
-            {
-                case TextElementType.Editable:
-                case TextElementType.SearchResult:
-                case TextElementType.Input:
-                    return true;
-                default:
-                    // Check for button elements by ID
-                    return element.ElementId == "rescan_button" ||
-                           element.ElementId == "save_button" ||
-                           element.ElementId == "reset_button" ||
-                           element.ElementId == "yes_button" ||
-                           element.ElementId == "no_button" ||
-                           element.ElementId == "scan_ascii";  // ASCII SCAN art
-            }
-        }
-
-        /// <summary>
-        /// Handle element click (legacy - from HolographicDisplay's own hit detection)
-        /// </summary>
-        private void OnElementClicked(HolographicTextElement element)
-        {
-            Debug.Log($"[HolographicDisplay] Clicked: {element.ElementId}");
-
-            switch (element.ElementId)
-            {
-                case "name_value":
-                    EnterEditMode("name_value");
-                    break;
-                case "search_input":
-                    EnterEditMode("search_input");
-                    break;
-                case "rescan_button":
-                    ShowRescanConfirmation();
-                    break;
-                case "save_button":
-                    if (!string.IsNullOrEmpty(_editingElementId))
-                    {
-                        ExitEditMode(save: true);
-                    }
-                    else
-                    {
-                        // Save current displayed name (should match selected star)
-                        SaveStarName(_selectedStar?.Name);
-                    }
-                    break;
-                case "reset_button":
-                    // Exit edit mode without saving before resetting
-                    if (!string.IsNullOrEmpty(_editingElementId))
-                    {
-                        ExitEditMode(save: false);
-                    }
-                    ResetStarName();
-                    break;
-                case "yes_button":
-                    ConfirmRescan();
-                    break;
-                case "no_button":
-                    HideRescanConfirmation();
-                    break;
-                default:
-                    // Check for result row clicks
-                    if (element.ElementId.StartsWith("result_"))
-                    {
-                        OnSearchResultClicked(element);
-                    }
-                    break;
-            }
-        }
-        
         /// <summary>
         /// Callback events for UI integration
         /// </summary>
@@ -1829,141 +1419,6 @@ namespace CinematicShaders.UI
         public event Action<NamedStar> OnStarSelected;
         public event Action OnRescanConfirmed;
         public event Action OnPoweredOn;
-
-
-
-        /// <summary>
-        /// Handle search result click
-        /// </summary>
-        private void OnSearchResultClicked(HolographicTextElement element)
-        {
-            if (element.AssociatedData is NamedStar star)
-            {
-                // CRITICAL: Exit edit mode WITHOUT saving before switching stars
-                // This ensures the old edit text doesn't persist in the field
-                if (!string.IsNullOrEmpty(_editingElementId))
-                {
-                    ExitEditMode(save: false);
-                }
-                
-                // Select the star (this syncs to selector/Kartographer)
-                SelectStar(star);
-                Debug.Log($"[HolographicDisplay] Selected star from search result: {star.Name}");
-            }
-        }
-
-        #endregion
-
-        #region ASCII Border Rendering
-
-        // ASCII art layout strings (4K reference)
-        private static readonly string[] ASCII_BORDER_LINES = new string[]
-        {
-            "╔════[STAR DATA]═══════════════════╦╦═════[RESULTS]═══════╗",
-            "║                                  ║║                     ║",
-            "║                                  ║║                     ║",
-            "║                                  ║║                     ║",
-            "║                                  ║║                     ║",
-            "║                                  ║║                     ║",
-            "║                                  ║║                     ║",
-            "║                                  ║║                     ║",
-            "║                                  ║║                     ║",
-            "╟──────────────────────────────────╢║                     ║",
-            "║                                  ║║                     ║",
-            "║                                  ║║                     ║",
-            "╚══════════════════════════════════╩╩═════════════════════╝"
-        };
-
-        // CONFIRM layer 1
-        private static readonly string[] ASCII_BORDER_LINES_CONFIRM = new string[]
-        {
-            "╔════════════════════[ARE YOU SURE?]══════════════════════╗",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "╚═════════════════════════════════════════════════════════╝"
-        };
-        // SCAN layer 1
-        private static readonly string[] ASCII_BORDER_LINES_SCAN = new string[]
-        {
-            "╔═══════════════════════[NO DATA]═════════════════════════╗",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "╚═════════════════════════════════════════════════════════╝"
-        };
-
-        // Note: Border rendering is now handled by BorderLayer in ScreenManager
-
-        #endregion
-
-        #region Screen Transition
-
-        /*
-         * NOTE: Screen transition logic is now handled by ScreenManager.
-         * The following methods have been replaced:
-         * - TransitionToScreen() -> _screenManager.TransitionTo()
-         * - HideCurrentScreenElements() -> Handled in individual screen OnExit()
-         * - ResetAllElementAnimations() -> Handled in BaseScreen.OnEnter()
-         * 
-         * Obsolete fields removed:
-         * - _currentScreen -> Use _screenManager.CurrentScreenName
-         * - _showingScanScreen -> Check _screenManager.CurrentScreenName == "Scan"
-         * - _showingConfirmation -> Check _screenManager.CurrentScreenName == "ConfirmRescan"
-         */
-        
-        /// <summary>
-        /// Reset all element animations for fresh type-on effect (kept for PowerOn)
-        /// </summary>
-        private void ResetAllElementAnimations()
-        {
-            // Reset main screen elements
-            foreach (var element in _elements.Values)
-            {
-                element.TypeOnProgress = 0f;
-                element.IsDirty = true;
-            }
-        }
-
-        #endregion
-
-        #region SCAN Screen
-
-        // Scan screen ASCII art
-
-        // ASCII art for SCAN
-        private static readonly string[] SCAN_ASCII_ART = new string[]
-        {
-            "╔═════════════════════[NO DATA]═══════════════════════════╗",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "╚═════════════════════════════════════════════════════════╝"
-        };
 
         /// <summary>
         /// Show the SCAN screen with ASCII art
@@ -1983,78 +1438,6 @@ namespace CinematicShaders.UI
             Debug.Log("[HolographicDisplay] Hiding SCAN screen, returning to Main");
         }
 
-
-
-        #endregion
-
-        #region Confirm Screen Interaction
-
-        // Confirm box dimensions (54 chars wide x 13 lines tall)
-        private const int CONFIRM_BOX_WIDTH_CHARS = 54;
-        private const int CONFIRM_BOX_HEIGHT_LINES = 13;
-        private const float CONFIRM_CHAR_WIDTH = 14f;  // Approximate monospace char width
-        
-        /// <summary>
-        /// Calculate the centered confirm box rectangle in screen coordinates
-        /// </summary>
-        private Rect GetConfirmBoxRect()
-        {
-            float lineHeight = _lineSpacing;
-            float charWidth = CONFIRM_CHAR_WIDTH;
-            
-            float boxWidth = CONFIRM_BOX_WIDTH_CHARS * charWidth;
-            float boxHeight = CONFIRM_BOX_HEIGHT_LINES * lineHeight;
-            
-            float startX = _displayRect.x + (_displayRect.width - boxWidth) * 0.5f;
-            float startY = _displayRect.y + (_displayRect.height - boxHeight) * 0.5f;
-            
-            return new Rect(startX, startY, boxWidth, boxHeight);
-        }
-        
-
-        
-        #endregion
-
-        #region Rescan Confirmation
-
-        // Confirmation dialog ASCII art
-
-        // ASCII art for confirmation dialog
-        private static readonly string[] CONFIRM_ASCII_ART = new string[]
-        {
-            "╔════════════════════[ARE YOU SURE?]══════════════════════╗",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "╚═════════════════════════════════════════════════════════╝"
-        };
-
-        /// <summary>
-        /// Show rescan confirmation dialog
-        /// </summary>
-        private void ShowRescanConfirmation()
-        {
-            _screenManager?.TransitionTo("ConfirmRescan");
-            Debug.Log("[HolographicDisplay] Showing rescan confirmation dialog");
-        }
-
-        /// <summary>
-        /// Hide rescan confirmation dialog
-        /// </summary>
-        private void HideRescanConfirmation()
-        {
-            _screenManager?.TransitionTo("Main");
-            Debug.Log("[HolographicDisplay] Hiding confirmation dialog, returning to Main");
-        }
-
         /// <summary>
         /// Trigger catalog scan (wrapper for ScanScreen handler)
         /// </summary>
@@ -2072,17 +1455,6 @@ namespace CinematicShaders.UI
             _screenManager?.TransitionTo("Main");
             Debug.Log("[HolographicDisplay] Rescan confirmed - transitioning to Main");
         }
-
-
-
-        #endregion
-
-        #region Updated OnGUI
-
-        // Original OnGUI replaced with this updated version
-        // This is called via the modified OnGUI method below
-
-        #endregion
 
         #region Search System
 
@@ -2370,7 +1742,8 @@ namespace CinematicShaders.UI
             {
                 if (_screenManager?.CurrentScreenName == "ConfirmRescan")
                 {
-                    HideRescanConfirmation();
+                    _screenManager?.TransitionTo("Main");
+                    Debug.Log("[HolographicDisplay] Hiding confirmation dialog, returning to Main");
                     e.Use();
                     return;
                 }
@@ -2458,8 +1831,6 @@ namespace CinematicShaders.UI
                 _screenManager?.Update(Time.deltaTime);
             }
             
-            // Update AnimationController for type-on animations
-            AnimationController.Instance.Update(Time.deltaTime);
         }
         
         #endregion
