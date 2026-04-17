@@ -1504,7 +1504,13 @@ namespace CinematicShaders.UI
             
             ModFileLogger.Log($"[SearchDebug] UpdateSearchResults called. Query='{_searchQuery}', _allStars.Count={_allStars?.Count ?? 0}");
             
-            string query = string.IsNullOrWhiteSpace(_searchQuery) ? "" : _searchQuery.ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(_searchQuery))
+            {
+                UpdateResultElements();
+                return;
+            }
+            
+            string query = _searchQuery.ToLowerInvariant();
             
             // Filter: match name or HIP ID
             int checkCount = 0;
