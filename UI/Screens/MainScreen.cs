@@ -340,7 +340,7 @@ namespace CinematicShaders.UI.Screens
                 GUI.DrawTexture(displayRect, rt);
 
                 // Draw cursor for the currently animating layer (Layer 3 > 2 > 1)
-                Color cursorColor = GetGridColor();
+                Color cursorColor = CinematicShadersUIResources.Colors.CRTColors.GetColor(StarfieldSettings.KartographerGridColor);
                 Vector2? cursorPos = null;
                 if (_elementLayer != null && Layer3Progress > 0f && Layer3Progress < 1f)
                     cursorPos = _elementLayer.CursorPosition;

@@ -396,6 +396,7 @@ namespace CinematicShaders.UI.Screens.Layers
             IntPtr glyphPtr = StarfieldNative.CR_TextGetGlyphPtr(ts);
             int glyphSize = System.Runtime.InteropServices.Marshal.SizeOf<StarfieldNative.GlyphData>();
             int glyphIndex = 0;
+            int lastVisibleGlyphIndex = -1;
 
             for (int row = 0; row < GRID_ROWS && writeIndex < buffer.Length; row++)
             {
@@ -425,15 +426,16 @@ namespace CinematicShaders.UI.Screens.Layers
                         U1 = glyph.UvW,
                         V1 = glyph.UvH
                     };
+                    lastVisibleGlyphIndex = glyphIndex;
                     writeIndex++;
                     glyphIndex++;
                 }
             }
 
-            if (typeOnProgress > 0f && typeOnProgress < 1f && glyphCount > 0)
+            if (typeOnProgress > 0f && typeOnProgress < 1f && lastVisibleGlyphIndex >= 0)
             {
                 var lastGlyph = System.Runtime.InteropServices.Marshal.PtrToStructure<StarfieldNative.GlyphData>(
-                    IntPtr.Add(glyphPtr, (glyphCount - 1) * glyphSize));
+                    IntPtr.Add(glyphPtr, lastVisibleGlyphIndex * glyphSize));
                 CursorPosition = new Vector2(lastGlyph.PosX + lastGlyph.SizeX, lastGlyph.PosY);
             }
             else

@@ -271,7 +271,7 @@ namespace CinematicShaders.UI.Screens
                 RenderTexture.active = null;
                 GUI.DrawTexture(displayRect, rt);
 
-                Color cursorColor = GetGridColor();
+                Color cursorColor = CinematicShadersUIResources.Colors.CRTColors.GetColor(StarfieldSettings.KartographerGridColor);
                 Vector2? cursorPos = null;
                 if (contentLayer != null && Layer2Progress > 0f && Layer2Progress < 1f)
                     cursorPos = contentLayer.CursorPosition;
