@@ -19,7 +19,6 @@ namespace CinematicShaders.UI.Tabs
         private bool _showNavballOptions = false;
         private bool _showSituationOptions = false;
         private bool _showColorDropdown = false;
-        private bool _showStarConsoleVolume = false;
         private int _currentColorIndex = 0;
 
         private GUIStyle[] _colorButtonStyles = null;
@@ -232,13 +231,10 @@ namespace CinematicShaders.UI.Tabs
                 }
             }
             
-            // Star Console Audio volume section
-            GUILayout.Space(5);
-            _showStarConsoleVolume = GUILayout.Toggle(_showStarConsoleVolume,
-                CinematicShadersUIStrings.Kartographer.StarConsoleAudioSection, HighLogic.Skin.button);
-            
-            if (_showStarConsoleVolume)
+            // Volume slider shown whenever Star Console is visible
+            if (newDisplayVisible)
             {
+                GUILayout.Space(5);
                 float currentVol = ModAudioManager.GetGroupVolume(AudioGroup.StarConsole);
                 GUILayout.Label(string.Format(CinematicShadersUIStrings.Kartographer.StarConsoleVolumeFormat, currentVol * 100f));
                 float newVol = GUILayout.HorizontalSlider(currentVol, 0f, 1f);
