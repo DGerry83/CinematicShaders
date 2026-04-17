@@ -232,12 +232,21 @@ namespace CinematicShaders.UI.Screens.Layers
             var element = _elements.Find(e => e.ElementId == elementId);
             if (element != null && element.DynamicText != text)
             {
-                ModFileLogger.Log($"[ElementLayer] SetElementText({elementId}): '{element.DynamicText}' -> '{text}', flagging for animation");
                 element.DynamicText = text;
                 element.IsVisible = !string.IsNullOrEmpty(text);
                 element.IsDirty = true;
-                element.NeedsTypeOnAnimation = true;
-                element.TypeOnProgress = 0f;
+                
+                // Don't animate elements that are currently being edited — they must stay fully visible
+                if (!element.IsEditing)
+                {
+                    ModFileLogger.Log($"[ElementLayer] SetElementText({elementId}): '{element.DynamicText}' -> '{text}', flagging for animation");
+                    element.NeedsTypeOnAnimation = true;
+                    element.TypeOnProgress = 0f;
+                }
+                else
+                {
+                    ModFileLogger.Log($"[ElementLayer] SetElementText({elementId}): '{element.DynamicText}' -> '{text}', skipping animation — element is editing");
+                }
             }
         }
         
@@ -249,8 +258,13 @@ namespace CinematicShaders.UI.Screens.Layers
                 element.DynamicText = text;
                 element.IsVisible = !string.IsNullOrEmpty(text);
                 element.IsDirty = true;
-                element.NeedsTypeOnAnimation = true;
-                element.TypeOnProgress = 0f;
+                
+                // Don't animate elements that are currently being edited — they must stay fully visible
+                if (!element.IsEditing)
+                {
+                    element.NeedsTypeOnAnimation = true;
+                    element.TypeOnProgress = 0f;
+                }
             }
         }
         
