@@ -90,6 +90,7 @@ namespace CinematicShaders.Core
         // ============================================================================
         // Text System (Phase 4)
         // ============================================================================
+        private bool _disposed = false;
         private IntPtr _textSystem = IntPtr.Zero;
         private ComputeBuffer _glyphBuffer = null;
         private RenderTexture _textTexture = null;
@@ -1448,10 +1449,27 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
-        /// Cleanup resources
+        /// Finalizer — ensures native resources are freed even if Dispose() was not called.
+        /// </summary>
+        ~KartographerSelector()
+        {
+            Dispose(false);
+        }
+
+        /// <summary>
+        /// Cleanup resources. Safe to call multiple times.
         /// </summary>
         public void Dispose()
         {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        private void Dispose(bool disposing)
+        {
+            if (_disposed) return;
+            _disposed = true;
+
             // Clear native SRV references before destroying textures
             StarfieldNative.CR_SetTextTexture(IntPtr.Zero);
             StarfieldNative.CR_SetVesselTargetTextTexture(IntPtr.Zero);
