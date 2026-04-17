@@ -194,6 +194,9 @@ namespace CinematicShaders.UI.Screens
         {
             _currentScreen?.OnExit();
             _currentScreen = null;
+            
+            // Ensure typing sound stops when the console shuts down
+            ModAudioManager.StopLoop("starconsole_typing", 0.025f);
         }
     }
 }

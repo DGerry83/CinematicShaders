@@ -1252,6 +1252,9 @@ namespace CinematicShaders.UI
         {
             _displayPowered = false;
             
+            // Ensure typing sound stops even if animation is mid-type-on
+            ModAudioManager.StopLoop("starconsole_typing", 0.025f);
+            
             // Clear all element text (don't just hide - clear the data)
             ClearStarData();
             
@@ -1383,6 +1386,9 @@ namespace CinematicShaders.UI
             // Shutdown ScreenManager
             _screenManager?.Shutdown();
             _screenManager = null;
+            
+            // Ensure typing sound is stopped when window is destroyed
+            ModAudioManager.StopLoop("starconsole_typing", 0.025f);
 
             // Note: We don't shut down _textSystem here because it's shared
         }
