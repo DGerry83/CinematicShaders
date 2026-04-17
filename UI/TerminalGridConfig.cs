@@ -40,13 +40,13 @@ namespace CinematicShaders.UI
             public const float GLYPH_WIDTH_LARGE = 14.0f;      // 825/59 = 13.98 ≈ 14
             public const float GLYPH_HEIGHT_LARGE = 34.6f;     // 450/13 = 34.6
             
-            // Medium (24pt) - Scaled from Large: 24/35 = 0.69
-            public const float GLYPH_WIDTH_MEDIUM = 10.0f;     // 14 * 0.69 ≈ 10
-            public const float GLYPH_HEIGHT_MEDIUM = 24.0f;    // 34.6 * 0.69 ≈ 24
+            // Medium (25pt) - Magic size: scaled advance = 10.005px
+            public const float GLYPH_WIDTH_MEDIUM = 10.0f;     // exact integer
+            public const float GLYPH_HEIGHT_MEDIUM = 25.0f;    // line height = 25
             
-            // Small (18pt) - Scaled from Large: 18/35 = 0.51
-            public const float GLYPH_WIDTH_SMALL = 7.0f;       // 14 * 0.51 ≈ 7
-            public const float GLYPH_HEIGHT_SMALL = 18.0f;     // 34.6 * 0.51 ≈ 18
+            // Small (15pt) - Magic size: scaled advance = 6.003px
+            public const float GLYPH_WIDTH_SMALL = 6.0f;       // exact integer
+            public const float GLYPH_HEIGHT_SMALL = 15.0f;     // line height = 15
             
             public static (float width, float height) GetGlyphMetrics(HolographicDisplaySize size)
             {
