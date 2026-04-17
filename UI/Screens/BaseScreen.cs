@@ -296,7 +296,10 @@ namespace CinematicShaders.UI.Screens
             {
                 // Phase 1: Character-based duration for Layer 3
                 float layer3Duration = CalculateLayerDuration(3);
-                Layer3Progress = Mathf.Clamp01((PowerOnTime - Layer3Delay) / layer3Duration);
+                if (layer3Duration > 0.001f)
+                    Layer3Progress = Mathf.Clamp01((PowerOnTime - Layer3Delay) / layer3Duration);
+                else
+                    Layer3Progress = 1f; // No content — skip animation
             }
             else
                 Layer3Progress = 0f;

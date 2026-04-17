@@ -312,6 +312,7 @@ namespace CinematicShaders.UI.Screens.Layers
         public float CalculateTypeOnDuration()
         {
             int totalCharCount = GetTotalVisibleCharacterCount();
+            if (totalCharCount == 0) return 0f;
             float duration = totalCharCount / CHARS_PER_SECOND;
             return Mathf.Max(MIN_TYPEON_DURATION, duration);
         }
