@@ -775,6 +775,19 @@ namespace CinematicShaders.UI.Screens.Layers
             }
         }
 
+        /// <summary>
+        /// Gets the current display text for the specified element.
+        /// Returns null if the element does not exist in this layer.
+        /// Returns empty string if the element exists but is invisible.
+        /// </summary>
+        public string GetElementText(string elementId)
+        {
+            var element = _elements.Find(e => e.ElementId == elementId);
+            if (element == null) return null;
+            if (!element.IsVisible) return "";
+            return GetDisplayText(element);
+        }
+
         private string GetElementValue(string elementId)
         {
             var element = _elements.Find(e => e.ElementId == elementId);

@@ -349,7 +349,14 @@ namespace CinematicShaders.UI.Screens
                     DrawCursorOverlay(displayRect, cursorPos, cursorColor);
                 }
 
-                DrawHoverOverlay(displayRect, ClickHandler?.ZoneManager);
+                var (glyphW, glyphH) = TerminalGridConfig.GlyphMetrics.GetGlyphMetrics(TerminalGridConfig.CurrentDisplaySize);
+                DrawHoverOverlay(displayRect, ClickHandler?.ZoneManager, elementId =>
+                {
+                    string text = _elementLayer?.GetElementText(elementId);
+                    if (text == null) return -1f; // Not in ElementLayer — use default GridRect width
+                    if (text.Length == 0) return 0f; // Empty content — skip drawing
+                    return text.Length * glyphW;
+                });
             }
         }
         

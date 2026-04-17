@@ -44,9 +44,11 @@ namespace CinematicShaders.UI.Screens
         {
             if (Event.current == null) return;
 
-            if (Event.current.type != EventType.MouseDown &&
-                Event.current.type != EventType.MouseMove &&
-                Event.current.type != EventType.MouseUp)
+            bool isMouseEvent = Event.current.type == EventType.MouseDown ||
+                                Event.current.type == EventType.MouseMove ||
+                                Event.current.type == EventType.MouseUp;
+
+            if (!isMouseEvent && Event.current.type != EventType.Repaint)
             {
                 return;
             }

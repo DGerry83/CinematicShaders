@@ -424,10 +424,34 @@ namespace CinematicShaders.UI.Screens
         protected string _hoveredElementId = null;
 
         /// <summary>
-        /// Draws a 2px border around the hovered click zone using IMGUI.
+        /// Gets the hover border thickness appropriate for the current display size.
+        /// </summary>
+        protected float GetHoverBorderThickness()
+        {
+            switch (TerminalGridConfig.CurrentDisplaySize)
+            {
+                case HolographicDisplaySize.Large: return 4f;
+                case HolographicDisplaySize.Medium: return 3f;
+                case HolographicDisplaySize.Small: return 2f;
+                default: return 2f;
+            }
+        }
+
+        /// <summary>
+        /// Draws a border around the hovered click zone using IMGUI.
+        /// Border thickness scales with display size (2px Small, 3px Medium, 4px Large).
         /// Call this after GUI.DrawTexture in the screen's Render method.
         /// </summary>
-        protected void DrawHoverOverlay(Rect displayRect, ClickZoneManager zoneManager)
+        /// <param name="displayRect">Screen-space display rectangle.</param>
+        /// <param name="zoneManager">Click zone manager for zone lookups.</param>
+        /// <param name="getContentWidth">
+        /// Optional callback to provide a custom content width for an element.
+        /// Return -1 to use the default GridRect width.
+        /// Return 0 to skip drawing (e.g., empty content).
+        /// Return a positive value to shrink-wrap the box to that width.
+        /// </param>
+        protected void DrawHoverOverlay(Rect displayRect, ClickZoneManager zoneManager,
+            System.Func<string, float> getContentWidth = null)
         {
             if (zoneManager == null || string.IsNullOrEmpty(_hoveredElementId))
                 return;
@@ -443,17 +467,29 @@ namespace CinematicShaders.UI.Screens
             float w = zone.GridRect.width * glyphW;
             float h = zone.GridRect.height * glyphH;
 
+            // Shrink-wrap to content width if a callback is provided
+            if (getContentWidth != null)
+            {
+                float contentW = getContentWidth(zone.ElementId);
+                if (contentW == 0f)
+                    return; // Empty content — don't draw a box
+                if (contentW > 0f)
+                    w = contentW;
+            }
+
+            float thickness = GetHoverBorderThickness();
+
             Color color = GetGridColor();
             GUI.color = color;
 
             // Top border
-            GUI.DrawTexture(new Rect(x, y, w, 2f), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(x, y, w, thickness), Texture2D.whiteTexture);
             // Bottom border
-            GUI.DrawTexture(new Rect(x, y + h - 2f, w, 2f), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(x, y + h - thickness, w, thickness), Texture2D.whiteTexture);
             // Left border
-            GUI.DrawTexture(new Rect(x, y, 2f, h), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(x, y, thickness, h), Texture2D.whiteTexture);
             // Right border
-            GUI.DrawTexture(new Rect(x + w - 2f, y, 2f, h), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(x + w - thickness, y, thickness, h), Texture2D.whiteTexture);
 
             GUI.color = Color.white;
         }
