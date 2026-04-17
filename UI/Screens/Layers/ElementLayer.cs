@@ -42,6 +42,11 @@ namespace CinematicShaders.UI.Screens.Layers
         private const float CURSOR_BLINK_INTERVAL = 0.5f;
         private string _editingElementId = null;
         
+        // Animation snapshot — captured at start of cycle so totalChars doesn't shrink
+        // as elements complete, which was causing progress to accelerate through later elements.
+        private List<HolographicTextElement> _animationSnapshot;
+        private int _animationSnapshotTotalChars;
+        
         // Priority order for element animation sequence
         private List<string> _priorityOrder = new List<string>
         {
@@ -342,7 +347,14 @@ namespace CinematicShaders.UI.Screens.Layers
             float weightedCharCount = GetWeightedAnimationCharacterCount();
             if (weightedCharCount <= 0f) return 0f;
             float duration = weightedCharCount / FIELD_CHARS_PER_SECOND;
-            ModFileLogger.Log($"[AnimDebug] CalculateTypeOnDuration weightedChars={weightedCharCount:F1} duration={duration:F3}s");
+            
+            // Snapshot animating elements at start of cycle
+            _animationSnapshot = GetSortedVisibleElements().FindAll(e => e.NeedsTypeOnAnimation);
+            _animationSnapshotTotalChars = 0;
+            foreach (var e in _animationSnapshot)
+                _animationSnapshotTotalChars += CountNonSpaceChars(e.FullDisplayText);
+            
+            ModFileLogger.Log($"[AnimDebug] CalculateTypeOnDuration weightedChars={weightedCharCount:F1} duration={duration:F3}s snapshotChars={_animationSnapshotTotalChars}");
             return duration;
         }
         
@@ -421,6 +433,12 @@ namespace CinematicShaders.UI.Screens.Layers
             if (typeOnProgress > 0f)
             {
                 DistributeGlobalProgressAcrossElements(typeOnProgress);
+            }
+            
+            if (typeOnProgress >= 1f)
+            {
+                _animationSnapshot = null;
+                _animationSnapshotTotalChars = 0;
             }
 
             BuildLayer3Content();
@@ -501,24 +519,18 @@ namespace CinematicShaders.UI.Screens.Layers
         /// </summary>
         private void DistributeGlobalProgressAcrossElements(float globalProgress)
         {
-            var sortedElements = GetSortedVisibleElements();
-            if (sortedElements.Count == 0) return;
+            // Use snapshot taken at start of animation cycle so totalChars stays constant
+            var elements = _animationSnapshot;
+            int totalChars = _animationSnapshotTotalChars;
             
-            // Filter to only elements that need animation
-            var animatingElements = sortedElements.FindAll(e => e.NeedsTypeOnAnimation);
-            if (animatingElements.Count == 0) return;
+            if (elements == null || elements.Count == 0 || totalChars == 0) return;
             
-            // Calculate total character count for animating elements only
-            int totalChars = 0;
+            // Calculate per-element char counts from snapshot
             var elementCharCounts = new List<int>();
-            foreach (var element in animatingElements)
+            foreach (var element in elements)
             {
-                int charCount = CountNonSpaceChars(element.FullDisplayText);
-                elementCharCounts.Add(charCount);
-                totalChars += charCount;
+                elementCharCounts.Add(CountNonSpaceChars(element.FullDisplayText));
             }
-            
-            if (totalChars == 0) return;
             
             int visibleCharCount = Mathf.Max(1, Mathf.FloorToInt(globalProgress * totalChars));
             
@@ -526,11 +538,11 @@ namespace CinematicShaders.UI.Screens.Layers
             if (globalProgress > 0f && globalProgress < 1f)
             {
                 var sb = new System.Text.StringBuilder();
-                sb.Append($"[AnimDebug] Distribute global={globalProgress:F3} totalChars={totalChars} visibleChars={visibleCharCount} animating={animatingElements.Count}: ");
-                for (int i = 0; i < animatingElements.Count; i++)
+                sb.Append($"[AnimDebug] Distribute global={globalProgress:F3} totalChars={totalChars} visibleChars={visibleCharCount} animating={elements.Count}: ");
+                for (int i = 0; i < elements.Count; i++)
                 {
                     if (i > 0) sb.Append(", ");
-                    sb.Append($"{animatingElements[i].ElementId}({elementCharCounts[i]})");
+                    sb.Append($"{elements[i].ElementId}({elementCharCounts[i]})");
                 }
                 ModFileLogger.Log(sb.ToString());
             }
@@ -538,9 +550,9 @@ namespace CinematicShaders.UI.Screens.Layers
             int charsAssigned = 0;
             bool hasChanges = false;
             
-            for (int i = 0; i < animatingElements.Count; i++)
+            for (int i = 0; i < elements.Count; i++)
             {
-                var element = animatingElements[i];
+                var element = elements[i];
                 int elementCharCount = elementCharCounts[i];
                 float prevProgress = element.TypeOnProgress;
                 
