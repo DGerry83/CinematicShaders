@@ -342,6 +342,7 @@ namespace CinematicShaders.UI.Screens.Layers
             float weightedCharCount = GetWeightedAnimationCharacterCount();
             if (weightedCharCount <= 0f) return 0f;
             float duration = weightedCharCount / FIELD_CHARS_PER_SECOND;
+            ModFileLogger.Log($"[AnimDebug] CalculateTypeOnDuration weightedChars={weightedCharCount:F1} duration={duration:F3}s");
             return duration;
         }
         
@@ -521,6 +522,19 @@ namespace CinematicShaders.UI.Screens.Layers
             
             int visibleCharCount = Mathf.Max(1, Mathf.FloorToInt(globalProgress * totalChars));
             
+            // DEBUG: log distribution summary when animation is active
+            if (globalProgress > 0f && globalProgress < 1f)
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.Append($"[AnimDebug] Distribute global={globalProgress:F3} totalChars={totalChars} visibleChars={visibleCharCount} animating={animatingElements.Count}: ");
+                for (int i = 0; i < animatingElements.Count; i++)
+                {
+                    if (i > 0) sb.Append(", ");
+                    sb.Append($"{animatingElements[i].ElementId}({elementCharCounts[i]})");
+                }
+                ModFileLogger.Log(sb.ToString());
+            }
+            
             int charsAssigned = 0;
             bool hasChanges = false;
             
@@ -554,6 +568,12 @@ namespace CinematicShaders.UI.Screens.Layers
                 if (element.TypeOnProgress >= 1.0f)
                 {
                     element.NeedsTypeOnAnimation = false;
+                }
+                
+                // DEBUG: log per-element progress when animation is active
+                if (globalProgress > 0f && globalProgress < 1f)
+                {
+                    ModFileLogger.Log($"[AnimDebug]   {element.ElementId}: prev={prevProgress:F3} new={element.TypeOnProgress:F3} charCount={elementCharCount}");
                 }
                 
                 if (Mathf.Abs(element.TypeOnProgress - prevProgress) > 0.001f)
@@ -747,18 +767,19 @@ namespace CinematicShaders.UI.Screens.Layers
             {
                 int endIndex = GetTypeOnEndIndex(fullText, element.TypeOnProgress);
                 
-                // DIAGNOSTIC: (Disabled) Log when animation is starting (progress < 0.5) to verify truncation
-                // if (element.TypeOnProgress < 0.5f)
-                // {
-                //     string result = endIndex <= 0 ? " " : fullText.Substring(0, endIndex) + "\u258C";
-                //     ModFileLogger.Log($"[ElementLayer] GetDisplayText({element.ElementId}): progress={element.TypeOnProgress:F3}, endIndex={endIndex}, result='{result}'");
-                //     return result;
-                // }
-                
                 if (endIndex <= 0)
+                {
+                    if (element.TypeOnProgress > 0f && element.TypeOnProgress < 1f)
+                        ModFileLogger.Log($"[AnimDebug]   Display {element.ElementId}: progress={element.TypeOnProgress:F3} endIndex=0/{fullText.Length} text=' '");
                     return " ";
+                }
                 else
-                    return fullText.Substring(0, endIndex);
+                {
+                    string result = fullText.Substring(0, endIndex);
+                    if (element.TypeOnProgress > 0f && element.TypeOnProgress < 1f)
+                        ModFileLogger.Log($"[AnimDebug]   Display {element.ElementId}: progress={element.TypeOnProgress:F3} endIndex={endIndex}/{fullText.Length} text='{result}'");
+                    return result;
+                }
             }
             
             return fullText;
