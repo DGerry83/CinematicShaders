@@ -100,6 +100,10 @@ namespace CinematicShaders.UI.Screens
         protected const float CHARS_PER_SECOND = 60f;
         protected const float MIN_TYPEON_DURATION = 0.5f;
         
+        // Cached Layer 3 duration — calculated once per animation cycle to prevent
+        // duration shrinkage as elements complete, which causes progress acceleration.
+        private float _cachedLayer3Duration = 0f;
+        
         // Layer 1/2 completion tracking
         
         /// <summary>
@@ -294,7 +298,12 @@ namespace CinematicShaders.UI.Screens
             if (PowerOnTime >= Layer3Delay)
             {
                 // Phase 1: Character-based duration for Layer 3
-                float layer3Duration = CalculateLayerDuration(3);
+                // Cache duration at start of animation cycle so it doesn't shrink
+                // as elements complete (which would accelerate progress).
+                if (Layer3Progress <= 0f)
+                    _cachedLayer3Duration = CalculateLayerDuration(3);
+                
+                float layer3Duration = _cachedLayer3Duration;
                 float prevProgress = Layer3Progress;
                 if (layer3Duration > 0.001f)
                     Layer3Progress = Mathf.Clamp01((PowerOnTime - Layer3Delay) / layer3Duration);
