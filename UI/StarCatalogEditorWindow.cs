@@ -367,18 +367,7 @@ namespace CinematicShaders.UI
         #region Logic
         private void UpdateFilteredList()
         {
-            if (string.IsNullOrWhiteSpace(_searchText))
-            {
-                _filteredStars = new List<NamedStar>(_allStars);
-            }
-            else
-            {
-                string query = _searchText.ToLowerInvariant();
-                _filteredStars = _allStars.Where(s => 
-                    s.Name.ToLowerInvariant().Contains(query) ||
-                    s.HipparcosID.ToString().Contains(query)
-                ).ToList();
-            }
+            _filteredStars = StarSearchUtility.SearchStars(_allStars, _searchText);
             _scrollPosition = Vector2.zero;  // Reset scroll to top
         }
 

@@ -1500,39 +1500,19 @@ namespace CinematicShaders.UI
         /// </summary>
         private void UpdateSearchResults()
         {
-            _filteredResults.Clear();
-            
             ModFileLogger.Log($"[SearchDebug] UpdateSearchResults called. Query='{_searchQuery}', _allStars.Count={_allStars?.Count ?? 0}");
             
             if (string.IsNullOrWhiteSpace(_searchQuery))
             {
+                _filteredResults.Clear();
                 UpdateResultElements();
                 return;
             }
             
-            string query = _searchQuery.ToLowerInvariant();
+            _filteredResults = StarSearchUtility.SearchStars(_allStars, _searchQuery, MAX_SEARCH_RESULTS);
             
-            // Filter: match name or HIP ID
-            int checkCount = 0;
-            foreach (var star in _allStars)
-            {
-                if (_filteredResults.Count >= MAX_SEARCH_RESULTS)
-                    break;
-                
-                bool nameMatch = star.Name.ToLowerInvariant().Contains(query);
-                bool hipMatch = star.HipparcosID.ToString().Contains(query);
-                
-                checkCount++;
-                if (nameMatch || hipMatch)
-                {
-                    ModFileLogger.Log($"[SearchDebug] Match found: HIP {star.HipparcosID}, Name='{star.Name}'");
-                    _filteredResults.Add(star);
-                }
-            }
+            ModFileLogger.Log($"[SearchDebug] Found {_filteredResults.Count} relevance-ranked matches");
             
-            ModFileLogger.Log($"[SearchDebug] Searched {checkCount} stars, found {_filteredResults.Count} matches");
-            
-            // Update result elements
             UpdateResultElements();
         }
 
