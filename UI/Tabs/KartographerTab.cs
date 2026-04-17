@@ -183,6 +183,12 @@ namespace CinematicShaders.UI.Tabs
                 {
                     StarfieldNative.CR_StarfieldSetKartographerEnabled(newEnable ? (byte)1 : (byte)0);
                 }
+                // Re-register camera callback when Kartographer is re-enabled
+                // (StopTracking() clears it on disable; constructor only runs once)
+                if (newEnable)
+                {
+                    StarfieldCompositor.KartographerSelectorCallback = OnCameraUpdate;
+                }
                 StarfieldSettings.Save();
             }
         }
