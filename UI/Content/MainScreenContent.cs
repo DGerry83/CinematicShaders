@@ -42,7 +42,7 @@ namespace CinematicShaders.UI.Content
             "                 [SAVE]   [RESET]                          ",
             "                                                           ",
             "  SEARCH                  [RESCAN]                         ",
-            "                                       ▲               ▼   ",
+            "  ►                                    ▲               ▼   ",
             "                                                           "
         };
         

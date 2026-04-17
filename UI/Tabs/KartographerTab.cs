@@ -19,6 +19,7 @@ namespace CinematicShaders.UI.Tabs
         private bool _showNavballOptions = false;
         private bool _showSituationOptions = false;
         private bool _showColorDropdown = false;
+        private bool _showStarConsoleVolume = false;
         private int _currentColorIndex = 0;
 
         private GUIStyle[] _colorButtonStyles = null;
@@ -44,6 +45,12 @@ namespace CinematicShaders.UI.Tabs
         {
             // Settings loaded by StarfieldSettings on module startup
             _currentColorIndex = StarfieldSettings.KartographerGridColor;
+            
+            // Restore saved Star Console display mode
+            if (System.Enum.TryParse<StarConsoleMode>(StarfieldSettings.StarConsoleDisplayMode, out var savedMode))
+            {
+                _consoleMode = savedMode;
+            }
             
             // Register for camera update callbacks from StarfieldCompositor
             StarfieldCompositor.KartographerSelectorCallback = OnCameraUpdate;
@@ -222,6 +229,24 @@ namespace CinematicShaders.UI.Tabs
                 else
                 {
                     HideCurrentDisplay();
+                }
+            }
+            
+            // Star Console Audio volume section
+            GUILayout.Space(5);
+            _showStarConsoleVolume = GUILayout.Toggle(_showStarConsoleVolume,
+                CinematicShadersUIStrings.Kartographer.StarConsoleAudioSection, HighLogic.Skin.button);
+            
+            if (_showStarConsoleVolume)
+            {
+                float currentVol = ModAudioManager.GetGroupVolume(AudioGroup.StarConsole);
+                GUILayout.Label(string.Format(CinematicShadersUIStrings.Kartographer.StarConsoleVolumeFormat, currentVol * 100f));
+                float newVol = GUILayout.HorizontalSlider(currentVol, 0f, 1f);
+                if (!Mathf.Approximately(newVol, currentVol))
+                {
+                    ModAudioManager.SetGroupVolume(AudioGroup.StarConsole, newVol);
+                    StarfieldSettings.StarConsoleVolume = newVol;
+                    StarfieldSettings.Save();
                 }
             }
             
@@ -967,6 +992,8 @@ namespace CinematicShaders.UI.Tabs
             HideCurrentDisplay();
             
             _consoleMode = mode;
+            StarfieldSettings.StarConsoleDisplayMode = mode.ToString();
+            StarfieldSettings.Save();
             
             // Show new display
             ShowCurrentDisplay();
