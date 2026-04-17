@@ -33,7 +33,7 @@ namespace CinematicShaders.UI.Screens.Layers
         private const int LAYER_3_LINE_COUNT = 17;
         
         // Character-based animation constants
-        private const float FIELD_CHARS_PER_SECOND = 60f;
+        private const float FIELD_CHARS_PER_SECOND = 30f;
         private const float RESULT_WEIGHT = 0.5f;  // Results animate at 2x speed (120 chars/sec effective)
         private const float MIN_TYPEON_DURATION = 0.5f;
         
