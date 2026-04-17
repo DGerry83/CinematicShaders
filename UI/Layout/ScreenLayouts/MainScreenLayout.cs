@@ -5,40 +5,42 @@ namespace CinematicShaders.UI.Layout.ScreenLayouts
 {
     /// <summary>
     /// Constraint-based layout definition for the MainScreen.
-    /// Reproduces the legacy 59x13 grid positions from UnifiedGridRegistry
-    /// using the constraint layout system.
-    /// Stores grid coordinates (cells) and converts to pixels on demand.
+    /// Derives all element positions from constraint splits, matching the
+    /// pattern established by ScanScreenLayout.
     /// </summary>
     public class MainScreenLayout : ILayout
     {
-        private readonly Dictionary<string, GridRegion> _elementGridAreas =
-            new Dictionary<string, GridRegion>();
+        private readonly Dictionary<string, GridRegion> _gridAreas = new Dictionary<string, GridRegion>();
+        private readonly Dictionary<string, Rect> _pixelAreas = new Dictionary<string, Rect>();
+        private bool _isBuilt = false;
+        private Rect _displayArea;
 
         /// <summary>
         /// Builds the layout structure within the given display area.
-        /// Stores grid coordinates directly (column, row, width, height in cells).
+        /// Derives pixel and grid regions from constraint splits.
         /// </summary>
         public void Build(LayoutEngine engine, Rect displayArea)
         {
-            _elementGridAreas.Clear();
+            if (_isBuilt) return;
 
-            // Get glyph metrics for potential pixel calculations
-            var (glyphWidth, glyphHeight) = TerminalGridConfig.GlyphMetrics.GetGlyphMetrics(
-                TerminalGridConfig.CurrentDisplaySize
-            );
+            _displayArea = displayArea;
+
+            int columns = TerminalGridConfig.GRID_COLUMNS;
+            int rows = TerminalGridConfig.GRID_ROWS;
+            float cellWidth = displayArea.width / columns;
+            float cellHeight = displayArea.height / rows;
 
             // Major structural split: header (row 0), content (rows 1-11), footer (row 12)
             Rect[] verticalSplits = engine.SplitVertical(displayArea,
-                Constraint.Length(glyphHeight),  // Row 0: top border
+                Constraint.Length(cellHeight),   // Row 0: top border
                 Constraint.Fill(1),               // Rows 1-11: content area
-                Constraint.Length(glyphHeight)   // Row 12: bottom border
+                Constraint.Length(cellHeight)    // Row 12: bottom border
             );
             Rect contentArea = verticalSplits[1];
 
-            // Split content into left panel (cols 0-37) and right panel (cols 38-58)
-            float leftPanelWidth = 38f * glyphWidth;
+            // Split content into left panel (38 cols) and right panel (21 cols)
             Rect[] horizontalSplits = engine.SplitHorizontal(contentArea,
-                Constraint.Length(leftPanelWidth),
+                Constraint.Length(cellWidth * 38),
                 Constraint.Fill(1)
             );
             Rect leftPanel = horizontalSplits[0];
@@ -48,61 +50,69 @@ namespace CinematicShaders.UI.Layout.ScreenLayouts
             Constraint[] leftRowConstraints = new Constraint[11];
             for (int i = 0; i < 11; i++)
             {
-                leftRowConstraints[i] = Constraint.Length(glyphHeight);
+                leftRowConstraints[i] = Constraint.Length(cellHeight);
             }
             Rect[] leftRows = engine.SplitVertical(leftPanel, leftRowConstraints);
-
-            // Left column value fields (rows 1-6)
-            // Store as grid coordinates: (column, row, width, height)
-            _elementGridAreas["hip_value"] = new GridRegion(
-                GridPosition.At(12, 1), 20, 1);
-
-            _elementGridAreas["name_value"] = new GridRegion(
-                GridPosition.At(12, 2), 25, 1);
-
-            _elementGridAreas["distance_value"] = new GridRegion(
-                GridPosition.At(12, 3), 20, 1);
-
-            _elementGridAreas["spectral_value"] = new GridRegion(
-                GridPosition.At(12, 4), 15, 1);
-
-            _elementGridAreas["mag_value"] = new GridRegion(
-                GridPosition.At(12, 5), 15, 1);
-
-            _elementGridAreas["const_value"] = new GridRegion(
-                GridPosition.At(12, 6), 20, 1);
-
-            // Row 8: selected star, save button, reset button
-            _elementGridAreas["selected_star"] = new GridRegion(
-                GridPosition.At(4, 8), 12, 1);
-
-            _elementGridAreas["save_button"] = new GridRegion(
-                GridPosition.At(17, 8), 7, 1);
-
-            _elementGridAreas["reset_button"] = new GridRegion(
-                GridPosition.At(27, 8), 8, 1);
-
-            // Row 10: rescan button
-            _elementGridAreas["rescan_button"] = new GridRegion(
-                GridPosition.At(27, 10), 8, 1);
-
-            // Row 11: search input
-            _elementGridAreas["search_input"] = new GridRegion(
-                GridPosition.At(4, 11), 25, 1);
 
             // Split right panel into 10 rows for search results (rows 1-10)
             Constraint[] resultRowConstraints = new Constraint[10];
             for (int i = 0; i < 10; i++)
             {
-                resultRowConstraints[i] = Constraint.Length(glyphHeight);
+                resultRowConstraints[i] = Constraint.Length(cellHeight);
             }
             Rect[] resultRows = engine.SplitVertical(rightPanel, resultRowConstraints);
 
+            // Left column value fields (rows 1-6) — derived from leftRows sub-rects
+            _pixelAreas["hip_value"] = new Rect(leftRows[0].x + cellWidth * 12, leftRows[0].y, cellWidth * 20, cellHeight);
+            _pixelAreas["name_value"] = new Rect(leftRows[1].x + cellWidth * 12, leftRows[1].y, cellWidth * 25, cellHeight);
+            _pixelAreas["distance_value"] = new Rect(leftRows[2].x + cellWidth * 12, leftRows[2].y, cellWidth * 20, cellHeight);
+            _pixelAreas["spectral_value"] = new Rect(leftRows[3].x + cellWidth * 12, leftRows[3].y, cellWidth * 15, cellHeight);
+            _pixelAreas["mag_value"] = new Rect(leftRows[4].x + cellWidth * 12, leftRows[4].y, cellWidth * 15, cellHeight);
+            _pixelAreas["const_value"] = new Rect(leftRows[5].x + cellWidth * 12, leftRows[5].y, cellWidth * 20, cellHeight);
+
+            // Row 8: selected_star, save_button, reset_button
+            Rect[] row8Splits = engine.SplitHorizontal(leftRows[7],
+                Constraint.Length(cellWidth * 4),   // margin
+                Constraint.Length(cellWidth * 12),  // selected_star
+                Constraint.Length(cellWidth * 1),   // gap
+                Constraint.Length(cellWidth * 7),   // save_button
+                Constraint.Length(cellWidth * 3),   // gap
+                Constraint.Length(cellWidth * 8),   // reset_button
+                Constraint.Fill(1)                  // remainder
+            );
+            _pixelAreas["selected_star"] = row8Splits[1];
+            _pixelAreas["save_button"] = row8Splits[3];
+            _pixelAreas["reset_button"] = row8Splits[5];
+
+            // Row 10: rescan_button
+            Rect[] row10Splits = engine.SplitHorizontal(leftRows[9],
+                Constraint.Length(cellWidth * 27),  // margin
+                Constraint.Length(cellWidth * 8),   // rescan_button
+                Constraint.Fill(1)                  // remainder
+            );
+            _pixelAreas["rescan_button"] = row10Splits[1];
+
+            // Row 11: search_input
+            Rect[] row11Splits = engine.SplitHorizontal(leftRows[10],
+                Constraint.Length(cellWidth * 4),   // margin
+                Constraint.Length(cellWidth * 25),  // search_input
+                Constraint.Fill(1)                  // remainder
+            );
+            _pixelAreas["search_input"] = row11Splits[1];
+
+            // Search results (rows 1-10 in right panel)
             for (int i = 0; i < 10; i++)
             {
-                _elementGridAreas[string.Format("result_{0}", i)] = new GridRegion(
-                    GridPosition.At(38, 1 + i), 20, 1);
+                _pixelAreas[string.Format("result_{0}", i)] = resultRows[i];
             }
+
+            // Convert pixel areas to grid areas
+            foreach (var kvp in _pixelAreas)
+            {
+                _gridAreas[kvp.Key] = RectToGridRegion(kvp.Value, cellWidth, cellHeight);
+            }
+
+            _isBuilt = true;
         }
 
         /// <summary>
@@ -111,30 +121,19 @@ namespace CinematicShaders.UI.Layout.ScreenLayouts
         /// </summary>
         public GridRegion GetGridArea(string elementId)
         {
-            return _elementGridAreas.TryGetValue(elementId, out GridRegion region)
+            return _gridAreas.TryGetValue(elementId, out GridRegion region)
                 ? region
                 : new GridRegion(GridPosition.At(0, 0), 0, 0);
         }
 
         /// <summary>
         /// Gets the pixel rectangle for the specified element.
-        /// Converts grid coordinates to pixels using current glyph metrics.
         /// </summary>
         public Rect GetArea(string elementId)
         {
-            if (!_elementGridAreas.TryGetValue(elementId, out GridRegion gridRegion))
-                return Rect.zero;
-
-            var (glyphWidth, glyphHeight) = TerminalGridConfig.GlyphMetrics.GetGlyphMetrics(
-                TerminalGridConfig.CurrentDisplaySize
-            );
-
-            float x = gridRegion.TopLeft.Column * glyphWidth;
-            float y = gridRegion.TopLeft.Row * glyphHeight;
-            float width = gridRegion.Width * glyphWidth;
-            float height = gridRegion.Height * glyphHeight;
-
-            return new Rect(x, y, width, height);
+            return _pixelAreas.TryGetValue(elementId, out Rect area)
+                ? area
+                : Rect.zero;
         }
 
         /// <summary>
@@ -142,8 +141,26 @@ namespace CinematicShaders.UI.Layout.ScreenLayouts
         /// </summary>
         public IEnumerable<string> GetElementIds()
         {
-            return _elementGridAreas.Keys;
+            return _gridAreas.Keys;
         }
 
+        /// <summary>
+        /// Invalidates the built layout so it will be rebuilt on the next call.
+        /// </summary>
+        public void Invalidate()
+        {
+            _isBuilt = false;
+            _gridAreas.Clear();
+            _pixelAreas.Clear();
+        }
+
+        private GridRegion RectToGridRegion(Rect rect, float cellWidth, float cellHeight)
+        {
+            int col = Mathf.RoundToInt(rect.x / cellWidth);
+            int row = Mathf.RoundToInt(rect.y / cellHeight);
+            int width = Mathf.RoundToInt(rect.width / cellWidth);
+            int height = Mathf.RoundToInt(rect.height / cellHeight);
+            return new GridRegion(GridPosition.At(col, row), width, height);
+        }
     }
 }
