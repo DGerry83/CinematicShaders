@@ -114,6 +114,15 @@ namespace CinematicShaders.UI.Screens
         public bool IsLayer2Complete => Layer2Progress >= 1.0f;
         
         /// <summary>
+        /// Returns true while any layer's type-on animation is actively playing
+        /// (progress is between 0 and 1, exclusive).
+        /// </summary>
+        public bool IsTypeOnAnimationActive =>
+            (Layer1Progress > 0f && Layer1Progress < 1f) ||
+            (Layer2Progress > 0f && Layer2Progress < 1f) ||
+            (Layer3Progress > 0f && Layer3Progress < 1f);
+        
+        /// <summary>
         /// Event fired when Layer 2 animation completes.
         /// Subscribe to this to trigger Layer 3 animations.
         /// </summary>

@@ -47,6 +47,8 @@
     <Compile Include="Core\CinematicShadersAddon.cs" />
     <Compile Include="Core\GTAOSettings.cs" />
     <Compile Include="Core\MiniJSON.cs" />
+    <Compile Include="Core\AudioGroup.cs" />
+    <Compile Include="Core\ModAudioManager.cs" />
     <Compile Include="Core\ModFileLogger.cs" />
     <Compile Include="Core\KartographerMath.cs" />
     <Compile Include="Core\KartographerSelector.cs" />
@@ -135,7 +137,14 @@
       <Version>1.1.1</Version>
     </PackageReference>
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <None Include="Sounds\StarJingle.ogg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Sounds\typingsound.ogg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>if exist "$(ProjectDir)copy_dll.bat" (

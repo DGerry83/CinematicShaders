@@ -78,4 +78,12 @@ if errorlevel 1 (
     echo Successfully copied %FILENAME%
 )
 
+REM Copy Sounds folder to mod root (parent of Plugins)
+set "SOUNDS_TARGET=%TARGET_FOLDER%\..\Sounds"
+if not exist "%SOUNDS_TARGET%" mkdir "%SOUNDS_TARGET%"
+if exist "%SCRIPT_DIR%Sounds\*.ogg" (
+    copy /Y "%SCRIPT_DIR%Sounds\*.ogg" "%SOUNDS_TARGET%\"
+    echo Copied sounds to: %SOUNDS_TARGET%
+)
+
 endlocal

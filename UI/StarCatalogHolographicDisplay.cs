@@ -35,6 +35,7 @@ namespace CinematicShaders.UI
         private bool _isVisible = false;
         private bool _displayPowered = false;
         private float _powerOnTime = 0f;
+        private bool _playJingleOnNextPowerOn = true;
         
         // Layer animation progress (sequential type-on)
         private float _layer1TypeOnProgress = 0f;  // Border (Layer 1)
@@ -1196,6 +1197,10 @@ namespace CinematicShaders.UI
             
             _displayPowered = true;
             _powerOnTime = 0f; // Reset power on time
+            
+            // Play power-on jingle if enabled
+            ModAudioManager.PlayOneShot(AudioGroup.StarConsole, "CinematicShaders/Sounds/StarJingle", _playJingleOnNextPowerOn);
+            _playJingleOnNextPowerOn = false;
             
             // Determine target screen based on JSON availability
             bool hasJson = HasJsonCatalog();

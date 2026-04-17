@@ -102,4 +102,12 @@ if errorlevel 1 (
 )
 echo Deployed to: %DEPLOY_PATH%
 
+REM Deploy sounds to mod Sounds folder
+set SOUNDS_DEPLOY=%DEPLOY_PATH%\..\Sounds
+if not exist "%SOUNDS_DEPLOY%" mkdir "%SOUNDS_DEPLOY%"
+if exist "..\Sounds\*.ogg" (
+    copy /Y "..\Sounds\*.ogg" "%SOUNDS_DEPLOY%\"
+    echo Deployed sounds to: %SOUNDS_DEPLOY%
+)
+
 endlocal

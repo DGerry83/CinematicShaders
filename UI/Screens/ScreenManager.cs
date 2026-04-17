@@ -34,6 +34,7 @@ namespace CinematicShaders.UI.Screens
         private readonly Dictionary<string, IScreen> _screens = new Dictionary<string, IScreen>();
         private IScreen _currentScreen;
         private readonly IntPtr _textSystem;
+        private bool _wasTypingLastFrame = false;
         
         /// <summary>
         /// Gets the currently active screen, or null if no transition has occurred.
@@ -147,6 +148,18 @@ namespace CinematicShaders.UI.Screens
         public void Update(float deltaTime)
         {
             _currentScreen?.Update(deltaTime);
+            
+            // Manage typing sound loop based on current screen's type-on animation state
+            bool isTyping = (_currentScreen as BaseScreen)?.IsTypeOnAnimationActive ?? false;
+            if (isTyping && !_wasTypingLastFrame)
+            {
+                ModAudioManager.PlayLoop(AudioGroup.StarConsole, "CinematicShaders/Sounds/typingsound", "starconsole_typing");
+            }
+            else if (!isTyping && _wasTypingLastFrame)
+            {
+                ModAudioManager.StopLoop("starconsole_typing");
+            }
+            _wasTypingLastFrame = isTyping;
         }
         
         /// <summary>
