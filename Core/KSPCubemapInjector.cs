@@ -223,12 +223,18 @@ namespace CinematicShaders.Core
                 return false;
             }
             
-            // Create destination Texture2D
-            Texture2D faceTexture = new Texture2D(rt.width, rt.height, TextureFormat.RGBA32, false);
+            // Create destination Texture2D with matching mip configuration
+            Texture2D faceTexture = new Texture2D(rt.width, rt.height, TextureFormat.RGBA32, rt.useMipMap);
             
-            // Fast GPU→GPU copy using Graphics.CopyTexture
-            // This avoids the CPU readback stall of ReadPixels/GetPixels
-            Graphics.CopyTexture(rt, 0, 0, faceTexture, 0, 0);
+            // Fast GPU→GPU copy
+            if (rt.useMipMap)
+            {
+                Graphics.CopyTexture(rt, faceTexture);
+            }
+            else
+            {
+                Graphics.CopyTexture(rt, 0, 0, faceTexture, 0, 0);
+            }
             
             // Destroy previous injected texture to prevent leaking, but never destroy originals
             Texture oldTexture = faceRenderer.material.mainTexture;

@@ -23,9 +23,47 @@ namespace CinematicShaders.Core
             "CinematicShaders", 
             "CubemapDebug");
 
+        // Singularity compatibility: detect presence and choose resolution
+        private const bool FORCE_HIGH_RES_CUBEMAP = false;
+        private static bool? _singularityDetected;
+
+        public static int CubemapSize => (IsSingularityDetected || FORCE_HIGH_RES_CUBEMAP) ? 2048 : 1024;
+        public static bool UseMipMaps => (IsSingularityDetected || FORCE_HIGH_RES_CUBEMAP);
+
+        public static bool IsSingularityDetected
+        {
+            get
+            {
+                if (!_singularityDetected.HasValue)
+                {
+                    _singularityDetected = DetectSingularity();
+                }
+                return _singularityDetected.Value;
+            }
+        }
+
+        private static bool DetectSingularity()
+        {
+            try
+            {
+                foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    string name = assembly.GetName().Name;
+                    if (name != null && name.Equals("Singularity", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        Debug.Log("[StarfieldCubemapRenderer] Singularity mod detected — using 2048x2048 mipmapped cubemap");
+                        return true;
+                    }
+                }
+            }
+            catch { }
+            return false;
+        }
+
         /// <summary>
         /// Renders the current starfield directly to KSP skybox using native C++ rendering.
         /// Skips intermediate Cubemap/Texture2D copies for performance.
+        /// Automatically uses 2048x2048 mipmapped cubemap faces when Singularity mod is detected.
         /// </summary>
         /// <returns>True if successful, false otherwise.</returns>
         public static bool RenderAndInjectCubemap()
@@ -49,10 +87,10 @@ namespace CinematicShaders.Core
 
                 for (int i = 0; i < 6; i++)
                 {
-                    RenderTextureDescriptor rtDesc = new RenderTextureDescriptor(CUBEMAP_SIZE, CUBEMAP_SIZE, RenderTextureFormat.ARGB32, 0);
+                    RenderTextureDescriptor rtDesc = new RenderTextureDescriptor(CubemapSize, CubemapSize, RenderTextureFormat.ARGB32, 0);
                     rtDesc.dimension = TextureDimension.Tex2D;
                     rtDesc.msaaSamples = 1;
-                    rtDesc.useMipMap = false;
+                    rtDesc.useMipMap = UseMipMaps;
                     rtDesc.autoGenerateMips = false;
                     rtDesc.bindMS = false;
                     
@@ -78,7 +116,7 @@ namespace CinematicShaders.Core
                 // Call native function to render all faces
                 try
                 {
-                    int result = Native.StarfieldNative.CR_RenderStarfieldCubemap(faceTextures, CUBEMAP_SIZE);
+                    int result = Native.StarfieldNative.CR_RenderStarfieldCubemap(faceTextures, CubemapSize);
 
                     renderTimer.Stop();
                     long elapsedMs = renderTimer.ElapsedMilliseconds;
@@ -95,6 +133,15 @@ namespace CinematicShaders.Core
                     }
 
                     Debug.Log($"[StarfieldCubemapRenderer] Native render complete: {elapsedMs}ms");
+
+                    if (UseMipMaps)
+                    {
+                        for (int i = 0; i < 6; i++)
+                        {
+                            renderTextures[i].GenerateMips();
+                        }
+                        Debug.Log("[StarfieldCubemapRenderer] Mipmaps generated for cubemap faces");
+                    }
 
                     // Inject directly from RenderTextures (no intermediate copies)
                     bool injected = KSPCubemapInjector.InjectFromRenderTextures(renderTextures);
@@ -140,8 +187,8 @@ namespace CinematicShaders.Core
         {
             RenderTexture.active = rt;
             
-            Texture2D tempTex = new Texture2D(CUBEMAP_SIZE, CUBEMAP_SIZE, TextureFormat.RGBA32, false);
-            tempTex.ReadPixels(new Rect(0, 0, CUBEMAP_SIZE, CUBEMAP_SIZE), 0, 0, false);
+            Texture2D tempTex = new Texture2D(CubemapSize, CubemapSize, TextureFormat.RGBA32, false);
+            tempTex.ReadPixels(new Rect(0, 0, CubemapSize, CubemapSize), 0, 0, false);
             tempTex.Apply();
 
             cubemap.SetPixels(tempTex.GetPixels(), face);
