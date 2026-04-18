@@ -1233,11 +1233,11 @@ namespace CinematicShaders.Core
                 : 1.732f;
 
             // Box positioned below and to the right of the selection circle.
-            // In shader-uv: +X = right, +Y = up (input.uv.y=1 is top of screen).
-            // So "below" means smaller Y.
+            // In shader-uv: +X = right, +Y = down (input.uv.y=0 is top of screen).
+            // So "below" means larger Y.
             float radius = 0.02f;
             float boxTopLeftX = centerX + radius + radius * 0.25f;
-            float boxTopLeftY = centerY - radius - radius * 1.25f;
+            float boxTopLeftY = centerY + radius + radius * 1.25f;
 
             // Merge with cached params so we don't stomp grid settings
             var kartParams = StarfieldNative.LastKartographerParams;
