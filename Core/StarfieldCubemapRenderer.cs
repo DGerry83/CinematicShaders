@@ -44,19 +44,60 @@ namespace CinematicShaders.Core
 
         private static bool DetectSingularity()
         {
+            // Method 1: KSP AssemblyLoader (most reliable for mod detection)
+            try
+            {
+                var assemblyLoaderType = System.Type.GetType("AssemblyLoader, Assembly-CSharp");
+                if (assemblyLoaderType != null)
+                {
+                    var loadedAssembliesField = assemblyLoaderType.GetField("loadedAssemblies",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Instance);
+                    if (loadedAssembliesField != null)
+                    {
+                        var loadedAssemblies = loadedAssembliesField.GetValue(null)
+                            as System.Collections.IEnumerable;
+                        if (loadedAssemblies != null)
+                        {
+                            foreach (var loadedAssembly in loadedAssemblies)
+                            {
+                                var assemblyProperty = loadedAssembly.GetType()
+                                    .GetProperty("assembly");
+                                if (assemblyProperty != null)
+                                {
+                                    var assembly = assemblyProperty.GetValue(loadedAssembly)
+                                        as System.Reflection.Assembly;
+                                    string name = assembly?.GetName().Name;
+                                    if (name != null && name.IndexOf("Singularity",
+                                        System.StringComparison.OrdinalIgnoreCase) >= 0)
+                                    {
+                                        Debug.Log("[StarfieldCubemapRenderer] Singularity mod detected via AssemblyLoader — using 2048x2048 mipmapped cubemap");
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // Method 2: Fallback to AppDomain scan
             try
             {
                 foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
                 {
                     string name = assembly.GetName().Name;
-                    if (name != null && name.Equals("Singularity", System.StringComparison.OrdinalIgnoreCase))
+                    if (name != null && name.IndexOf("Singularity",
+                        System.StringComparison.OrdinalIgnoreCase) >= 0)
                     {
-                        Debug.Log("[StarfieldCubemapRenderer] Singularity mod detected — using 2048x2048 mipmapped cubemap");
+                        Debug.Log("[StarfieldCubemapRenderer] Singularity mod detected via AppDomain — using 2048x2048 mipmapped cubemap");
                         return true;
                     }
                 }
             }
             catch { }
+
+            Debug.Log("[StarfieldCubemapRenderer] Singularity mod not detected — using 1024x1024 cubemap");
             return false;
         }
 
