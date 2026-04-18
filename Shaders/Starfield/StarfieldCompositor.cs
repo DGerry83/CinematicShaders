@@ -263,6 +263,69 @@ namespace CinematicShaders.Shaders.Starfield
             return (float)Math.Max(minDimming, MIN_BRIGHTNESS);
         }
 
+        /// <summary>
+        /// Detects if the camera is rendering to a cubemap face and returns the correct
+        /// basis vectors using our OpenGL-style convention, rather than Unity's DirectX-style.
+        /// This ensures cubemap captures by other mods (e.g. Singularity) get correctly oriented stars.
+        /// </summary>
+        private bool TryGetCubemapFaceBasis(Camera cam, out Vector3 right, out Vector3 up, out Vector3 forward)
+        {
+            if (cam.targetTexture == null || cam.targetTexture.dimension != TextureDimension.Cube)
+            {
+                right = Vector3.zero;
+                up = Vector3.zero;
+                forward = Vector3.zero;
+                return false;
+            }
+
+            Vector3 f = cam.transform.forward;
+            const float threshold = 0.99f;
+
+            if (Vector3.Dot(f, Vector3.right) > threshold)       // +X
+            {
+                right = new Vector3(0, 0, -1);
+                up = new Vector3(0, 1, 0);
+                forward = new Vector3(1, 0, 0);
+            }
+            else if (Vector3.Dot(f, -Vector3.right) > threshold) // -X
+            {
+                right = new Vector3(0, 0, 1);
+                up = new Vector3(0, 1, 0);
+                forward = new Vector3(-1, 0, 0);
+            }
+            else if (Vector3.Dot(f, Vector3.up) > threshold)     // +Y
+            {
+                right = new Vector3(-1, 0, 0);
+                up = new Vector3(0, 0, 1);
+                forward = new Vector3(0, 1, 0);
+            }
+            else if (Vector3.Dot(f, -Vector3.up) > threshold)    // -Y
+            {
+                right = new Vector3(1, 0, 0);
+                up = new Vector3(0, 0, 1);
+                forward = new Vector3(0, -1, 0);
+            }
+            else if (Vector3.Dot(f, Vector3.forward) > threshold) // +Z
+            {
+                right = new Vector3(1, 0, 0);
+                up = new Vector3(0, 1, 0);
+                forward = new Vector3(0, 0, 1);
+            }
+            else if (Vector3.Dot(f, -Vector3.forward) > threshold) // -Z
+            {
+                right = new Vector3(-1, 0, 0);
+                up = new Vector3(0, 1, 0);
+                forward = new Vector3(0, 0, -1);
+            }
+            else
+            {
+                // Fallback to camera transform if we can't determine the face
+                return false;
+            }
+
+            return true;
+        }
+
         void OnCameraPreRender(Camera cam)
         {
             // Only process for our target galaxy camera
@@ -276,9 +339,18 @@ namespace CinematicShaders.Shaders.Starfield
             float verticalFOV = _scaledSpaceCamera.fieldOfView * Mathf.Deg2Rad;
 
             // Extract basis vectors in Surface Frame (rotating with planet)
-            Vector3 surfaceRight = _scaledSpaceCamera.transform.right;
-            Vector3 surfaceUp = _scaledSpaceCamera.transform.up;
-            Vector3 surfaceForward = _scaledSpaceCamera.transform.forward;
+            Vector3 surfaceRight, surfaceUp, surfaceForward;
+
+            if (TryGetCubemapFaceBasis(cam, out surfaceRight, out surfaceUp, out surfaceForward))
+            {
+                Debug.Log($"[StarfieldCompositor] Cubemap face detected, using corrected basis: forward={surfaceForward}");
+            }
+            else
+            {
+                surfaceRight = _scaledSpaceCamera.transform.right;
+                surfaceUp = _scaledSpaceCamera.transform.up;
+                surfaceForward = _scaledSpaceCamera.transform.forward;
+            }
             
             // Update surface frame camera basis for target tracking
             // Target positions are in world space (surface frame), so we need camera in same frame

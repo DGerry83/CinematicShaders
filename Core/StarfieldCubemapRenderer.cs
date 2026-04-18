@@ -24,7 +24,7 @@ namespace CinematicShaders.Core
             "CubemapDebug");
 
         // Singularity compatibility: detect presence and choose resolution
-        private const bool FORCE_HIGH_RES_CUBEMAP = false;
+        private const bool FORCE_HIGH_RES_CUBEMAP = true;
         private static bool? _singularityDetected;
 
         public static int CubemapSize => (IsSingularityDetected || FORCE_HIGH_RES_CUBEMAP) ? 2048 : 1024;
