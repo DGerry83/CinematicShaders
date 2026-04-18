@@ -164,7 +164,7 @@ float3 RenderNavballIcon(int iconIndex, float2 center, float intensity, uint col
     
     // Calculate local UV in icon space
     float2 localUV = (uv - center) / iconSize + 0.5;
-    localUV.y = 1.0 - localUV.y;  // Flip Y to match Unity's texture coordinate system
+    // localUV.y = 1.0 - localUV.y;  // Removed: +Y=up now aligns shader UV with texture V
     
     // Discard if outside icon bounds
     if (localUV.x < 0.0 || localUV.x > 1.0 || localUV.y < 0.0 || localUV.y > 1.0)
@@ -513,7 +513,7 @@ float3 RenderPointingIcon(float2 center, float rotation, float intensity, uint c
     // Map back to texture UV, accounting for 2:1 aspect
     float2 texUV;
     texUV.x = isq.x / 2.0 + 0.5;
-    texUV.y = 1.0 - (isq.y + 0.5);
+    texUV.y = isq.y + 0.5;
     
     // Soft edge fade to hide the texture boundary (2-pixel margin on 256x128)
     float2 edgeFadeUV = saturate(texUV * 64.0) * saturate((1.0 - texUV) * 64.0);
@@ -549,6 +549,7 @@ float3 RenderManeuverText(float2 origin, float2 size, float intensity, float2 uv
     if (intensity <= 0.001) return float3(0, 0, 0);
     
     float2 localUV = (uv - origin) / size;
+    localUV.y = 1.0 - localUV.y;  // Flip Y: +Y=up means textLocal goes 0→1 bottom→top, texture V goes 0→1 top→bottom
     
     if (localUV.x < 0.0 || localUV.x > 1.0 || localUV.y < 0.0 || localUV.y > 1.0)
         return float3(0, 0, 0);
@@ -689,8 +690,11 @@ float4 PSMain(PSInput input) : SV_Target {
         float2 textLocalR = (uvR - params.TextOrigin) / params.TextAreaSize;
         float2 textLocalG = (uvG - params.TextOrigin) / params.TextAreaSize;
         float2 textLocalB = (uvB - params.TextOrigin) / params.TextAreaSize;
+        textLocalR.y = 1.0 - textLocalR.y;
+        textLocalG.y = 1.0 - textLocalG.y;
+        textLocalB.y = 1.0 - textLocalB.y;
         
-        // No Y-flip needed - texture is rendered right-side-up by compute shader
+        // Y-flip added: +Y=up means textLocal goes 0→1 bottom→top, texture V goes 0→1 top→bottom
         
         // Sample text coverage for each channel separately (chromatic aberration)
         float coverageR = 0.0, coverageG = 0.0, coverageB = 0.0;
@@ -766,6 +770,9 @@ float4 PSMain(PSInput input) : SV_Target {
                             float2(params.VesselTargetTextAreaSize.x, params.VesselTargetTextAreaSize.y);
         float2 textLocalB = (uvB - float2(params.VesselTargetTextOrigin.x, params.VesselTargetTextOrigin.y)) / 
                             float2(params.VesselTargetTextAreaSize.x, params.VesselTargetTextAreaSize.y);
+        textLocalR.y = 1.0 - textLocalR.y;
+        textLocalG.y = 1.0 - textLocalG.y;
+        textLocalB.y = 1.0 - textLocalB.y;
         
         // Sample text coverage for each channel separately (chromatic aberration)
         float coverageR = 0.0, coverageG = 0.0, coverageB = 0.0;

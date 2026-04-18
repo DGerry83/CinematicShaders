@@ -1000,10 +1000,10 @@ namespace CinematicShaders.Core
             bool mouseOverUI = IsMouseOverUI();
 
             // Get mouse position in UV space
-            // NOTE: Unity's Input.mousePosition.y is bottom-up, screen UV is top-down
+            // NOTE: Unity's Input.mousePosition.y is bottom-up, screen UV is top-down (1=top)
             Vector2 mouseUV = new Vector2(
                 Input.mousePosition.x / Screen.width,
-                1.0f - (Input.mousePosition.y / Screen.height)  // Flip Y
+                Input.mousePosition.y / Screen.height
             );
 
             // Project all named stars and find nearest to mouse
@@ -1233,11 +1233,11 @@ namespace CinematicShaders.Core
                 : 1.732f;
 
             // Box positioned below and to the right of the selection circle.
-            // In shader-uv: +X = right, +Y = down (input.uv.y=0 is top of screen).
-            // So "below" means larger Y.
+            // In shader-uv: +X = right, +Y = up (input.uv.y=1 is top of screen).
+            // So "below" means smaller Y.
             float radius = 0.02f;
             float boxTopLeftX = centerX + radius + radius * 0.25f;
-            float boxTopLeftY = centerY + radius + radius * 1.25f;
+            float boxTopLeftY = centerY - radius - radius * 1.25f;
 
             // Merge with cached params so we don't stomp grid settings
             var kartParams = StarfieldNative.LastKartographerParams;

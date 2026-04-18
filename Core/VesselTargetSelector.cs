@@ -538,7 +538,7 @@ namespace CinematicShaders.Core
             // Box position
             float radius = 0.02f;
             float boxTopLeftX = centerX + radius + radius * 0.25f;
-            float boxTopLeftY = centerY + radius + radius * 1.25f;
+            float boxTopLeftY = centerY - radius - radius * 1.25f;
 
             float pixelsToUv = 2.0f / Screen.height;
             float boxWidthUV = (_textWidthPixels + BOX_PADDING_PIXELS * 2) * pixelsToUv;
