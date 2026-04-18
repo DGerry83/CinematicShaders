@@ -67,13 +67,13 @@ namespace CinematicShaders.Core
             float verticalFOV)
         {
             // Inverse of ViewToWorld from KartographerPS.hlsl:
-            // ViewToWorld: world = v.x * right - v.y * up + v.z * forward
+            // ViewToWorld: world = v.x * right + v.y * up + v.z * forward
             // So view.x = dot(world, right)
-            //     view.y = -dot(world, up)
+            //     view.y = dot(world, up)
             //     view.z = dot(world, forward)
 
             float vx = Vector3.Dot(worldDir, cameraRight);
-            float vy = -Vector3.Dot(worldDir, cameraUp);
+            float vy = Vector3.Dot(worldDir, cameraUp);
             float vz = Vector3.Dot(worldDir, cameraForward);
 
             // Behind camera check

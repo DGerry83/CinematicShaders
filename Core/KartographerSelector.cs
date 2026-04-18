@@ -1186,8 +1186,8 @@ namespace CinematicShaders.Core
             float vy = ndcY / focalLength;
             float vz = 1.0f;
 
-            // ViewToWorld: world = v.x * right - v.y * up + v.z * forward
-            Vector3 worldDir = vx * CameraRight - vy * CameraUp + vz * CameraForward;
+            // ViewToWorld: world = v.x * right + v.y * up + v.z * forward
+            Vector3 worldDir = vx * CameraRight + vy * CameraUp + vz * CameraForward;
             return worldDir.normalized;
         }
 

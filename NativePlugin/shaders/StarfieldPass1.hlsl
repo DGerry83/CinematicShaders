@@ -382,7 +382,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     
     // Convert UV to pixel coordinates
     float pixel_x = (uv_x * 0.5 + 0.5) * ScreenSize.x - 0.5;
-    float pixel_y = (uv_y * 0.5 + 0.5) * ScreenSize.y - 0.5;
+    float pixel_y = (0.5 - uv_y * 0.5) * ScreenSize.y - 0.5;
     
     // Calculate flux from magnitude (same formula as original)
     float flux = pow(10.0, -0.4 * star.Magnitude);

@@ -99,7 +99,7 @@ static const float parallelNoise_Tiny[20] = {
 
 // Helper: Transform view-space vector to world-space
 float3 ViewToWorld(float3 v, float3 right, float3 up, float3 forward) {
-    return v.x * right - v.y * up + v.z * forward;
+    return v.x * right + v.y * up + v.z * forward;
 }
 
 // Helper: Apply yaw/pitch rotation to view ray
