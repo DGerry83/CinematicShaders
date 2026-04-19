@@ -575,7 +575,8 @@ namespace CinematicShaders.Core
             float textHeightUV = 1024f * pixelsToUv;
             
             kartParams.VesselTargetTextOriginX = boxTopLeftX + 0.01f;
-            kartParams.VesselTargetTextOriginY = boxTopLeftY + 0.01f;
+            // Anchor text origin to top of minimum box area so first line stays fixed during type-on
+            kartParams.VesselTargetTextOriginY = centerY - boxOffsetY - 0.06f + 0.01f;
             kartParams.VesselTargetTextAreaSizeX = textWidthUV;
             kartParams.VesselTargetTextAreaSizeY = textHeightUV;
             // Always 1.0f - animation happens via progressive DisplayText content changes
