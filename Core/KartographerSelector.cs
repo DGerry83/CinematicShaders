@@ -1300,7 +1300,7 @@ namespace CinematicShaders.Core
             float textWidthUV = textureSize * pixelsToUv;
             float textHeightUV = textureSize * pixelsToUv;
             
-            // Left-align text at bottom-left of box with padding
+            // Left-align text at top-left of box with padding
             float textPaddingUV = 0.01f; // Small padding from edges
             float textOriginX = boxTopLeftX + textPaddingUV;
             // Anchor text origin to the top of the actual box so text renders inside the box
