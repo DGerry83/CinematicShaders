@@ -549,6 +549,7 @@ float3 RenderManeuverText(float2 origin, float2 size, float intensity, float2 uv
     if (intensity <= 0.001) return float3(0, 0, 0);
     
     float2 localUV = (uv - origin) / size;
+    localUV.y = 1.0 - localUV.y;
     
     if (localUV.x < 0.0 || localUV.x > 1.0 || localUV.y < 0.0 || localUV.y > 1.0)
         return float3(0, 0, 0);
