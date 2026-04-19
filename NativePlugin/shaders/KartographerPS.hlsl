@@ -689,11 +689,8 @@ float4 PSMain(PSInput input) : SV_Target {
         float2 textLocalR = (uvR - params.TextOrigin) / params.TextAreaSize;
         float2 textLocalG = (uvG - params.TextOrigin) / params.TextAreaSize;
         float2 textLocalB = (uvB - params.TextOrigin) / params.TextAreaSize;
-        // Flip texture V to match top-anchor + negative scale sampling
-        textLocalR.y = 1.0 - textLocalR.y;
-        textLocalG.y = 1.0 - textLocalG.y;
-        textLocalB.y = 1.0 - textLocalB.y;
-        
+        // Negative TextAreaSizeY already flips V correctly for top-anchor sampling
+
         // Sample text coverage for each channel separately (chromatic aberration)
         float coverageR = 0.0, coverageG = 0.0, coverageB = 0.0;
         
@@ -768,10 +765,7 @@ float4 PSMain(PSInput input) : SV_Target {
                             float2(params.VesselTargetTextAreaSize.x, params.VesselTargetTextAreaSize.y);
         float2 textLocalB = (uvB - float2(params.VesselTargetTextOrigin.x, params.VesselTargetTextOrigin.y)) / 
                             float2(params.VesselTargetTextAreaSize.x, params.VesselTargetTextAreaSize.y);
-        // Flip texture V to match top-anchor + negative scale sampling
-        textLocalR.y = 1.0 - textLocalR.y;
-        textLocalG.y = 1.0 - textLocalG.y;
-        textLocalB.y = 1.0 - textLocalB.y;
+        // Negative TextAreaSizeY already flips V correctly for top-anchor sampling
         // Sample text coverage for each channel separately (chromatic aberration)
         float coverageR = 0.0, coverageG = 0.0, coverageB = 0.0;
         
