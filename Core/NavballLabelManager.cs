@@ -506,6 +506,7 @@ namespace CinematicShaders.Core
             {
                 _maneuverTextVisible = true;
                 float textOffsetY = StarfieldSettings.KartographerManeuverTextOffset > 0 ? StarfieldSettings.KartographerManeuverTextOffset : 0.08f;
+                // Place burn/time label to the right and below the maneuver icon (+Y is up in NDC)
                 _maneuverTextPos = new Vector2(_iconStates[MANEUVER].ScreenNDC.x + textOffsetY, _iconStates[MANEUVER].ScreenNDC.y - textOffsetY);
 
                 var node = FlightGlobals.ActiveVessel.patchedConicSolver.maneuverNodes[0];

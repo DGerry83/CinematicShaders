@@ -7,8 +7,8 @@
 // COORDINATE SPACE NOTES:
 // - Shader UV space: center = (0,0), +X = right, +Y = up
 // - Screen UV [0,1] maps to: x = (u-0.5)*2*aspect, y = (v-0.5)*2
-// - params.DebugBoxTopLeft is the actual top-left corner of the box in shader-UV
-// - Box center in shader is computed as: topLeft + size*0.5
+// - params.DebugBoxTopLeft is the lower-left corner of the box in shader-UV
+// - Box center in shader is computed as: lowerLeft + size*0.5
 
 struct PSInput {
     float4 position : SV_Position;
@@ -765,6 +765,7 @@ float4 PSMain(PSInput input) : SV_Target {
                             float2(params.VesselTargetTextAreaSize.x, params.VesselTargetTextAreaSize.y);
         float2 textLocalB = (uvB - float2(params.VesselTargetTextOrigin.x, params.VesselTargetTextOrigin.y)) / 
                             float2(params.VesselTargetTextAreaSize.x, params.VesselTargetTextAreaSize.y);
+        // No Y-flip needed: lower-left anchor places text origin at box bottom; text extends upward naturally.
         // Sample text coverage for each channel separately (chromatic aberration)
         float coverageR = 0.0, coverageG = 0.0, coverageB = 0.0;
         

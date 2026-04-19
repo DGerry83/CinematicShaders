@@ -1000,7 +1000,8 @@ namespace CinematicShaders.Core
             bool mouseOverUI = IsMouseOverUI();
 
             // Get mouse position in UV space
-            // NOTE: Unity's Input.mousePosition.y is bottom-up, screen UV is top-down (1=top)
+            // NOTE: Unity's Input.mousePosition.y and WorldDirectionToScreenUV both use bottom-up V (0=bottom, 1=top)
+            // after the Y-axis unification, so no flip is required.
             Vector2 mouseUV = new Vector2(
                 Input.mousePosition.x / Screen.width,
                 Input.mousePosition.y / Screen.height
@@ -1233,7 +1234,7 @@ namespace CinematicShaders.Core
                 : 1.732f;
 
             // Box positioned below and to the right of the selection circle.
-            // In shader-uv: +X = right, +Y = up (input.uv.y=1 is top of screen).
+            // In shader-uv: +X = right, +Y = up.
             // The shader treats DebugBoxTopLeft as the lower-left corner and adds size upward/right.
             // To keep the box entirely below the circle, the lower-left Y must be:
             //   centerY - offset - boxHeightUV
@@ -1299,10 +1300,10 @@ namespace CinematicShaders.Core
             float textWidthUV = textureSize * pixelsToUv;
             float textHeightUV = textureSize * pixelsToUv;
             
-            // Left-align text at top of box with padding
+            // Left-align text at bottom-left of box with padding
             float textPaddingUV = 0.01f; // Small padding from edges
             float textOriginX = boxTopLeftX + textPaddingUV;
-            // Anchor text origin to top of minimum box area so first line stays fixed during type-on
+            // Anchor text origin to the bottom of the minimum box so the first line stays fixed during type-on
             float textOriginY = centerY - boxOffsetY - 0.06f + textPaddingUV;
             
             kartParams.TextOriginX = textOriginX;
