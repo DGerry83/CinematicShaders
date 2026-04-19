@@ -1303,14 +1303,15 @@ namespace CinematicShaders.Core
             // Left-align text at bottom-left of box with padding
             float textPaddingUV = 0.01f; // Small padding from edges
             float textOriginX = boxTopLeftX + textPaddingUV;
-            // Anchor text origin to the bottom of the actual box so text renders inside the box
-            float textOriginY = boxTopLeftY + textPaddingUV;
+            // Anchor text origin to the top of the actual box so text renders inside the box
+            float textOriginY = boxTopLeftY + boxHeightUV - textPaddingUV;
             
             kartParams.TextOriginX = textOriginX;
             kartParams.TextOriginY = textOriginY;
             // TextAreaSize matches actual text size - no stretching
+            // Negate Y to flip sampling direction so text reads top-to-bottom
             kartParams.TextAreaSizeX = textWidthUV;
-            kartParams.TextAreaSizeY = textHeightUV;
+            kartParams.TextAreaSizeY = -textHeightUV;
             kartParams.SelectionTextT = 1.0f;
 
             // Save selection params to cache and send to native

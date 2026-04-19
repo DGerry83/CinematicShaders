@@ -575,10 +575,11 @@ namespace CinematicShaders.Core
             float textHeightUV = 1024f * pixelsToUv;
             
             kartParams.VesselTargetTextOriginX = boxTopLeftX + 0.01f;
-            // Anchor text origin to the bottom of the actual box so text renders inside the box
-            kartParams.VesselTargetTextOriginY = boxTopLeftY + 0.01f;
+            // Anchor text origin to the top of the actual box so text renders inside the box
+            kartParams.VesselTargetTextOriginY = boxTopLeftY + boxHeightUV - 0.01f;
             kartParams.VesselTargetTextAreaSizeX = textWidthUV;
-            kartParams.VesselTargetTextAreaSizeY = textHeightUV;
+            // Negate Y to flip sampling direction so text reads top-to-bottom
+            kartParams.VesselTargetTextAreaSizeY = -textHeightUV;
             // Always 1.0f - animation happens via progressive DisplayText content changes
             kartParams.VesselTargetTextT = 1.0f;
             
