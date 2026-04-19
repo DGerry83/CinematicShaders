@@ -536,15 +536,19 @@ namespace CinematicShaders.Core
             CopyGridParams(ref kartParams, focalLength);
 
             // Box position
+            // In shader-uv: +X = right, +Y = up. The shader treats BoxTopLeft as lower-left.
+            // To place the box below the circle, lower-left Y = centerY - offset - boxHeightUV.
             float radius = 0.02f;
             float boxTopLeftX = centerX + radius + radius * 0.25f;
-            float boxTopLeftY = centerY + radius + radius * 1.25f;
+            float boxOffsetY = radius + radius * 1.25f;
 
             float pixelsToUv = 2.0f / Screen.height;
             float boxWidthUV = (_textWidthPixels + BOX_PADDING_PIXELS * 2) * pixelsToUv;
             float boxHeightUV = (_textHeightPixels + BOX_PADDING_PIXELS * 2) * pixelsToUv;
             boxWidthUV = Mathf.Max(boxWidthUV, 0.08f);
             boxHeightUV = Mathf.Max(boxHeightUV, 0.06f);
+
+            float boxTopLeftY = centerY - boxOffsetY - boxHeightUV;
 
             bool showBox = visible && _animController.CurrentPhase >= TypeOnAnimationController.Phase.Box;
 

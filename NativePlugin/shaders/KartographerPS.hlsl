@@ -689,11 +689,7 @@ float4 PSMain(PSInput input) : SV_Target {
         float2 textLocalR = (uvR - params.TextOrigin) / params.TextAreaSize;
         float2 textLocalG = (uvG - params.TextOrigin) / params.TextAreaSize;
         float2 textLocalB = (uvB - params.TextOrigin) / params.TextAreaSize;
-        textLocalR.y = 1.0 - textLocalR.y;
-        textLocalG.y = 1.0 - textLocalG.y;
-        textLocalB.y = 1.0 - textLocalB.y;
-        
-        // Y-flip added: +Y=up means textLocal goes 0→1 bottom→top, texture V goes 0→1 top→bottom
+        // No Y-flip needed: lower-left anchor places text origin at box bottom; text extends upward naturally.
         
         // Sample text coverage for each channel separately (chromatic aberration)
         float coverageR = 0.0, coverageG = 0.0, coverageB = 0.0;
@@ -769,10 +765,6 @@ float4 PSMain(PSInput input) : SV_Target {
                             float2(params.VesselTargetTextAreaSize.x, params.VesselTargetTextAreaSize.y);
         float2 textLocalB = (uvB - float2(params.VesselTargetTextOrigin.x, params.VesselTargetTextOrigin.y)) / 
                             float2(params.VesselTargetTextAreaSize.x, params.VesselTargetTextAreaSize.y);
-        textLocalR.y = 1.0 - textLocalR.y;
-        textLocalG.y = 1.0 - textLocalG.y;
-        textLocalB.y = 1.0 - textLocalB.y;
-        
         // Sample text coverage for each channel separately (chromatic aberration)
         float coverageR = 0.0, coverageG = 0.0, coverageB = 0.0;
         

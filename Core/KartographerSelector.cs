@@ -1233,11 +1233,13 @@ namespace CinematicShaders.Core
                 : 1.732f;
 
             // Box positioned below and to the right of the selection circle.
-            // In shader-uv: +X = right, +Y = down (input.uv.y=0 is top of screen).
-            // So "below" means larger Y.
+            // In shader-uv: +X = right, +Y = up (input.uv.y=1 is top of screen).
+            // The shader treats DebugBoxTopLeft as the lower-left corner and adds size upward/right.
+            // To keep the box entirely below the circle, the lower-left Y must be:
+            //   centerY - offset - boxHeightUV
             float radius = 0.02f;
             float boxTopLeftX = centerX + radius + radius * 0.25f;
-            float boxTopLeftY = centerY + radius + radius * 1.25f;
+            float boxOffsetY = radius + radius * 1.25f;
 
             // Merge with cached params so we don't stomp grid settings
             var kartParams = StarfieldNative.LastKartographerParams;
@@ -1266,6 +1268,8 @@ namespace CinematicShaders.Core
             // Minimum box size
             boxWidthUV = Mathf.Max(boxWidthUV, 0.08f);
             boxHeightUV = Mathf.Max(boxHeightUV, 0.06f);
+
+            float boxTopLeftY = centerY - boxOffsetY - boxHeightUV;
             
             // Hover vs locked intensity and box visibility
             float intensity = isHoverOnly ? 0.001f : 0.002f;
