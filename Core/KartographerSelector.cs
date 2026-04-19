@@ -1303,8 +1303,8 @@ namespace CinematicShaders.Core
             // Left-align text at bottom-left of box with padding
             float textPaddingUV = 0.01f; // Small padding from edges
             float textOriginX = boxTopLeftX + textPaddingUV;
-            // Anchor text origin to the bottom of the minimum box so the first line stays fixed during type-on
-            float textOriginY = centerY - boxOffsetY - 0.06f + textPaddingUV;
+            // Anchor text origin to the bottom of the actual box so text renders inside the box
+            float textOriginY = boxTopLeftY + textPaddingUV;
             
             kartParams.TextOriginX = textOriginX;
             kartParams.TextOriginY = textOriginY;
