@@ -45,6 +45,9 @@ namespace CinematicShaders.Core
                 _groupVolumes[group] = 1.0f;
                 _groupMuted[group] = false;
             }
+            
+            // Star Console default is 50% (less jarring than full volume)
+            _groupVolumes[AudioGroup.StarConsole] = 0.5f;
         }
 
         private static GameObject EnsureAudioRoot()
