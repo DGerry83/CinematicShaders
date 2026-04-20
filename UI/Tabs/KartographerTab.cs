@@ -1252,31 +1252,49 @@ namespace CinematicShaders.UI.Tabs
                     return;
                 }
                 
-                // Generate JSON
-                if (StarCatalogManager.GenerateJsonForProceduralCatalog(binPath))
+                // Delete _Custom.json to reset star names (user was warned by confirmation screen)
+                string customJsonPath = Path.ChangeExtension(binPath, null) + "_Custom.json";
+                if (File.Exists(customJsonPath))
                 {
-                    Debug.Log($"[KartographerTab] Successfully scanned catalog: {binPath}");
-                    
-                    // Notify StarCatalogStateManager that JSON is now available
-                    // This triggers OnJsonStateChanged event which causes Scan->Main transition
-                    StarCatalogStateManager.RefreshJsonState();
-                    
-                    // Force reload JSON from disk
-                    if (_selector != null)
+                    try
                     {
-                        _selector.ForceReloadJson();
+                        File.Delete(customJsonPath);
+                        Debug.Log($"[KartographerTab] Deleted custom names override: {customJsonPath}");
                     }
-                    
-                    // Refresh holographic display if active
-                    if (_holographicDisplay != null && _holographicDisplay.IsVisible)
+                    catch (Exception delEx)
                     {
-                        var stars = GetNamedStarsFromSelector();
-                        _holographicDisplay.SetStarList(stars);
+                        Debug.LogError($"[KartographerTab] Failed to delete custom JSON: {delEx.Message}");
                     }
                 }
-                else
+                
+                // Generate base .json only if missing (procedural catalogs only)
+                string jsonPath = Path.ChangeExtension(binPath, ".json");
+                if (!File.Exists(jsonPath))
                 {
-                    Debug.LogWarning($"[KartographerTab] Failed to scan catalog (may not be procedural): {binPath}");
+                    if (StarCatalogManager.GenerateJsonForProceduralCatalog(binPath))
+                    {
+                        Debug.Log($"[KartographerTab] Generated JSON sidecar: {jsonPath}");
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[KartographerTab] Could not generate JSON (may not be procedural): {binPath}");
+                    }
+                }
+                
+                // Always refresh state — either we deleted _Custom.json, or we generated a new .json
+                StarCatalogStateManager.RefreshJsonState();
+                
+                // Force reload JSON from disk
+                if (_selector != null)
+                {
+                    _selector.ForceReloadJson();
+                }
+                
+                // Refresh holographic display if active
+                if (_holographicDisplay != null && _holographicDisplay.IsVisible)
+                {
+                    var stars = GetNamedStarsFromSelector();
+                    _holographicDisplay.SetStarList(stars);
                 }
             }
             catch (Exception ex)
