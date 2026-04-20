@@ -2,10 +2,10 @@
 REM ==============================================
 REM DLL Copy Script - For Post-Build Events
 REM ==============================================
-REM Reads target folder from dll_copy_config.txt
-REM Config file should contain: TARGET_FOLDER=YourPathHere
+REM Reads target folders from dll_copy_config.txt
+REM Config file can contain multiple lines: TARGET_FOLDER=YourPathHere
 
-setlocal
+setlocal enabledelayedexpansion
 
 REM Get the directory where this batch file is located
 set "SCRIPT_DIR=%~dp0"
@@ -16,23 +16,7 @@ if not exist "%CONFIG_FILE%" (
     echo ERROR: Configuration file not found.
     echo.
     echo Please create: dll_copy_config.txt
-    echo With this line: TARGET_FOLDER=C:\Your\Path\Here
-    echo.
-    pause
-    exit /b 1
-)
-
-REM Read target folder from config file
-set "TARGET_FOLDER="
-for /f "usebackq tokens=1,* delims==" %%A in ("%CONFIG_FILE%") do (
-    if /i "%%A"=="TARGET_FOLDER" set "TARGET_FOLDER=%%B"
-)
-
-REM Check if target folder was found in config
-if not defined TARGET_FOLDER (
-    echo ERROR: TARGET_FOLDER not found in config file.
-    echo Please add this line to %CONFIG_FILE%:
-    echo TARGET_FOLDER=C:\Your\Path\Here
+    echo With lines like: TARGET_FOLDER=C:\Your\Path\Here
     echo.
     pause
     exit /b 1
@@ -47,43 +31,55 @@ if "%~1"=="" (
     exit /b 1
 )
 
-REM Create target folder if it doesn't exist
-if not exist "%TARGET_FOLDER%" (
-    echo Creating folder: %TARGET_FOLDER%
-    mkdir "%TARGET_FOLDER%"
-    if errorlevel 1 (
-        echo ERROR: Could not create target folder.
+set "FOLDER_COUNT=0"
+
+REM Read target folders from config file and copy to each
+for /f "usebackq tokens=1,* delims==" %%A in ("%CONFIG_FILE%") do (
+    if /i "%%A"=="TARGET_FOLDER" (
+        set /a FOLDER_COUNT+=1
+        
+        REM Create target folder if it doesn't exist
+        if not exist "%%B" (
+            echo Creating folder: %%B
+            mkdir "%%B"
+            if errorlevel 1 (
+                echo ERROR: Could not create target folder: %%B
+                echo.
+                pause
+                exit /b 1
+            )
+        )
+        
+        echo Copying %~nx1...
+        echo From: %~1
+        echo To: %%B
         echo.
-        pause
-        exit /b 1
+        
+        copy /Y "%~1" "%%B\%~nx1"
+        
+        if errorlevel 1 (
+            echo ERROR: Failed to copy DLL to %%B
+            echo.
+            pause
+            exit /b 1
+        ) else (
+            echo Successfully copied %~nx1 to %%B
+            echo.
+        )
     )
 )
 
-REM Extract filename from source path
-for %%I in ("%~1") do set "FILENAME=%%~nxI"
-
-echo Copying %FILENAME%...
-echo From: %~1
-echo To: %TARGET_FOLDER%
-echo.
-
-copy /Y "%~1" "%TARGET_FOLDER%\%FILENAME%"
-
-if errorlevel 1 (
-    echo ERROR: Failed to copy DLL.
+if !FOLDER_COUNT! equ 0 (
+    echo ERROR: No TARGET_FOLDER entries found in config file.
+    echo Please add lines to %CONFIG_FILE%:
+    echo TARGET_FOLDER=C:\Your\Path\Here
     echo.
     pause
     exit /b 1
-) else (
-    echo Successfully copied %FILENAME%
 )
 
-REM Copy Sounds folder to mod root (parent of Plugins)
-set "SOUNDS_TARGET=%TARGET_FOLDER%\..\Sounds"
-if not exist "%SOUNDS_TARGET%" mkdir "%SOUNDS_TARGET%"
-if exist "%SCRIPT_DIR%Sounds\*.ogg" (
-    copy /Y "%SCRIPT_DIR%Sounds\*.ogg" "%SOUNDS_TARGET%\"
-    echo Copied sounds to: %SOUNDS_TARGET%
-)
+echo.
+echo Copied DLL to !FOLDER_COUNT! location(s).
+echo.
 
 endlocal
