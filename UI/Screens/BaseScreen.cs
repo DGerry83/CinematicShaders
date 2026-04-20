@@ -427,7 +427,7 @@ namespace CinematicShaders.UI.Screens
         /// Global toggle for the hover outline overlay.
         /// Set to false to temporarily disable box drawing while refining visuals.
         /// </summary>
-        protected static bool HoverOverlayEnabled = false;
+        protected static bool HoverOverlayEnabled = true;
 
         /// <summary>
         /// Gets the hover border thickness appropriate for the current display size.
@@ -488,9 +488,22 @@ namespace CinematicShaders.UI.Screens
 
             float thickness = GetHoverBorderThickness();
 
-            Color color = GetGridColor();
-            GUI.color = color;
+            // Add padding: thickness on top/bottom, double on left/right for horizontal breathing room
+            x -= thickness * 2;
+            y -= thickness;
+            w += thickness * 4;
+            h += thickness * 2;
 
+            Color color = GetGridColor();
+            
+            // Fill background at 30% opacity
+            Color fillColor = color;
+            fillColor.a = 0.3f;
+            GUI.color = fillColor;
+            GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
+
+            // Border outline
+            GUI.color = color;
             // Top border
             GUI.DrawTexture(new Rect(x, y, w, thickness), Texture2D.whiteTexture);
             // Bottom border

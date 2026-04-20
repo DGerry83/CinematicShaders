@@ -113,9 +113,9 @@ namespace CinematicShaders.UI.Layout.ScreenLayouts
             // Row 8: save_button, reset_button
             Rect[] row8Splits = engine.SplitHorizontal(leftRows[7],
                 Constraint.Length(cellWidth * 17),  // margin
-                Constraint.Length(cellWidth * 7),   // save_button
+                Constraint.Length(cellWidth * 6),   // save_button
                 Constraint.Length(cellWidth * 3),   // gap
-                Constraint.Length(cellWidth * 8),   // reset_button
+                Constraint.Length(cellWidth * 7),   // reset_button
                 Constraint.Fill(1)                  // remainder
             );
             _pixelAreas["save_button"] = row8Splits[1];
@@ -123,7 +123,7 @@ namespace CinematicShaders.UI.Layout.ScreenLayouts
 
             // Row 10: rescan_button
             Rect[] row10Splits = engine.SplitHorizontal(leftRows[9],
-                Constraint.Length(cellWidth * 27),  // margin
+                Constraint.Length(cellWidth * 26),  // margin
                 Constraint.Length(cellWidth * 8),   // rescan_button
                 Constraint.Fill(1)                  // remainder
             );

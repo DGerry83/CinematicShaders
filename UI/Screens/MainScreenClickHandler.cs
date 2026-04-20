@@ -35,13 +35,8 @@ namespace CinematicShaders.UI.Screens
         {
             ZoneManager.Clear();
             
-            // Value fields (left column)
-            RegisterZoneFromLayout("hip_value", "value", () => _screen.OnValueClicked("hip_value"));
+            // Interactive fields only — name_value is editable, others are display-only
             RegisterZoneFromLayout("name_value", "editable", () => _screen.OnValueClicked("name_value"));
-            RegisterZoneFromLayout("distance_value", "value", () => _screen.OnValueClicked("distance_value"));
-            RegisterZoneFromLayout("spectral_value", "value", () => _screen.OnValueClicked("spectral_value"));
-            RegisterZoneFromLayout("mag_value", "value", () => _screen.OnValueClicked("mag_value"));
-            RegisterZoneFromLayout("const_value", "value", () => _screen.OnValueClicked("const_value"));
             
             // Buttons
             RegisterZoneFromLayout("save_button", "button", () => _screen.OnSaveClicked());
