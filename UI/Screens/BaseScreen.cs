@@ -1,0 +1,520 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+using CinematicShaders.Core;
+
+namespace CinematicShaders.UI.Screens
+{
+    /// <summary>
+    /// Abstract base class for all holographic console screens.
+    /// Provides common animation timing, lifecycle management, and utility methods.
+    /// </summary>
+    /// <remarks>
+    /// The animation system uses a sequential three-layer approach:
+    /// 1. Layer 1 (0-1s): Border and frame elements type on
+    /// 2. Layer 2 (1-1.75s): Labels and static content type on
+    /// 3. Layer 3 (1.75s+): Interactive elements and values type on
+    /// 
+    /// Derived classes can customize timing by overriding the virtual duration properties.
+    /// Layer 3 elements use a priority-based sequencer for fine-grained control over
+    /// the order in which elements appear.
+    /// 
+    /// <para><b>Implementation Guide:</b></para>
+    /// To create a new screen:
+    /// 1. Inherit from BaseScreen
+    /// 2. Set ScreenName in constructor
+    /// 3. Add layers using AddLayer()
+    /// 4. Override OnEnter()/OnExit() for setup/cleanup
+    /// 5. Override Render() to implement custom rendering
+    /// </remarks>
+    public abstract class BaseScreen : IScreen
+    {
+        /// <summary>
+        /// Gets or sets the unique name identifier for this screen.
+        /// Must be set in the derived class constructor.
+        /// </summary>
+        public string ScreenName { get; protected set; }
+        
+        /// <summary>
+        /// Gets the list of layers that make up this screen.
+        /// Use AddLayer() to add layers in the correct order.
+        /// </summary>
+        public List<ILayer> Layers { get; protected set; } = new List<ILayer>();
+        
+        // Animation state - per screen (customizable)
+        
+        /// <summary>
+        /// Gets the total time since this screen was powered on.
+        /// Reset to 0 in OnEnter() when screen becomes active.
+        /// </summary>
+        public float PowerOnTime { get; protected set; }
+        
+        /// <summary>
+        /// Gets the current animation progress for Layer 1 (0-1).
+        /// </summary>
+        public float Layer1Progress { get; protected set; }
+        
+        /// <summary>
+        /// Gets the current animation progress for Layer 2 (0-1).
+        /// </summary>
+        public float Layer2Progress { get; protected set; }
+        
+        /// <summary>
+        /// Gets the current animation progress for Layer 3 (0-1).
+        /// </summary>
+        public float Layer3Progress { get; protected set; }
+        
+        // Animation timing (virtual for per-screen customization)
+        
+        /// <summary>
+        /// Gets the duration of Layer 1 animation in seconds.
+        /// Override to customize timing. Default: 1.0s (halved for faster boot)
+        /// </summary>
+        protected virtual float Layer1Duration => 1.0f;
+        
+        /// <summary>
+        /// Gets the delay before Layer 2 animation starts (after Layer 1 completes).
+        /// Override to customize timing. Default: 1.0s (halved for faster boot)
+        /// </summary>
+        protected virtual float Layer2Delay => 1.0f;
+        
+        /// <summary>
+        /// Gets the duration of Layer 2 animation in seconds.
+        /// Override to customize timing. Default: 0.75s (halved for faster boot)
+        /// </summary>
+        protected virtual float Layer2Duration => 0.75f;
+        
+        /// <summary>
+        /// Gets the delay before Layer 3 animation starts (after Layer 2 completes).
+        /// Override to customize timing. Default: 1.75s (halved for faster boot)
+        /// </summary>
+        protected virtual float Layer3Delay => 1.75f;
+        
+        /// <summary>
+        /// Gets the duration of Layer 3 animation in seconds.
+        /// Override to customize timing. Default: 1.0s
+        /// </summary>
+        protected virtual float Layer3Duration => 1.0f;
+        
+        // Character-based animation constants (Phase 1: Layer 3 only)
+        protected const float CHARS_PER_SECOND = 60f;
+        protected const float MIN_TYPEON_DURATION = 0.5f;
+        
+        // Cached Layer 3 duration — calculated once per animation cycle to prevent
+        // duration shrinkage as elements complete, which causes progress acceleration.
+        private float _cachedLayer3Duration = 0f;
+        
+        // Layer 1/2 completion tracking
+        
+        /// <summary>
+        /// Gets whether Layer 1 animation has completed (progress >= 1.0).
+        /// </summary>
+        public bool IsLayer1Complete => Layer1Progress >= 1.0f;
+        
+        /// <summary>
+        /// Gets whether Layer 2 animation has completed (progress >= 1.0).
+        /// </summary>
+        public bool IsLayer2Complete => Layer2Progress >= 1.0f;
+        
+        /// <summary>
+        /// Returns true while any layer's type-on animation is actively playing
+        /// (progress is between 0 and 1, exclusive).
+        /// Skips Layer 3 if the screen has no ElementLayer (Order 3) content.
+        /// </summary>
+        public bool IsTypeOnAnimationActive
+        {
+            get
+            {
+                bool hasLayer3 = Layers.Exists(l => l.Order == 3);
+                return (Layer1Progress > 0f && Layer1Progress < 1f) ||
+                       (Layer2Progress > 0f && Layer2Progress < 1f) ||
+                       (hasLayer3 && Layer3Progress > 0f && Layer3Progress < 1f);
+            }
+        }
+        
+        /// <summary>
+        /// Event fired when Layer 2 animation completes.
+        /// Subscribe to this to trigger Layer 3 animations.
+        /// </summary>
+        public event Action OnLayer2Complete;
+        
+        // Track if we already fired the event (so it only fires once)
+        private bool _layer2CompleteFired = false;
+        
+        /// <summary>
+        /// Gets the priority order for Layer 3 elements.
+        /// Override to specify the sequence in which elements should appear.
+        /// Elements not in this list use default priority.
+        /// </summary>
+        /// <example>
+        /// protected override List&lt;string&gt; Layer3PriorityOrder => new List&lt;string&gt;
+        /// {
+        ///     "value_field_1",  // Appears first
+        ///     "value_field_2",  // Appears second
+        ///     "button_1"        // Appears third
+        /// };
+        /// </example>
+        protected virtual List<string> Layer3PriorityOrder => new List<string>();
+        
+        // Expose as IReadOnlyList for interface
+        IReadOnlyList<ILayer> IScreen.Layers => Layers;
+        
+        // RenderTexture cache for instanced console rendering (one per screen)
+        private RenderTexture _consoleRenderTexture;
+        private Vector2 _consoleRenderTextureSize;
+        
+        /// <summary>
+        /// Gets or creates a RenderTexture sized to the display rectangle for native console drawing.
+        /// Caches and reuses the texture if dimensions haven't changed.
+        /// </summary>
+        protected RenderTexture GetOrCreateConsoleRenderTexture(Rect displayRect)
+        {
+            int w = Mathf.Max(1, Mathf.RoundToInt(displayRect.width));
+            int h = Mathf.Max(1, Mathf.RoundToInt(displayRect.height));
+            Vector2 size = new Vector2(w, h);
+            
+            if (_consoleRenderTexture != null && _consoleRenderTexture.IsCreated() && _consoleRenderTextureSize == size)
+            {
+                return _consoleRenderTexture;
+            }
+            
+            if (_consoleRenderTexture != null)
+            {
+                _consoleRenderTexture.Release();
+                UnityEngine.Object.Destroy(_consoleRenderTexture);
+            }
+            
+            _consoleRenderTexture = new RenderTexture(w, h, 0, RenderTextureFormat.ARGB32);
+            _consoleRenderTexture.Create();
+            _consoleRenderTextureSize = size;
+            return _consoleRenderTexture;
+        }
+        
+        /// <summary>
+        /// Releases the cached console RenderTexture.
+        /// </summary>
+        protected void ReleaseConsoleRenderTexture()
+        {
+            if (_consoleRenderTexture != null)
+            {
+                _consoleRenderTexture.Release();
+                UnityEngine.Object.Destroy(_consoleRenderTexture);
+                _consoleRenderTexture = null;
+                _consoleRenderTextureSize = Vector2.zero;
+            }
+        }
+
+        protected void DrawCursorOverlay(Rect displayRect, Vector2? cursorPos, Color color)
+        {
+            if (!cursorPos.HasValue) return;
+
+            float cellWidth = displayRect.width / TerminalGridConfig.GRID_COLUMNS;
+            float cellHeight = displayRect.height / TerminalGridConfig.GRID_ROWS;
+
+            float cursorX = displayRect.x + cursorPos.Value.x;
+            float cursorY = displayRect.y + cursorPos.Value.y;
+            // Snap Y to the top of the cell row to align with text baseline grid
+            cursorY = Mathf.Floor(cursorY / cellHeight) * cellHeight;
+
+            float cursorW = cellWidth * 0.5f;
+            float cursorH = cellHeight;
+
+            // Clip to displayRect so the cursor doesn't bleed outside the console screen
+            float clippedX = Mathf.Max(cursorX, displayRect.x);
+            float clippedY = Mathf.Max(cursorY, displayRect.y);
+            float maxRight = Mathf.Min(cursorX + cursorW, displayRect.x + displayRect.width);
+            float maxBottom = Mathf.Min(cursorY + cursorH, displayRect.y + displayRect.height);
+            float clippedW = Mathf.Max(0f, maxRight - clippedX);
+            float clippedH = Mathf.Max(0f, maxBottom - clippedY);
+
+            Rect cursorRect = new Rect(clippedX, clippedY, clippedW, clippedH);
+            GUI.color = color;
+            GUI.DrawTexture(cursorRect, Texture2D.whiteTexture);
+            GUI.color = Color.white;
+        }
+
+        /// <summary>
+        /// Called when entering this screen. Resets animation state and marks layers dirty.
+        /// </summary>
+        /// <param name="context">Transition context including previous screen and star selection state</param>
+        /// <remarks>
+        /// Override this method to add custom initialization logic, but always call base.OnEnter()
+        /// to ensure proper animation state reset.
+        /// </remarks>
+        public virtual void OnEnter(ScreenTransitionContext context)
+        {
+            PowerOnTime = 0f;
+            Layer1Progress = 0f;
+            Layer2Progress = 0f;
+            Layer3Progress = 0f;
+            _layer2CompleteFired = false;
+            
+            // Mark all layers as dirty for fresh render
+            foreach (var layer in Layers)
+            {
+                layer.MarkDirty();
+            }
+            
+            ReleaseConsoleRenderTexture();
+        }
+        
+        /// <summary>
+        /// Called when exiting this screen for a transition.
+        /// </summary>
+        /// <remarks>
+        /// Override this method to clean up resources, unsubscribe from events,
+        /// and stop any ongoing animations. Call base.OnExit() to release the
+        /// console RenderTexture.
+        /// </remarks>
+        public virtual void OnExit()
+        {
+            ReleaseConsoleRenderTexture();
+        }
+        
+        /// <summary>
+        /// Updates animation timing for all layers based on PowerOnTime.
+        /// </summary>
+        /// <param name="deltaTime">Time elapsed since last frame in seconds</param>
+        /// <remarks>
+        /// This method calculates progress values for each layer based on the
+        /// configured delays and durations. It also fires OnLayer2Complete when
+        /// Layer 2 finishes and updates the sequencer if present.
+        /// 
+        /// Override to add custom update logic, but always call base.Update()
+        /// to maintain proper animation timing.
+        /// </remarks>
+        public virtual void Update(float deltaTime)
+        {
+            PowerOnTime += deltaTime;
+            
+            // Update layer progress based on timing
+            Layer1Progress = Mathf.Clamp01(PowerOnTime / Layer1Duration);
+            
+            if (PowerOnTime >= Layer2Delay)
+                Layer2Progress = Mathf.Clamp01((PowerOnTime - Layer2Delay) / Layer2Duration);
+            else
+                Layer2Progress = 0f;
+                
+            if (PowerOnTime >= Layer3Delay)
+            {
+                // Phase 1: Character-based duration for Layer 3
+                // Cache duration at start of animation cycle so it doesn't shrink
+                // as elements complete (which would accelerate progress).
+                if (Layer3Progress <= 0f)
+                    _cachedLayer3Duration = CalculateLayerDuration(3);
+                
+                float layer3Duration = _cachedLayer3Duration;
+                float prevProgress = Layer3Progress;
+                if (layer3Duration > 0.001f)
+                    Layer3Progress = Mathf.Clamp01((PowerOnTime - Layer3Delay) / layer3Duration);
+                else
+                    Layer3Progress = 1f; // No content — skip animation
+                
+                // DEBUG: log Layer 3 animation state when active
+                if (Layer3Progress > 0f && Layer3Progress < 1f)
+                {
+                    ModFileLogger.Log($"[AnimDebug] BaseScreen.Update dt={deltaTime:F4}s PowerOn={PowerOnTime:F3} L3Delay={Layer3Delay} L3Dur={layer3Duration:F3} L3Prog={prevProgress:F3}->{Layer3Progress:F3}");
+                }
+            }
+            else
+                Layer3Progress = 0f;
+            
+            // Check for Layer 2 completion and fire event
+            if (IsLayer2Complete && !_layer2CompleteFired)
+            {
+                _layer2CompleteFired = true;
+                OnLayer2Complete?.Invoke();
+            }
+            
+        }
+        
+        /// <summary>
+        /// Gets the animation progress for a specific layer order.
+        /// </summary>
+        /// <param name="layerOrder">The layer order (1, 2, or 3)</param>
+        /// <returns>Progress value from 0.0 to 1.0</returns>
+        public float GetLayerProgress(int layerOrder)
+        {
+            switch (layerOrder)
+            {
+                case 1: return Layer1Progress;
+                case 2: return Layer2Progress;
+                case 3: return Layer3Progress;
+                default: return 1f;
+            }
+        }
+        
+        /// <summary>
+        /// Calculates the animation duration for a specific layer based on content.
+        /// Override to implement character-based timing.
+        /// </summary>
+        /// <param name="layerOrder">The layer order (1, 2, or 3)</param>
+        /// <returns>Duration in seconds</returns>
+        protected virtual float CalculateLayerDuration(int layerOrder)
+        {
+            // Default implementation uses fixed durations
+            switch (layerOrder)
+            {
+                case 1: return Layer1Duration;
+                case 2: return Layer2Duration;
+                case 3: return Layer3Duration;
+                default: return MIN_TYPEON_DURATION;
+            }
+        }
+        
+        /// <summary>
+        /// Renders this screen to the display.
+        /// </summary>
+        /// <param name="displayRect">Screen-space rectangle for rendering</param>
+        /// <param name="textSystem">Native text system pointer</param>
+        /// <remarks>
+        /// Must be implemented by derived classes. Typical implementation:
+        /// 1. Check for Repaint event
+        /// 2. Get grid color via GetGridColorUint()
+        /// 3. Render each layer with appropriate progress
+        /// 4. Handle mouse interaction
+        /// </remarks>
+        public abstract void Render(Rect displayRect, IntPtr textSystem);
+        
+        /// <summary>
+        /// Adds a layer to this screen and maintains sorted order by Layer.Order.
+        /// </summary>
+        /// <param name="layer">The layer to add</param>
+        protected void AddLayer(ILayer layer)
+        {
+            Layers.Add(layer);
+            Layers.Sort((a, b) => a.Order.CompareTo(b.Order));
+        }
+        
+        /// <summary>
+        /// Gets the grid color based on Kartographer settings.
+        /// Supports Seafoam (0), Amber (1), White (2), and Green (3).
+        /// </summary>
+        /// <returns>The configured grid color as Unity Color</returns>
+        protected Color GetGridColor()
+        {
+            int colorIndex = StarfieldSettings.KartographerGridColor;
+            switch (colorIndex)
+            {
+                case 0: return new Color(0.1f, 0.9f, 0.7f);  // Seafoam
+                case 1: return new Color(1.0f, 0.65f, 0.0f); // Amber
+                case 2: return new Color(0.85f, 0.95f, 1.0f); // White
+                case 3: return new Color(0.25f, 1.0f, 0.0f);  // Green
+                default: return new Color(0.1f, 0.9f, 0.7f);  // Default seafoam
+            }
+        }
+        
+        /// <summary>
+        /// Gets the grid color as a uint in ARGB format for native rendering.
+        /// </summary>
+        /// <returns>Color packed as 0xFFRRGGBB</returns>
+        protected uint GetGridColorUint()
+        {
+            Color c = GetGridColor();
+            uint r = (uint)(c.r * 255) & 0xFF;
+            uint g = (uint)(c.g * 255) & 0xFF;
+            uint b = (uint)(c.b * 255) & 0xFF;
+            return 0xFF000000 | (r << 16) | (g << 8) | b;  // ARGB format (A=FF)
+        }
+
+        /// <summary>
+        /// Tracks the currently hovered element for hover overlay rendering.
+        /// Set by derived screen hover callbacks; cleared on hover exit.
+        /// </summary>
+        protected string _hoveredElementId = null;
+
+        /// <summary>
+        /// Global toggle for the hover outline overlay.
+        /// Set to false to temporarily disable box drawing while refining visuals.
+        /// </summary>
+        protected static bool HoverOverlayEnabled = true;
+
+        /// <summary>
+        /// Gets the hover border thickness appropriate for the current display size.
+        /// </summary>
+        protected float GetHoverBorderThickness()
+        {
+            switch (TerminalGridConfig.CurrentDisplaySize)
+            {
+                case HolographicDisplaySize.Large: return 4f;
+                case HolographicDisplaySize.Medium: return 3f;
+                case HolographicDisplaySize.Small: return 2f;
+                default: return 2f;
+            }
+        }
+
+        /// <summary>
+        /// Draws a border around the hovered click zone using IMGUI.
+        /// Border thickness scales with display size (2px Small, 3px Medium, 4px Large).
+        /// Call this after GUI.DrawTexture in the screen's Render method.
+        /// </summary>
+        /// <param name="displayRect">Screen-space display rectangle.</param>
+        /// <param name="zoneManager">Click zone manager for zone lookups.</param>
+        /// <param name="getContentWidth">
+        /// Optional callback to provide a custom content width for an element.
+        /// Return -1 to use the default GridRect width.
+        /// Return 0 to skip drawing (e.g., empty content).
+        /// Return a positive value to shrink-wrap the box to that width.
+        /// </param>
+        protected void DrawHoverOverlay(Rect displayRect, ClickZoneManager zoneManager,
+            System.Func<string, float> getContentWidth = null)
+        {
+            if (!HoverOverlayEnabled)
+                return;
+
+            if (zoneManager == null || string.IsNullOrEmpty(_hoveredElementId))
+                return;
+
+            var zone = zoneManager.FindZoneById(_hoveredElementId);
+            if (zone == null || !zone.IsEnabled)
+                return;
+
+            var (glyphW, glyphH) = TerminalGridConfig.GlyphMetrics.GetGlyphMetrics(TerminalGridConfig.CurrentDisplaySize);
+
+            float x = displayRect.x + zone.GridRect.x * glyphW;
+            float y = displayRect.y + zone.GridRect.y * glyphH;
+            float w = zone.GridRect.width * glyphW;
+            float h = zone.GridRect.height * glyphH;
+
+            // Shrink-wrap to content width if a callback is provided
+            if (getContentWidth != null)
+            {
+                float contentW = getContentWidth(zone.ElementId);
+                if (contentW == 0f)
+                    return; // Empty content — don't draw a box
+                if (contentW > 0f)
+                    w = contentW;
+            }
+
+            float thickness = GetHoverBorderThickness();
+
+            // Add padding: thickness on top/bottom, double on left/right for horizontal breathing room
+            x -= thickness * 2;
+            y -= thickness;
+            w += thickness * 4;
+            h += thickness * 2;
+
+            Color color = GetGridColor();
+            
+            // Fill background at 30% opacity
+            Color fillColor = color;
+            fillColor.a = 0.3f;
+            GUI.color = fillColor;
+            GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
+
+            // Border outline
+            GUI.color = color;
+            // Top border
+            GUI.DrawTexture(new Rect(x, y, w, thickness), Texture2D.whiteTexture);
+            // Bottom border
+            GUI.DrawTexture(new Rect(x, y + h - thickness, w, thickness), Texture2D.whiteTexture);
+            // Left border
+            GUI.DrawTexture(new Rect(x, y, thickness, h), Texture2D.whiteTexture);
+            // Right border
+            GUI.DrawTexture(new Rect(x + w - thickness, y, thickness, h), Texture2D.whiteTexture);
+
+            GUI.color = Color.white;
+        }
+        
+    }
+}

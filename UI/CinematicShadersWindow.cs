@@ -1,5 +1,6 @@
 ﻿using CinematicShaders.UI.Tabs;
 using CinematicShaders.Core;
+using CinematicShaders.Shaders.Starfield;
 using UnityEngine;
 using System;
 
@@ -25,6 +26,11 @@ namespace CinematicShaders.UI
         private KartographerTab _kartographerTab;
 
         public event Action OnClose;
+        
+        /// <summary>
+        /// Public accessor for KartographerTab (used by StarCatalogEditorWindow)
+        /// </summary>
+        public KartographerTab KartographerTab => _kartographerTab;
 
         void Start()
         {
@@ -176,6 +182,12 @@ namespace CinematicShaders.UI
                 StarfieldSettings.Save();
                 CubemapGenerationScheduler.OnUIClose();
             }
+
+            if (_kartographerTab != null && _kartographerTab.Selector != null)
+            {
+                _kartographerTab.Selector.Dispose();
+            }
+            StarfieldCompositor.KartographerSelectorCallback = null;
         }
     }
 }

@@ -21,7 +21,91 @@ def parse_spectral_class(spectral):
         return s
     return None
 
-def format_full_designation(bayer, flamsteed, constellation):
+# Constellation nominative forms for display (e.g., "Constellation: Orion")
+CONSTELLATION_NOMINATIVE = {
+    'And': 'Andromeda', 'Ant': 'Antlia', 'Aps': 'Apus', 'Aqr': 'Aquarius',
+    'Aql': 'Aquila', 'Ara': 'Ara', 'Ari': 'Aries', 'Aur': 'Auriga',
+    'Boo': 'Boötes', 'Cae': 'Caelum', 'Cam': 'Camelopardalis', 'Cnc': 'Cancer',
+    'CVn': 'Canes Venatici', 'CMa': 'Canis Major', 'CMi': 'Canis Minor',
+    'Cap': 'Capricornus', 'Car': 'Carina', 'Cas': 'Cassiopeia', 'Cen': 'Centaurus',
+    'Cep': 'Cepheus', 'Cet': 'Cetus', 'Cha': 'Chamaeleon', 'Cir': 'Circinus',
+    'Col': 'Columba', 'Com': 'Coma Berenices', 'CrA': 'Corona Austrina',
+    'CrB': 'Corona Borealis', 'Crv': 'Corvus', 'Crt': 'Crater', 'Cru': 'Crux',
+    'Cyg': 'Cygnus', 'Del': 'Delphinus', 'Dor': 'Dorado', 'Dra': 'Draco',
+    'Equ': 'Equuleus', 'Eri': 'Eridanus', 'For': 'Fornax', 'Gem': 'Gemini',
+    'Gru': 'Grus', 'Her': 'Hercules', 'Hor': 'Horologium', 'Hya': 'Hydra',
+    'Hyi': 'Hydrus', 'Ind': 'Indus', 'Lac': 'Lacerta', 'Leo': 'Leo',
+    'LMi': 'Leo Minor', 'Lep': 'Lepus', 'Lib': 'Libra', 'Lup': 'Lupus',
+    'Lyn': 'Lynx', 'Lyr': 'Lyra', 'Men': 'Mensa', 'Mic': 'Microscopium',
+    'Mon': 'Monoceros', 'Mus': 'Musca', 'Nor': 'Norma', 'Oct': 'Octans',
+    'Oph': 'Ophiuchus', 'Ori': 'Orion', 'Pav': 'Pavo', 'Peg': 'Pegasus',
+    'Per': 'Perseus', 'Phe': 'Phoenix', 'Pic': 'Pictor', 'Psc': 'Pisces',
+    'PsA': 'Piscis Austrinus', 'Pup': 'Puppis', 'Pyx': 'Pyxis', 'Ret': 'Reticulum',
+    'Sge': 'Sagitta', 'Sgr': 'Sagittarius', 'Sco': 'Scorpius', 'Scl': 'Sculptor',
+    'Sct': 'Scutum', 'Ser': 'Serpens', 'Sex': 'Sextans', 'Tau': 'Taurus',
+    'Tel': 'Telescopium', 'Tri': 'Triangulum', 'TrA': 'Triangulum Australe',
+    'Tuc': 'Tucana', 'UMa': 'Ursa Major', 'UMi': 'Ursa Minor', 'Vel': 'Vela',
+    'Vir': 'Virgo', 'Vol': 'Volans', 'Vul': 'Vulpecula',
+}
+
+# Constellation genitive forms for Bayer designations (e.g., "Alpha Orionis")
+CONSTELLATION_GENITIVE = {
+    'And': 'Andromedae', 'Ant': 'Antliae', 'Aps': 'Apodis', 'Aqr': 'Aquarii',
+    'Aql': 'Aquilae', 'Ara': 'Arae', 'Ari': 'Arietis', 'Aur': 'Aurigae',
+    'Boo': 'Boötis', 'Cae': 'Caeli', 'Cam': 'Camelopardalis', 'Cap': 'Capricorni',
+    'Car': 'Carinae', 'Cas': 'Cassiopeiae', 'Cen': 'Centauri', 'Cep': 'Cephei',
+    'Cet': 'Ceti', 'Cha': 'Chamaeleontis', 'Cir': 'Circini', 'CMa': 'Canis Majoris',
+    'CMi': 'Canis Minoris', 'Cnc': 'Cancri', 'Col': 'Columbae',
+    'Com': 'Comae Berenices', 'CrA': 'Coronae Austrinae', 'CrB': 'Coronae Borealis',
+    'Crt': 'Crateris', 'Cru': 'Crucis', 'Crv': 'Corvi', 'CVn': 'Canum Venaticorum',
+    'Cyg': 'Cygni', 'Del': 'Delphini', 'Dor': 'Doradus', 'Dra': 'Draconis',
+    'Equ': 'Equulei', 'Eri': 'Eridani', 'For': 'Fornacis', 'Gem': 'Geminorum',
+    'Gru': 'Gruis', 'Her': 'Herculis', 'Hor': 'Horologii', 'Hya': 'Hydrae',
+    'Hyi': 'Hydri', 'Ind': 'Indi', 'Lac': 'Lacertae', 'Leo': 'Leonis',
+    'Lep': 'Leporis', 'Lib': 'Librae', 'LMi': 'Leonis Minoris', 'Lup': 'Lupi',
+    'Lyn': 'Lyncis', 'Lyr': 'Lyrae', 'Men': 'Mensae', 'Mic': 'Microscopii',
+    'Mon': 'Monocerotis', 'Mus': 'Muscae', 'Nor': 'Normae', 'Oct': 'Octantis',
+    'Oph': 'Ophiuchi', 'Ori': 'Orionis', 'Pav': 'Pavonis', 'Peg': 'Pegasi',
+    'Per': 'Persei', 'Phe': 'Phoenicis', 'Pic': 'Pictoris', 'PsA': 'Piscis Austrini',
+    'Psc': 'Piscium', 'Pup': 'Puppis', 'Pyx': 'Pyxidis', 'Ret': 'Reticuli',
+    'Scl': 'Sculptoris', 'Sco': 'Scorpii', 'Sct': 'Scuti', 'Ser': 'Serpentis',
+    'Sex': 'Sextantis', 'Sge': 'Sagittae', 'Sgr': 'Sagittarii', 'Tau': 'Tauri',
+    'Tel': 'Telescopii', 'TrA': 'Trianguli Australis', 'Tri': 'Trianguli',
+    'Tuc': 'Tucanae', 'UMa': 'Ursae Majoris', 'UMi': 'Ursae Minoris',
+    'Vel': 'Velorum', 'Vir': 'Virginis', 'Vol': 'Volantis', 'Vul': 'Vulpeculae',
+}
+
+def load_iau_names():
+    """Load official IAU proper names from iau_proper_stars.csv."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    iau_csv_path = os.path.join(script_dir, '..', '..', 'ReferenceNotes', 'StarNamesFix', 'iau_proper_stars.csv')
+    
+    if not os.path.exists(iau_csv_path):
+        iau_csv_path = os.path.join(script_dir, 'iau_proper_stars.csv')
+    
+    if not os.path.exists(iau_csv_path):
+        print("Warning: iau_proper_stars.csv not found — using HYG names only")
+        return {}
+    
+    iau_names = {}
+    try:
+        with open(iau_csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                hip_str = row.get('HIP', '').strip()
+                if hip_str and hip_str.isdigit():
+                    hip = int(hip_str)
+                    name = row.get('Proper Names', '').strip()
+                    if name:
+                        iau_names[hip] = name
+        print(f"Loaded {len(iau_names)} IAU proper names from {os.path.basename(iau_csv_path)}")
+    except Exception as e:
+        print(f"Warning: Could not load IAU names: {e}")
+        return {}
+    
+    return iau_names
+
+def format_full_designation(bayer, flamsteed, con_abbr):
     """Create full designation like 'Alpha Orionis' or '58 Orionis'."""
     greek_names = {
         'Alp': 'Alpha', 'Bet': 'Beta', 'Gam': 'Gamma', 'Del': 'Delta',
@@ -40,8 +124,8 @@ def format_full_designation(bayer, flamsteed, constellation):
     elif flamsteed:
         parts.append(str(flamsteed))
     
-    if constellation:
-        parts.append(constellation)
+    if con_abbr:
+        parts.append(CONSTELLATION_GENITIVE.get(con_abbr, con_abbr))
     
     return ' '.join(parts) if parts else None
 
@@ -53,6 +137,10 @@ def main():
     if not os.path.exists(csv_path):
         print(f"Error: HYG CSV not found at {csv_path}")
         return 1
+    
+    print("Loading IAU proper names...")
+    iau_names = load_iau_names()
+    print()
     
     print("Reading HYG catalog for named stars...")
     
@@ -90,7 +178,11 @@ def main():
             # Build entry
             entry = {}
             
-            if proper:
+            # Use IAU proper name if available, otherwise fall back to HYG
+            iau_name = iau_names.get(hip_id)
+            if iau_name:
+                entry['proper'] = iau_name
+            elif proper:
                 entry['proper'] = proper
             
             if bayer:
@@ -100,11 +192,11 @@ def main():
                 entry['flamsteed'] = int(flamsteed)
             
             if con:
-                entry['constellation'] = con
+                entry['constellation'] = CONSTELLATION_NOMINATIVE.get(con, con)
             
             # Full designation (e.g., "Alpha Orionis")
             full_name = format_full_designation(bayer, flamsteed, con)
-            if full_name and full_name != proper:
+            if full_name and full_name != entry.get('proper'):
                 entry['full_designation'] = full_name
             
             # Spectral class for display

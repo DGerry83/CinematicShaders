@@ -105,6 +105,10 @@ namespace CinematicShaders.Core
             set => _kartographerGridSize = Mathf.Clamp(value, 0, 3);  // Max 3 = Small (Tiny disabled)
         }
         public static int KartographerGridColor { get; set; } = 0;                  // 0=Seafoam, 1=Amber, 2=White, 3=Green
+        
+        // Audio settings
+        public static float StarConsoleVolume { get; set; } = 0.5f;                 // 0.0-1.0, Star Console UI audio group volume
+        public static string StarConsoleDisplayMode { get; set; } = "Medium";       // Legacy, Small, Medium, Large
 
         // HYG Catalog Coordinate Rotation (degrees)
         // Allows aligning the real sky catalog with the game's coordinate system
@@ -304,6 +308,9 @@ namespace CinematicShaders.Core
                 KartographerRotationPitch = float.Parse(settingsNode.GetValue("KartographerRotationPitch") ?? "0.0");
                 KartographerGridSize = int.Parse(settingsNode.GetValue("KartographerGridSize") ?? "2");
                 KartographerGridColor = int.Parse(settingsNode.GetValue("KartographerGridColor") ?? "0");
+                StarConsoleVolume = float.Parse(settingsNode.GetValue("StarConsoleVolume") ?? "0.5");
+                ModAudioManager.SetGroupVolume(AudioGroup.StarConsole, StarConsoleVolume);
+                StarConsoleDisplayMode = settingsNode.GetValue("StarConsoleDisplayMode") ?? "Medium";
                 ActiveCatalogPath = NormalizeCatalogPath(settingsNode.GetValue("ActiveCatalogPath") ?? "");
                 // IsReadOnly = bool.Parse(settingsNode.GetValue("IsReadOnly") ?? "false");
 
@@ -601,6 +608,9 @@ namespace CinematicShaders.Core
                     // Trigger cubemap update for newly generated catalog
                     CubemapGenerationScheduler.OnCatalogGenerated();
                     
+                    // Notify listeners that catalog has changed via StarCatalogStateManager
+                    StarCatalogStateManager.SetCatalog(ActiveCatalogPath);
+                    
                     // Auto-save to current catalog file if one is active
                     if (!string.IsNullOrEmpty(ActiveCatalogPath) && !IsReadOnly)
                     {
@@ -738,6 +748,8 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("KartographerRotationPitch", KartographerRotationPitch);
                 settingsNode.AddValue("KartographerGridSize", KartographerGridSize);
                 settingsNode.AddValue("KartographerGridColor", KartographerGridColor);
+                settingsNode.AddValue("StarConsoleVolume", StarConsoleVolume);
+                settingsNode.AddValue("StarConsoleDisplayMode", StarConsoleDisplayMode);
                 settingsNode.AddValue("ActiveCatalogPath", NormalizeCatalogPath(ActiveCatalogPath));
                 // settingsNode.AddValue("IsReadOnly", IsReadOnly);
                 settingsNode.AddValue("CatalogSeed", CatalogSeed);

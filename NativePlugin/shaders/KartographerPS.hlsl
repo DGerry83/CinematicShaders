@@ -558,6 +558,43 @@ float3 RenderManeuverText(float2 origin, float2 size, float intensity, float2 uv
 }
 
 // ============================================================================
+// Box Outline Drawing (Layer 3 Single-Texture Refactor)
+// ============================================================================
+
+// Draw a box outline for hover feedback on interactive elements
+// Uses grid color for the outline, hard corners, 2px thickness
+float3 DrawBoxOutline(float2 uv, float3 baseColor, float3 outlineColor)
+{
+    if (!params.BoxOutlineEnabled)
+        return baseColor;
+    
+    // 2 pixel thickness in UV space
+    float thickX = 2.0 / params.Resolution.x;
+    float thickY = 2.0 / params.Resolution.y;
+    
+    // Check edges
+    bool onLeftEdge = abs(uv.x - params.BoxTopLeft.x) < thickX;
+    bool onRightEdge = abs(uv.x - params.BoxBottomRight.x) < thickX;
+    bool onTopEdge = abs(uv.y - params.BoxTopLeft.y) < thickY;
+    bool onBottomEdge = abs(uv.y - params.BoxBottomRight.y) < thickY;
+    
+    bool insideX = uv.x >= params.BoxTopLeft.x && uv.x <= params.BoxBottomRight.x;
+    bool insideY = uv.y >= params.BoxTopLeft.y && uv.y <= params.BoxBottomRight.y;
+    
+    // Draw outline (hard corners, single line)
+    if ((onLeftEdge || onRightEdge) && insideY)
+    {
+        return outlineColor;
+    }
+    if ((onTopEdge || onBottomEdge) && insideX)
+    {
+        return outlineColor;
+    }
+    
+    return baseColor;
+}
+
+// ============================================================================
 // Main Pixel Shader
 // ============================================================================
 
@@ -859,6 +896,13 @@ float4 PSMain(PSInput input) : SV_Target {
         float2 size = float2(params.ManeuverTextWidth, params.ManeuverTextHeight);
         col += RenderManeuverText(origin, size, params.ManeuverTextIntensity, uv, gridColor);
     }
+    
+    // ============================================================================
+    // BOX OUTLINE FOR HOVER FEEDBACK (Layer 3 Single-Texture Refactor)
+    // ============================================================================
+    float3 gridColorBase = kGridColors[params.GridColorIndex];
+    // Box outline disabled for Kartographer - feature is CRT UI only
+    // col = DrawBoxOutline(input.uv, col, gridColorBase);
     
     float phase = frac(fragCoord.x / 3.0);
     float3 phosphor;

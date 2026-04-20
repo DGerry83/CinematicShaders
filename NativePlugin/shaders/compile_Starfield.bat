@@ -163,6 +163,26 @@ if %errorlevel% neq 0 (
 echo   Success --^> ..\include\KartographerText.h
 echo.
 
+REM Compile Console instanced shaders
+echo Compiling ConsoleVS.hlsl...
+"%FXC%" /T vs_5_0 /E Main /Fh "..\include\ConsoleVS.h" /Vn "g_ConsoleVS" "..\Shaders\ConsoleVS.hlsl"
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: ConsoleVS compilation failed!
+    exit /b %errorlevel%
+)
+echo   Success --^> ..\include\ConsoleVS.h
+
+echo Compiling ConsolePS.hlsl...
+"%FXC%" /T ps_5_0 /E Main /Fh "..\include\ConsolePS.h" /Vn "g_ConsolePS" "..\Shaders\ConsolePS.hlsl"
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: ConsolePS compilation failed!
+    exit /b %errorlevel%
+)
+echo   Success --^> ..\include\ConsolePS.h
+echo.
+
 echo ============================================
 echo SUCCESS: All shaders compiled
 echo ============================================

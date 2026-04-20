@@ -44,7 +44,7 @@ class CPPGenerator:
         lines.append("")
         
         # Struct with pragma pack
-        lines.append("#pragma pack(push, 16)")
+        lines.append(f"#pragma pack(push, {layout.alignment})")
         lines.append(f"struct {layout.name} {{")
         
         # Generate field declarations with comments inline
@@ -84,8 +84,8 @@ class CPPGenerator:
         lines.append("// Static assertions to verify HLSL constant buffer alignment")
         lines.append(f"static_assert(sizeof({layout.name}) == {layout.total_size},")
         lines.append(f'              "{layout.name} size mismatch - expected {layout.total_size} bytes");')
-        lines.append(f"static_assert(sizeof({layout.name}) % 16 == 0,")
-        lines.append(f'              "{layout.name} must be 16-byte aligned for HLSL CB");')
+        lines.append(f"static_assert(sizeof({layout.name}) % {layout.alignment} == 0,")
+        lines.append(f'              "{layout.name} must be {layout.alignment}-byte aligned for HLSL CB");')
         lines.append("")
         
         return "\n".join(lines)
@@ -243,7 +243,7 @@ class CSGenerator:
         lines.append("")
         lines.append("namespace CinematicShaders.Native.Structs")
         lines.append("{")
-        lines.append(f"    [StructLayout(LayoutKind.Sequential, Pack = 16)]")
+        lines.append(f"    [StructLayout(LayoutKind.Sequential, Pack = {layout.alignment})]")
         lines.append(f"    public struct {layout.name}Native")
         lines.append("    {")
         
@@ -259,7 +259,7 @@ class CSGenerator:
                 cs_type = 'Vector2'
             elif field.type_name == 'float3' and use_unity_types:
                 cs_type = 'Vector3'
-            elif field.type_name in ('uint32_t', 'uint'):
+            elif field.type_name in ('uint32_t', 'uint32', 'uint'):
                 cs_type = 'uint'
             elif field.type_name == 'int32_t':
                 cs_type = 'int'

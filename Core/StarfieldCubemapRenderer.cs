@@ -14,7 +14,7 @@ namespace CinematicShaders.Core
     public static class StarfieldCubemapRenderer
     {
         // Configuration
-        public const int CUBEMAP_SIZE = 1024;
+        public const int CUBEMAP_SIZE = 2048;
 
         // Debug output folder (kept for compatibility with old methods)
         private static readonly string DEBUG_FOLDER = Path.Combine(
@@ -26,6 +26,7 @@ namespace CinematicShaders.Core
         /// <summary>
         /// Renders the current starfield directly to KSP skybox using native C++ rendering.
         /// Skips intermediate Cubemap/Texture2D copies for performance.
+        /// Uses 2048x2048 mipmapped cubemap faces.
         /// </summary>
         /// <returns>True if successful, false otherwise.</returns>
         public static bool RenderAndInjectCubemap()
@@ -52,7 +53,7 @@ namespace CinematicShaders.Core
                     RenderTextureDescriptor rtDesc = new RenderTextureDescriptor(CUBEMAP_SIZE, CUBEMAP_SIZE, RenderTextureFormat.ARGB32, 0);
                     rtDesc.dimension = TextureDimension.Tex2D;
                     rtDesc.msaaSamples = 1;
-                    rtDesc.useMipMap = false;
+                    rtDesc.useMipMap = true;
                     rtDesc.autoGenerateMips = false;
                     rtDesc.bindMS = false;
                     
@@ -60,49 +61,65 @@ namespace CinematicShaders.Core
                     renderTextures[i].Create();
                     
                     // Clear to ensure texture is created
-                    RenderTexture.active = renderTextures[i];
-                    GL.Clear(true, true, Color.black);
-                    RenderTexture.active = null;
+                    // Using try/finally for consistency with other RT operations
+                    RenderTexture prevActive = RenderTexture.active;
+                    try
+                    {
+                        RenderTexture.active = renderTextures[i];
+                        GL.Clear(true, true, Color.black);
+                    }
+                    finally
+                    {
+                        RenderTexture.active = prevActive;
+                    }
                     
                     faceTextures[i] = renderTextures[i].GetNativeTexturePtr();
                 }
 
                 // Call native function to render all faces
-                int result = Native.StarfieldNative.CR_RenderStarfieldCubemap(faceTextures, CUBEMAP_SIZE);
-
-                renderTimer.Stop();
-                long elapsedMs = renderTimer.ElapsedMilliseconds;
-
-                if (result == -2) // Device not initialized
+                try
                 {
-                    Debug.LogWarning("[StarfieldCubemapRenderer] Device not ready, will retry on next trigger");
+                    int result = Native.StarfieldNative.CR_RenderStarfieldCubemap(faceTextures, CUBEMAP_SIZE);
+
+                    renderTimer.Stop();
+                    long elapsedMs = renderTimer.ElapsedMilliseconds;
+
+                    if (result == -2) // Device not initialized
+                    {
+                        Debug.LogWarning("[StarfieldCubemapRenderer] Device not ready, will retry on next trigger");
+                        return false;
+                    }
+                    else if (result != 0)
+                    {
+                        Debug.LogError($"[StarfieldCubemapRenderer] Native render failed with code: {result}");
+                        return false;
+                    }
+
+                    Debug.Log($"[StarfieldCubemapRenderer] Native render complete: {elapsedMs}ms");
+
+                    for (int i = 0; i < 6; i++)
+                    {
+                        renderTextures[i].GenerateMips();
+                    }
+                    Debug.Log("[StarfieldCubemapRenderer] Mipmaps generated for cubemap faces");
+
+                    // Inject directly from RenderTextures (no intermediate copies)
+                    bool injected = KSPCubemapInjector.InjectFromRenderTextures(renderTextures);
+                    
+                    if (injected)
+                    {
+                        Debug.Log("[StarfieldCubemapRenderer] Cubemap injected into KSP skybox");
+                        return true;
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[StarfieldCubemapRenderer] Failed to inject cubemap, will retry on next trigger");
+                        return false;
+                    }
+                }
+                finally
+                {
                     CleanupRenderTextures(renderTextures);
-                    return false;
-                }
-                else if (result != 0)
-                {
-                    Debug.LogError($"[StarfieldCubemapRenderer] Native render failed with code: {result}");
-                    CleanupRenderTextures(renderTextures);
-                    return false;
-                }
-
-                Debug.Log($"[StarfieldCubemapRenderer] Native render complete: {elapsedMs}ms");
-
-                // Inject directly from RenderTextures (no intermediate copies)
-                bool injected = KSPCubemapInjector.InjectFromRenderTextures(renderTextures);
-                
-                // Cleanup
-                CleanupRenderTextures(renderTextures);
-                
-                if (injected)
-                {
-                    Debug.Log("[StarfieldCubemapRenderer] Cubemap injected into KSP skybox");
-                    return true;
-                }
-                else
-                {
-                    Debug.LogWarning("[StarfieldCubemapRenderer] Failed to inject cubemap, will retry on next trigger");
-                    return false;
                 }
             }
             catch (Exception ex)

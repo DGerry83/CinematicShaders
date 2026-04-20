@@ -182,6 +182,11 @@ static struct {
     
     // Thread safety for cross-thread access
     std::mutex stateMutex;
+    
+    // Additional cached SRVs for GTAO inputs (Scope 3 fix)
+    ID3D11ShaderResourceView* rawAOSRVCached = nullptr;
+    ID3D11ShaderResourceView* filterNormalSRVCached = nullptr;
+    ID3D11ShaderResourceView* aoSRVCached = nullptr;
 } g_GTAOState;
 
 struct GTAOUserSettings {
@@ -409,6 +414,9 @@ static void EnsureComputeResources(ID3D11Device* device, int width, int height)
         if (g_GTAOState.pointSamplerCached) { g_GTAOState.pointSamplerCached->Release(); g_GTAOState.pointSamplerCached = nullptr; }
         if (g_GTAOState.depthSRVCached) { g_GTAOState.depthSRVCached->Release(); g_GTAOState.depthSRVCached = nullptr; }
         if (g_GTAOState.normalSRVCached) { g_GTAOState.normalSRVCached->Release(); g_GTAOState.normalSRVCached = nullptr; }
+        if (g_GTAOState.rawAOSRVCached) { g_GTAOState.rawAOSRVCached->Release(); g_GTAOState.rawAOSRVCached = nullptr; }
+        if (g_GTAOState.filterNormalSRVCached) { g_GTAOState.filterNormalSRVCached->Release(); g_GTAOState.filterNormalSRVCached = nullptr; }
+        if (g_GTAOState.aoSRVCached) { g_GTAOState.aoSRVCached->Release(); g_GTAOState.aoSRVCached = nullptr; }
     }
     
     // AO Output Texture (RG32_FLOAT)
@@ -603,6 +611,15 @@ void CR_GTAODebugSetInput(ID3D11Texture2D* depthTex, ID3D11Texture2D* normalTex,
 {
     std::lock_guard<std::mutex> lock(g_GTAOState.stateMutex);
     
+    // Invalidate cached SRVs when the underlying textures change (e.g., GTAO toggle off/on)
+    if (g_GTAOState.depthTexture != depthTex) {
+        if (g_GTAOState.depthSRVCached) { g_GTAOState.depthSRVCached->Release(); g_GTAOState.depthSRVCached = nullptr; }
+    }
+    if (g_GTAOState.normalTexture != normalTex) {
+        if (g_GTAOState.normalSRVCached) { g_GTAOState.normalSRVCached->Release(); g_GTAOState.normalSRVCached = nullptr; }
+        if (g_GTAOState.filterNormalSRVCached) { g_GTAOState.filterNormalSRVCached->Release(); g_GTAOState.filterNormalSRVCached = nullptr; }
+    }
+    
     g_GTAOState.depthTexture = depthTex;
     g_GTAOState.normalTexture = normalTex;
     g_GTAOState.width = width;
@@ -704,9 +721,11 @@ static void ExecuteComposite(ID3D11DeviceContext* context, ID3D11RenderTargetVie
         device->CreateBuffer(&cbDesc, nullptr, &g_GTAOState.outputCB);
     }
     
-    ID3D11ShaderResourceView* aoSRV = nullptr;
-    HRESULT hr = device->CreateShaderResourceView(g_GTAOState.filteredAOTexture, nullptr, &aoSRV);
-    if (FAILED(hr) || !aoSRV) {
+    if (!g_GTAOState.aoSRVCached && g_GTAOState.filteredAOTexture) {
+        device->CreateShaderResourceView(g_GTAOState.filteredAOTexture, nullptr, &g_GTAOState.aoSRVCached);
+    }
+    ID3D11ShaderResourceView* aoSRV = g_GTAOState.aoSRVCached;
+    if (!aoSRV) {
         LogToFile("[GTAO] Failed to create AO SRV");
         device->Release();
         return;
@@ -756,7 +775,6 @@ static void ExecuteComposite(ID3D11DeviceContext* context, ID3D11RenderTargetVie
     // Safety check for composite mode
     if (outputMode == 0 && !sceneSRV) {
         LogToFile("[GTAO] Cannot composite: sceneSRV is null");
-        aoSRV->Release();
         device->Release();
         return;
     }
@@ -764,8 +782,6 @@ static void ExecuteComposite(ID3D11DeviceContext* context, ID3D11RenderTargetVie
     // Update constant buffer with mode
     if (!g_GTAOState.outputCB) {
         LogToFile("[GTAO] ExecuteComposite: outputCB is null - failed to create earlier");
-        if (aoSRV) aoSRV->Release();
-        if (sceneSRV && sceneSRV != g_GTAOState.intermediateSRV) sceneSRV->Release();
         if (sceneSRV == g_GTAOState.intermediateSRV) sceneSRV->Release();
         device->Release();
         return;
@@ -817,7 +833,6 @@ static void ExecuteComposite(ID3D11DeviceContext* context, ID3D11RenderTargetVie
     context->PSSetShader(nullPS, nullptr, 0);
     context->PSSetSamplers(0, 1, &nullSampler);
     
-    if (aoSRV) aoSRV->Release();
     if (sceneSRV && sceneSRV != g_GTAOState.intermediateSRV) sceneSRV->Release();
     if (sceneSRV == g_GTAOState.intermediateSRV) sceneSRV->Release(); // Release our AddRef
     
@@ -928,16 +943,23 @@ static void ExecuteGTAOCompute(ID3D11DeviceContext* context)
     context->CSSetShader(nullptr, nullptr, 0);
     
     // ===== GTAO COMPUTE =====
-    // Create SRVs for input textures
-    ID3D11ShaderResourceView* depthSRV = nullptr;
-    ID3D11ShaderResourceView* normalSRV = nullptr;
-    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Texture2D.MipLevels = -1;
-    srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
-    device->CreateShaderResourceView(g_GTAOState.hiZTexture, &srvDesc, &depthSRV);
-    srvDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
-    device->CreateShaderResourceView(g_GTAOState.normalTexture, &srvDesc, &normalSRV);
+    // Ensure cached SRVs for input textures
+    if (!g_GTAOState.depthSRVCached && g_GTAOState.hiZTexture) {
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MipLevels = -1;
+        srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+        device->CreateShaderResourceView(g_GTAOState.hiZTexture, &srvDesc, &g_GTAOState.depthSRVCached);
+    }
+    if (!g_GTAOState.normalSRVCached && g_GTAOState.normalTexture) {
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MipLevels = -1;
+        srvDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+        device->CreateShaderResourceView(g_GTAOState.normalTexture, &srvDesc, &g_GTAOState.normalSRVCached);
+    }
+    ID3D11ShaderResourceView* depthSRV = g_GTAOState.depthSRVCached;
+    ID3D11ShaderResourceView* normalSRV = g_GTAOState.normalSRVCached;
     
     // Fill constant buffer
     D3D11_MAPPED_SUBRESOURCE mapped;
@@ -1014,8 +1036,6 @@ static void ExecuteGTAOCompute(ID3D11DeviceContext* context)
     // Validate blue noise before binding
     if (!g_GTAOState.blueNoiseSRV) {
         LogToFile("[GTAO] Blue noise not initialized");
-        if (depthSRV) depthSRV->Release();
-        if (normalSRV) normalSRV->Release();
         return;
     }
     
@@ -1041,41 +1061,32 @@ static void ExecuteGTAOCompute(ID3D11DeviceContext* context)
     context->CSSetSamplers(0, 1, nullSampler);
     context->CSSetShader(nullptr, nullptr, 0);
     
-    // Cleanup temp SRVs
-    if (depthSRV) depthSRV->Release();
-    if (normalSRV) normalSRV->Release();
-    
     // ===== NORMAL-AWARE FILTER PASS =====
     InitializeFilterResources(device, width, height);
     if (!g_GTAOState.filteredAOTexture || !g_GTAOState.filteredAOUAV) {
         LogToFile("[GTAO] Filter resources not available, skipping filter pass");
-        if (depthSRV) depthSRV->Release();
-        if (normalSRV) normalSRV->Release();
         return;
     }
     
-    // Create SRV for raw AO
-    D3D11_SHADER_RESOURCE_VIEW_DESC rawAoSrvDesc = {};
-    rawAoSrvDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
-    rawAoSrvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-    rawAoSrvDesc.Texture2D.MipLevels = 1;
-    ID3D11ShaderResourceView* rawAOSRV = nullptr;
-    HRESULT hr = device->CreateShaderResourceView(g_GTAOState.aoTexture, &rawAoSrvDesc, &rawAOSRV);
-    if (FAILED(hr) || !rawAOSRV) {
-        LogToFile("[GTAO] Failed to create raw AO SRV in ExecuteGTAOCompute");
-        return;
+    // Ensure cached SRVs for filter pass
+    if (!g_GTAOState.rawAOSRVCached && g_GTAOState.aoTexture) {
+        D3D11_SHADER_RESOURCE_VIEW_DESC rawAoSrvDesc = {};
+        rawAoSrvDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
+        rawAoSrvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        rawAoSrvDesc.Texture2D.MipLevels = 1;
+        device->CreateShaderResourceView(g_GTAOState.aoTexture, &rawAoSrvDesc, &g_GTAOState.rawAOSRVCached);
     }
-    
-    // Recreate normal SRV for filter (filter samples from normalTexture)
-    ID3D11ShaderResourceView* filterNormalSRV = nullptr;
-    D3D11_SHADER_RESOURCE_VIEW_DESC filterNormalDesc = {};
-    filterNormalDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
-    filterNormalDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-    filterNormalDesc.Texture2D.MipLevels = 1;
-    hr = device->CreateShaderResourceView(g_GTAOState.normalTexture, &filterNormalDesc, &filterNormalSRV);
-    if (FAILED(hr) || !filterNormalSRV) {
-        LogToFile("[GTAO] Failed to create filter normal SRV");
-        rawAOSRV->Release();
+    if (!g_GTAOState.filterNormalSRVCached && g_GTAOState.normalTexture) {
+        D3D11_SHADER_RESOURCE_VIEW_DESC filterNormalDesc = {};
+        filterNormalDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+        filterNormalDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        filterNormalDesc.Texture2D.MipLevels = 1;
+        device->CreateShaderResourceView(g_GTAOState.normalTexture, &filterNormalDesc, &g_GTAOState.filterNormalSRVCached);
+    }
+    ID3D11ShaderResourceView* rawAOSRV = g_GTAOState.rawAOSRVCached;
+    ID3D11ShaderResourceView* filterNormalSRV = g_GTAOState.filterNormalSRVCached;
+    if (!rawAOSRV || !filterNormalSRV) {
+        LogToFile("[GTAO] Failed to create filter SRVs");
         return;
     }
     
@@ -1107,8 +1118,7 @@ static void ExecuteGTAOCompute(ID3D11DeviceContext* context)
     context->CSSetShaderResources(0, 2, nullSRV);
     context->CSSetShader(nullptr, nullptr, 0);
     
-    rawAOSRV->Release();
-    filterNormalSRV->Release();
+
 }
 
 // Unity render event callback - runs on render thread
@@ -1187,6 +1197,12 @@ void CR_GTAOSetSettings(const GTAOUserSettings* settings)
     g_UserSettings = *settings;
 }
 
+// Box outline parameters for hover feedback (DEPRECATED - kept for compatibility)
+static float g_BoxTopLeftX = 0.0f;
+static float g_BoxTopLeftY = 0.0f;
+static float g_BoxBottomRightX = 0.0f;
+static float g_BoxBottomRightY = 0.0f;
+
 extern "C" __declspec(dllexport)
 void CR_GTAOShutdown()
 {
@@ -1225,6 +1241,12 @@ void CR_GTAOShutdown()
     if (g_GTAOState.gtaoShaderCached) { g_GTAOState.gtaoShaderCached->Release(); g_GTAOState.gtaoShaderCached = nullptr; }
     if (g_GTAOState.pointSamplerCached) { g_GTAOState.pointSamplerCached->Release(); g_GTAOState.pointSamplerCached = nullptr; }
     if (g_GTAOState.device) { g_GTAOState.device->Release(); g_GTAOState.device = nullptr; }
+    
+    if (g_GTAOState.depthSRVCached) { g_GTAOState.depthSRVCached->Release(); g_GTAOState.depthSRVCached = nullptr; }
+    if (g_GTAOState.normalSRVCached) { g_GTAOState.normalSRVCached->Release(); g_GTAOState.normalSRVCached = nullptr; }
+    if (g_GTAOState.rawAOSRVCached) { g_GTAOState.rawAOSRVCached->Release(); g_GTAOState.rawAOSRVCached = nullptr; }
+    if (g_GTAOState.filterNormalSRVCached) { g_GTAOState.filterNormalSRVCached->Release(); g_GTAOState.filterNormalSRVCached = nullptr; }
+    if (g_GTAOState.aoSRVCached) { g_GTAOState.aoSRVCached->Release(); g_GTAOState.aoSRVCached = nullptr; }
     
     g_GTAOState.cachedWidth = 0;
     g_GTAOState.cachedHeight = 0;

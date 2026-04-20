@@ -118,16 +118,14 @@ namespace CinematicShaders.Core
         
         // Debug tracking
         private int _lastEnabledCount = -1;
-        private uint _lastEnabledMask = 0;
         private int _lastGridPreset = -1;
         
         // Font configuration
         private const float DEFAULT_FONT_SIZE = 18f;
         private const int TEXTURE_SIZE = 256;
-        private const string FONT_NAME = "Ac437_Rainbow100_re_66.ttf";
+        private const string FONT_NAME = "AcPlus_Rainbow100_re_66.ttf";
         
-        // Debug frame counter for measurement logging
-        private static int s_measureFrameCounter = 0;
+
         
         /// <summary>
         /// Initializes the text system and registers built-in labels.
@@ -172,7 +170,7 @@ namespace CinematicShaders.Core
         {
             if (_textSystem != IntPtr.Zero) return;
             
-            // Build font path: ../PluginData/Fonts/Ac437_Rainbow100_re_66.ttf
+            // Build font path: ../PluginData/Fonts/AcPlus_Rainbow100_re_66.ttf
             // C# DLL is in Plugins/, font is in PluginData/ at mod root level
             string assemblyPath = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
             string fontPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(assemblyPath, "..", "PluginData", "Fonts", FONT_NAME));
@@ -653,28 +651,28 @@ namespace CinematicShaders.Core
                 {
                     case 0: // Jumbo
                         label.RotationDegrees = -2f;
-                        label.PaddingLeft = 0.10f;
+                        label.PaddingLeft = 0.03f;
                         label.PaddingBottom = 0.00f;
                         label.FontSizePixels = 18f;
                         label.LineSpacing = 4.5f;
                         break;
                     case 1: // Large
                         label.RotationDegrees = -2f;
-                        label.PaddingLeft = 0.12f;
+                        label.PaddingLeft = 0.04f;
                         label.PaddingBottom = 0.00f;
                         label.FontSizePixels = 21f;
                         label.LineSpacing = 5.3f;
                         break;
                     case 2: // Medium
                         label.RotationDegrees = -2f;
-                        label.PaddingLeft = 0.17f;
+                        label.PaddingLeft = 0.06f;
                         label.PaddingBottom = 0.07f;
                         label.FontSizePixels = 29f;
                         label.LineSpacing = 0f;
                         break;
                     case 3: // Small
                         label.RotationDegrees = -2f;
-                        label.PaddingLeft = 0.20f;
+                        label.PaddingLeft = 0.06f;
                         label.PaddingBottom = 0.70f;
                         label.FontSizePixels = 36f;
                         label.LineSpacing = 0f;
@@ -693,24 +691,28 @@ namespace CinematicShaders.Core
                         label.PaddingLeft = 0.09f;
                         label.PaddingBottom = 0.05f;
                         label.FontSizePixels = 20f;
+                        label.FixedPaddingLeft = 0.015f;
                         break;
                     case 1: // Large
                         label.RotationDegrees = 0.4f;
                         label.PaddingLeft = 0.13f;
                         label.PaddingBottom = 0.08f;
                         label.FontSizePixels = 20f;
+                        label.FixedPaddingLeft = 0.015f;
                         break;
                     case 2: // Medium
                         label.RotationDegrees = -1f;
                         label.PaddingLeft = 0.17f;
                         label.PaddingBottom = 0.06f;
                         label.FontSizePixels = 24f;
+                        label.FixedPaddingLeft = 0.015f;
                         break;
                     case 3: // Small - reduced font size to ensure numbers fit in texture
                         label.RotationDegrees = -0.3f;
                         label.PaddingLeft = 0.25f;
                         label.PaddingBottom = 0.12f;
                         label.FontSizePixels = 34f;
+                        label.FixedPaddingLeft = 0.015f;
                         break;
                 }
             }
@@ -761,13 +763,13 @@ namespace CinematicShaders.Core
                 float vPadding = 2.0f;
                 
                 // First, layout initials to get actual bounds (not advances)
-                int g1 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.InitialsText, initialsSize, color, 0.0f, TEXTURE_SIZE * 0.5f, 0.0f);
+                int g1 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.InitialsText, initialsSize, color, 0.0f, TEXTURE_SIZE * 0.5f, 0.0f, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
                 StarfieldNative.CR_TextGetBounds(_textSystem, out float iw, out float ih);
                 
                 // Layout body to get its bounds
                 int bodyLineCount = label.Text.Split('\n').Length;
                 float bodyExtraHeight = (bodyLineCount - 1) * label.LineSpacing;
-                int g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing);
+                int g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
                 StarfieldNative.CR_TextGetBounds(_textSystem, out float bw, out float bh);
                 
                 // Align first body line with first initial
@@ -777,30 +779,44 @@ namespace CinematicShaders.Core
                 boundsHeight = Mathf.Max(ih, bodyOriginY + bh + bodyExtraHeight);
                 float originY = TEXTURE_SIZE - boundsHeight - vPadding;
                 
-                // Pass 1: render initials (clears texture), aligned to bottom-left of texture
-                g1 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.InitialsText, initialsSize, color, 0.0f, originY, 0.0f);
-                if (g1 > 0)
+                // Render to texture with proper active texture handling (defensive try/finally)
+                RenderTexture prevActive = RenderTexture.active;
+                try
                 {
-                    StarfieldNative.CR_TextDispatchEx(
-                        _textSystem,
-                        label.Texture.GetNativeTexturePtr(),
-                        g1,
-                        TEXTURE_SIZE,
-                        TEXTURE_SIZE,
-                        1);
+                    RenderTexture.active = label.Texture;
+                    
+                    // Pass 1: render initials (clears texture), aligned to bottom-left of texture
+                    g1 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.InitialsText, initialsSize, color, 0.0f, originY, 0.0f, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
+                    if (g1 > 0)
+                    {
+                        StarfieldNative.CR_TextDispatchEx(
+                            _textSystem,
+                            label.Texture.GetNativeTexturePtr(),
+                            g1,
+                            TEXTURE_SIZE,
+                            TEXTURE_SIZE,
+                            1);
+                        GL.IssuePluginEvent(StarfieldNative.CR_GetTextDispatchRenderEventFunc(), 0);
+                    }
+                    
+                    // Pass 2: render body next to initials (no clear)
+                    g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, iw + hPadding, originY + bodyOriginY, label.LineSpacing, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
+                    if (g2 > 0)
+                    {
+                        StarfieldNative.CR_TextDispatchEx(
+                            _textSystem,
+                            label.Texture.GetNativeTexturePtr(),
+                            g2,
+                            TEXTURE_SIZE,
+                            TEXTURE_SIZE,
+                            0);
+                        GL.IssuePluginEvent(StarfieldNative.CR_GetTextDispatchRenderEventFunc(), 0);
+                    }
                 }
-                
-                // Pass 2: render body next to initials (no clear)
-                g2 = StarfieldNative.CR_TextLayoutEx(_textSystem, label.Text, label.FontSizePixels, color, iw + hPadding, originY + bodyOriginY, label.LineSpacing);
-                if (g2 > 0)
+                finally
                 {
-                    StarfieldNative.CR_TextDispatchEx(
-                        _textSystem,
-                        label.Texture.GetNativeTexturePtr(),
-                        g2,
-                        TEXTURE_SIZE,
-                        TEXTURE_SIZE,
-                        0);
+                    // Always reset active render texture, even if an exception occurred
+                    RenderTexture.active = prevActive;
                 }
             }
             else
@@ -838,21 +854,34 @@ namespace CinematicShaders.Core
                 string displayText = anyCompressed ? string.Join("\n", processedLines) : label.Text;
                 
                 // Final layout with compressed text
-                int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, displayText, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing);
+                int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, displayText, label.FontSizePixels, color, 0.0f, TEXTURE_SIZE * 0.5f, label.LineSpacing, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
                 StarfieldNative.CR_TextGetBounds(_textSystem, out boundsWidth, out boundsHeight);
                 
                 // Re-layout with correct origin for final render
                 float originY = TEXTURE_SIZE - boundsHeight - vPadding;
-                glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, displayText, label.FontSizePixels, color, 0.0f, originY, label.LineSpacing);
+                glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, displayText, label.FontSizePixels, color, 0.0f, originY, label.LineSpacing, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
                 
-                // Render glyphs (clears texture)
-                StarfieldNative.CR_TextDispatchEx(
-                    _textSystem,
-                    label.Texture.GetNativeTexturePtr(),
-                    glyphCount,
-                    TEXTURE_SIZE,
-                    TEXTURE_SIZE,
-                    1);
+                // Render to texture with proper active texture handling (defensive try/finally)
+                RenderTexture prevActive = RenderTexture.active;
+                try
+                {
+                    RenderTexture.active = label.Texture;
+                    
+                    // Render glyphs (clears texture)
+                    StarfieldNative.CR_TextDispatchEx(
+                        _textSystem,
+                        label.Texture.GetNativeTexturePtr(),
+                        glyphCount,
+                        TEXTURE_SIZE,
+                        TEXTURE_SIZE,
+                        1);
+                    GL.IssuePluginEvent(StarfieldNative.CR_GetTextDispatchRenderEventFunc(), 0);
+                }
+                finally
+                {
+                    // Always reset active render texture, even if an exception occurred
+                    RenderTexture.active = prevActive;
+                }
             }
             
             // Calculate world size based on text aspect ratio

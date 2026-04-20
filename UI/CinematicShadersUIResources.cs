@@ -22,6 +22,47 @@ namespace CinematicShaders.UI
 
                 public static readonly Color[] All = { Seafoam, Amber, White, Green };
             }
+            
+            /// <summary>
+            /// CRT display colors - mapped from Kartographer grid color selection.
+            /// These are the colors used for the Star Console UI text.
+            /// </summary>
+            public static class CRTColors
+            {
+                public static readonly Color Seafoam = new Color(0.102f, 0.902f, 0.702f); // 26, 230, 179
+                public static readonly Color Amber   = new Color(1.000f, 0.651f, 0.000f); // 255, 166, 0
+                public static readonly Color White   = new Color(0.922f, 0.941f, 0.980f); // 235, 240, 250
+                public static readonly Color Green   = new Color(0.251f, 1.000f, 0.000f); // 64, 255, 0
+
+                public static readonly Color[] All = { Seafoam, Amber, White, Green };
+                
+                /// <summary>
+                /// Gets the CRT color based on the Kartographer grid color index.
+                /// </summary>
+                public static Color GetColor(int colorIndex)
+                {
+                    switch (colorIndex)
+                    {
+                        case 0: return Seafoam;
+                        case 1: return Amber;
+                        case 2: return White;
+                        case 3: return Green;
+                        default: return Seafoam;
+                    }
+                }
+                
+                /// <summary>
+                /// Gets the CRT color as a uint in ARGB format for native rendering.
+                /// </summary>
+                public static uint GetColorUint(int colorIndex)
+                {
+                    Color c = GetColor(colorIndex);
+                    uint r = (uint)(c.r * 255) & 0xFF;
+                    uint g = (uint)(c.g * 255) & 0xFF;
+                    uint b = (uint)(c.b * 255) & 0xFF;
+                    return 0xFF000000 | (r << 16) | (g << 8) | b;  // ARGB format (A=FF)
+                }
+            }
         }
         #endregion
 
@@ -81,6 +122,14 @@ namespace CinematicShaders.UI
             }
 
             public static GUIStyle TabButtonActive()
+            {
+                GUIStyle style = new GUIStyle(HighLogic.Skin.button);
+                style.normal.textColor = Colors.TOGGLE_ACTIVE_GREEN;
+                style.fontStyle = FontStyle.Bold;
+                return style;
+            }
+
+            public static GUIStyle ButtonActive()
             {
                 GUIStyle style = new GUIStyle(HighLogic.Skin.button);
                 style.normal.textColor = Colors.TOGGLE_ACTIVE_GREEN;

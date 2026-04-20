@@ -344,17 +344,30 @@ namespace CinematicShaders.Core
 
             uint white = 0xFFFFFFFF;
             int glyphCount = StarfieldNative.CR_TextLayoutEx(
-                textSystem, text, MANEUVER_FONT_SIZE, white, 0f, 0f, 0f);
+                textSystem, text, MANEUVER_FONT_SIZE, white, 0f, 0f, 0f, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
 
-            StarfieldNative.CR_TextDispatchEx(
-                textSystem,
-                _maneuverTextTexture.GetNativeTexturePtr(),
-                glyphCount,
-                MANEUVER_TEXT_WIDTH,
-                MANEUVER_TEXT_HEIGHT,
-                1);
+            // Render to texture with proper active texture handling
+            RenderTexture prevActive = RenderTexture.active;
+            try
+            {
+                RenderTexture.active = _maneuverTextTexture;
+                
+                StarfieldNative.CR_TextDispatchEx(
+                    textSystem,
+                    _maneuverTextTexture.GetNativeTexturePtr(),
+                    glyphCount,
+                    MANEUVER_TEXT_WIDTH,
+                    MANEUVER_TEXT_HEIGHT,
+                    1);
+                GL.IssuePluginEvent(StarfieldNative.CR_GetTextDispatchRenderEventFunc(), 0);
 
-            StarfieldNative.CR_SetManeuverTextTexture(_maneuverTextTexture.GetNativeTexturePtr());
+                StarfieldNative.CR_SetManeuverTextTexture(_maneuverTextTexture.GetNativeTexturePtr());
+            }
+            finally
+            {
+                // Always reset active render texture, even if an exception occurred
+                RenderTexture.active = prevActive;
+            }
             _maneuverTextDirty = false;
         }
 
@@ -389,7 +402,8 @@ namespace CinematicShaders.Core
             // Only operate in Flight scene with active vessel
             if (HighLogic.LoadedScene != GameScenes.FLIGHT)
             {
-                ModFileLogger.Log("[NavballLabelManager] Update - not in FLIGHT scene, disabling icons");
+                // Spammy log removed - called every frame outside FLIGHT scene
+                // ModFileLogger.Log("[NavballLabelManager] Update - not in FLIGHT scene, disabling icons");
                 DisableAllIcons();
                 return;
             }

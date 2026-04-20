@@ -441,7 +441,7 @@ namespace CinematicShaders.Core
             try
             {
                 string assemblyPath = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-                string fontPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(assemblyPath, "..", "PluginData", "Fonts", "Ac437_Rainbow100_re_66.ttf"));
+                string fontPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(assemblyPath, "..", "PluginData", "Fonts", "AcPlus_Rainbow100_re_66.ttf"));
 
                 if (!System.IO.File.Exists(fontPath)) return;
 
@@ -491,18 +491,31 @@ namespace CinematicShaders.Core
             if (string.IsNullOrEmpty(displayText)) return;
 
             uint color = 0xFFFFFFFF; // White ARGB
-            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, displayText, FONT_SIZE, color);
+            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, displayText, FONT_SIZE, 
+                color, 0f, 0f, 0f, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
             if (glyphCount <= 0) return;
 
             // Get actual rendered bounds
             StarfieldNative.CR_TextMeasure(_textSystem, displayText, FONT_SIZE, out _, out _);
             StarfieldNative.CR_TextGetBounds(_textSystem, out _textWidthPixels, out _textHeightPixels);
 
-            // Dispatch to texture
-            StarfieldNative.CR_TextDispatch(_textSystem, _textTexture.GetNativeTexturePtr(), glyphCount, 1024, 1024);
-            
-            // IMPORTANT: Set texture for shader sampling (use separate slot from star selector)
-            StarfieldNative.CR_SetVesselTargetTextTexture(_textTexture.GetNativeTexturePtr());
+            // Dispatch to texture with proper active texture handling
+            RenderTexture prevActive = RenderTexture.active;
+            try
+            {
+                RenderTexture.active = _textTexture;
+                
+                StarfieldNative.CR_TextDispatch(_textSystem, _textTexture.GetNativeTexturePtr(), glyphCount, 1024, 1024);
+                GL.IssuePluginEvent(StarfieldNative.CR_GetTextDispatchRenderEventFunc(), 0);
+                
+                // IMPORTANT: Set texture for shader sampling (use separate slot from star selector)
+                StarfieldNative.CR_SetVesselTargetTextTexture(_textTexture.GetNativeTexturePtr());
+            }
+            finally
+            {
+                // Always reset active render texture, even if an exception occurred
+                RenderTexture.active = prevActive;
+            }
         }
 
         /// <summary>

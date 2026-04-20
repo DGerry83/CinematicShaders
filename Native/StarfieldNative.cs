@@ -62,6 +62,9 @@ namespace CinematicShaders.Native
         public static extern int CR_TextGetGlyphCount(IntPtr textSystem);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern ushort CR_TextGetGlyphID(IntPtr textSystem, int codepoint);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_TextExportAtlas(IntPtr textSystem, [MarshalAs(UnmanagedType.LPStr)] string filename);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
@@ -83,7 +86,8 @@ namespace CinematicShaders.Native
             uint color,
             float originX,
             float originY,
-            float lineSpacing);
+            float lineSpacing,
+            float aspectRatio);  // NEW: aspect ratio parameter
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_TextDispatchEx(
@@ -105,6 +109,30 @@ namespace CinematicShaders.Native
         
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_ClearGridLabelSlot(int slot);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void CR_DrawConsoleGrid(
+            IntPtr textSystem,
+            IntPtr targetTexture,
+            [In] ConsoleCellInstanceNative[] cells,
+            int cellCount,
+            float displayX,
+            float displayY,
+            float displayW,
+            float displayH,
+            float fontSize,
+            uint color);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr CR_GetConsoleRenderEventFunc();
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr CR_GetTextDispatchRenderEventFunc();
+
+        /// <summary>
+        /// Draw a box outline on the CRT UI surface.
+        /// Call every frame while hovering. No persistent state.
+        /// </summary>
 
         [StructLayout(LayoutKind.Sequential)]
         public struct StarfieldSettingsNative
@@ -329,6 +357,25 @@ namespace CinematicShaders.Native
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern int CR_SetManeuverTextTexture(IntPtr texture);
+        
+        /// <summary>
+        /// STUB: Sets the box outline for click zone highlighting.
+        /// This function is not yet implemented in the native plugin.
+        /// Calls are silently ignored to prevent EntryPointNotFoundException.
+        /// TODO: Implement proper native function in C++ plugin.
+        /// See: ReferenceNotes/StarConsoleLayer3Debug/BOX_OUTLINE_FEATURE_SPEC.md
+        /// </summary>
+        /// <param name="enabled">1 to enable, 0 to disable</param>
+        /// <param name="xMin">Left coordinate (UV space)</param>
+        /// <param name="yMin">Top coordinate (UV space)</param>
+        /// <param name="xMax">Right coordinate (UV space)</param>
+        /// <param name="yMax">Bottom coordinate (UV space)</param>
+        public static void CR_SetBoxOutline(int enabled, float xMin, float yMin, float xMax, float yMax)
+        {
+            // STUB IMPLEMENTATION
+            // Native function not yet built. Feature deferred to dedicated implementation session.
+            // This prevents EntryPointNotFoundException while the feature is pending.
+        }
         
         /// <summary>
         /// Uploads 7 navball icon textures to the GPU as a texture array.

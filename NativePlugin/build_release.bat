@@ -92,14 +92,24 @@ if errorlevel 1 (
 
 echo Release build successful: build\CinematicShadersNative.dll
 
-REM Deploy to KSP test installation
-set DEPLOY_PATH=C:\SSDGames\KSPReleaseTest\GameData\CinematicShaders\PluginData
-if not exist "%DEPLOY_PATH%" mkdir "%DEPLOY_PATH%"
-copy /Y "build\CinematicShadersNative.dll" "%DEPLOY_PATH%\"
+REM Deploy to local repo GameData
+set "DEPLOY_PATH1=C:\Users\Matt\source\repos\CinematicShaders\GameData\CinematicShaders\PluginData"
+if not exist "%DEPLOY_PATH1%" mkdir "%DEPLOY_PATH1%"
+copy /Y "build\CinematicShadersNative.dll" "%DEPLOY_PATH1%\"
 if errorlevel 1 (
-    echo Deploy failed!
+    echo Deploy failed to local repo!
     exit /b 1
 )
-echo Deployed to: %DEPLOY_PATH%
+echo Deployed to: %DEPLOY_PATH1%
+
+REM Deploy to KSP test installation
+set "DEPLOY_PATH2=C:\SSDGames\KSPReleaseTest\GameData\CinematicShaders\PluginData"
+if not exist "%DEPLOY_PATH2%" mkdir "%DEPLOY_PATH2%"
+copy /Y "build\CinematicShadersNative.dll" "%DEPLOY_PATH2%\"
+if errorlevel 1 (
+    echo Deploy failed to test install!
+    exit /b 1
+)
+echo Deployed to: %DEPLOY_PATH2%
 
 endlocal

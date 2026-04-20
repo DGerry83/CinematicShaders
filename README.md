@@ -1,10 +1,12 @@
 ![Cinematic Shaders main banner showing the raw GTAO effect on one side and composited scene on the other](screenshots/CinematicShadersBanner2.png "Cinematic Shaders main banner")
-A shader mod for Kerbal Space Program 1.12 - GTAO and Starfield currently available, more planned...
+A shader mod for Kerbal Space Program 1.12+ - GTAO and Starfield currently available, more planned...
 
 ## Available Shaders
 
 - **GTAO (Ground-Truth Ambient Occlusion)** – Horizon-based occlusion with normal-aware filtering
 - **Starfield Catalog** - Catalog-based GPU-rendered stars.  No PNG, no pixelation.
+- **HUCK** - Holographic Universal Celestial Kartographer, a HUD that projects onto the background of the stars and can provide information about your current target, situation, show you navball indicators including a manuver burn indicator and retro-styled burn-bar, and also allows you to point-and-click to select stars and get more info about them.
+- **STAR console** System for Tabulation of Astrometric Records, the STAR console allows you to search through all selectable entries in your current catalog and allows you to edit the name of any star.  Rename real stars in Kerbal-style or name the stars one by one in your procedurally-generated sky.  Search for a star, click it, and see it selected on the sky so you can easily find it.
 
 ## Screenshots and Comparisons
 
@@ -52,6 +54,18 @@ But that's not all.  H.U.C.K. comes pre-loaded with a vast star catalog containi
 
 The Kartographer *requires* the starfield to be enabled in order to function, and you would not be able to access the star catalog data otherwise regardless.
 
+### STAR Console
+
+## What is it? ##
+
+The System for Tabulation of Astrometic Records is a terminal-style UI that allows you to search, select, and edit the names of any star in your current catalog.  If you're using a procedural catalog the STAR console gives you access to the scan function allowing you to build a star name catalog and then change their names however you want and select them on the sky just like the stars in the Hipparcos catalogs.  With over 3,000 real star names to search through, and the scan feature providing 5,000 nameable stars for your procedural catalogs, the STAR console opens up a new level of customization for your sky.
+
+**Screenshots**
+![A screenshot showing the splash screen and settings sliders for the STAR console](screenshots/STAR_1.png "The STAR Splash screen")
+![A screenshot showing editing of a star name in the STAR console](screenshots/STAR_2.png "Editing a star name")
+![A screenshot showing the search function in the STAR console](screenshots/STAR_3.png "Using the star search")
+
+
 ## Requirements
 
 - **KSP 1.12.x**
@@ -65,14 +79,14 @@ The folder structure should be: `GameData/CinematicShaders/`
 
 ## GTAO Usage
 
-1. **Open UI**: Click the wireframe sphere icon on the toolbar
-2. **Enable**: Check "Enable Ground-Truth AO" in the GTAO tab (only functional if Deferred is installed)
-3. **Adjust**:
-   - **Radius**: Search distance for occluders (0.5m–10m)
-   - **Intensity**: Shadow strength multiplier (0.0–2.0)
-   - **Shadow Spread**: Maximum pixel radius for shadows
-   - **Quality**: Preset controlling sample count (Low/Ultra)
-4. **Debug**: Use the "Debug Visualization" dropdown for Raw AO or normal buffer inspection
+1. Open UI: Click the wireframe sphere icon on the toolbar
+2. Enable: Check "Enable Ground-Truth AO" in the GTAO tab (only functional if Deferred is installed)
+3. Adjust:
+   - Radius: Search distance for occluders (0.5m–10m)
+   - Intensity: Shadow strength multiplier (0.0–2.0)
+   - Shadow Spread: Maximum pixel radius for shadows
+   - Quality: Preset controlling sample count (Low/Ultra)
+4. Debug: Use the "Debug Visualization" dropdown for Raw AO or normal buffer inspection
 
 ## Starfield Usage
 1. Open the Cinematic Shaders UI from the toolbar button
@@ -86,11 +100,19 @@ The folder structure should be: `GameData/CinematicShaders/`
 3. Choose the visualizer options you want and optionally customize their appearance
 4. Starfield MUST be enabled!
 
+## STAR Console Usage
+1. Click the Cinematic Shaders UI from the toolbar button
+2. Switch to the Kartographer tab, and click on the STAR console button.
+3. (optional) choose a screen size at the bottom of the tab.
+4. Click PWR to turn the UI on, navigate as per the on-screen info.
+
 ## Known Issues
 
 - **GTAO** - There's currently an issue with the AO processing that I'll detail in a separate KnownIssues.md file.  It affects the overall rendering and may be more noticeable in some scenes than others.
 - **Starfield** - Some stars may experience some "z-fighting" which causes minor flickering/twinkling.
 - **Starfield** - per-save settings are currently not functioning correctly, so your settings will persist across saves - this is incorrect, as the intent is to allow each save to have its own sky based on your choices.
+- **Starfield and Singularity conflict** - Major issues with Singularity, some of which may be mitigated by installing TUFX.  This is an ongoing investigation.
+
 
 ## License
 
@@ -117,7 +139,7 @@ any terms you choose.
 All navball icon assets(the sdf pngs and the svg source files in the assets\ folder) are licensed under the above MIT license terms.  You are free to use, modify, copy, distribute them as you wish without attribution.
 
 **Font**
-The DEC Rainbow 100 Font, Ac437_Rainbow100_re_66.ttf, found in the FONTS folder is licensed under CC-BY-SA-4.0 https://creativecommons.org/licenses/by-sa/4.0/ from 
+The DEC Rainbow 100 Font, AcPlus_Rainbow100_re_66.ttf, found in the FONTS folder is licensed under CC-BY-SA-4.0 https://creativecommons.org/licenses/by-sa/4.0/ from 
 https://int10h.org/oldschool-pc-fonts/  The Oldschool PC Font Resource.
 
 Under CC-BY-SA-4.0 You are free to:

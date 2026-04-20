@@ -257,6 +257,43 @@ namespace CinematicShaders.UI
             public const string ColorWhite = "White";
             public const string ColorGreen = "Green";
             public static readonly string[] ColorNames = { ColorSeafoam, ColorAmber, ColorWhite, ColorGreen };
+
+            // ------------------------------------------------------------------------
+            // STAR CATALOG EDITOR
+            // ------------------------------------------------------------------------
+            public const string StarCatalogEditorTitle = "STAR CATALOG EDITOR";
+            public const string StarConsoleToggle = " ▼ Star Console";
+            public const string StarConsoleAudioSection = " ▼ Star Console Audio";
+            public const string StarConsoleVolumeFormat = "Volume: {0:F0}%";
+            
+            // Holographic Display Mode
+            public const string DisplayModeLabel = "Star Console Display Mode:";
+            public const string DisplayModeLegacy = "Legacy";
+            public const string DisplayModeSmall = "Small";
+            public const string DisplayModeMedium = "Medium";
+            public const string DisplayModeLarge = "Large";
+            public const string SearchLabel = "SEARCH:";
+            public const string SelectStarPrompt = "SELECT A STAR TO EDIT";
+            
+            // FIELD ORDER: HIP, NAME, DISTANCE, SPECTRAL, MAGNITUDE, CONSTELLATION
+            public const string HipLabel = "HIP:";
+            public const string NameLabel = "NAME:";
+            public const string DistanceLabel = "DISTANCE:";
+            public const string SpectralLabel = "SPECTRAL:";
+            public const string MagnitudeLabel = "MAGNITUDE:";
+            public const string ConstellationLabel = "CONSTELLATION:";
+            
+            public const string SaveButton = "SAVE";
+            public const string ResetNameButton = "RESET";
+            public const string EditNamePrompt = "EDIT NAME:";
+            
+            // Empty States
+            public const string EnterTermsMessage = "ENTER TERMS";
+            public const string NoResultMessage = "NO RESULT";
+            
+            // Star Catalog Scan
+            public const string ScanButton = "SCAN";
+            public const string ScanHelpText = "NO JSON FOUND - CLICK SCAN TO CREATE";
         }
     }
 }

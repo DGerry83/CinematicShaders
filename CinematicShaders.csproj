@@ -46,6 +46,9 @@
     <Compile Include="Core\AtmosphericScatteringData.cs" />
     <Compile Include="Core\CinematicShadersAddon.cs" />
     <Compile Include="Core\GTAOSettings.cs" />
+    <Compile Include="Core\MiniJSON.cs" />
+    <Compile Include="Core\AudioGroup.cs" />
+    <Compile Include="Core\ModAudioManager.cs" />
     <Compile Include="Core\ModFileLogger.cs" />
     <Compile Include="Core\KartographerMath.cs" />
     <Compile Include="Core\KartographerSelector.cs" />
@@ -53,6 +56,8 @@
     <Compile Include="Core\VesselTargetSelector.cs" />
     <Compile Include="Core\StarCatalogInfo.cs" />
     <Compile Include="Core\StarCatalogManager.cs" />
+    <Compile Include="Core\StarCatalogStateManager.cs" />
+    <Compile Include="Core\StarSearchUtility.cs" />
     <Compile Include="Core\StarfieldPerSaveSettings.cs" />
 
     <Compile Include="Core\StarfieldSettings.cs" />
@@ -61,11 +66,14 @@
     <Compile Include="Core\KSPCubemapInjector.cs" />
     <Compile Include="Core\CubemapGenerationScheduler.cs" />
     <Compile Include="Core\GridLabelSystem.cs" />
+    <Compile Include="Core\ClickZone.cs" />
     <Compile Include="Native\DllLoader.cs" />
     <Compile Include="Native\GTAONative.cs" />
 
     <Compile Include="Native\StarfieldNative.cs" />
     <Compile Include="Native\StructDefs\KartographerParams.cs" />
+    <Compile Include="Native\StructDefs\ConsoleCellInstance.cs" />
+    <Compile Include="Native\StructDefs\ConsoleConstants.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Shaders\GTAO\GTAOCompositor.cs" />
     <Compile Include="Shaders\GTAO\GTAOManager.cs" />
@@ -75,17 +83,69 @@
     <Compile Include="UI\CinematicShadersUIResources.cs" />
     <Compile Include="UI\CinematicShadersUIStrings.cs" />
     <Compile Include="UI\CinematicShadersWindow.cs" />
+    <Compile Include="UI\GridTypes.cs" />
+    <Compile Include="UI\HolographicLayoutConfig.cs" />
+    <Compile Include="UI\HolographicTextElement.cs" />
+    <Compile Include="UI\TerminalGridConfig.cs" />
+    <Compile Include="UI\UnifiedGridConfig.cs" />
+
+    <Compile Include="UI\StarCatalogEditorWindow.cs" />
+    <Compile Include="UI\StarCatalogHolographicDisplay.cs" />
     <Compile Include="UI\Tabs\GTAOTab.cs" />
     <Compile Include="UI\Tabs\GridLabelDebugUI.cs" />
     <Compile Include="UI\Tabs\KartographerTab.cs" />
     <Compile Include="UI\Tabs\StarfieldTab.cs" />
+
+    <Compile Include="UI\Screens\IClickHandler.cs" />
+    <Compile Include="UI\Screens\ILayer.cs" />
+    <Compile Include="UI\Screens\IScreen.cs" />
+    <Compile Include="UI\Screens\ClickZoneManager.cs" />
+    <Compile Include="UI\Screens\ClickZoneInputProcessor.cs" />
+    <Compile Include="UI\Screens\SimpleClickZone.cs" />
+    <Compile Include="UI\Screens\ScreenTransitionContext.cs" />
+    <Compile Include="UI\Screens\ScreenManager.cs" />
+    <Compile Include="UI\Screens\BaseScreen.cs" />
+    <Compile Include="UI\Screens\Layers\BorderLayer.cs" />
+    <Compile Include="UI\Screens\Layers\ContentLayer.cs" />
+    <Compile Include="UI\Screens\Layers\ElementLayer.cs" />
+    <Compile Include="UI\Screens\ConfirmRescanClickHandler.cs" />
+    <Compile Include="UI\Screens\MainScreenClickHandler.cs" />
+    <Compile Include="UI\Screens\MainScreen.cs" />
+    <Compile Include="UI\Screens\ScanScreen.cs" />
+    <Compile Include="UI\Screens\ScanScreenClickHandler.cs" />
+    <Compile Include="UI\Screens\SplashScreen.cs" />
+    <Compile Include="UI\Screens\ConfirmRescanScreen.cs" />
+    <Compile Include="UI\Screens\MainScreenHandler.cs" />
+    <Compile Include="UI\Screens\ScanScreenHandler.cs" />
+    <Compile Include="UI\Screens\ConfirmRescanHandler.cs" />
+    <Compile Include="UI\State\StarConsoleServices.cs" />
+    <Compile Include="UI\State\ScreenRouter.cs" />
+    <Compile Include="UI\Content\IScreenContent.cs" />
+    <Compile Include="UI\Content\MainScreenContent.cs" />
+    <Compile Include="UI\Content\ScanScreenContent.cs" />
+    <Compile Include="UI\Content\ConfirmRescanScreenContent.cs" />
+    <Compile Include="UI\Layout\Constraint.cs" />
+    <Compile Include="UI\Layout\LayoutEngine.cs" />
+    <Compile Include="UI\Layout\ILayout.cs" />
+    <Compile Include="UI\Layout\RectExtensions.cs" />
+
+    <Compile Include="UI\Layout\ScreenLayouts\MainScreenLayout.cs" />
+    <Compile Include="UI\Layout\ScreenLayouts\ScanScreenLayout.cs" />
+    <Compile Include="UI\Layout\ScreenLayouts\ConfirmRescanScreenLayout.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="KSPBuildTools">
       <Version>1.1.1</Version>
     </PackageReference>
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <None Include="Sounds\StarJingle.ogg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Sounds\typingsound.ogg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>if exist "$(ProjectDir)copy_dll.bat" (

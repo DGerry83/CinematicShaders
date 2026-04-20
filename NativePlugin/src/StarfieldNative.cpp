@@ -1,6 +1,8 @@
 #include "StarfieldNative.h"
 #include "GalaxyCamCompositor.h"
 #include "TextSystem.h"
+#include "ConsoleCellInstance_generated.h"
+#include "ConsoleConstants_generated.h"
 #include "../include/StarfieldPass1.h"
 #include "../include/StarfieldPass2.h"
 #include "../include/StarfieldVS.h"
@@ -12,13 +14,27 @@
 #include "../include/KartographerVS.h"
 #include "../include/KartographerPS.h"
 #include "../include/KartographerText.h"
+#include "../include/ConsoleVS.h"
+#include "../include/ConsolePS.h"
 #include <vector>
 #include <mutex>
 #include <algorithm>
 #include <cmath>
+#include <unordered_map>
 
 // External declarations from main module
 extern void LogToFile(const char* fmt, ...);
+
+
+struct TextDispatchJob {
+    void* textSystem = nullptr;
+    ID3D11Texture2D* outputTexture = nullptr;
+    int glyphCount = 0;
+    int outputWidth = 0;
+    int outputHeight = 0;
+    int clearOutput = 0;  // 0 for CR_TextDispatch (always clear), 1/0 for CR_TextDispatchEx
+    std::vector<CinematicShaders::GlyphInstance> glyphSnapshot;  // Captured at queue time to avoid race with CR_TextLayoutEx
+};
 
 static struct {
     ID3D11Device* device = nullptr;
@@ -274,6 +290,45 @@ static struct {
         uint32_t color = 0;
     };
     GridLabelSlot gridLabelSlots[12];
+    
+    // Console instanced renderer resources
+    ID3D11Buffer* consoleQuadVB = nullptr;
+    ID3D11Buffer* consoleQuadIB = nullptr;
+    ID3D11Buffer* consoleInstanceVB = nullptr;
+    ID3D11InputLayout* consoleInputLayout = nullptr;
+    ID3D11VertexShader* consoleVS = nullptr;
+    ID3D11PixelShader* consolePS = nullptr;
+    ID3D11Buffer* consoleConstantsCB = nullptr;
+    ID3D11SamplerState* consoleSampler = nullptr;
+    ID3D11BlendState* consoleBlendState = nullptr;
+    bool consoleRendererInitialized = false;
+    
+    // Cached catalog SRV to avoid per-frame recreation
+    ID3D11ShaderResourceView* catalogSRV = nullptr;
+    
+    // Cached UAVs for text dispatch to avoid CreateUnorderedAccessView per frame
+    std::unordered_map<ID3D11Texture2D*, ID3D11UnorderedAccessView*> textUAVCache;
+    
+    // Console render staging
+    struct ConsoleDrawJob {
+        ConsoleCellInstance cells[767];
+        int cellCount = 0;
+        float displayX = 0;
+        float displayY = 0;
+        float displayW = 0;
+        float displayH = 0;
+        float fontSize = 0;
+        uint32_t color = 0;
+        void* textSystem = nullptr;
+        ID3D11Texture2D* targetTexture = nullptr;
+        bool hasData = false;
+    } consoleDrawJob;
+    
+    // Cached console RTV (avoids per-frame CreateRenderTargetView crash)
+    ID3D11RenderTargetView* consoleRTV = nullptr;
+    ID3D11Texture2D* consoleRTTexture = nullptr;
+    
+    std::vector<TextDispatchJob> textDispatchQueue;
 } g_StarfieldState;
 
 // Constant buffer layouts (must match HLSL exactly, 16-byte aligned)
@@ -1260,19 +1315,9 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         context->Unmap(g_StarfieldState.pass1CB, 0);
     }
     
-    // Create SRV for catalog buffer
-    ID3D11ShaderResourceView* catalogSRV = nullptr;
-    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-    srvDesc.Buffer.ElementOffset = 0;
-    srvDesc.Buffer.ElementWidth = sizeof(StarData);
-    srvDesc.Buffer.NumElements = g_StarfieldState.catalogSize;
-    
-    HRESULT hr = device->CreateShaderResourceView(g_StarfieldState.starCatalogBuffer, &srvDesc, &catalogSRV);
-    if (FAILED(hr) || !catalogSRV) {
-        LogToFile("[Starfield] Failed to create catalog SRV (0x%08X)", hr);
-        if (catalogSRV) catalogSRV->Release();
+    // Validate cached catalog SRV
+    if (!g_StarfieldState.catalogSRV) {
+        LogToFile("[Starfield] catalogSRV is null, aborting render");
         currentRTV->Release();
         if (currentDSV) currentDSV->Release();
         device->Release();
@@ -1282,7 +1327,7 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
     // Setup compute shader
     context->CSSetShader(g_StarfieldState.pass1CS, nullptr, 0);
     context->CSSetConstantBuffers(0, 1, &g_StarfieldState.pass1CB);
-    context->CSSetShaderResources(0, 1, &catalogSRV);
+    context->CSSetShaderResources(0, 1, &g_StarfieldState.catalogSRV);
     ID3D11UnorderedAccessView* uavs[1] = {g_StarfieldState.hdrUAV};
     context->CSSetUnorderedAccessViews(0, 1, uavs, nullptr);
     
@@ -1296,7 +1341,6 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
     context->CSSetUnorderedAccessViews(0, 1, nullUAV, nullptr);
     context->CSSetShaderResources(0, 1, nullSRV);
     context->CSSetShader(nullptr, nullptr, 0);
-    catalogSRV->Release();
     
     // ===== PASS 2: Composite HDR to Screen =====
     // Update Pass 2 constant buffer
@@ -1394,10 +1438,12 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
         
         // Bind text texture to slot t2 if available
         if (g_StarfieldState.textTextureSRV) {
-            LogToFile("[Text] Binding text texture SRV %p to PS slot t2", g_StarfieldState.textTextureSRV);
+            // Logging disabled - too spammy, called every frame
+            // LogToFile("[Text] Binding text texture SRV %p to PS slot t2", g_StarfieldState.textTextureSRV);
             context->PSSetShaderResources(2, 1, &g_StarfieldState.textTextureSRV);
         } else {
-            LogToFile("[Text] No text texture SRV available (null), nothing bound to t2");
+            // Logging disabled - too spammy
+            // LogToFile("[Text] No text texture SRV available (null), nothing bound to t2");
         }
         
         // Bind grid label textures to slots t3-t14
@@ -2435,119 +2481,25 @@ void CR_TextDispatch(
         return;
     }
     
-    CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(textSystem);
-    
-    // Ensure glyph buffer is created and populated
-    ID3D11Buffer* glyphBuffer = ts->GetOrCreateGlyphBuffer();
-    if (!glyphBuffer) {
-        return;
-    }
-    
-    ID3D11ShaderResourceView* glyphSRV = ts->GetGlyphBufferSRV();
-    if (!glyphSRV) {
-        return;
-    }
-    
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     
-    if (!g_StarfieldState.device) {
-        return;
+    TextDispatchJob job;
+    job.textSystem = textSystem;
+    job.outputTexture = outputTexture;
+    job.glyphCount = glyphCount;
+    job.outputWidth = outputWidth;
+    job.outputHeight = outputHeight;
+    job.clearOutput = 1;  // CR_TextDispatch always clears
+    
+    // Capture glyph snapshot to prevent race with subsequent CR_TextLayoutEx calls
+    CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(textSystem);
+    const CinematicShaders::GlyphInstance* glyphPtr = ts->GetGlyphPtr();
+    if (glyphPtr && glyphCount > 0) {
+        job.glyphSnapshot.resize(glyphCount);
+        memcpy(job.glyphSnapshot.data(), glyphPtr, glyphCount * sizeof(CinematicShaders::GlyphInstance));
     }
     
-    ID3D11DeviceContext* context = nullptr;
-    g_StarfieldState.device->GetImmediateContext(&context);
-    if (!context) {
-        return;
-    }
-    
-    // Create compute shader if not already created
-    if (!g_StarfieldState.textCS) {
-        HRESULT hr = g_StarfieldState.device->CreateComputeShader(
-            g_KartographerTextCS, sizeof(g_KartographerTextCS), nullptr, &g_StarfieldState.textCS);
-        if (FAILED(hr)) {
-            context->Release();
-            return;
-        }
-    }
-    
-    // Create constant buffer if not already created
-    if (!g_StarfieldState.textCB) {
-        D3D11_BUFFER_DESC cbDesc = {};
-        cbDesc.ByteWidth = sizeof(TextParams);
-        cbDesc.Usage = D3D11_USAGE_DYNAMIC;
-        cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-        cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        g_StarfieldState.device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.textCB);
-    }
-    
-    // Create sampler if not already created
-    if (!g_StarfieldState.textSampler) {
-        D3D11_SAMPLER_DESC sampDesc = {};
-        sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-        sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-        sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-        sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-        g_StarfieldState.device->CreateSamplerState(&sampDesc, &g_StarfieldState.textSampler);
-    }
-    
-    // Create UAV for output texture
-    ID3D11UnorderedAccessView* outputUAV = nullptr;
-    D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-    uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
-    HRESULT hr = g_StarfieldState.device->CreateUnorderedAccessView(outputTexture, &uavDesc, &outputUAV);
-    if (FAILED(hr)) {
-        context->Release();
-        return;
-    }
-    
-    // Get atlas texture from text system
-    ID3D11ShaderResourceView* atlasSRV = ts->GetAtlasSRV();
-    if (!atlasSRV) {
-        outputUAV->Release();
-        context->Release();
-        return;
-    }
-    
-    // Update constant buffer
-    D3D11_MAPPED_SUBRESOURCE mapped;
-    if (SUCCEEDED(context->Map(g_StarfieldState.textCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
-        TextParams* params = (TextParams*)mapped.pData;
-        params->GlyphCount = glyphCount;
-        params->OutputSizeX = (float)outputWidth;
-        params->OutputSizeY = (float)outputHeight;
-        params->Pad = 0.0f;
-        context->Unmap(g_StarfieldState.textCB, 0);
-    }
-    
-    // Clear output texture
-    UINT clearColor[4] = {0, 0, 0, 0};
-    context->ClearUnorderedAccessViewUint(outputUAV, clearColor);
-    
-    // Set compute shader and resources
-    context->CSSetShader(g_StarfieldState.textCS, nullptr, 0);
-    context->CSSetConstantBuffers(0, 1, &g_StarfieldState.textCB);
-    ID3D11ShaderResourceView* srvs[2] = {atlasSRV, glyphSRV}; // t0 = atlas, t1 = glyph buffer
-    context->CSSetShaderResources(0, 2, srvs);
-    context->CSSetSamplers(0, 1, &g_StarfieldState.textSampler);
-    
-    ID3D11UnorderedAccessView* uavs[1] = {outputUAV};
-    context->CSSetUnorderedAccessViews(0, 1, uavs, nullptr);
-    
-    // Dispatch compute shader
-    UINT dispatchX = (outputWidth + 15) / 16;
-    UINT dispatchY = (outputHeight + 15) / 16;
-    context->Dispatch(dispatchX, dispatchY, 1);
-    
-    // Unbind resources
-    ID3D11UnorderedAccessView* nullUAV[1] = {nullptr};
-    ID3D11ShaderResourceView* nullSRV[2] = {nullptr, nullptr};
-    context->CSSetUnorderedAccessViews(0, 1, nullUAV, nullptr);
-    context->CSSetShaderResources(0, 2, nullSRV);
-    context->CSSetShader(nullptr, nullptr, 0);
-    
-    outputUAV->Release();
-    context->Release();
+    g_StarfieldState.textDispatchQueue.push_back(job);
 }
 
 extern "C" __declspec(dllexport)
@@ -2564,121 +2516,128 @@ void CR_TextDispatchEx(
         return;
     }
     
-    CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(textSystem);
-    
-    // Ensure glyph buffer is created and populated
-    ID3D11Buffer* glyphBuffer = ts->GetOrCreateGlyphBuffer();
-    if (!glyphBuffer) {
-        return;
-    }
-    
-    ID3D11ShaderResourceView* glyphSRV = ts->GetGlyphBufferSRV();
-    if (!glyphSRV) {
-        return;
-    }
-    
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     
-    if (!g_StarfieldState.device) {
-        return;
+    TextDispatchJob job;
+    job.textSystem = textSystem;
+    job.outputTexture = outputTexture;
+    job.glyphCount = glyphCount;
+    job.outputWidth = outputWidth;
+    job.outputHeight = outputHeight;
+    job.clearOutput = clearOutput;
+    
+    // Capture glyph snapshot to prevent race with subsequent CR_TextLayoutEx calls
+    CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(textSystem);
+    const CinematicShaders::GlyphInstance* glyphPtr = ts->GetGlyphPtr();
+    if (glyphPtr && glyphCount > 0) {
+        job.glyphSnapshot.resize(glyphCount);
+        memcpy(job.glyphSnapshot.data(), glyphPtr, glyphCount * sizeof(CinematicShaders::GlyphInstance));
     }
     
-    ID3D11DeviceContext* context = nullptr;
-    g_StarfieldState.device->GetImmediateContext(&context);
-    if (!context) {
-        return;
-    }
-    
-    // Create compute shader if not already created
-    if (!g_StarfieldState.textCS) {
-        HRESULT hr = g_StarfieldState.device->CreateComputeShader(
-            g_KartographerTextCS, sizeof(g_KartographerTextCS), nullptr, &g_StarfieldState.textCS);
-        if (FAILED(hr)) {
-            context->Release();
-            return;
-        }
-    }
-    
-    // Create constant buffer if not already created
-    if (!g_StarfieldState.textCB) {
-        D3D11_BUFFER_DESC cbDesc = {};
-        cbDesc.ByteWidth = sizeof(TextParams);
-        cbDesc.Usage = D3D11_USAGE_DYNAMIC;
-        cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-        cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        g_StarfieldState.device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.textCB);
-    }
-    
-    // Create sampler if not already created
-    if (!g_StarfieldState.textSampler) {
-        D3D11_SAMPLER_DESC sampDesc = {};
-        sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-        sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-        sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-        sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-        g_StarfieldState.device->CreateSamplerState(&sampDesc, &g_StarfieldState.textSampler);
-    }
-    
-    // Create UAV for output texture
-    ID3D11UnorderedAccessView* outputUAV = nullptr;
-    D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-    uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
-    HRESULT hr = g_StarfieldState.device->CreateUnorderedAccessView(outputTexture, &uavDesc, &outputUAV);
-    if (FAILED(hr)) {
-        context->Release();
-        return;
-    }
-    
-    // Get atlas texture from text system
-    ID3D11ShaderResourceView* atlasSRV = ts->GetAtlasSRV();
-    if (!atlasSRV) {
-        outputUAV->Release();
-        context->Release();
-        return;
-    }
-    
-    // Update constant buffer
-    D3D11_MAPPED_SUBRESOURCE mapped;
-    if (SUCCEEDED(context->Map(g_StarfieldState.textCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
-        TextParams* params = (TextParams*)mapped.pData;
-        params->GlyphCount = glyphCount;
-        params->OutputSizeX = (float)outputWidth;
-        params->OutputSizeY = (float)outputHeight;
-        params->Pad = 0.0f;
-        context->Unmap(g_StarfieldState.textCB, 0);
-    }
-    
-    // Clear output texture only if requested
-    if (clearOutput != 0) {
-        UINT clearColor[4] = {0, 0, 0, 0};
-        context->ClearUnorderedAccessViewUint(outputUAV, clearColor);
-    }
-    
-    // Set compute shader and resources
-    context->CSSetShader(g_StarfieldState.textCS, nullptr, 0);
-    context->CSSetConstantBuffers(0, 1, &g_StarfieldState.textCB);
-    ID3D11ShaderResourceView* srvs[2] = {atlasSRV, glyphSRV}; // t0 = atlas, t1 = glyph buffer
-    context->CSSetShaderResources(0, 2, srvs);
-    context->CSSetSamplers(0, 1, &g_StarfieldState.textSampler);
-    
-    ID3D11UnorderedAccessView* uavs[1] = {outputUAV};
-    context->CSSetUnorderedAccessViews(0, 1, uavs, nullptr);
-    
-    // Dispatch compute shader
-    UINT dispatchX = (outputWidth + 15) / 16;
-    UINT dispatchY = (outputHeight + 15) / 16;
-    context->Dispatch(dispatchX, dispatchY, 1);
-    
-    // Unbind resources
-    ID3D11UnorderedAccessView* nullUAV[1] = {nullptr};
-    ID3D11ShaderResourceView* nullSRV[2] = {nullptr, nullptr};
-    context->CSSetUnorderedAccessViews(0, 1, nullUAV, nullptr);
-    context->CSSetShaderResources(0, 2, nullSRV);
-    context->CSSetShader(nullptr, nullptr, 0);
-    
-    outputUAV->Release();
-    context->Release();
+    g_StarfieldState.textDispatchQueue.push_back(job);
+}
+
+// Console renderer lazy initialization
+static bool EnsureConsoleRenderer(ID3D11Device* device) {
+    if (g_StarfieldState.consoleRendererInitialized)
+        return true;
+
+    // Unit quad (4 vertices, 6 indices)
+    struct QuadVertex {
+        float pos[2];
+        float uv[2];
+    };
+    QuadVertex vertices[] = {
+        { {0.0f, 0.0f}, {0.0f, 0.0f} },
+        { {1.0f, 0.0f}, {1.0f, 0.0f} },
+        { {1.0f, 1.0f}, {1.0f, 1.0f} },
+        { {0.0f, 1.0f}, {0.0f, 1.0f} },
+    };
+    uint16_t indices[] = { 0, 1, 2, 0, 2, 3 };
+
+    D3D11_BUFFER_DESC vbDesc = {};
+    vbDesc.ByteWidth = sizeof(vertices);
+    vbDesc.Usage = D3D11_USAGE_IMMUTABLE;
+    vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    D3D11_SUBRESOURCE_DATA vbData = { vertices, 0, 0 };
+    if (FAILED(device->CreateBuffer(&vbDesc, &vbData, &g_StarfieldState.consoleQuadVB)))
+        return false;
+
+    D3D11_BUFFER_DESC ibDesc = {};
+    ibDesc.ByteWidth = sizeof(indices);
+    ibDesc.Usage = D3D11_USAGE_IMMUTABLE;
+    ibDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+    D3D11_SUBRESOURCE_DATA ibData = { indices, 0, 0 };
+    if (FAILED(device->CreateBuffer(&ibDesc, &ibData, &g_StarfieldState.consoleQuadIB)))
+        return false;
+
+    D3D11_BUFFER_DESC instDesc = {};
+    instDesc.ByteWidth = 767 * sizeof(ConsoleCellInstance); // max console cells
+    instDesc.Usage = D3D11_USAGE_DYNAMIC;
+    instDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    instDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    if (FAILED(device->CreateBuffer(&instDesc, nullptr, &g_StarfieldState.consoleInstanceVB)))
+        return false;
+
+    D3D11_BUFFER_DESC cbDesc = {};
+    cbDesc.ByteWidth = sizeof(ConsoleConstants);
+    cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+    cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    if (FAILED(device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.consoleConstantsCB)))
+        return false;
+
+    D3D11_INPUT_ELEMENT_DESC layoutDesc[] = {
+        { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,       0, 0,  D3D11_INPUT_PER_VERTEX_DATA,   0 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, 8,  D3D11_INPUT_PER_VERTEX_DATA,   0 },
+        { "TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT,       1, 0,  D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 2, DXGI_FORMAT_R32G32_FLOAT,       1, 8,  D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 4, DXGI_FORMAT_R32_UINT,           1, 32, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+    };
+    if (FAILED(device->CreateInputLayout(layoutDesc, ARRAYSIZE(layoutDesc), g_ConsoleVS, sizeof(g_ConsoleVS), &g_StarfieldState.consoleInputLayout)))
+        return false;
+
+    if (FAILED(device->CreateVertexShader(g_ConsoleVS, sizeof(g_ConsoleVS), nullptr, &g_StarfieldState.consoleVS)))
+        return false;
+    if (FAILED(device->CreatePixelShader(g_ConsolePS, sizeof(g_ConsolePS), nullptr, &g_StarfieldState.consolePS)))
+        return false;
+
+    D3D11_SAMPLER_DESC sampDesc = {};
+    sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+    sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+    sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+    sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+    if (FAILED(device->CreateSamplerState(&sampDesc, &g_StarfieldState.consoleSampler)))
+        return false;
+
+    D3D11_BLEND_DESC blendDesc = {};
+    blendDesc.RenderTarget[0].BlendEnable = TRUE;
+    blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+    blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+    blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+    blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+    blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+    blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+    blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+    if (FAILED(device->CreateBlendState(&blendDesc, &g_StarfieldState.consoleBlendState)))
+        return false;
+
+    g_StarfieldState.consoleRendererInitialized = true;
+    return true;
+}
+
+static void ReleaseConsoleRenderer() {
+    if (g_StarfieldState.consoleBlendState) { g_StarfieldState.consoleBlendState->Release(); g_StarfieldState.consoleBlendState = nullptr; }
+    if (g_StarfieldState.consoleSampler) { g_StarfieldState.consoleSampler->Release(); g_StarfieldState.consoleSampler = nullptr; }
+    if (g_StarfieldState.consolePS) { g_StarfieldState.consolePS->Release(); g_StarfieldState.consolePS = nullptr; }
+    if (g_StarfieldState.consoleVS) { g_StarfieldState.consoleVS->Release(); g_StarfieldState.consoleVS = nullptr; }
+    if (g_StarfieldState.consoleInputLayout) { g_StarfieldState.consoleInputLayout->Release(); g_StarfieldState.consoleInputLayout = nullptr; }
+    if (g_StarfieldState.consoleConstantsCB) { g_StarfieldState.consoleConstantsCB->Release(); g_StarfieldState.consoleConstantsCB = nullptr; }
+    if (g_StarfieldState.consoleInstanceVB) { g_StarfieldState.consoleInstanceVB->Release(); g_StarfieldState.consoleInstanceVB = nullptr; }
+    if (g_StarfieldState.consoleQuadIB) { g_StarfieldState.consoleQuadIB->Release(); g_StarfieldState.consoleQuadIB = nullptr; }
+    if (g_StarfieldState.consoleQuadVB) { g_StarfieldState.consoleQuadVB->Release(); g_StarfieldState.consoleQuadVB = nullptr; }
+    g_StarfieldState.consoleRendererInitialized = false;
 }
 
 extern "C" __declspec(dllexport)
@@ -3502,6 +3461,7 @@ void CR_StarfieldSetCameraMatrices(ID3D11Texture2D* deviceSourceTexture, int wid
                 g_StarfieldState.catalogNeedsReload = true;
                 LogToFile("[Starfield] Device acquired with empty catalog, flagging for reload");
             }
+            device->Release();
         }
     }
     // If device is already acquired but dimensions changed, recreate resources
@@ -3576,6 +3536,7 @@ void CR_StarfieldShutdown()
             g_StarfieldState.catalogSize = 0;
             g_StarfieldState.catalogCapacity = 0;
         }
+        if (g_StarfieldState.catalogSRV) { g_StarfieldState.catalogSRV->Release(); g_StarfieldState.catalogSRV = nullptr; }
         g_StarfieldState.catalogDataCPU.clear();
     if (g_StarfieldState.pass2CB) { g_StarfieldState.pass2CB->Release(); g_StarfieldState.pass2CB = nullptr; }
 
@@ -3607,8 +3568,36 @@ void CR_StarfieldShutdown()
         }
     }
     
+    // Cleanup grid label slot SRVs
+    for (int i = 0; i < 12; i++) {
+        if (g_StarfieldState.gridLabelSlots[i].textureSRV) {
+            g_StarfieldState.gridLabelSlots[i].textureSRV->Release();
+            g_StarfieldState.gridLabelSlots[i].textureSRV = nullptr;
+        }
+        g_StarfieldState.gridLabelSlots[i].isActive = false;
+    }
+    
+    if (g_StarfieldState.kartographerVS) { g_StarfieldState.kartographerVS->Release(); g_StarfieldState.kartographerVS = nullptr; }
+    if (g_StarfieldState.kartographerPS) { g_StarfieldState.kartographerPS->Release(); g_StarfieldState.kartographerPS = nullptr; }
+    if (g_StarfieldState.kartographerBlendState) { g_StarfieldState.kartographerBlendState->Release(); g_StarfieldState.kartographerBlendState = nullptr; }
+    if (g_StarfieldState.kartographerCB) { g_StarfieldState.kartographerCB->Release(); g_StarfieldState.kartographerCB = nullptr; }
+    
+    if (g_StarfieldState.textCS) { g_StarfieldState.textCS->Release(); g_StarfieldState.textCS = nullptr; }
+    if (g_StarfieldState.textCB) { g_StarfieldState.textCB->Release(); g_StarfieldState.textCB = nullptr; }
+    if (g_StarfieldState.textSampler) { g_StarfieldState.textSampler->Release(); g_StarfieldState.textSampler = nullptr; }
+    for (auto& pair : g_StarfieldState.textUAVCache) {
+        if (pair.second) pair.second->Release();
+    }
+    g_StarfieldState.textUAVCache.clear();
+    
+    if (g_StarfieldState.navballIconArray) { g_StarfieldState.navballIconArray->Release(); g_StarfieldState.navballIconArray = nullptr; }
+    if (g_StarfieldState.navballIconArraySRV) { g_StarfieldState.navballIconArraySRV->Release(); g_StarfieldState.navballIconArraySRV = nullptr; }
     if (g_StarfieldState.pointingIconSRV) { g_StarfieldState.pointingIconSRV->Release(); g_StarfieldState.pointingIconSRV = nullptr; }
     if (g_StarfieldState.maneuverTextSRV) { g_StarfieldState.maneuverTextSRV->Release(); g_StarfieldState.maneuverTextSRV = nullptr; }
+    
+    if (g_StarfieldState.explicitRenderTarget) { g_StarfieldState.explicitRenderTarget->Release(); g_StarfieldState.explicitRenderTarget = nullptr; }
+    
+    ReleaseConsoleRenderer();
     
     if (g_StarfieldState.device) { g_StarfieldState.device->Release(); g_StarfieldState.device = nullptr; }
     
@@ -3663,6 +3652,29 @@ void CR_StarfieldInvalidateResources()
         g_StarfieldState.maneuverTextSRV->Release(); 
         g_StarfieldState.maneuverTextSRV = nullptr; 
     }
+    
+    // Cleanup grid label slot SRVs
+    for (int i = 0; i < 12; i++) {
+        if (g_StarfieldState.gridLabelSlots[i].textureSRV) {
+            g_StarfieldState.gridLabelSlots[i].textureSRV->Release();
+            g_StarfieldState.gridLabelSlots[i].textureSRV = nullptr;
+        }
+        g_StarfieldState.gridLabelSlots[i].isActive = false;
+    }
+    
+    if (g_StarfieldState.catalogSRV) { g_StarfieldState.catalogSRV->Release(); g_StarfieldState.catalogSRV = nullptr; }
+    
+    for (auto& pair : g_StarfieldState.textUAVCache) {
+        if (pair.second) pair.second->Release();
+    }
+    g_StarfieldState.textUAVCache.clear();
+    
+    if (g_StarfieldState.explicitRenderTarget) {
+        g_StarfieldState.explicitRenderTarget->Release();
+        g_StarfieldState.explicitRenderTarget = nullptr;
+    }
+    
+    ReleaseConsoleRenderer();
     
     // Reset initialized flag so resources get recreated
     g_StarfieldState.initialized = false;
@@ -3755,6 +3767,22 @@ void CR_StarfieldLoadCatalog(const StarData* buffer, int count, int heroCount)
             
             LogToFile("[Starfield] Loaded catalog: %d stars, %d heroes", count, heroCount);
         }
+        
+        // Create cached catalog SRV
+        if (g_StarfieldState.starCatalogBuffer) {
+            if (g_StarfieldState.catalogSRV) {
+                g_StarfieldState.catalogSRV->Release();
+                g_StarfieldState.catalogSRV = nullptr;
+            }
+            D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+            srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+            srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+            srvDesc.Buffer.ElementOffset = 0;
+            srvDesc.Buffer.ElementWidth = sizeof(StarData);
+            srvDesc.Buffer.NumElements = g_StarfieldState.catalogSize;
+            g_StarfieldState.device->CreateShaderResourceView(g_StarfieldState.starCatalogBuffer, &srvDesc, &g_StarfieldState.catalogSRV);
+        }
+        
         context->Release();
     }
 }
@@ -4121,17 +4149,9 @@ static void ExecuteCubemapFaceRender(
             context->Unmap(g_StarfieldState.pass1CB, 0);
         }
         
-        // Create temporary SRV for catalog buffer
-        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-        srvDesc.Format = DXGI_FORMAT_UNKNOWN; // Structured buffer
-        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-        srvDesc.Buffer.FirstElement = 0;
-        srvDesc.Buffer.NumElements = g_StarfieldState.catalogSize;
-        
-        ID3D11ShaderResourceView* catalogSRV = nullptr;
-        HRESULT hr = device->CreateShaderResourceView(g_StarfieldState.starCatalogBuffer, &srvDesc, &catalogSRV);
-        if (FAILED(hr) || !catalogSRV) {
-            if (catalogSRV) catalogSRV->Release();
+        // Validate cached catalog SRV
+        if (!g_StarfieldState.catalogSRV) {
+            LogToFile("[Starfield] catalogSRV is null, aborting cubemap face render");
             tempHDR_SRV->Release();
             tempHDR_UAV->Release();
             tempHDR->Release();
@@ -4143,7 +4163,7 @@ static void ExecuteCubemapFaceRender(
         context->CSSetShader(g_StarfieldState.pass1CS, nullptr, 0);
         context->CSSetConstantBuffers(0, 1, &g_StarfieldState.pass1CB);
         context->CSSetUnorderedAccessViews(0, 1, &tempHDR_UAV, nullptr);
-        context->CSSetShaderResources(0, 1, &catalogSRV);
+        context->CSSetShaderResources(0, 1, &g_StarfieldState.catalogSRV);
         
         int threadGroups = (g_StarfieldState.catalogSize + 255) / 256;
         context->Dispatch(threadGroups, 1, 1);
@@ -4154,7 +4174,6 @@ static void ExecuteCubemapFaceRender(
         ID3D11ShaderResourceView* nullSRV = nullptr;
         context->CSSetShaderResources(0, 1, &nullSRV);
         context->CSSetShader(nullptr, nullptr, 0);
-        catalogSRV->Release();
     }
     
     // =========================================================================
@@ -4353,11 +4372,13 @@ int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize)
         return -1;
     }
     
-    // Don't take the main lock to avoid blocking, but check state
+    // Take the main lock for thread safety during cubemap rendering
     if (!g_StarfieldState.device) {
         LogToFile("[StarfieldCubemap] Error: Device not initialized");
         return -2;
     }
+    
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     
     // Get immediate context
     ID3D11DeviceContext* context = nullptr;
@@ -4501,4 +4522,492 @@ int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize)
     
     LogToFile("[StarfieldCubemap] Render complete");
     return 0;
+}
+
+extern "C" __declspec(dllexport)
+void CR_DrawConsoleGrid(
+    void* textSystem,
+    ID3D11Texture2D* targetTexture,
+    const ConsoleCellInstance* cells,
+    int cellCount,
+    float displayX,
+    float displayY,
+    float displayW,
+    float displayH,
+    float fontSize,
+    uint32_t color)
+{
+    if (!textSystem || !cells || cellCount <= 0)
+        return;
+
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+
+    int count = cellCount > 767 ? 767 : cellCount;
+    memcpy(g_StarfieldState.consoleDrawJob.cells, cells, count * sizeof(ConsoleCellInstance));
+    g_StarfieldState.consoleDrawJob.cellCount = count;
+    g_StarfieldState.consoleDrawJob.displayX = displayX;
+    g_StarfieldState.consoleDrawJob.displayY = displayY;
+    g_StarfieldState.consoleDrawJob.displayW = displayW;
+    g_StarfieldState.consoleDrawJob.displayH = displayH;
+    g_StarfieldState.consoleDrawJob.fontSize = fontSize;
+    g_StarfieldState.consoleDrawJob.color = color;
+    g_StarfieldState.consoleDrawJob.textSystem = textSystem;
+    g_StarfieldState.consoleDrawJob.targetTexture = targetTexture;
+    g_StarfieldState.consoleDrawJob.hasData = true;
+}
+
+static void ExecuteConsoleDraw(ID3D11DeviceContext* context)
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+
+    if (!g_StarfieldState.consoleDrawJob.hasData)
+        return;
+
+    auto& job = g_StarfieldState.consoleDrawJob;
+    CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(job.textSystem);
+    if (!ts)
+        return;
+
+    // Flush any pending atlas uploads before using the atlas
+    ts->FlushAtlasUpdates(context);
+
+    ID3D11ShaderResourceView* atlasSRV = ts->GetAtlasSRV();
+    if (!atlasSRV)
+        return;
+
+    ID3D11Device* device = ts->GetDevice();
+    if (!device)
+        device = g_StarfieldState.device;
+    if (!device)
+        return;
+
+    if (!EnsureConsoleRenderer(device))
+        return;
+
+    int cellCount = job.cellCount;
+    float displayX = job.displayX;
+    float displayY = job.displayY;
+    float displayW = job.displayW;
+    float displayH = job.displayH;
+
+    // --- Save D3D11 state ---
+    ID3D11RenderTargetView* prevRTVs[1] = { nullptr };
+    ID3D11DepthStencilView* prevDSV = nullptr;
+    context->OMGetRenderTargets(1, prevRTVs, &prevDSV);
+
+    // --- Bind target texture RTV if provided ---
+    if (job.targetTexture) {
+        if (g_StarfieldState.consoleRTTexture != job.targetTexture) {
+            if (g_StarfieldState.consoleRTV) {
+                g_StarfieldState.consoleRTV->Release();
+                g_StarfieldState.consoleRTV = nullptr;
+            }
+            g_StarfieldState.consoleRTTexture = job.targetTexture;
+            device->CreateRenderTargetView(job.targetTexture, nullptr, &g_StarfieldState.consoleRTV);
+        }
+        if (g_StarfieldState.consoleRTV) {
+            context->OMSetRenderTargets(1, &g_StarfieldState.consoleRTV, nullptr);
+            float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+            context->ClearRenderTargetView(g_StarfieldState.consoleRTV, clearColor);
+        }
+    }
+
+    ID3D11BlendState* prevBlend = nullptr;
+    FLOAT prevBlendFactor[4] = { 0,0,0,0 };
+    UINT prevSampleMask = 0;
+    context->OMGetBlendState(&prevBlend, prevBlendFactor, &prevSampleMask);
+
+    ID3D11DepthStencilState* prevDSState = nullptr;
+    UINT prevStencilRef = 0;
+    context->OMGetDepthStencilState(&prevDSState, &prevStencilRef);
+
+    D3D11_VIEWPORT prevViewport;
+    UINT prevViewportCount = 1;
+    context->RSGetViewports(&prevViewportCount, &prevViewport);
+
+    ID3D11RasterizerState* prevRS = nullptr;
+    context->RSGetState(&prevRS);
+
+    ID3D11Buffer* prevVSBuffers[1] = { nullptr };
+    ID3D11Buffer* prevVSBuffers1[1] = { nullptr };
+    UINT prevVBStrides[2] = { 0, 0 };
+    UINT prevVBOffsets[2] = { 0, 0 };
+    context->IAGetVertexBuffers(0, 1, prevVSBuffers, &prevVBStrides[0], &prevVBOffsets[0]);
+    context->IAGetVertexBuffers(1, 1, prevVSBuffers1, &prevVBStrides[1], &prevVBOffsets[1]);
+
+    ID3D11Buffer* prevIB = nullptr;
+    DXGI_FORMAT prevIBFormat = DXGI_FORMAT_UNKNOWN;
+    UINT prevIBOffset = 0;
+    context->IAGetIndexBuffer(&prevIB, &prevIBFormat, &prevIBOffset);
+
+    ID3D11InputLayout* prevIL = nullptr;
+    context->IAGetInputLayout(&prevIL);
+
+    D3D11_PRIMITIVE_TOPOLOGY prevTopology = D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
+    context->IAGetPrimitiveTopology(&prevTopology);
+
+    ID3D11VertexShader* prevVS = nullptr;
+    context->VSGetShader(&prevVS, nullptr, nullptr);
+    ID3D11Buffer* prevVSCB = nullptr;
+    context->VSGetConstantBuffers(0, 1, &prevVSCB);
+    ID3D11ShaderResourceView* prevVSSRV = nullptr;
+    context->VSGetShaderResources(0, 1, &prevVSSRV);
+    ID3D11SamplerState* prevVSSampler = nullptr;
+    context->VSGetSamplers(0, 1, &prevVSSampler);
+
+    ID3D11PixelShader* prevPS = nullptr;
+    context->PSGetShader(&prevPS, nullptr, nullptr);
+    ID3D11Buffer* prevPSCB = nullptr;
+    context->PSGetConstantBuffers(0, 1, &prevPSCB);
+    ID3D11ShaderResourceView* prevPSSRV = nullptr;
+    context->PSGetShaderResources(0, 1, &prevPSSRV);
+    ID3D11SamplerState* prevPSSampler = nullptr;
+    context->PSGetSamplers(0, 1, &prevPSSampler);
+
+    // --- Map instance data ---
+    D3D11_MAPPED_SUBRESOURCE mapped;
+    if (SUCCEEDED(context->Map(g_StarfieldState.consoleInstanceVB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+        memcpy(mapped.pData, job.cells, cellCount * sizeof(ConsoleCellInstance));
+        context->Unmap(g_StarfieldState.consoleInstanceVB, 0);
+    }
+
+    // --- Update constant buffer ---
+    if (SUCCEEDED(context->Map(g_StarfieldState.consoleConstantsCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+        ConsoleConstants* cb = (ConsoleConstants*)mapped.pData;
+        float left   = 0.0f;
+        float right  = displayW;
+        float top    = 0.0f;
+        float bottom = displayH;
+        // RenderTextures are Y-flipped relative to backbuffer in Unity's GUI.DrawTexture
+        if (job.targetTexture) {
+            top = displayH;
+            bottom = 0.0f;
+        }
+        float nearZ  = 0.0f;
+        float farZ   = 1.0f;
+
+        cb->ProjectionM00 = 2.0f / (right - left);
+        cb->ProjectionM01 = 0.0f;
+        cb->ProjectionM02 = 0.0f;
+        cb->ProjectionM03 = 0.0f;
+
+        cb->ProjectionM10 = 0.0f;
+        cb->ProjectionM11 = 2.0f / (top - bottom);
+        cb->ProjectionM12 = 0.0f;
+        cb->ProjectionM13 = 0.0f;
+
+        cb->ProjectionM20 = 0.0f;
+        cb->ProjectionM21 = 0.0f;
+        cb->ProjectionM22 = 1.0f / (farZ - nearZ);
+        cb->ProjectionM23 = 0.0f;
+
+        cb->ProjectionM30 = -(right + left) / (right - left);
+        cb->ProjectionM31 = -(top + bottom) / (top - bottom);
+        cb->ProjectionM32 = -nearZ / (farZ - nearZ);
+        cb->ProjectionM33 = 1.0f;
+
+        cb->CellSizeX = 0.0f;
+        cb->CellSizeY = 0.0f;
+        cb->GridOffsetX = 0.0f;
+        cb->GridOffsetY = 0.0f;
+        cb->TypeOnProgress = 1.0f;
+        cb->AtlasSize = (float)ts->GetAtlasSize();
+        cb->_pad1 = 0.0f;
+        cb->_pad2 = 0.0f;
+        context->Unmap(g_StarfieldState.consoleConstantsCB, 0);
+    }
+
+    // --- Set pipeline state ---
+    D3D11_VIEWPORT vp = {};
+    if (job.targetTexture) {
+        vp.TopLeftX = 0.0f;
+        vp.TopLeftY = 0.0f;
+    } else {
+        vp.TopLeftX = displayX;
+        vp.TopLeftY = displayY;
+    }
+    vp.Width = displayW;
+    vp.Height = displayH;
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 1.0f;
+    context->RSSetViewports(1, &vp);
+
+    UINT strides[2] = { sizeof(float) * 4, sizeof(ConsoleCellInstance) };
+    UINT offsets[2] = { 0, 0 };
+    ID3D11Buffer* vbs[2] = { g_StarfieldState.consoleQuadVB, g_StarfieldState.consoleInstanceVB };
+    context->IASetVertexBuffers(0, 2, vbs, strides, offsets);
+    context->IASetIndexBuffer(g_StarfieldState.consoleQuadIB, DXGI_FORMAT_R16_UINT, 0);
+    context->IASetInputLayout(g_StarfieldState.consoleInputLayout);
+    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    context->VSSetShader(g_StarfieldState.consoleVS, nullptr, 0);
+    context->VSSetConstantBuffers(0, 1, &g_StarfieldState.consoleConstantsCB);
+
+    context->PSSetShader(g_StarfieldState.consolePS, nullptr, 0);
+    context->PSSetShaderResources(0, 1, &atlasSRV);
+    context->PSSetSamplers(0, 1, &g_StarfieldState.consoleSampler);
+
+    float blendFactor[4] = { 0, 0, 0, 0 };
+    context->OMSetBlendState(g_StarfieldState.consoleBlendState, blendFactor, 0xFFFFFFFF);
+
+    D3D11_DEPTH_STENCIL_DESC dsDesc = {};
+    dsDesc.DepthEnable = FALSE;
+    dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+    dsDesc.StencilEnable = FALSE;
+    ID3D11DepthStencilState* dsState = nullptr;
+    device->CreateDepthStencilState(&dsDesc, &dsState);
+    if (dsState) {
+        context->OMSetDepthStencilState(dsState, 0);
+    }
+
+    // --- Draw ---
+    context->DrawIndexedInstanced(6, cellCount, 0, 0, 0);
+
+    // --- Cleanup temporary DS state ---
+    if (dsState) {
+        dsState->Release();
+    }
+
+    // --- Restore D3D11 state ---
+    context->OMSetRenderTargets(1, prevRTVs, prevDSV);
+    if (prevRTVs[0]) prevRTVs[0]->Release();
+    if (prevDSV) prevDSV->Release();
+
+    context->OMSetBlendState(prevBlend, prevBlendFactor, prevSampleMask);
+    if (prevBlend) prevBlend->Release();
+
+    context->OMSetDepthStencilState(prevDSState, prevStencilRef);
+    if (prevDSState) prevDSState->Release();
+
+    if (prevViewportCount > 0)
+        context->RSSetViewports(prevViewportCount, &prevViewport);
+
+    context->RSSetState(prevRS);
+    if (prevRS) prevRS->Release();
+
+    ID3D11Buffer* nullVBS[2] = { nullptr, nullptr };
+    UINT nullStrides[2] = { 0, 0 };
+    UINT nullOffsets[2] = { 0, 0 };
+    context->IASetVertexBuffers(0, 2, nullVBS, nullStrides, nullOffsets);
+
+    context->IASetVertexBuffers(0, 1, prevVSBuffers, &prevVBStrides[0], &prevVBOffsets[0]);
+    context->IAGetVertexBuffers(1, 1, prevVSBuffers1, &prevVBStrides[1], &prevVBOffsets[1]);
+    if (prevVSBuffers[0]) prevVSBuffers[0]->Release();
+    if (prevVSBuffers1[0]) prevVSBuffers1[0]->Release();
+
+    context->IASetIndexBuffer(prevIB, prevIBFormat, prevIBOffset);
+    if (prevIB) prevIB->Release();
+
+    context->IASetInputLayout(prevIL);
+    if (prevIL) prevIL->Release();
+
+    context->IASetPrimitiveTopology(prevTopology);
+
+    context->VSSetShader(prevVS, nullptr, 0);
+    if (prevVS) prevVS->Release();
+    context->VSSetConstantBuffers(0, 1, &prevVSCB);
+    if (prevVSCB) prevVSCB->Release();
+    context->VSSetShaderResources(0, 1, &prevVSSRV);
+    if (prevVSSRV) prevVSSRV->Release();
+    context->VSSetSamplers(0, 1, &prevVSSampler);
+    if (prevVSSampler) prevVSSampler->Release();
+
+    context->PSSetShader(prevPS, nullptr, 0);
+    if (prevPS) prevPS->Release();
+    context->PSSetConstantBuffers(0, 1, &prevPSCB);
+    if (prevPSCB) prevPSCB->Release();
+    context->PSSetShaderResources(0, 1, &prevPSSRV);
+    if (prevPSSRV) prevPSSRV->Release();
+    context->PSSetSamplers(0, 1, &prevPSSampler);
+    if (prevPSSampler) prevPSSampler->Release();
+
+    job.hasData = false;
+}
+
+static void ExecuteTextDispatches(ID3D11DeviceContext* context)
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
+    if (g_StarfieldState.textDispatchQueue.empty())
+        return;
+    
+    if (!g_StarfieldState.device)
+        return;
+    
+    // Lazy-create compute shader, constant buffer, sampler
+    if (!g_StarfieldState.textCS) {
+        HRESULT hr = g_StarfieldState.device->CreateComputeShader(
+            g_KartographerTextCS, sizeof(g_KartographerTextCS), nullptr, &g_StarfieldState.textCS);
+        if (FAILED(hr)) {
+            g_StarfieldState.textDispatchQueue.clear();
+            return;
+        }
+    }
+    
+    if (!g_StarfieldState.textCB) {
+        D3D11_BUFFER_DESC cbDesc = {};
+        cbDesc.ByteWidth = sizeof(TextParams);
+        cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+        cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        g_StarfieldState.device->CreateBuffer(&cbDesc, nullptr, &g_StarfieldState.textCB);
+    }
+    
+    if (!g_StarfieldState.textSampler) {
+        D3D11_SAMPLER_DESC sampDesc = {};
+        sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+        sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+        sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+        sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+        g_StarfieldState.device->CreateSamplerState(&sampDesc, &g_StarfieldState.textSampler);
+    }
+    
+    for (auto& job : g_StarfieldState.textDispatchQueue) {
+        CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(job.textSystem);
+        if (!ts)
+            continue;
+        
+        // Flush any pending atlas uploads before using the atlas
+        ts->FlushAtlasUpdates(context);
+        
+        // Create temporary structured buffer from captured glyph snapshot
+        ID3D11Buffer* glyphBuffer = nullptr;
+        ID3D11ShaderResourceView* glyphSRV = nullptr;
+        
+        if (!job.glyphSnapshot.empty() && job.glyphCount > 0) {
+            int instanceSize = sizeof(CinematicShaders::GlyphInstance);
+            int requiredSize = job.glyphCount * instanceSize;
+            
+            D3D11_BUFFER_DESC desc = {};
+            desc.ByteWidth = requiredSize;
+            desc.Usage = D3D11_USAGE_IMMUTABLE;
+            desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+            desc.StructureByteStride = instanceSize;
+            desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+            
+            D3D11_SUBRESOURCE_DATA initData = {};
+            initData.pSysMem = job.glyphSnapshot.data();
+            
+            HRESULT hr = g_StarfieldState.device->CreateBuffer(&desc, &initData, &glyphBuffer);
+            if (SUCCEEDED(hr) && glyphBuffer) {
+                D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+                srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+                srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+                srvDesc.Buffer.FirstElement = 0;
+                srvDesc.Buffer.NumElements = job.glyphCount;
+                
+                hr = g_StarfieldState.device->CreateShaderResourceView(glyphBuffer, &srvDesc, &glyphSRV);
+            }
+        }
+        
+        if (!glyphBuffer || !glyphSRV) {
+            if (glyphBuffer) glyphBuffer->Release();
+            continue;
+        }
+        
+        ID3D11ShaderResourceView* atlasSRV = ts->GetAtlasSRV();
+        if (!atlasSRV)
+            continue;
+        
+        // Get or create cached UAV for output texture
+        ID3D11UnorderedAccessView* outputUAV = nullptr;
+        auto uavIt = g_StarfieldState.textUAVCache.find(job.outputTexture);
+        if (uavIt != g_StarfieldState.textUAVCache.end()) {
+            outputUAV = uavIt->second;
+        } else {
+            D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+            uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+            uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+            HRESULT hr = g_StarfieldState.device->CreateUnorderedAccessView(job.outputTexture, &uavDesc, &outputUAV);
+            if (FAILED(hr))
+                continue;
+            g_StarfieldState.textUAVCache[job.outputTexture] = outputUAV;
+        }
+        
+        // Update constant buffer
+        D3D11_MAPPED_SUBRESOURCE mapped;
+        if (SUCCEEDED(context->Map(g_StarfieldState.textCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+            TextParams* params = (TextParams*)mapped.pData;
+            params->GlyphCount = job.glyphCount;
+            params->OutputSizeX = (float)job.outputWidth;
+            params->OutputSizeY = (float)job.outputHeight;
+            params->Pad = 0.0f;
+            context->Unmap(g_StarfieldState.textCB, 0);
+        }
+        
+        // Clear output texture if requested
+        if (job.clearOutput != 0) {
+            UINT clearColor[4] = {0, 0, 0, 0};
+            context->ClearUnorderedAccessViewUint(outputUAV, clearColor);
+        }
+        
+        // Set compute shader and resources
+        context->CSSetShader(g_StarfieldState.textCS, nullptr, 0);
+        context->CSSetConstantBuffers(0, 1, &g_StarfieldState.textCB);
+        ID3D11ShaderResourceView* srvs[2] = {atlasSRV, glyphSRV}; // t0 = atlas, t1 = glyph buffer
+        context->CSSetShaderResources(0, 2, srvs);
+        context->CSSetSamplers(0, 1, &g_StarfieldState.textSampler);
+        
+        ID3D11UnorderedAccessView* uavs[1] = {outputUAV};
+        context->CSSetUnorderedAccessViews(0, 1, uavs, nullptr);
+        
+        // Dispatch compute shader
+        int totalThreads = job.glyphCount;
+        UINT dispatchX = (totalThreads + 63) / 64;  // 64 threads per group
+        UINT dispatchY = 1;
+        context->Dispatch(dispatchX, dispatchY, 1);
+        
+        // Release temporary snapshot buffer
+        if (glyphSRV) glyphSRV->Release();
+        if (glyphBuffer) glyphBuffer->Release();
+    }
+    
+    // Unbind resources after all jobs
+    ID3D11UnorderedAccessView* nullUAV[1] = {nullptr};
+    ID3D11ShaderResourceView* nullSRV[2] = {nullptr, nullptr};
+    context->CSSetUnorderedAccessViews(0, 1, nullUAV, nullptr);
+    context->CSSetShaderResources(0, 2, nullSRV);
+    context->CSSetShader(nullptr, nullptr, 0);
+    
+    g_StarfieldState.textDispatchQueue.clear();
+}
+
+static void UNITY_INTERFACE_API OnConsoleRenderEvent(int eventId)
+{
+    if (!g_StarfieldState.device)
+        return;
+
+    ID3D11DeviceContext* context = nullptr;
+    g_StarfieldState.device->GetImmediateContext(&context);
+    if (!context)
+        return;
+
+    ExecuteConsoleDraw(context);
+    context->Release();
+}
+
+static void UNITY_INTERFACE_API OnTextDispatchRenderEvent(int eventId)
+{
+    if (!g_StarfieldState.device)
+        return;
+
+    ID3D11DeviceContext* context = nullptr;
+    g_StarfieldState.device->GetImmediateContext(&context);
+    if (!context)
+        return;
+
+    ExecuteTextDispatches(context);
+    context->Release();
+}
+
+extern "C" __declspec(dllexport)
+UnityRenderingEvent CR_GetConsoleRenderEventFunc()
+{
+    return OnConsoleRenderEvent;
+}
+
+extern "C" __declspec(dllexport)
+UnityRenderingEvent CR_GetTextDispatchRenderEventFunc()
+{
+    return OnTextDispatchRenderEvent;
 }

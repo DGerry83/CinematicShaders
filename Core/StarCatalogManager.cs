@@ -30,11 +30,6 @@ namespace CinematicShaders.Core
         }
         
         /// <summary>
-        /// Raised when the active catalog changes
-        /// </summary>
-        public static event Action OnCatalogChanged;
-        
-        /// <summary>
         /// Currently active/loaded catalog metadata
         /// </summary>
         public static StarCatalogInfo ActiveCatalog { get; set; }
@@ -265,7 +260,6 @@ namespace CinematicShaders.Core
                 ActiveCatalog = info;
                 StarfieldSettings.IsReadOnly = info.IsReadOnly; // Per-catalog flag, not per-save
                 IsDirty = false;
-                OnCatalogChanged?.Invoke();
                 
                 Debug.Log($"[CinematicShaders] Loaded catalog: {info.GetDisplayName()} ({info.StarCount} stars)");
                 
@@ -389,7 +383,6 @@ namespace CinematicShaders.Core
                 // Update active catalog info
                 ActiveCatalog = ReadCatalogHeader(filePath);
                 IsDirty = false;
-                OnCatalogChanged?.Invoke();
                 
                 Debug.Log($"[CinematicShaders] Saved catalog: {filePath}");
                 
@@ -513,7 +506,6 @@ namespace CinematicShaders.Core
                     if (ActiveCatalog != null && ActiveCatalog.FilePath == filePath)
                     {
                         ActiveCatalog = null;
-                        OnCatalogChanged?.Invoke();
                     }
                     
                     return true;
@@ -600,6 +592,162 @@ namespace CinematicShaders.Core
             for (int i = 0; i < count; i++)
                 sb.Append(chars[rnd.Next(chars.Length)]);
             return sb.ToString();
+        }
+        
+        /// <summary>
+        /// Generate a JSON sidecar file for a procedural catalog.
+        /// Only works on catalogs with IsProcedural flag set.
+        /// Creates minimal JSON with KIP IDs and direction vectors,
+        /// leaving name fields blank for user editing.
+        /// </summary>
+        /// <param name="binPath">Path to the .bin file</param>
+        /// <returns>True if JSON was created successfully</returns>
+        public static bool GenerateJsonForProceduralCatalog(string binPath)
+        {
+            // 1. Verify file exists
+            if (!File.Exists(binPath))
+            {
+                Debug.LogError($"[CinematicShaders] Cannot generate JSON - file not found: {binPath}");
+                return false;
+            }
+            
+            try
+            {
+                using (var fs = new FileStream(binPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (var reader = new BinaryReader(fs))
+                {
+                    // 2. Read header (256 bytes)
+                    // Check magic (0x53545243)
+                    uint magic = reader.ReadUInt32();
+                    if (magic != MAGIC)
+                    {
+                        Debug.LogWarning($"[CinematicShaders] Invalid catalog file (bad magic): {binPath}");
+                        return false;
+                    }
+                    
+                    // Check version (support 4+)
+                    ushort version = reader.ReadUInt16();
+                    if (version < 4)
+                    {
+                        Debug.LogWarning($"[CinematicShaders] Catalog version {version} not supported (need 4+): {binPath}");
+                        return false;
+                    }
+                    
+                    // Check flags for IsProcedural (bit 2)
+                    ushort flags = reader.ReadUInt16();
+                    bool isProcedural = (flags & (ushort)CatalogFlags.IsProcedural) != 0;
+                    if (!isProcedural)
+                    {
+                        Debug.LogWarning($"[CinematicShaders] Catalog is not procedural, skipping JSON generation: {binPath}");
+                        return false;
+                    }
+                    
+                    // Get starCount from header
+                    int totalStarCount = reader.ReadInt32();
+                    if (totalStarCount <= 0)
+                    {
+                        Debug.LogWarning($"[CinematicShaders] Catalog has no stars: {binPath}");
+                        return false;
+                    }
+                    
+                    // Limit to first 5000 stars (covers heroes plus extras)
+                    // Hero stars are first in procedurally generated catalogs
+                    int starCount = Math.Min(totalStarCount, 5000);
+                    
+                    // 3. Read star records (starting at offset 256)
+                    fs.Seek(HEADER_SIZE, SeekOrigin.Begin);
+                    
+                    // Spectral type conversion: 0=O, 1=B, 2=A, 3=F, 4=G, 5=K, 6=M, 7=L
+                    string[] spectralLetters = { "O", "B", "A", "F", "G", "K", "M", "L" };
+                    
+                    // Build JSON using StringBuilder
+                    var json = new StringBuilder();
+                    string fileName = Path.GetFileName(binPath);
+                    string timestamp = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss");
+                    
+                    // Metadata header
+                    json.Append("{\n");
+                    json.Append("  \"metadata\": {\n");
+                    json.Append("    \"version\": 1,\n");
+                    json.Append("    \"source_catalog\": \"Generated\",\n");
+                    json.Append($"    \"bin_file\": \"./{fileName}\",\n");
+                    json.Append($"    \"star_count\": {totalStarCount},\n");
+                    json.Append($"    \"named_star_count\": {starCount},\n");
+                    json.Append("    \"constellation_count\": 0,\n");
+                    json.Append($"    \"generated\": \"{timestamp}\"\n");
+                    json.Append("  },\n");
+                    json.Append("  \"stars\": {\n");
+                    
+                    // Read each star (48 bytes per star)
+                    for (int i = 0; i < starCount; i++)
+                    {
+                        // Read star data fields
+                        int hipparcosID = reader.ReadInt32();      // offset 0
+                        float distancePc = reader.ReadSingle();    // offset 4
+                        float distanceLy = distancePc * 3.26156f;    // Convert parsecs to light years
+                        int spectralType = reader.ReadInt32();     // offset 8
+                        uint starFlags = reader.ReadUInt32();      // offset 12 (skip)
+                        float dirX = reader.ReadSingle();          // offset 16
+                        float dirY = reader.ReadSingle();          // offset 20 - NEGATE this (Y-flip)
+                        float dirZ = reader.ReadSingle();          // offset 24
+                        float magnitude = reader.ReadSingle();     // offset 28
+                        float colorR = reader.ReadSingle();        // offset 32 (skip)
+                        float colorG = reader.ReadSingle();        // offset 36 (skip)
+                        float colorB = reader.ReadSingle();        // offset 40 (skip)
+                        float temperature = reader.ReadSingle();   // offset 44 (skip)
+                        
+                        // Use numeric ID as key (parser expects integer IDs)
+                        string starKey = hipparcosID.ToString();
+                        
+                        // Build star entry
+                        json.Append($"    \"{starKey}\": {{ ");
+                        
+                        // Spectral type (omit if 255 = unknown)
+                        if (spectralType >= 0 && spectralType <= 7)
+                        {
+                            json.Append($"\"spectral\": \"{spectralLetters[spectralType]}\", ");
+                        }
+                        // If 255 or out of range, omit spectral field
+                        
+                        // Magnitude
+                        json.Append($"\"magnitude\": {magnitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}, ");
+                        
+                        // Distance in light years
+                        json.Append($"\"distance_ly\": {distanceLy.ToString(System.Globalization.CultureInfo.InvariantCulture)}, ");
+                        
+                        // Direction vectors (matching binary storage - no flip needed)
+                        json.Append($"\"x\": {dirX.ToString(System.Globalization.CultureInfo.InvariantCulture)}, ");
+                        json.Append($"\"y\": {dirY.ToString(System.Globalization.CultureInfo.InvariantCulture)}, ");
+                        json.Append($"\"z\": {dirZ.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
+                        
+                        json.Append(" }");
+                        
+                        // Add comma if not last star
+                        if (i < starCount - 1)
+                        {
+                            json.Append(",");
+                        }
+                        json.Append("\n");
+                    }
+                    
+                    // Close stars object and root object
+                    json.Append("  },\n");
+                    json.Append("  \"constellations\": {}\n");
+                    json.Append("}");
+                    
+                    // 6. Write JSON to: Path.ChangeExtension(binPath, ".json")
+                    string jsonPath = Path.ChangeExtension(binPath, ".json");
+                    File.WriteAllText(jsonPath, json.ToString());
+                    
+                    Debug.Log($"[CinematicShaders] Generated JSON sidecar: {jsonPath} ({starCount} stars)");
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[CinematicShaders] Failed to generate JSON for {binPath}: {ex.Message}");
+                return false;
+            }
         }
     }
 }

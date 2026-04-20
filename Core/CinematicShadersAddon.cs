@@ -72,7 +72,7 @@ namespace CinematicShaders.Core
                 StarfieldPerSaveSettings.Instance.ApplyToSettings();
             }
             StarCatalogManager.Initialize();  // Ensure catalog folder exists
-
+            
             // Only auto-enable if in a playable scene (not LOADING, MAINMENU, or EDITOR)
             if (IsPlayableScene() && (GTAOSettings.EnableGTAO || StarfieldSettings.EnableStarfield))
             {

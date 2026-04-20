@@ -139,6 +139,11 @@ namespace CinematicShaders.Shaders.GTAO
                 _normalRT = null;
             }
 
+            if (GTAONative.IsLoaded)
+            {
+                GTAONative.CR_GTAODebugSetInput(IntPtr.Zero, IntPtr.Zero, 0, 0, null, null, 0, 0, 0);
+            }
+
             _initialized = false;
         }
 

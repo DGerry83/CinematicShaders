@@ -76,6 +76,20 @@ namespace CinematicShaders.Core
         }
         
         /// <summary>
+        /// Checks whether a texture is one of the original backed-up skybox textures.
+        /// </summary>
+        private static bool IsOriginalSkyboxTexture(Texture tex)
+        {
+            if (tex == null) return false;
+            for (int i = 0; i < 6; i++)
+            {
+                if (tex == _originalSkyboxTextures[i])
+                    return true;
+            }
+            return false;
+        }
+        
+        /// <summary>
         /// Injects a single cubemap face into the corresponding GalaxyCubeControl child renderer.
         /// </summary>
         private static bool InjectFace(GalaxyCubeControl galaxyCube, string faceName, CubemapFace face, Cubemap cubemap)
@@ -101,6 +115,13 @@ namespace CinematicShaders.Core
             {
                 Debug.LogError($"[KSPCubemapInjector] Failed to extract {face} from cubemap");
                 return false;
+            }
+            
+            // Destroy previous injected texture to prevent leaking, but never destroy originals
+            Texture oldTexture = faceRenderer.material.mainTexture;
+            if (oldTexture is Texture2D && oldTexture != null && !IsOriginalSkyboxTexture(oldTexture))
+            {
+                UnityEngine.Object.Destroy(oldTexture);
             }
             
             // Apply to material
@@ -202,12 +223,25 @@ namespace CinematicShaders.Core
                 return false;
             }
             
-            // Create destination Texture2D
-            Texture2D faceTexture = new Texture2D(rt.width, rt.height, TextureFormat.RGBA32, false);
+            // Create destination Texture2D with matching mip configuration
+            Texture2D faceTexture = new Texture2D(rt.width, rt.height, TextureFormat.RGBA32, rt.useMipMap);
             
-            // Fast GPU→GPU copy using Graphics.CopyTexture
-            // This avoids the CPU readback stall of ReadPixels/GetPixels
-            Graphics.CopyTexture(rt, 0, 0, faceTexture, 0, 0);
+            // Fast GPU→GPU copy
+            if (rt.useMipMap)
+            {
+                Graphics.CopyTexture(rt, faceTexture);
+            }
+            else
+            {
+                Graphics.CopyTexture(rt, 0, 0, faceTexture, 0, 0);
+            }
+            
+            // Destroy previous injected texture to prevent leaking, but never destroy originals
+            Texture oldTexture = faceRenderer.material.mainTexture;
+            if (oldTexture is Texture2D && oldTexture != null && !IsOriginalSkyboxTexture(oldTexture))
+            {
+                UnityEngine.Object.Destroy(oldTexture);
+            }
             
             // Apply to material
             faceRenderer.material.mainTexture = faceTexture;

@@ -40,9 +40,13 @@ namespace CinematicShaders.Core
     /// </summary>
     public class KartographerSelector
     {
-        private Dictionary<int, NamedStar> _namedStars = new Dictionary<int, NamedStar>();
-        private bool _jsonLoaded = false;
-        private string _lastCatalogPath = "";
+
+
+        // Public accessors for editor (Phase 2 - delegated to StarCatalogStateManager)
+        public string LoadedJsonPath => StarCatalogStateManager.ActiveJsonPath;
+        public string DefaultJsonPath => StarCatalogStateManager.CurrentJsonPaths.DefaultJsonPath;
+        public string CustomJsonPath => StarCatalogStateManager.CurrentJsonPaths.CustomJsonPath;
+        public string CurrentCatalogBasePath => Path.GetDirectoryName(StarCatalogStateManager.CurrentCatalogPath);
 
         // Tracking state
         public NamedStar TrackedStar { get; private set; }
@@ -86,6 +90,7 @@ namespace CinematicShaders.Core
         // ============================================================================
         // Text System (Phase 4)
         // ============================================================================
+        private bool _disposed = false;
         private IntPtr _textSystem = IntPtr.Zero;
         private ComputeBuffer _glyphBuffer = null;
         private RenderTexture _textTexture = null;
@@ -99,7 +104,6 @@ namespace CinematicShaders.Core
         
         // Padding around text inside the box (pixels)
         private static readonly float BOX_PADDING_PIXELS = 20f;
-        private static readonly float BOX_PADDING_BOTTOM_PIXELS = 72f;  // Extra padding on bottom
 
         // ============================================================================
         // Grid Label Text (HUCK) - Grid-Fixed Type (rotates with grid)
@@ -107,8 +111,67 @@ namespace CinematicShaders.Core
         private RenderTexture _gridLabelTexture = null;
         private bool _gridLabelDirty = true;
         private static readonly float GRID_LABEL_BASE_SIZE = 18f;  // Regular text size (was 12)
-        private static readonly float GRID_LABEL_LARGE_SIZE = 27f;  // First letter size (1.5x base)
         private static readonly int GRID_LABEL_TEXTURE_SIZE = 256;
+
+        // ============================================================================
+        // Constructor
+        // ============================================================================
+        public KartographerSelector()
+        {
+            // Subscribe to state manager events
+            StarCatalogStateManager.OnCatalogChanged += HandleCatalogChanged;
+            StarCatalogStateManager.OnJsonStateChanged += HandleJsonStateChanged;
+            StarCatalogStateManager.OnStarDataChanged += HandleStarDataChanged;
+        }
+
+        private void HandleCatalogChanged(CatalogChangedEventArgs args)
+        {
+            Debug.Log($"[KartographerSelector] Catalog changed: {Path.GetFileName(args.NewCatalogPath)}");
+            // Clear selection when catalog changes
+            if (_hoveredStar != null || _lockedStar != null)
+            {
+                StopTracking();
+            }
+        }
+
+        private void HandleJsonStateChanged(JsonStateChangedEventArgs args)
+        {
+            Debug.Log($"[KartographerSelector] JSON state: {args.OldAvailability} -> {args.NewAvailability}");
+        }
+
+        private void HandleStarDataChanged(StarDataChangedEventArgs args)
+        {
+            Debug.Log($"[KartographerSelector] Loaded {args.StarCount} stars");
+        }
+
+        // ============================================================================
+        // Utility Methods
+        // ============================================================================
+
+        /// <summary>
+        /// Strips directional suffixes from full_designation for display purposes.
+        /// "Epsilon Triangulum Australe" -> "EPSILON TRIANGULUM"
+        /// "Asellus Borealis" -> "ASELLUS"
+        /// </summary>
+        public static string StripDirectionalSuffix(string fullDesignation)
+        {
+            if (string.IsNullOrEmpty(fullDesignation))
+                return fullDesignation;
+            
+            string[] suffixes = new[] { " Australe", " Australis", " Borealis", " Posterior", " Prior" };
+            string result = fullDesignation;
+            
+            foreach (var suffix in suffixes)
+            {
+                if (result.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                {
+                    result = result.Substring(0, result.Length - suffix.Length);
+                    break;  // Only strip one suffix
+                }
+            }
+            
+            return result.ToUpper();
+        }
 
         // ============================================================================
 
@@ -128,10 +191,10 @@ namespace CinematicShaders.Core
 
             try
             {
-                // Build font path: ../PluginData/Fonts/Ac437_Rainbow100_re_66.ttf
+                // Build font path: ../PluginData/Fonts/AcPlus_Rainbow100_re_66.ttf
                 // C# DLL is in Plugins/, font is in PluginData/ at mod root level
                 string assemblyPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-                string fontPath = Path.GetFullPath(Path.Combine(assemblyPath, "..", "PluginData", "Fonts", "Ac437_Rainbow100_re_66.ttf"));
+                string fontPath = Path.GetFullPath(Path.Combine(assemblyPath, "..", "PluginData", "Fonts", "AcPlus_Rainbow100_re_66.ttf"));
 
                 if (!File.Exists(fontPath))
                 {
@@ -380,6 +443,13 @@ namespace CinematicShaders.Core
                     return;
             }
 
+            // Validate texture was created during initialization
+            if (_textTexture == null)
+            {
+                Debug.LogWarning("[KartographerSelector] Text texture creation failed");
+                return;
+            }
+
             // Use the progressively built display text (with cursor) for animation
             // This will type on during Text phase and blink cursor in Complete phase
             string text = _currentDisplayText;
@@ -393,7 +463,7 @@ namespace CinematicShaders.Core
 
             if (string.IsNullOrEmpty(text))
             {
-                // Clear texture
+                // Clear texture and deactivate (early return path)
                 RenderTexture.active = _textTexture;
                 GL.Clear(true, true, Color.clear);
                 RenderTexture.active = null;
@@ -402,7 +472,8 @@ namespace CinematicShaders.Core
 
             // Layout text in native code
             uint color = 0xFFFFFFFF; // White ARGB
-            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, text, FONT_SIZE, color);
+            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, text, FONT_SIZE, 
+                color, 0f, 0f, 0f, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
 
             if (glyphCount <= 0)
             {
@@ -451,6 +522,9 @@ namespace CinematicShaders.Core
                 _glyphBuffer = new ComputeBuffer(Mathf.Max(glyphCount, 64), System.Runtime.InteropServices.Marshal.SizeOf(typeof(StarfieldNative.GlyphData)), ComputeBufferType.Default);
             }
 
+            // Set active texture for native compositing operations
+            RenderTexture.active = _textTexture;
+            
             // Dispatch native compute shader to render text to texture
             // The glyph buffer is created/managed internally by the text system
             StarfieldNative.CR_TextDispatch(
@@ -459,9 +533,13 @@ namespace CinematicShaders.Core
                 glyphCount,
                 1024,
                 1024);
+            GL.IssuePluginEvent(StarfieldNative.CR_GetTextDispatchRenderEventFunc(), 0);
             
             // Set text texture for pixel shader sampling
             StarfieldNative.CR_SetTextTexture(_textTexture.GetNativeTexturePtr());
+            
+            // NOW safe to clear - after all native operations complete
+            RenderTexture.active = null;
         }
 
         /// <summary>
@@ -475,29 +553,37 @@ namespace CinematicShaders.Core
                 return;
             }
 
-            if (_jsonLoaded && _lastCatalogPath == binPath)
-                return; // Already loaded
+            string absolutePath = Path.IsPathRooted(binPath) 
+                ? binPath 
+                : Path.Combine(KSPUtil.ApplicationRootPath, binPath);
 
-            string jsonPath = Path.ChangeExtension(binPath, ".json");
-            if (!File.Exists(jsonPath))
-            {
-                Debug.Log($"[KartographerSelector] No JSON sidecar found: {jsonPath}");
-                return;
-            }
+            // Normalize path for comparison
+            absolutePath = Path.GetFullPath(absolutePath);
 
-            try
+            // Initialize or update the state manager
+            if (!StarCatalogStateManager.IsInitialized)
             {
-                string json = File.ReadAllText(jsonPath);
-                ParseJsonStars(json);
-                
-                _jsonLoaded = true;
-                _lastCatalogPath = binPath;
-                Debug.Log($"[KartographerSelector] Loaded {_namedStars.Count} named stars from {jsonPath}");
+                Debug.Log($"[KartographerSelector] Initializing StarCatalogStateManager with: {absolutePath}");
+                StarCatalogStateManager.Initialize(absolutePath);
             }
-            catch (System.Exception ex)
+            else if (StarCatalogStateManager.CurrentCatalogPath != absolutePath)
             {
-                Debug.LogError($"[KartographerSelector] Failed to load JSON: {ex.Message}");
+                Debug.Log($"[KartographerSelector] Switching catalog: {StarCatalogStateManager.CurrentCatalogPath} -> {absolutePath}");
+                StarCatalogStateManager.SetCatalog(absolutePath);
             }
+            else
+            {
+                Debug.Log($"[KartographerSelector] Catalog already set: {absolutePath}");
+            }
+        }
+
+        /// <summary>
+        /// Force reload of the JSON catalog from disk, bypassing the cache.
+        /// Called after saving changes to _Custom.json to ensure fresh data.
+        /// </summary>
+        public void ForceReloadJson()
+        {
+            StarCatalogStateManager.ReloadStarData();
         }
 
         // ============================================================================
@@ -552,7 +638,8 @@ namespace CinematicShaders.Core
             uint color = 0xFFFFFFFF; // White ARGB
 
             // Layout and render text
-            int glyphCount = StarfieldNative.CR_TextLayout(_textSystem, gridLabelText, GRID_LABEL_BASE_SIZE, color);
+            int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, gridLabelText, GRID_LABEL_BASE_SIZE, 
+                color, 0f, 0f, 0f, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
             
             Debug.Log($"[KartographerSelector] Grid label layout: {glyphCount} glyphs for text '{gridLabelText.Replace('\n', '|')}' at size {GRID_LABEL_BASE_SIZE}px");
             
@@ -562,26 +649,37 @@ namespace CinematicShaders.Core
                 return;
             }
 
-            // Clear texture
-            RenderTexture.active = _gridLabelTexture;
-            GL.Clear(true, true, Color.clear);
-            RenderTexture.active = null;
-            Debug.Log("[KartographerSelector] Grid label texture cleared");
+            // Render to texture with proper active texture handling
+            RenderTexture prevActive = RenderTexture.active;
+            try
+            {
+                RenderTexture.active = _gridLabelTexture;
+                
+                // Clear texture
+                GL.Clear(true, true, Color.clear);
+                Debug.Log("[KartographerSelector] Grid label texture cleared");
 
-            // Render to texture
-            IntPtr texturePtr = _gridLabelTexture.GetNativeTexturePtr();
-            Debug.Log($"[KartographerSelector] Grid label texture native ptr: {texturePtr}");
-            
-            StarfieldNative.CR_TextDispatch(
-                _textSystem,
-                texturePtr,
-                glyphCount,
-                GRID_LABEL_TEXTURE_SIZE,
-                GRID_LABEL_TEXTURE_SIZE);
+                // Render to texture
+                IntPtr texturePtr = _gridLabelTexture.GetNativeTexturePtr();
+                Debug.Log($"[KartographerSelector] Grid label texture native ptr: {texturePtr}");
+                
+                StarfieldNative.CR_TextDispatch(
+                    _textSystem,
+                    texturePtr,
+                    glyphCount,
+                    GRID_LABEL_TEXTURE_SIZE,
+                    GRID_LABEL_TEXTURE_SIZE);
+                GL.IssuePluginEvent(StarfieldNative.CR_GetTextDispatchRenderEventFunc(), 0);
 
-            // Set the grid label texture for shader (slot 0 - legacy compatibility)
-            StarfieldNative.CR_SetGridLabelTexture(0, texturePtr);
-            Debug.Log($"[KartographerSelector] Grid label texture built and set to native. Texture: {GRID_LABEL_TEXTURE_SIZE}x{GRID_LABEL_TEXTURE_SIZE}, {glyphCount} glyphs");
+                // Set the grid label texture for shader (slot 0 - legacy compatibility)
+                StarfieldNative.CR_SetGridLabelTexture(0, texturePtr);
+                Debug.Log($"[KartographerSelector] Grid label texture built and set to native. Texture: {GRID_LABEL_TEXTURE_SIZE}x{GRID_LABEL_TEXTURE_SIZE}, {glyphCount} glyphs");
+            }
+            finally
+            {
+                // Always reset active render texture, even if an exception occurred
+                RenderTexture.active = prevActive;
+            }
         }
 
         /// <summary>
@@ -680,174 +778,17 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
-        /// Simple JSON parsing for star entries - extracts HIP ID and x,y,z
-        /// </summary>
-        private void ParseJsonStars(string json)
-        {
-            _namedStars.Clear();
-
-            // Find the "stars" object in the JSON
-            int starsStart = json.IndexOf("\"stars\":");
-            if (starsStart < 0) return;
-
-            int braceStart = json.IndexOf('{', starsStart);
-            if (braceStart < 0) return;
-
-            // Parse each star entry: "HIP_ID": { ... }
-            int pos = braceStart + 1;
-            int depth = 1;
-
-            while (pos < json.Length && depth > 0)
-            {
-                // Find next quoted key (HIP ID)
-                int quoteStart = json.IndexOf('"', pos);
-                if (quoteStart < 0) break;
-
-                int quoteEnd = json.IndexOf('"', quoteStart + 1);
-                if (quoteEnd < 0) break;
-
-                string hipIdStr = json.Substring(quoteStart + 1, quoteEnd - quoteStart - 1);
-                if (!int.TryParse(hipIdStr, out int hipId))
-                {
-                    pos = quoteEnd + 1;
-                    continue;
-                }
-
-                // Find the star object for this HIP ID
-                int starBraceStart = json.IndexOf('{', quoteEnd);
-                if (starBraceStart < 0) break;
-
-                // Extract star properties
-                int starBraceEnd = FindMatchingBrace(json, starBraceStart);
-                if (starBraceEnd < 0) break;
-
-                string starJson = json.Substring(starBraceStart, starBraceEnd - starBraceStart + 1);
-                NamedStar star = ParseStarEntry(hipId, starJson);
-                if (star != null)
-                {
-                    _namedStars[hipId] = star;
-                }
-
-                pos = starBraceEnd + 1;
-
-                // Check for closing of stars object
-                int nextChar = pos;
-                while (nextChar < json.Length && char.IsWhiteSpace(json[nextChar])) nextChar++;
-                if (nextChar < json.Length && json[nextChar] == '}')
-                    break; // End of stars object
-            }
-        }
-
-        /// <summary>
-        /// Find the matching closing brace for an opening brace at startIndex
-        /// </summary>
-        private int FindMatchingBrace(string json, int startIndex)
-        {
-            int depth = 1;
-            int pos = startIndex + 1;
-            bool inString = false;
-
-            while (pos < json.Length && depth > 0)
-            {
-                char c = json[pos];
-                if (c == '"' && (pos == 0 || json[pos - 1] != '\\'))
-                {
-                    inString = !inString;
-                }
-                else if (!inString)
-                {
-                    if (c == '{') depth++;
-                    else if (c == '}') depth--;
-                }
-                pos++;
-            }
-
-            return depth == 0 ? pos - 1 : -1;
-        }
-
-        /// <summary>
-        /// Parse individual star properties from JSON snippet
-        /// </summary>
-        private NamedStar ParseStarEntry(int hipId, string starJson)
-        {
-            var star = new NamedStar
-            {
-                HipparcosID = hipId,
-                Name = ExtractStringValue(starJson, "proper") ?? ExtractStringValue(starJson, "full_designation") ?? $"HIP {hipId}",
-                SpectralType = ExtractStringValue(starJson, "spectral") ?? "?",
-                Magnitude = ExtractFloatValue(starJson, "magnitude", 99f),
-                DistanceLy = ExtractFloatValue(starJson, "distance_ly", 0f),
-                Constellation = ExtractStringValue(starJson, "constellation") ?? "?"
-            };
-
-            // Extract direction vector
-            float x = ExtractFloatValue(starJson, "x", 0f);
-            float y = ExtractFloatValue(starJson, "y", 0f);
-            float z = ExtractFloatValue(starJson, "z", 0f);
-            star.Direction = new Vector3(x, y, z).normalized;
-
-            // Only return if we got valid direction
-            if (star.Direction.sqrMagnitude > 0.001f)
-                return star;
-
-            return null;
-        }
-
-        private string ExtractStringValue(string json, string key)
-        {
-            string pattern = "\"" + key + "\"";
-            int keyPos = json.IndexOf(pattern);
-            if (keyPos < 0) return null;
-
-            int colonPos = json.IndexOf(':', keyPos);
-            if (colonPos < 0) return null;
-
-            int quoteStart = json.IndexOf('"', colonPos);
-            if (quoteStart < 0) return null;
-
-            int quoteEnd = json.IndexOf('"', quoteStart + 1);
-            if (quoteEnd < 0) return null;
-
-            return json.Substring(quoteStart + 1, quoteEnd - quoteStart - 1);
-        }
-
-        private float ExtractFloatValue(string json, string key, float defaultVal)
-        {
-            string pattern = "\"" + key + "\"";
-            int keyPos = json.IndexOf(pattern);
-            if (keyPos < 0) return defaultVal;
-
-            int colonPos = json.IndexOf(':', keyPos);
-            if (colonPos < 0) return defaultVal;
-
-            int commaPos = json.IndexOf(',', colonPos);
-            int bracePos = json.IndexOf('}', colonPos);
-
-            int endPos = commaPos > 0 && (bracePos < 0 || commaPos < bracePos) ? commaPos : bracePos;
-            if (endPos < 0) endPos = json.Length;
-
-            string valStr = json.Substring(colonPos + 1, endPos - colonPos - 1).Trim();
-            if (float.TryParse(valStr, System.Globalization.NumberStyles.Float, 
-                System.Globalization.CultureInfo.InvariantCulture, out float result))
-            {
-                return result;
-            }
-
-            return defaultVal;
-        }
-
-        /// <summary>
         /// Find and start tracking a specific star by HIP ID
         /// </summary>
         public void TrackStarByHipId(int hipId)
         {
-            if (!_jsonLoaded)
+            if (!StarCatalogStateManager.HasValidJson())
             {
                 Debug.Log("[KartographerSelector] Cannot track star - JSON not loaded");
                 return;
             }
 
-            if (_namedStars.TryGetValue(hipId, out var star))
+            if (StarCatalogStateManager.NamedStars.TryGetValue(hipId, out var star))
             {
                 TrackedStar = star;
                 SelectionCircleEnabled = true;
@@ -874,6 +815,62 @@ namespace CinematicShaders.Core
                 _hoveredStarUV = new Vector2(-1, -1);
             }
         }
+
+        /// <summary>
+        /// Select a star by HIP ID for display (as if clicked).
+        /// Called from StarCatalogEditorWindow when user selects a star to edit.
+        /// </summary>
+        public void SelectStarByHipId(int hipId)
+        {
+            if (!StarCatalogStateManager.HasValidJson() || StarCatalogStateManager.NamedStars.Count == 0)
+            {
+                Debug.LogWarning("[KartographerSelector] Cannot select star - JSON not loaded");
+                return;
+            }
+
+            if (StarCatalogStateManager.NamedStars.TryGetValue(hipId, out var star))
+            {
+                // Set as hovered (for display purposes)
+                _hoveredStar = star;
+                _hoveredStarUV = ProjectStarToUV(star);
+                
+                // Immediately lock it (as if clicked)
+                _lockedStar = star;
+                _starHash = star.HipparcosID * 0.123f;
+                
+                // Force text cache invalidation to ensure updated names display immediately
+                _textDirty = true;
+                _fullStarText = BuildStarText(star);
+                _currentDisplayText = "^|";
+                
+                StartAnimationForStar(star);
+                
+                Debug.Log($"[KartographerSelector] Star selected via editor: {star.Name} (HIP {hipId})");
+            }
+            else
+            {
+                Debug.LogWarning($"[KartographerSelector] Cannot select - HIP {hipId} not found");
+            }
+        }
+
+        /// <summary>
+        /// Get the currently locked star (if any)
+        /// </summary>
+        public NamedStar GetLockedStar()
+        {
+            return _lockedStar;
+        }
+
+        /// <summary>
+        /// Callback invoked when a star is locked via mouse click.
+        /// Used by StarCatalogEditorWindow to sync selection.
+        /// </summary>
+        public Action<NamedStar> OnStarLockedViaClick { get; set; }
+
+        /// <summary>
+        /// Called when a star is unlocked/deselected (ESC pressed or clicked off)
+        /// </summary>
+        public Action OnStarUnlocked { get; set; }
 
         /// <summary>
         /// Update projection and push to native plugin
@@ -905,7 +902,7 @@ namespace CinematicShaders.Core
             }
 
             // Skip if no star data loaded
-            if (!_jsonLoaded || _namedStars.Count == 0)
+            if (!StarCatalogStateManager.HasValidJson() || StarCatalogStateManager.NamedStars.Count == 0)
             {
                 PushToNative(false);
                 return;
@@ -923,16 +920,75 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
-        /// Check if the mouse is currently over the mod UI window
+        /// Check if the mouse is currently over any mod UI window
+        /// Each window only blocks when it is visible
         /// </summary>
         private bool IsMouseOverUI()
         {
-            if (CinematicShadersWindow.Instance == null)
-                return false;
-            
             // Unity Input.mousePosition is bottom-left origin, GUI is top-left origin
             Vector2 mousePos = new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
-            return CinematicShadersWindow.Instance.WindowRect.Contains(mousePos);
+            
+            // Check main window (only if visible - use activeInHierarchy since isVisible is private)
+            if (CinematicShadersWindow.Instance != null && 
+                CinematicShadersWindow.Instance.gameObject.activeInHierarchy &&
+                CinematicShadersWindow.Instance.WindowRect.Contains(mousePos))
+            {
+                return true;
+            }
+            
+            // Check editor window (legacy)
+            var editor = FindEditorWindow();
+            if (editor != null && editor.IsVisible && editor.WindowRect.Contains(mousePos))
+            {
+                return true;
+            }
+            
+            // Check holographic display
+            var holographic = FindHolographicDisplay();
+            if (holographic != null && holographic.IsVisible && holographic.WindowRect.Contains(mousePos))
+            {
+                return true;
+            }
+            
+            return false;
+        }
+        
+        /// <summary>
+        /// Find the StarCatalogEditorWindow component
+        /// </summary>
+        private StarCatalogEditorWindow FindEditorWindow()
+        {
+            var addon = CinematicShadersAddon.Instance;
+            if (addon != null)
+            {
+                return addon.GetComponent<StarCatalogEditorWindow>();
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Find the holographic display component
+        /// </summary>
+        private StarCatalogHolographicDisplay FindHolographicDisplay()
+        {
+            var addon = CinematicShadersAddon.Instance;
+            if (addon != null)
+            {
+                return addon.GetComponent<StarCatalogHolographicDisplay>();
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Get the native text system pointer for sharing with holographic display
+        /// </summary>
+        public IntPtr GetTextSystem()
+        {
+            if (_textSystem == IntPtr.Zero)
+            {
+                InitializeTextSystem();
+            }
+            return _textSystem;
         }
 
         /// <summary>
@@ -958,7 +1014,7 @@ namespace CinematicShaders.Core
             // Threshold: ~0.02 UV units (~40px at 1080p, ~20px at 4K)
             const float HOVER_THRESHOLD = 0.02f;
 
-            foreach (var star in _namedStars.Values)
+            foreach (var star in StarCatalogStateManager.NamedStars.Values)
             {
                 Vector3 rotatedDir = KartographerMath.ApplyCatalogRotation(
                     star.Direction,
@@ -1027,6 +1083,7 @@ namespace CinematicShaders.Core
                     // Star unlocked
                     _lockedStar = null;
                     _lastLockedStarHIP = 0;  // Clear last locked star
+                    OnStarUnlocked?.Invoke();  // Notify listeners
                 }
                 else if (_hoveredStar != null)
                 {
@@ -1037,6 +1094,9 @@ namespace CinematicShaders.Core
                         // Same star clicked again while complete - just re-lock without animation reset
                         _lockedStar = _hoveredStar;
                         Debug.Log($"[KartographerSelector] RE-LOCKED (stable): {_lockedStar.Name} (HIP {_lockedStar.HipparcosID})");
+                        
+                        // Notify editor of selection (even for re-lock)
+                        OnStarLockedViaClick?.Invoke(_lockedStar);
                     }
                     else
                     {
@@ -1045,6 +1105,9 @@ namespace CinematicShaders.Core
                         _starHash = _lockedStar.HipparcosID * 0.123f;  // Unique hash per star
                         StartAnimationForStar(_lockedStar);
                         // Star locked
+                        
+                        // Notify editor of selection
+                        OnStarLockedViaClick?.Invoke(_lockedStar);
                     }
                 }
             }
@@ -1055,6 +1118,7 @@ namespace CinematicShaders.Core
                 Debug.Log($"[KartographerSelector] UNLOCKED (ESC): {_lockedStar.Name}");
                 _lockedStar = null;
                 _lastLockedStarHIP = 0;  // Clear last locked star
+                OnStarUnlocked?.Invoke();  // Notify listeners
             }
 
             // Update sequential animation phases
@@ -1385,10 +1449,36 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
-        /// Cleanup resources
+        /// Finalizer — ensures native resources are freed even if Dispose() was not called.
+        /// </summary>
+        ~KartographerSelector()
+        {
+            Dispose(false);
+        }
+
+        /// <summary>
+        /// Cleanup resources. Safe to call multiple times.
         /// </summary>
         public void Dispose()
         {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        private void Dispose(bool disposing)
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            // Clear native SRV references before destroying textures
+            StarfieldNative.CR_SetTextTexture(IntPtr.Zero);
+            StarfieldNative.CR_SetVesselTargetTextTexture(IntPtr.Zero);
+
+            // Unsubscribe from state manager events
+            StarCatalogStateManager.OnCatalogChanged -= HandleCatalogChanged;
+            StarCatalogStateManager.OnJsonStateChanged -= HandleJsonStateChanged;
+            StarCatalogStateManager.OnStarDataChanged -= HandleStarDataChanged;
+
             if (_textSystem != IntPtr.Zero)
             {
                 StarfieldNative.CR_TextShutdown(_textSystem);

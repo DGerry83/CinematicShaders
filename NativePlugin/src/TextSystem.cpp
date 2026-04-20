@@ -3,6 +3,7 @@
 #include <cmath>
 #include <fstream>
 #include <algorithm>
+#include <mutex>
 
 // Logging from main native module
 extern void LogToFile(const char* fmt, ...);
@@ -177,16 +178,18 @@ void TextSystem::UpdateAtlasRegion(int x, int y, int w, int h, const uint8_t* da
                     copyW);
     }
     
-    // Update GPU texture
-    D3D11_BOX box = {};
-    box.left = x;
-    box.top = y;
-    box.front = 0;
-    box.right = x + w;
-    box.bottom = y + h;
-    box.back = 1;
+    // Stage GPU update for render thread
+    AtlasUpdateJob job;
+    job.box.left = x;
+    job.box.top = y;
+    job.box.front = 0;
+    job.box.right = x + w;
+    job.box.bottom = y + h;
+    job.box.back = 1;
+    job.pixels.assign(data, data + (w * h));
     
-    m_context->UpdateSubresource(m_atlasTex, 0, &box, data, w, 0);
+    std::lock_guard<std::mutex> lock(m_atlasQueueMutex);
+    m_atlasUpdateQueue.push_back(std::move(job));
 }
 
 bool TextSystem::PackGlyph(int codepoint) {
@@ -276,6 +279,9 @@ bool TextSystem::PackGlyph(int codepoint) {
     // Cache metric
     m_glyphCache[codepoint] = metric;
 
+    // Assign stable glyph ID for instanced rendering
+    GetOrAssignGlyphID(codepoint);
+
     // Update packing state
     m_atlasX += bmpW + GLYPH_PADDING;
     m_atlasRowHeight = std::max(m_atlasRowHeight, bmpH);
@@ -290,9 +296,33 @@ void TextSystem::ClearAtlasAndCache() {
     m_atlasRowHeight = 0;
     std::fill(m_atlasPixels.begin(), m_atlasPixels.end(), static_cast<uint8_t>(0));
     
-    // Clear the D3D texture as well
-    if (m_context && m_atlasTex) {
-        m_context->UpdateSubresource(m_atlasTex, 0, nullptr, m_atlasPixels.data(), m_atlasWidth, 0);
+    // Stage full clear for render thread
+    AtlasUpdateJob job;
+    job.fullClear = true;
+    
+    std::lock_guard<std::mutex> lock(m_atlasQueueMutex);
+    m_atlasUpdateQueue.push_back(std::move(job));
+    
+    m_glyphIDMap.clear();
+    m_nextGlyphID = 0;
+}
+
+void TextSystem::FlushAtlasUpdates(ID3D11DeviceContext* context) {
+    if (!context || !m_atlasTex)
+        return;
+    
+    std::vector<AtlasUpdateJob> jobs;
+    {
+        std::lock_guard<std::mutex> lock(m_atlasQueueMutex);
+        jobs.swap(m_atlasUpdateQueue);
+    }
+    
+    for (auto& job : jobs) {
+        if (job.fullClear) {
+            context->UpdateSubresource(m_atlasTex, 0, nullptr, m_atlasPixels.data(), m_atlasWidth, 0);
+        } else {
+            context->UpdateSubresource(m_atlasTex, 0, &job.box, job.pixels.data(), job.box.right - job.box.left, 0);
+        }
     }
 }
 
@@ -300,7 +330,8 @@ int TextSystem::LayoutString(const char* text, float fontSize, uint32_t color) {
     return LayoutStringEx(text, fontSize, color, 0.0f, 0.0f);
 }
 
-int TextSystem::LayoutStringEx(const char* text, float fontSize, uint32_t color, float originX, float originY, float lineSpacing) {
+int TextSystem::LayoutStringEx(const char* text, float fontSize, uint32_t color, float originX, float originY, float lineSpacing,
+                               float aspectRatio) {
     if (!m_initialized || !text) {
         return 0;
     }
@@ -375,10 +406,10 @@ int TextSystem::LayoutStringEx(const char* text, float fontSize, uint32_t color,
         GlyphInstance inst;
         // xOffset/yOffset are pixel offsets from baseline to bitmap top-left
         // Snap to integers for pixel-perfect rendering (critical for pixel fonts)
-        inst.posX = std::round(cursorX + m.xOffset);
+        inst.posX = std::round(cursorX + (m.xOffset * aspectRatio));
         inst.posY = std::round(cursorY + (m_ascent * m_fontScale) + m.yOffset);
         
-        inst.sizeX = static_cast<float>(m.width);
+        inst.sizeX = static_cast<float>(m.width) * aspectRatio;
         inst.sizeY = static_cast<float>(m.height);
         inst.uvX = m.u0;
         inst.uvY = m.v0;
@@ -391,7 +422,7 @@ int TextSystem::LayoutStringEx(const char* text, float fontSize, uint32_t color,
         m_instances.push_back(inst);
         
         // Advance cursor by glyph advance
-        cursorX += m.advance;
+        cursorX += m.advance * aspectRatio;
         
         // Apply kerning with next character (peek next UTF-8 codepoint)
         if (*p && *p != '\n') {
@@ -409,7 +440,7 @@ int TextSystem::LayoutStringEx(const char* text, float fontSize, uint32_t color,
             }
             
             if (nextCodepoint > 0) {
-                cursorX += stbtt_GetCodepointKernAdvance(m_fontInfo, codepoint, nextCodepoint) * m_fontScale;
+                cursorX += stbtt_GetCodepointKernAdvance(m_fontInfo, codepoint, nextCodepoint) * m_fontScale * aspectRatio;
             }
         }
     }
@@ -496,6 +527,37 @@ void TextSystem::MeasureString(const char* text, float fontSize, float& outWidth
     
     // Restore old scale
     m_fontScale = oldScale;
+}
+
+uint16_t TextSystem::GetOrAssignGlyphID(int codepoint) {
+    auto it = m_glyphIDMap.find(codepoint);
+    if (it != m_glyphIDMap.end()) {
+        return it->second;
+    }
+    uint16_t id = m_nextGlyphID++;
+    m_glyphIDMap[codepoint] = id;
+    return id;
+}
+
+bool TextSystem::GetGlyphUVRect(uint16_t glyphID, float* outU0, float* outV0, float* outU1, float* outV1) const {
+    if (!outU0 || !outV0 || !outU1 || !outV1)
+        return false;
+    // Search for the codepoint that maps to this glyphID
+    for (const auto& pair : m_glyphIDMap) {
+        if (pair.second == glyphID) {
+            auto cacheIt = m_glyphCache.find(pair.first);
+            if (cacheIt != m_glyphCache.end()) {
+                const GlyphMetric& m = cacheIt->second;
+                *outU0 = m.u0;
+                *outV0 = m.v0;
+                *outU1 = m.u1;
+                *outV1 = m.v1;
+                return true;
+            }
+            break;
+        }
+    }
+    return false;
 }
 
 void TextSystem::ExportAtlasToFile(const char* filename) {
@@ -693,12 +755,11 @@ int CR_TextLayout(TextSystemHandle handle, const char* text, float fontSize, uin
 }
 
 extern "C" __declspec(dllexport)
-int CR_TextLayoutEx(TextSystemHandle handle, const char* text, float fontSize, uint32_t color, float originX, float originY, float lineSpacing) {
-    if (!handle) {
-        return 0;
-    }
-    TextSystem* ts = static_cast<TextSystem*>(handle);
-    return ts->LayoutStringEx(text, fontSize, color, originX, originY, lineSpacing);
+int CR_TextLayoutEx(TextSystemHandle handle, const char* text, float fontSize, uint32_t color, float originX, float originY, float lineSpacing,
+                    float aspectRatio) {
+    auto* ts = static_cast<TextSystem*>(handle);
+    if (!ts || !text) return 0;
+    return ts->LayoutStringEx(text, fontSize, color, originX, originY, lineSpacing, aspectRatio);
 }
 
 extern "C" __declspec(dllexport)
@@ -751,4 +812,10 @@ void CR_TextExportGlyphDebug(TextSystemHandle handle, const char* baseFilename) 
     if (!handle) return;
     TextSystem* ts = static_cast<TextSystem*>(handle);
     ts->ExportGlyphDebug(baseFilename);
+}
+
+uint16_t CR_TextGetGlyphID(TextSystemHandle handle, int codepoint) {
+    if (!handle) return 0xFFFF; // Invalid glyph ID
+    TextSystem* ts = static_cast<TextSystem*>(handle);
+    return ts->GetOrAssignGlyphID(codepoint);
 }

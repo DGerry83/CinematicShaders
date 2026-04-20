@@ -46,6 +46,8 @@ TYPE_INFO = {
     'float':   (4, 4),
     'int':     (4, 4),
     'uint':    (4, 4),
+    'uint32':  (4, 4),
+    'uint16':  (2, 2),
     'bool':    (4, 4),
     'float2':  (8, 8),   # float2 requires 8-byte alignment
     'float3':  (12, 16), # float3 requires 16-byte alignment
@@ -355,6 +357,8 @@ class CPPLayoutEngine:
                 'float': 'float',
                 'int': 'int32_t',
                 'uint': 'uint32_t',
+                'uint32': 'uint32_t',
+                'uint16': 'uint16_t',
                 'bool': 'bool',
             }.get(field.type_name, field.type_name)
             
@@ -482,6 +486,8 @@ class CSLayoutEngine:
                 'float': 'float',
                 'int': 'int',
                 'uint': 'uint',
+                'uint32': 'uint',
+                'uint16': 'ushort',
                 'bool': 'int',  # C# bool is 1 byte, use int for HLSL interop
             }.get(field.type_name, field.type_name)
             
@@ -504,7 +510,7 @@ class LayoutVerifier:
             issues.append(f"Size mismatch: HLSL={hlsl.total_size}, C++={cpp.total_size}, C#={cs.total_size}")
         
         # Check alignment
-        if not (hlsl.total_size % 16 == 0):
-            issues.append(f"HLSL size {hlsl.total_size} is not 16-byte aligned")
+        if not (hlsl.total_size % hlsl.alignment == 0):
+            issues.append(f"HLSL size {hlsl.total_size} is not {hlsl.alignment}-byte aligned")
         
         return (len(issues) == 0, issues)

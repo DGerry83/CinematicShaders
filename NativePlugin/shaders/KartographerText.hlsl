@@ -22,7 +22,7 @@ cbuffer TextParams : register(b0)
 {
     int GlyphCount;
     float2 OutputSize;
-    float2 Pad;
+    float Pad;
 };
 
 Texture2D<float> Atlas : register(t0);
@@ -41,10 +41,33 @@ float4 UnpackColor(uint color)
     return float4(r, g, b, a);
 }
 
+// Check if pixel is inside box outline (not filled, just outline)
+bool IsInsideBoxOutline(int2 pixel, float2 tl, float2 br, float thickness)
+{
+    // Convert UV to pixel coordinates
+    float2 pixelTL = tl * OutputSize;
+    float2 pixelBR = br * OutputSize;
+    float pixelThickness = thickness * OutputSize.x; // Use X for thickness
+    
+    float2 p = float2(pixel);
+    
+    // Check if inside outer bounds
+    bool insideOuter = p.x >= pixelTL.x && p.x <= pixelBR.x && 
+                       p.y >= pixelTL.y && p.y <= pixelBR.y;
+    
+    // Check if outside inner bounds (for outline)
+    bool outsideInner = p.x < pixelTL.x + pixelThickness || p.x > pixelBR.x - pixelThickness ||
+                        p.y < pixelTL.y + pixelThickness || p.y > pixelBR.y - pixelThickness;
+    
+    return insideOuter && outsideInner;
+}
+
 [numthreads(64, 1, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
     uint idx = id.x;
+    
+    // Normal glyph rendering
     if (idx >= (uint)GlyphCount)
         return;
     

@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
+#include <mutex>
 
 // Forward declare stbtt_fontinfo to avoid including stb_truetype.h in header
 struct stbtt_fontinfo;
@@ -63,7 +64,8 @@ public:
     int LayoutString(const char* text, float fontSize, uint32_t color);
     
     // Layout a string with explicit origin offset. Returns glyph count.
-    int LayoutStringEx(const char* text, float fontSize, uint32_t color, float originX, float originY, float lineSpacing = 0.0f);
+    int LayoutStringEx(const char* text, float fontSize, uint32_t color, float originX, float originY, float lineSpacing = 0.0f,
+                       float aspectRatio = 1.0f);
     
     // Get bounds of last laid-out text. Returns width/height via out params.
     // This is the ACTUAL rendered size based on glyph positions, not estimates.
@@ -74,6 +76,7 @@ public:
     void MeasureString(const char* text, float fontSize, float& outWidth, float& outHeight);
     
     // Accessors for C# interop
+    ID3D11Device* GetDevice() const { return m_device; }
     ID3D11ShaderResourceView* GetAtlasSRV() const { return m_atlasSRV; }
     ID3D11Texture2D* GetAtlasTexture() const { return m_atlasTex; }
     const GlyphInstance* GetGlyphPtr() const { return m_instances.empty() ? nullptr : m_instances.data(); }
@@ -84,11 +87,18 @@ public:
     ID3D11Buffer* GetOrCreateGlyphBuffer();
     ID3D11ShaderResourceView* GetGlyphBufferSRV() { return m_glyphBufferSRV; }
     
+    // Flush pending atlas uploads on the render thread (must be called before draw/dispatch)
+    void FlushAtlasUpdates(ID3D11DeviceContext* context);
+    
     // Debug: Export atlas to PGM file
     void ExportAtlasToFile(const char* filename);
     
     // Debug: Export first glyph's bitmap from atlas
     void ExportGlyphDebug(const char* baseFilename);
+    
+    // Stable glyph ID for instanced console rendering
+    uint16_t GetOrAssignGlyphID(int codepoint);
+    bool GetGlyphUVRect(uint16_t glyphID, float* outU0, float* outV0, float* outU1, float* outV1) const;
     
 private:
     // Ensure glyph is packed into atlas (rasterizes if needed)
@@ -96,6 +106,14 @@ private:
     
     // Upload glyph bitmap to atlas texture
     void UpdateAtlasRegion(int x, int y, int w, int h, const uint8_t* data);
+    
+    struct AtlasUpdateJob {
+        D3D11_BOX box;
+        std::vector<uint8_t> pixels;
+        bool fullClear = false;
+    };
+    std::vector<AtlasUpdateJob> m_atlasUpdateQueue;
+    std::mutex m_atlasQueueMutex;
     
 private:
     bool m_initialized;
@@ -126,6 +144,10 @@ private:
     std::unordered_map<int, GlyphMetric> m_glyphCache;
     int m_cachedFontPx = 0;  // Quantized font size to avoid float comparison issues
     
+    // Stable glyph ID mapping for instanced rendering
+    std::unordered_map<int, uint16_t> m_glyphIDMap;
+    uint16_t m_nextGlyphID = 0;
+    
     // Clear atlas and glyph cache (called when font size changes)
     void ClearAtlasAndCache();
     
@@ -154,7 +176,8 @@ typedef void* TextSystemHandle;
     
     // Layout text
     __declspec(dllexport) int CR_TextLayout(TextSystemHandle handle, const char* text, float fontSize, uint32_t color);
-    __declspec(dllexport) int CR_TextLayoutEx(TextSystemHandle handle, const char* text, float fontSize, uint32_t color, float originX, float originY, float lineSpacing);
+    __declspec(dllexport) int CR_TextLayoutEx(TextSystemHandle handle, const char* text, float fontSize, uint32_t color, float originX, float originY, float lineSpacing,
+                    float aspectRatio = 1.0f);
     
     // Get actual bounds of laid-out text (width/height via out params)
     __declspec(dllexport) void CR_TextGetBounds(TextSystemHandle handle, float* outWidth, float* outHeight);
@@ -170,4 +193,7 @@ typedef void* TextSystemHandle;
     // Debug export
     __declspec(dllexport) void CR_TextExportAtlas(TextSystemHandle handle, const char* filename);
     __declspec(dllexport) void CR_TextExportGlyphDebug(TextSystemHandle handle, const char* baseFilename);
+    
+    // Get stable glyph ID for a codepoint (for instanced rendering)
+    __declspec(dllexport) uint16_t CR_TextGetGlyphID(TextSystemHandle handle, int codepoint);
 }
