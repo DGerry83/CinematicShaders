@@ -107,7 +107,7 @@ namespace CinematicShaders.Core
         public static int KartographerGridColor { get; set; } = 0;                  // 0=Seafoam, 1=Amber, 2=White, 3=Green
         
         // Audio settings
-        public static float StarConsoleVolume { get; set; } = 1.0f;                 // 0.0-1.0, Star Console UI audio group volume
+        public static float StarConsoleVolume { get; set; } = 0.5f;                 // 0.0-1.0, Star Console UI audio group volume
         public static string StarConsoleDisplayMode { get; set; } = "Medium";       // Legacy, Small, Medium, Large
 
         // HYG Catalog Coordinate Rotation (degrees)
@@ -308,7 +308,7 @@ namespace CinematicShaders.Core
                 KartographerRotationPitch = float.Parse(settingsNode.GetValue("KartographerRotationPitch") ?? "0.0");
                 KartographerGridSize = int.Parse(settingsNode.GetValue("KartographerGridSize") ?? "2");
                 KartographerGridColor = int.Parse(settingsNode.GetValue("KartographerGridColor") ?? "0");
-                StarConsoleVolume = float.Parse(settingsNode.GetValue("StarConsoleVolume") ?? "1.0");
+                StarConsoleVolume = float.Parse(settingsNode.GetValue("StarConsoleVolume") ?? "0.5");
                 ModAudioManager.SetGroupVolume(AudioGroup.StarConsole, StarConsoleVolume);
                 StarConsoleDisplayMode = settingsNode.GetValue("StarConsoleDisplayMode") ?? "Medium";
                 ActiveCatalogPath = NormalizeCatalogPath(settingsNode.GetValue("ActiveCatalogPath") ?? "");
