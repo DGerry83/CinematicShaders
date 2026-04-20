@@ -33,6 +33,7 @@ struct TextDispatchJob {
     int outputWidth = 0;
     int outputHeight = 0;
     int clearOutput = 0;  // 0 for CR_TextDispatch (always clear), 1/0 for CR_TextDispatchEx
+    std::vector<CinematicShaders::GlyphInstance> glyphSnapshot;  // Captured at queue time to avoid race with CR_TextLayoutEx
 };
 
 static struct {
@@ -2490,6 +2491,14 @@ void CR_TextDispatch(
     job.outputHeight = outputHeight;
     job.clearOutput = 1;  // CR_TextDispatch always clears
     
+    // Capture glyph snapshot to prevent race with subsequent CR_TextLayoutEx calls
+    CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(textSystem);
+    const CinematicShaders::GlyphInstance* glyphPtr = ts->GetGlyphPtr();
+    if (glyphPtr && glyphCount > 0) {
+        job.glyphSnapshot.resize(glyphCount);
+        memcpy(job.glyphSnapshot.data(), glyphPtr, glyphCount * sizeof(CinematicShaders::GlyphInstance));
+    }
+    
     g_StarfieldState.textDispatchQueue.push_back(job);
 }
 
@@ -2516,6 +2525,14 @@ void CR_TextDispatchEx(
     job.outputWidth = outputWidth;
     job.outputHeight = outputHeight;
     job.clearOutput = clearOutput;
+    
+    // Capture glyph snapshot to prevent race with subsequent CR_TextLayoutEx calls
+    CinematicShaders::TextSystem* ts = static_cast<CinematicShaders::TextSystem*>(textSystem);
+    const CinematicShaders::GlyphInstance* glyphPtr = ts->GetGlyphPtr();
+    if (glyphPtr && glyphCount > 0) {
+        job.glyphSnapshot.resize(glyphCount);
+        memcpy(job.glyphSnapshot.data(), glyphPtr, glyphCount * sizeof(CinematicShaders::GlyphInstance));
+    }
     
     g_StarfieldState.textDispatchQueue.push_back(job);
 }
@@ -4853,13 +4870,40 @@ static void ExecuteTextDispatches(ID3D11DeviceContext* context)
         // Flush any pending atlas uploads before using the atlas
         ts->FlushAtlasUpdates(context);
         
-        ID3D11Buffer* glyphBuffer = ts->GetOrCreateGlyphBuffer();
-        if (!glyphBuffer)
-            continue;
+        // Create temporary structured buffer from captured glyph snapshot
+        ID3D11Buffer* glyphBuffer = nullptr;
+        ID3D11ShaderResourceView* glyphSRV = nullptr;
         
-        ID3D11ShaderResourceView* glyphSRV = ts->GetGlyphBufferSRV();
-        if (!glyphSRV)
+        if (!job.glyphSnapshot.empty() && job.glyphCount > 0) {
+            int instanceSize = sizeof(CinematicShaders::GlyphInstance);
+            int requiredSize = job.glyphCount * instanceSize;
+            
+            D3D11_BUFFER_DESC desc = {};
+            desc.ByteWidth = requiredSize;
+            desc.Usage = D3D11_USAGE_IMMUTABLE;
+            desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+            desc.StructureByteStride = instanceSize;
+            desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+            
+            D3D11_SUBRESOURCE_DATA initData = {};
+            initData.pSysMem = job.glyphSnapshot.data();
+            
+            HRESULT hr = g_StarfieldState.device->CreateBuffer(&desc, &initData, &glyphBuffer);
+            if (SUCCEEDED(hr) && glyphBuffer) {
+                D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+                srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+                srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+                srvDesc.Buffer.FirstElement = 0;
+                srvDesc.Buffer.NumElements = job.glyphCount;
+                
+                hr = g_StarfieldState.device->CreateShaderResourceView(glyphBuffer, &srvDesc, &glyphSRV);
+            }
+        }
+        
+        if (!glyphBuffer || !glyphSRV) {
+            if (glyphBuffer) glyphBuffer->Release();
             continue;
+        }
         
         ID3D11ShaderResourceView* atlasSRV = ts->GetAtlasSRV();
         if (!atlasSRV)
@@ -4912,6 +4956,10 @@ static void ExecuteTextDispatches(ID3D11DeviceContext* context)
         UINT dispatchX = (totalThreads + 63) / 64;  // 64 threads per group
         UINT dispatchY = 1;
         context->Dispatch(dispatchX, dispatchY, 1);
+        
+        // Release temporary snapshot buffer
+        if (glyphSRV) glyphSRV->Release();
+        if (glyphBuffer) glyphBuffer->Release();
     }
     
     // Unbind resources after all jobs
