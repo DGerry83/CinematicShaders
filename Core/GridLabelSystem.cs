@@ -651,28 +651,28 @@ namespace CinematicShaders.Core
                 {
                     case 0: // Jumbo
                         label.RotationDegrees = -2f;
-                        label.PaddingLeft = 0.10f;
+                        label.PaddingLeft = 0.03f;
                         label.PaddingBottom = 0.00f;
                         label.FontSizePixels = 18f;
                         label.LineSpacing = 4.5f;
                         break;
                     case 1: // Large
                         label.RotationDegrees = -2f;
-                        label.PaddingLeft = 0.12f;
+                        label.PaddingLeft = 0.04f;
                         label.PaddingBottom = 0.00f;
                         label.FontSizePixels = 21f;
                         label.LineSpacing = 5.3f;
                         break;
                     case 2: // Medium
                         label.RotationDegrees = -2f;
-                        label.PaddingLeft = 0.17f;
+                        label.PaddingLeft = 0.06f;
                         label.PaddingBottom = 0.07f;
                         label.FontSizePixels = 29f;
                         label.LineSpacing = 0f;
                         break;
                     case 3: // Small
                         label.RotationDegrees = -2f;
-                        label.PaddingLeft = 0.20f;
+                        label.PaddingLeft = 0.06f;
                         label.PaddingBottom = 0.70f;
                         label.FontSizePixels = 36f;
                         label.LineSpacing = 0f;
@@ -691,24 +691,28 @@ namespace CinematicShaders.Core
                         label.PaddingLeft = 0.09f;
                         label.PaddingBottom = 0.05f;
                         label.FontSizePixels = 20f;
+                        label.FixedPaddingLeft = 0.015f;
                         break;
                     case 1: // Large
                         label.RotationDegrees = 0.4f;
                         label.PaddingLeft = 0.13f;
                         label.PaddingBottom = 0.08f;
                         label.FontSizePixels = 20f;
+                        label.FixedPaddingLeft = 0.015f;
                         break;
                     case 2: // Medium
                         label.RotationDegrees = -1f;
                         label.PaddingLeft = 0.17f;
                         label.PaddingBottom = 0.06f;
                         label.FontSizePixels = 24f;
+                        label.FixedPaddingLeft = 0.015f;
                         break;
                     case 3: // Small - reduced font size to ensure numbers fit in texture
                         label.RotationDegrees = -0.3f;
                         label.PaddingLeft = 0.25f;
                         label.PaddingBottom = 0.12f;
                         label.FontSizePixels = 34f;
+                        label.FixedPaddingLeft = 0.015f;
                         break;
                 }
             }

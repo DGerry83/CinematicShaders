@@ -19,6 +19,7 @@ namespace CinematicShaders.UI.Tabs
         private bool _showNavballOptions = false;
         private bool _showSituationOptions = false;
         private bool _showColorDropdown = false;
+        private bool _showLabelTuning = false;
         private int _currentColorIndex = 0;
 
         private GUIStyle[] _colorButtonStyles = null;
@@ -524,6 +525,41 @@ namespace CinematicShaders.UI.Tabs
 
 
 
+            /* LABEL POSITION TUNING - Disabled after final values were found
+            GUILayout.Space(10);
+            _showLabelTuning = GUILayout.Toggle(_showLabelTuning, "Label Position Tuning", HighLogic.Skin.button);
+            
+            if (_showLabelTuning)
+            {
+                if (CinematicShadersAddon.SituationLabelSystem != null)
+                {
+                    string[] labelIds = { "huck", "situation_a", "situation_b" };
+                    foreach (var labelId in labelIds)
+                    {
+                        var label = CinematicShadersAddon.SituationLabelSystem.GetLabel(labelId);
+                        if (label == null || !label.Enabled) continue;
+                        
+                        // Situation labels use fixed padding mode; HUCK uses proportional
+                        bool useFixed = label.UseFixedPadding;
+                        float currentPad = useFixed ? label.FixedPaddingLeft : label.PaddingLeft;
+                        float sliderMax = useFixed ? 0.2f : 0.5f;
+                        string padType = useFixed ? "Fixed Left" : "Left";
+                        
+                        GUILayout.Label($"{labelId}: {padType} Pad {currentPad:F3}");
+                        float newPadL = GUILayout.HorizontalSlider(currentPad, 0f, sliderMax);
+                        if (!Mathf.Approximately(newPadL, currentPad))
+                        {
+                            if (useFixed)
+                                label.FixedPaddingLeft = newPadL;
+                            else
+                                label.PaddingLeft = newPadL;
+                            label.PositionDirty = true;
+                        }
+                    }
+                }
+            }
+            */
+            
             // Reset button
             GUILayout.Space(10);
             if (GUILayout.Button(CinematicShadersUIStrings.Kartographer.ResetButton))
