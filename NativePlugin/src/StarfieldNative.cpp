@@ -4471,6 +4471,17 @@ static void ExecuteCubemapRenderJob(ID3D11DeviceContext* context, CubemapRenderJ
     context->OMGetRenderTargets(1, &oldRTV, &oldDSV);
     context->RSGetViewports(&numViewports, &oldViewport);
     
+    // Upload catalog data if staged but not yet on GPU
+    // (Cubemap render event may fire before screen render event has uploaded)
+    if (g_StarfieldState.catalogBufferNeedsUpload && g_StarfieldState.starCatalogBuffer && !g_StarfieldState.catalogDataCPU.empty()) {
+        D3D11_MAPPED_SUBRESOURCE mapped;
+        if (SUCCEEDED(context->Map(g_StarfieldState.starCatalogBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+            memcpy(mapped.pData, g_StarfieldState.catalogDataCPU.data(), sizeof(StarData) * g_StarfieldState.catalogSize);
+            context->Unmap(g_StarfieldState.starCatalogBuffer, 0);
+        }
+        g_StarfieldState.catalogBufferNeedsUpload = false;
+    }
+    
     // Render all 6 faces
     for (int face = 0; face < 6; face++) {
         if (!job.targetTextures[face]) {

@@ -188,7 +188,10 @@ namespace CinematicShaders.Shaders.Starfield
             }
             
             // Restore original KSP skybox
-            KSPCubemapInjector.RestoreOriginalSkybox();
+            // TEMPORARILY COMMENTED OUT for visual verification:
+            // Leave injected cubemap in place when starfield is disabled
+            // so we can compare against guide star catalogs.
+            // KSPCubemapInjector.RestoreOriginalSkybox();
         }
 
         public static bool IsCompositorOnCurrentCamera()
