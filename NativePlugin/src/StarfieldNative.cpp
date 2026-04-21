@@ -1206,13 +1206,9 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
     context->GetDevice(&device);
     if (!device) return;
     
-    // Ensure resources and catalog are ready
-    if (!g_StarfieldState.initialized || !g_StarfieldState.starCatalogBuffer || g_StarfieldState.catalogSize == 0) {
-        if (device) device->Release();
-        return;
-    }
-    
     // Execute pending navball upload (Fix 1)
+    // Moved BEFORE catalog readiness check — navball textures are independent
+    // of star catalog state and must upload even when catalog is still loading.
     if (g_StarfieldState.navballUploadJob.pending) {
         auto& job = g_StarfieldState.navballUploadJob;
         if (g_StarfieldState.navballIconArray) {
@@ -1231,6 +1227,12 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
             }
         }
         job.pending = false;
+    }
+    
+    // Ensure resources and catalog are ready
+    if (!g_StarfieldState.initialized || !g_StarfieldState.starCatalogBuffer || g_StarfieldState.catalogSize == 0) {
+        if (device) device->Release();
+        return;
     }
     
     // Execute pending catalog buffer upload (Fix 2, 3)
