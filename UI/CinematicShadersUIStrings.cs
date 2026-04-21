@@ -262,12 +262,12 @@ namespace CinematicShaders.UI
             // STAR CATALOG EDITOR
             // ------------------------------------------------------------------------
             public const string StarCatalogEditorTitle = "STAR CATALOG EDITOR";
-            public const string StarConsoleToggle = " ▼ Star Console";
-            public const string StarConsoleAudioSection = " ▼ Star Console Audio";
+            public const string StarConsoleToggle = " ▼ STAR Console";
+            public const string StarConsoleAudioSection = " ▼ STAR Console Audio";
             public const string StarConsoleVolumeFormat = "Volume: {0:F0}%";
             
             // Holographic Display Mode
-            public const string DisplayModeLabel = "Star Console Display Mode:";
+            public const string DisplayModeLabel = "STAR Console Display Mode:";
             public const string DisplayModeLegacy = "Legacy";
             public const string DisplayModeSmall = "Small";
             public const string DisplayModeMedium = "Medium";
