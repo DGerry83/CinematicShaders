@@ -90,8 +90,8 @@ namespace CinematicShaders.Core
             "retrograde_sdf.png",
             "normal_sdf.png",
             "antinormal_sdf.png",
-            "radial_out_sdf.png",
             "radial_in_sdf.png",
+            "radial_out_sdf.png",
             "maneuver_sdf.png"
         };
         
@@ -101,8 +101,8 @@ namespace CinematicShaders.Core
             "retrograde_retro_sdf.png",
             "normal_retro_sdf.png",
             "antinormal_retro_sdf.png",
-            "radial_out_retro_sdf.png",
             "radial_in_retro_sdf.png",
+            "radial_out_retro_sdf.png",
             "maneuver_retro_sdf.png"
         };
         
@@ -441,7 +441,8 @@ namespace CinematicShaders.Core
             Vector3d radialOut = (radialVec - prograde * Vector3d.Dot(radialVec, prograde)).normalized;
             Vector3d radialIn = -radialOut;
             // Normal is perpendicular to velocity and radial (right-hand rule)
-            Vector3d normal = Vector3d.Cross(radialOut, prograde).normalized;
+            // Negated to match KSP NavBall.cs convention: normalVector = -Cross(radial, obtVel)
+            Vector3d normal = -Vector3d.Cross(radialOut, prograde).normalized;
             Vector3d antinormal = -normal;
 
             // Cache for debugging
