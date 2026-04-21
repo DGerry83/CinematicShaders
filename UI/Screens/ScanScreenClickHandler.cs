@@ -28,26 +28,52 @@ namespace CinematicShaders.UI.Screens
         }
         
         /// <summary>
-        /// Sets up click zone for the SCAN area using constraint layout.
+        /// Sets up click zone for the SCAN area using tight bounding box
+        /// computed from the actual ASCII art content lines.
         /// Call this once during screen initialization.
         /// </summary>
         public void SetupZones()
         {
             ZoneManager.Clear();
             
-            // Get scan_area region from constraint layout
-            GridRegion scanRegion = _screen.Layout.GetGridArea("scan_area");
+            // Compute tight bounding box from actual SCAN art content
+            string[] lines = _screen.ContentLines;
+            int minRow = int.MaxValue, maxRow = int.MinValue;
+            int minCol = int.MaxValue, maxCol = int.MinValue;
             
-            // Register large scan zone using grid coordinates
-            ZoneManager.RegisterZone(
-                "scan_area",
-                scanRegion.TopLeft.Column,
-                scanRegion.TopLeft.Row,
-                scanRegion.Width,
-                scanRegion.Height,
-                "scan",
-                () => _screen.OnScanAreaClicked()
-            );
+            for (int row = 0; row < lines.Length; row++)
+            {
+                string line = lines[row];
+                int firstNonSpace = -1, lastNonSpace = -1;
+                for (int col = 0; col < line.Length; col++)
+                {
+                    if (line[col] != ' ')
+                    {
+                        if (firstNonSpace == -1) firstNonSpace = col;
+                        lastNonSpace = col;
+                    }
+                }
+                if (firstNonSpace != -1)
+                {
+                    minRow = Mathf.Min(minRow, row);
+                    maxRow = Mathf.Max(maxRow, row);
+                    minCol = Mathf.Min(minCol, firstNonSpace);
+                    maxCol = Mathf.Max(maxCol, lastNonSpace);
+                }
+            }
+            
+            if (minRow != int.MaxValue)
+            {
+                ZoneManager.RegisterZone(
+                    "scan_area",
+                    minCol,
+                    minRow,
+                    maxCol - minCol + 1,
+                    maxRow - minRow + 1,
+                    "scan",
+                    () => _screen.OnScanAreaClicked()
+                );
+            }
         }
         
         /// <summary>

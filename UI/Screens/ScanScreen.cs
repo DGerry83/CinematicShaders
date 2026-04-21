@@ -38,6 +38,13 @@ namespace CinematicShaders.UI.Screens
     {
         private readonly float _fontSize;
         private readonly float _aspectRatio;
+        private readonly string[] _contentLines;
+        
+        /// <summary>
+        /// Content lines used to render the SCAN ASCII art.
+        /// Exposed for click-zone bounding-box calculation.
+        /// </summary>
+        public string[] ContentLines => _contentLines;
         
         // NEW: Simple click handler
         public ScanScreenClickHandler ClickHandler { get; private set; }
@@ -79,6 +86,7 @@ namespace CinematicShaders.UI.Screens
             ScreenName = "Scan";
             _fontSize = fontSize;
             _aspectRatio = aspectRatio;
+            _contentLines = content.ContentLines;
             
             // Add layers using content
             AddLayer(new BorderLayer(content.BorderLines));
