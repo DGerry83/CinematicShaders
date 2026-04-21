@@ -329,6 +329,17 @@ static struct {
     ID3D11Texture2D* consoleRTTexture = nullptr;
     
     std::vector<TextDispatchJob> textDispatchQueue;
+    
+    // Navball upload staging (Fix 1)
+    struct NavballUploadJob {
+        ID3D11Texture2D* sourceTextures[7] = {};
+        int width = 0;
+        int height = 0;
+        bool pending = false;
+    } navballUploadJob;
+    
+    // Catalog buffer upload staging (Fix 2, 3)
+    bool catalogBufferNeedsUpload = false;
 } g_StarfieldState;
 
 // Constant buffer layouts (must match HLSL exactly, 16-byte aligned)
@@ -1187,6 +1198,37 @@ static void ExecuteStarfieldRender(ID3D11DeviceContext* context)
     if (!g_StarfieldState.initialized || !g_StarfieldState.starCatalogBuffer || g_StarfieldState.catalogSize == 0) {
         if (device) device->Release();
         return;
+    }
+    
+    // Execute pending navball upload (Fix 1)
+    if (g_StarfieldState.navballUploadJob.pending) {
+        auto& job = g_StarfieldState.navballUploadJob;
+        if (g_StarfieldState.navballIconArray) {
+            for (int i = 0; i < 7; i++) {
+                if (job.sourceTextures[i]) {
+                    context->CopySubresourceRegion(
+                        g_StarfieldState.navballIconArray,
+                        D3D11CalcSubresource(0, i, 1),
+                        0, 0, 0,
+                        job.sourceTextures[i],
+                        0, nullptr
+                    );
+                    job.sourceTextures[i]->Release();
+                    job.sourceTextures[i] = nullptr;
+                }
+            }
+        }
+        job.pending = false;
+    }
+    
+    // Execute pending catalog buffer upload (Fix 2, 3)
+    if (g_StarfieldState.catalogBufferNeedsUpload && g_StarfieldState.starCatalogBuffer && !g_StarfieldState.catalogDataCPU.empty()) {
+        D3D11_MAPPED_SUBRESOURCE mapped;
+        if (SUCCEEDED(context->Map(g_StarfieldState.starCatalogBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+            memcpy(mapped.pData, g_StarfieldState.catalogDataCPU.data(), sizeof(StarData) * g_StarfieldState.catalogSize);
+            context->Unmap(g_StarfieldState.starCatalogBuffer, 0);
+        }
+        g_StarfieldState.catalogBufferNeedsUpload = false;
     }
     
     // Get or create render target view
@@ -2770,6 +2812,17 @@ int CR_SetNavballIconTextures(ID3D11Texture2D* sourceTextures[7], int width, int
     
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     
+    // Release any previous pending upload textures to prevent leaks
+    if (g_StarfieldState.navballUploadJob.pending) {
+        for (int i = 0; i < 7; i++) {
+            if (g_StarfieldState.navballUploadJob.sourceTextures[i]) {
+                g_StarfieldState.navballUploadJob.sourceTextures[i]->Release();
+                g_StarfieldState.navballUploadJob.sourceTextures[i] = nullptr;
+            }
+        }
+        g_StarfieldState.navballUploadJob.pending = false;
+    }
+    
     // Release existing texture array and SRV
     if (g_StarfieldState.navballIconArraySRV) {
         g_StarfieldState.navballIconArraySRV->Release();
@@ -2814,31 +2867,19 @@ int CR_SetNavballIconTextures(ID3D11Texture2D* sourceTextures[7], int width, int
     }
     LogToFile("[Navball] Texture array created successfully");
     
-    // Copy each source texture to the corresponding array slice
-    ID3D11DeviceContext* context = nullptr;
-    g_StarfieldState.device->GetImmediateContext(&context);
-    if (!context) {
-        LogToFile("[Navball] Error: Failed to get immediate context");
-        g_StarfieldState.navballIconArray->Release();
-        g_StarfieldState.navballIconArray = nullptr;
-        return -5;
-    }
-    
-    LogToFile("[Navball] Copying textures to array...");
+    // Stage navball upload for render thread
     for (int i = 0; i < 7; i++) {
         if (sourceTextures[i]) {
-            context->CopySubresourceRegion(
-                g_StarfieldState.navballIconArray,
-                D3D11CalcSubresource(0, i, 1),  // Mip 0, Array slice i
-                0, 0, 0,
-                sourceTextures[i],
-                0, nullptr
-            );
+            sourceTextures[i]->AddRef();
+            g_StarfieldState.navballUploadJob.sourceTextures[i] = sourceTextures[i];
+        } else {
+            g_StarfieldState.navballUploadJob.sourceTextures[i] = nullptr;
         }
     }
-    
-    context->Release();
-    LogToFile("[Navball] Textures copied, creating SRV...");
+    g_StarfieldState.navballUploadJob.width = width;
+    g_StarfieldState.navballUploadJob.height = height;
+    g_StarfieldState.navballUploadJob.pending = true;
+    LogToFile("[Navball] Textures staged for render thread upload");
     
     // Create SRV for the texture array
     D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -2857,7 +2898,7 @@ int CR_SetNavballIconTextures(ID3D11Texture2D* sourceTextures[7], int width, int
         return -6;
     }
     
-    // Clear the invalidated flag since textures are now uploaded
+    // Clear the invalidated flag since textures are staged for upload
     g_StarfieldState.navballTexturesInvalidated = false;
     
     LogToFile("[Navball] Texture array created: %dx%d x 7 slices, invalidated flag cleared", width, height);
@@ -3347,7 +3388,7 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
         return;
     }
     
-    // Phase 3: GPU upload under lock
+    // Phase 3: Stage catalog for render thread upload
     {
         std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
         
@@ -3382,29 +3423,33 @@ void CR_StarfieldGenerateCatalog(int seed, int requestedCount)
             g_StarfieldState.catalogCapacity = finalCount;
         }
         
-        // Upload data
-        D3D11_MAPPED_SUBRESOURCE mapped;
-        ID3D11DeviceContext* context = nullptr;
-        device->GetImmediateContext(&context);
-        
-        if (context && SUCCEEDED(context->Map(g_StarfieldState.starCatalogBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
-            memcpy(mapped.pData, tempCatalog.data(), sizeof(StarData) * finalCount);
-            context->Unmap(g_StarfieldState.starCatalogBuffer, 0);
-            context->Release();
-            
-            g_StarfieldState.catalogSize = finalCount;
-            g_StarfieldState.catalogHeroCount = heroesGenerated;  // Store actual hero count
-            g_StarfieldState.catalogSeed = seed;
-            
-            // Store CPU-side copy for save operations
-            g_StarfieldState.catalogDataCPU.resize(finalCount);
-            memcpy(g_StarfieldState.catalogDataCPU.data(), tempCatalog.data(), sizeof(StarData) * finalCount);
-            
-            LogToFile("[Starfield] Catalog generated: %d stars (%d heroes, %d regular, %d attempts)", finalCount, heroesGenerated, regularGenerated, totalAttempts);
-        } else {
-            LogToFile("[Starfield] Failed to map catalog buffer");
-            if (context) context->Release();
+        // Create cached catalog SRV (bonus bug fix: generation path previously omitted this)
+        if (g_StarfieldState.starCatalogBuffer) {
+            if (g_StarfieldState.catalogSRV) {
+                g_StarfieldState.catalogSRV->Release();
+                g_StarfieldState.catalogSRV = nullptr;
+            }
+            D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+            srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+            srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+            srvDesc.Buffer.ElementOffset = 0;
+            srvDesc.Buffer.ElementWidth = sizeof(StarData);
+            srvDesc.Buffer.NumElements = finalCount;
+            device->CreateShaderResourceView(g_StarfieldState.starCatalogBuffer, &srvDesc, &g_StarfieldState.catalogSRV);
         }
+        
+        // Stage CPU data and set upload flag
+        g_StarfieldState.catalogSize = finalCount;
+        g_StarfieldState.catalogHeroCount = heroesGenerated;
+        g_StarfieldState.catalogSeed = seed;
+        
+        // Store CPU-side copy for save operations
+        g_StarfieldState.catalogDataCPU.resize(finalCount);
+        memcpy(g_StarfieldState.catalogDataCPU.data(), tempCatalog.data(), sizeof(StarData) * finalCount);
+        
+        g_StarfieldState.catalogBufferNeedsUpload = true;
+        
+        LogToFile("[Starfield] Catalog generated and staged: %d stars (%d heroes, %d regular, %d attempts)", finalCount, heroesGenerated, regularGenerated, totalAttempts);
     }
     
     device->Release();
@@ -3590,6 +3635,17 @@ void CR_StarfieldShutdown()
     }
     g_StarfieldState.textUAVCache.clear();
     
+    // Release any pending navball upload textures
+    if (g_StarfieldState.navballUploadJob.pending) {
+        for (int i = 0; i < 7; i++) {
+            if (g_StarfieldState.navballUploadJob.sourceTextures[i]) {
+                g_StarfieldState.navballUploadJob.sourceTextures[i]->Release();
+                g_StarfieldState.navballUploadJob.sourceTextures[i] = nullptr;
+            }
+        }
+        g_StarfieldState.navballUploadJob.pending = false;
+    }
+    
     if (g_StarfieldState.navballIconArray) { g_StarfieldState.navballIconArray->Release(); g_StarfieldState.navballIconArray = nullptr; }
     if (g_StarfieldState.navballIconArraySRV) { g_StarfieldState.navballIconArraySRV->Release(); g_StarfieldState.navballIconArraySRV = nullptr; }
     if (g_StarfieldState.pointingIconSRV) { g_StarfieldState.pointingIconSRV->Release(); g_StarfieldState.pointingIconSRV = nullptr; }
@@ -3748,43 +3804,32 @@ void CR_StarfieldLoadCatalog(const StarData* buffer, int count, int heroCount)
         g_StarfieldState.catalogCapacity = count;
     }
     
-    // Upload data
-    ID3D11DeviceContext* context = nullptr;
-    g_StarfieldState.device->GetImmediateContext(&context);
+    // Stage catalog data for render thread upload
+    g_StarfieldState.catalogSize = count;
+    g_StarfieldState.catalogHeroCount = heroCount;
     
-    if (context) {
-        D3D11_MAPPED_SUBRESOURCE mapped;
-        if (SUCCEEDED(context->Map(g_StarfieldState.starCatalogBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
-            memcpy(mapped.pData, buffer, sizeof(StarData) * count);
-            context->Unmap(g_StarfieldState.starCatalogBuffer, 0);
-            
-            g_StarfieldState.catalogSize = count;
-            g_StarfieldState.catalogHeroCount = heroCount;
-            
-            // Store CPU-side copy for save operations
-            g_StarfieldState.catalogDataCPU.resize(count);
-            memcpy(g_StarfieldState.catalogDataCPU.data(), buffer, sizeof(StarData) * count);
-            
-            LogToFile("[Starfield] Loaded catalog: %d stars, %d heroes", count, heroCount);
+    // Store CPU-side copy for save operations and render thread upload
+    g_StarfieldState.catalogDataCPU.resize(count);
+    memcpy(g_StarfieldState.catalogDataCPU.data(), buffer, sizeof(StarData) * count);
+    
+    g_StarfieldState.catalogBufferNeedsUpload = true;
+    
+    // Create cached catalog SRV (device-only, safe on main thread)
+    if (g_StarfieldState.starCatalogBuffer) {
+        if (g_StarfieldState.catalogSRV) {
+            g_StarfieldState.catalogSRV->Release();
+            g_StarfieldState.catalogSRV = nullptr;
         }
-        
-        // Create cached catalog SRV
-        if (g_StarfieldState.starCatalogBuffer) {
-            if (g_StarfieldState.catalogSRV) {
-                g_StarfieldState.catalogSRV->Release();
-                g_StarfieldState.catalogSRV = nullptr;
-            }
-            D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-            srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-            srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-            srvDesc.Buffer.ElementOffset = 0;
-            srvDesc.Buffer.ElementWidth = sizeof(StarData);
-            srvDesc.Buffer.NumElements = g_StarfieldState.catalogSize;
-            g_StarfieldState.device->CreateShaderResourceView(g_StarfieldState.starCatalogBuffer, &srvDesc, &g_StarfieldState.catalogSRV);
-        }
-        
-        context->Release();
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+        srvDesc.Buffer.ElementOffset = 0;
+        srvDesc.Buffer.ElementWidth = sizeof(StarData);
+        srvDesc.Buffer.NumElements = g_StarfieldState.catalogSize;
+        g_StarfieldState.device->CreateShaderResourceView(g_StarfieldState.starCatalogBuffer, &srvDesc, &g_StarfieldState.catalogSRV);
     }
+    
+    LogToFile("[Starfield] Loaded catalog staged: %d stars, %d heroes", count, heroCount);
 }
 
 extern "C" __declspec(dllexport)
