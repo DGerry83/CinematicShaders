@@ -41,6 +41,13 @@ namespace CinematicShaders.Core
                 Debug.Log("[StarfieldCubemapRenderer] Starfield disabled, skipping cubemap render");
                 return false;
             }
+            
+            // Defensive: match pattern used by GridLabelSystem, KartographerSelector, etc.
+            if (!Native.StarfieldNative.IsLoaded)
+            {
+                Debug.LogWarning("[StarfieldCubemapRenderer] Native DLL not loaded yet, skipping cubemap render");
+                return false;
+            }
 
             Stopwatch renderTimer = new Stopwatch();
 

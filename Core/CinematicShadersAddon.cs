@@ -43,6 +43,10 @@ namespace CinematicShaders.Core
             
             ModFileLogger.Initialize();
             ModFileLogger.Log("CinematicShadersAddon awakened");
+            
+            // Ensure native DLL is loaded before any Update() methods are JIT-compiled.
+            // Fixes cubemap DllNotFoundException caused by P/Invoke resolution race.
+            DllLoader.EnsureLoaded();
         }
 
         void Start()

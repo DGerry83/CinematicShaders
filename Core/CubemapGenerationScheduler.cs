@@ -110,6 +110,14 @@ namespace CinematicShaders.Core
         {
             if (!_cubemapRenderPending) return;
             
+            // Defensive: match pattern used by GridLabelSystem, KartographerSelector, etc.
+            if (!Native.StarfieldNative.IsLoaded)
+            {
+                ModFileLogger.LogWarning("[CubemapGenerationScheduler] Native DLL not loaded yet, deferring completion check");
+                return;
+            }
+            
+            ModFileLogger.Log("[CubemapGenerationScheduler] Polling cubemap completion...");
             int status = Native.StarfieldNative.CR_CubemapRenderStatus();
             
             if (status == 1)
