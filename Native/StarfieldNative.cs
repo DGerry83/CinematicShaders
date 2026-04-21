@@ -344,6 +344,12 @@ namespace CinematicShaders.Native
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern int CR_RenderStarfieldCubemap(IntPtr[] targetTextures, int faceSize);
 
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr CR_GetCubemapRenderEventFunc();
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CR_CubemapRenderStatus();
+
         // ============================================================================
         // Navball Icon Texture Array (Phase 4d)
         // ============================================================================

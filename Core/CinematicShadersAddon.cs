@@ -217,6 +217,9 @@ namespace CinematicShaders.Core
                 NavballManager.Update();
             }
             
+            // Poll async cubemap render completion (Fix 4)
+            CubemapGenerationScheduler.CheckCubemapCompletion();
+            
             // Update situation display only in playable scenes (Flight, Tracking Station, KSC)
             // Shows "NO VESSEL" when not in a vessel (e.g., Tracking Station)
             if (IsPlayableScene())

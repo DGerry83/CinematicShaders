@@ -190,6 +190,12 @@ __declspec(dllexport) int CR_SetManeuverTextTexture(ID3D11Texture2D* sourceTextu
 // Returns: 0 on success, non-zero on error
 __declspec(dllexport) int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize);
 
+// Cubemap async render event function (Fix 4)
+__declspec(dllexport) UnityRenderingEvent CR_GetCubemapRenderEventFunc();
+
+// Cubemap render status query: -1 = no job, 0 = complete success, 1 = pending, negative = error
+__declspec(dllexport) int CR_CubemapRenderStatus();
+
 #ifdef __cplusplus
 }
 #endif

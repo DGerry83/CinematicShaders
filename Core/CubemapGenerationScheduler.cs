@@ -13,6 +13,10 @@ namespace CinematicShaders.Core
         private static bool _hasPendingUpdate = false;
         private static bool _isGenerating = false;
         
+        // Async cubemap render state (Fix 4)
+        internal static bool _cubemapRenderPending = false;
+        internal static RenderTexture[] _pendingRenderTextures;
+        
         /// <summary>
         /// Requests a cubemap update. Called by various trigger events.
         /// </summary>
@@ -52,6 +56,7 @@ namespace CinematicShaders.Core
         
         /// <summary>
         /// Performs the actual cubemap generation and injection.
+        /// FIX 4: Now stages an async native render. Completion is polled via CheckCubemapCompletion.
         /// </summary>
         private static void PerformUpdate()
         {
@@ -67,28 +72,106 @@ namespace CinematicShaders.Core
             {
                 Debug.Log("[CubemapGenerationScheduler] Starting cubemap generation...");
                 
-                // Render and inject directly (no intermediate copies)
-                bool success = StarfieldCubemapRenderer.RenderAndInjectCubemap();
+                // Stage async native render
+                bool staged = StarfieldCubemapRenderer.RenderAndInjectCubemap();
                 
-                if (success)
+                if (_cubemapRenderPending)
                 {
+                    // Async render successfully staged; completion handled by polling
+                    Debug.Log("[CubemapGenerationScheduler] Cubemap render staged asynchronously");
+                }
+                else if (staged)
+                {
+                    // Synchronous completion (fallback / old path)
                     Debug.Log("[CubemapGenerationScheduler] Cubemap generation complete");
+                    _isGenerating = false;
                 }
                 else
                 {
+                    // Actual failure
                     Debug.LogWarning("[CubemapGenerationScheduler] Cubemap generation failed, will retry on next trigger");
                     _hasPendingUpdate = true;
+                    _isGenerating = false;
                 }
             }
             catch (Exception ex)
             {
                 Debug.LogError($"[CubemapGenerationScheduler] Error during cubemap generation: {ex}");
                 _hasPendingUpdate = true;
-            }
-            finally
-            {
                 _isGenerating = false;
             }
+        }
+        
+        /// <summary>
+        /// Polls native cubemap render completion. Called every frame from CinematicShadersAddon.Update().
+        /// FIX 4: Completes the async render by generating mips, injecting, and disposing textures.
+        /// </summary>
+        public static void CheckCubemapCompletion()
+        {
+            if (!_cubemapRenderPending) return;
+            
+            int status = Native.StarfieldNative.CR_CubemapRenderStatus();
+            
+            if (status == 1)
+            {
+                // Still running
+                return;
+            }
+            
+            if (status == 0)
+            {
+                // Success — generate mips and inject
+                try
+                {
+                    for (int i = 0; i < 6; i++)
+                    {
+                        if (_pendingRenderTextures[i] != null)
+                        {
+                            _pendingRenderTextures[i].GenerateMips();
+                        }
+                    }
+                    Debug.Log("[CubemapGenerationScheduler] Mipmaps generated for cubemap faces");
+                    
+                    bool injected = KSPCubemapInjector.InjectFromRenderTextures(_pendingRenderTextures);
+                    if (injected)
+                    {
+                        Debug.Log("[CubemapGenerationScheduler] Cubemap injected into KSP skybox");
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[CubemapGenerationScheduler] Failed to inject cubemap, will retry on next trigger");
+                        _hasPendingUpdate = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"[CubemapGenerationScheduler] Error completing cubemap: {ex}");
+                    _hasPendingUpdate = true;
+                }
+            }
+            else if (status < 0)
+            {
+                // Error or no job
+                Debug.LogError($"[CubemapGenerationScheduler] Cubemap render failed with status: {status}");
+                _hasPendingUpdate = true;
+            }
+            
+            // Dispose textures regardless of success/failure
+            if (_pendingRenderTextures != null)
+            {
+                for (int i = 0; i < 6; i++)
+                {
+                    if (_pendingRenderTextures[i] != null)
+                    {
+                        UnityEngine.Object.Destroy(_pendingRenderTextures[i]);
+                        _pendingRenderTextures[i] = null;
+                    }
+                }
+                _pendingRenderTextures = null;
+            }
+            
+            _cubemapRenderPending = false;
+            _isGenerating = false;
         }
         
         /// <summary>

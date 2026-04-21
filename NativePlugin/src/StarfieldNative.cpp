@@ -36,6 +36,15 @@ struct TextDispatchJob {
     std::vector<CinematicShaders::GlyphInstance> glyphSnapshot;  // Captured at queue time to avoid race with CR_TextLayoutEx
 };
 
+// Fix 4: Cubemap async render job struct (must be outside anonymous struct for use as parameter type)
+struct CubemapRenderJob {
+    ID3D11Texture2D* targetTextures[6] = {};
+    int faceSize = 0;
+    bool pending = false;
+    bool complete = false;
+    int resultCode = 0;
+};
+
 static struct {
     ID3D11Device* device = nullptr;
     ID3D11Texture2D* hdrTexture = nullptr;
@@ -340,6 +349,9 @@ static struct {
     
     // Catalog buffer upload staging (Fix 2, 3)
     bool catalogBufferNeedsUpload = false;
+    
+    // Cubemap async render staging (Fix 4)
+    CubemapRenderJob cubemapRenderJob;
 } g_StarfieldState;
 
 // Constant buffer layouts (must match HLSL exactly, 16-byte aligned)
@@ -3646,6 +3658,18 @@ void CR_StarfieldShutdown()
         g_StarfieldState.navballUploadJob.pending = false;
     }
     
+    // Release any pending cubemap render textures
+    if (g_StarfieldState.cubemapRenderJob.pending || g_StarfieldState.cubemapRenderJob.complete) {
+        for (int i = 0; i < 6; i++) {
+            if (g_StarfieldState.cubemapRenderJob.targetTextures[i]) {
+                g_StarfieldState.cubemapRenderJob.targetTextures[i]->Release();
+                g_StarfieldState.cubemapRenderJob.targetTextures[i] = nullptr;
+            }
+        }
+        g_StarfieldState.cubemapRenderJob.pending = false;
+        g_StarfieldState.cubemapRenderJob.complete = false;
+    }
+    
     if (g_StarfieldState.navballIconArray) { g_StarfieldState.navballIconArray->Release(); g_StarfieldState.navballIconArray = nullptr; }
     if (g_StarfieldState.navballIconArraySRV) { g_StarfieldState.navballIconArraySRV->Release(); g_StarfieldState.navballIconArraySRV = nullptr; }
     if (g_StarfieldState.pointingIconSRV) { g_StarfieldState.pointingIconSRV->Release(); g_StarfieldState.pointingIconSRV = nullptr; }
@@ -4407,31 +4431,20 @@ static void ExecuteCubemapFaceRender(
     device->Release();
 }
 
-// Simple test function - just clears textures to different colors
-// Does NOT modify global state
-extern "C" __declspec(dllexport)
-int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize)
+// ============================================================================
+// CUBEMAP ASYNC RENDER (Fix 4)
+// Stager + dedicated render event + async C# polling
+// ============================================================================
+
+static void ExecuteCubemapRenderJob(ID3D11DeviceContext* context, CubemapRenderJob& job)
 {
-    if (!targetTextures || faceSize <= 0) {
-        LogToFile("[StarfieldCubemap] Error: Invalid parameters");
-        return -1;
-    }
+    if (!context || !job.pending) return;
     
-    // Take the main lock for thread safety during cubemap rendering
-    if (!g_StarfieldState.device) {
-        LogToFile("[StarfieldCubemap] Error: Device not initialized");
-        return -2;
-    }
+    ID3D11Device* device = nullptr;
+    context->GetDevice(&device);
+    if (!device) return;
     
-    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
-    
-    // Get immediate context
-    ID3D11DeviceContext* context = nullptr;
-    g_StarfieldState.device->GetImmediateContext(&context);
-    if (!context) {
-        LogToFile("[StarfieldCubemap] Error: Failed to get device context");
-        return -4;
-    }
+    LogToFile("[StarfieldCubemap] Rendering %dx%d cubemap...", job.faceSize, job.faceSize);
     
     // Create GPU timestamp queries for accurate timing
     D3D11_QUERY_DESC timestampDesc = { D3D11_QUERY_TIMESTAMP, 0 };
@@ -4442,16 +4455,13 @@ int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize)
     ID3D11Query* queryDisjoint = nullptr;
     
     bool timingAvailable = false;
-    if (SUCCEEDED(g_StarfieldState.device->CreateQuery(&timestampDesc, &queryStart)) &&
-        SUCCEEDED(g_StarfieldState.device->CreateQuery(&timestampDesc, &queryEnd)) &&
-        SUCCEEDED(g_StarfieldState.device->CreateQuery(&disjointDesc, &queryDisjoint))) {
+    if (SUCCEEDED(device->CreateQuery(&timestampDesc, &queryStart)) &&
+        SUCCEEDED(device->CreateQuery(&timestampDesc, &queryEnd)) &&
+        SUCCEEDED(device->CreateQuery(&disjointDesc, &queryDisjoint))) {
         timingAvailable = true;
-        // Start timing
         context->Begin(queryDisjoint);
         context->End(queryStart);
     }
-    
-    LogToFile("[StarfieldCubemap] Rendering %dx%d cubemap...", faceSize, faceSize);
     
     // Store original state to restore later
     ID3D11RenderTargetView* oldRTV = nullptr;
@@ -4461,34 +4471,28 @@ int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize)
     context->OMGetRenderTargets(1, &oldRTV, &oldDSV);
     context->RSGetViewports(&numViewports, &oldViewport);
     
-    // Clear each face to a different debug color
+    // Render all 6 faces
     for (int face = 0; face < 6; face++) {
-        if (!targetTextures[face]) {
+        if (!job.targetTextures[face]) {
             LogToFile("[StarfieldCubemap] Warning: Face %d texture is null, skipping", face);
             continue;
         }
         
         // Verify the texture is a valid render target
         D3D11_TEXTURE2D_DESC texDesc;
-        targetTextures[face]->GetDesc(&texDesc);
-        
-        // Face format log removed
+        job.targetTextures[face]->GetDesc(&texDesc);
         
         // Check dimensions match
-        if ((int)texDesc.Width != faceSize || (int)texDesc.Height != faceSize) {
+        if ((int)texDesc.Width != job.faceSize || (int)texDesc.Height != job.faceSize) {
             LogToFile("[StarfieldCubemap] Face %d dimension mismatch: expected %dx%d, got %dx%d", 
-                      face, faceSize, faceSize, texDesc.Width, texDesc.Height);
+                      face, job.faceSize, job.faceSize, texDesc.Width, texDesc.Height);
             continue;
         }
         
-        // Check if it has RTV bind flag - if not, we can still use it for output
-        bool hasRTVFlag = (texDesc.BindFlags & D3D11_BIND_RENDER_TARGET) != 0;
-        
         // Create RTV for this face
-        // If format is TYPELESS, we need to specify a concrete format for the RTV
         DXGI_FORMAT rtvFormat = texDesc.Format;
         if (texDesc.Format == DXGI_FORMAT_R8G8B8A8_TYPELESS) {
-            rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM; // Use UNORM view of TYPELESS texture
+            rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
         }
         
         D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
@@ -4497,10 +4501,9 @@ int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize)
         rtvDesc.Texture2D.MipSlice = 0;
         
         ID3D11RenderTargetView* rtv = nullptr;
-        HRESULT hr = g_StarfieldState.device->CreateRenderTargetView(targetTextures[face], &rtvDesc, &rtv);
+        HRESULT hr = device->CreateRenderTargetView(job.targetTextures[face], &rtvDesc, &rtv);
         if (FAILED(hr)) {
-            // Try with null desc (let D3D11 infer from texture)
-            hr = g_StarfieldState.device->CreateRenderTargetView(targetTextures[face], nullptr, &rtv);
+            hr = device->CreateRenderTargetView(job.targetTextures[face], nullptr, &rtv);
             if (FAILED(hr)) {
                 LogToFile("[StarfieldCubemap] Failed to create RTV for face %d (hr=0x%08X, Format=%d, RTVFormat=%d)", face, hr, texDesc.Format, rtvFormat);
                 continue;
@@ -4515,7 +4518,7 @@ int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize)
         rtv->Release();
         
         // Execute the starfield render using isolated function (does NOT modify g_StarfieldState)
-        ExecuteCubemapFaceRender(context, targetTextures[face], faceSize, right, up, forward);
+        ExecuteCubemapFaceRender(context, job.targetTextures[face], job.faceSize, right, up, forward);
     }
     
     // Restore original state
@@ -4529,7 +4532,6 @@ int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize)
         context->End(queryEnd);
         context->End(queryDisjoint);
         
-        // Wait for data with longer timeout
         D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjointData;
         UINT64 startTime = 0, endTime = 0;
         bool gotData = false;
@@ -4546,7 +4548,6 @@ int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize)
                     break;
                 }
             } else if (hr != S_FALSE) {
-                // Error
                 break;
             }
             Sleep(10);
@@ -4561,12 +4562,95 @@ int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize)
         queryDisjoint->Release();
     }
     
-    if (context) {
-        context->Release();
+    device->Release();
+    LogToFile("[StarfieldCubemap] Render complete");
+}
+
+static void UNITY_INTERFACE_API OnCubemapRenderEvent(int eventId)
+{
+    if (!g_StarfieldState.device) return;
+    
+    ID3D11DeviceContext* context = nullptr;
+    g_StarfieldState.device->GetImmediateContext(&context);
+    if (!context) return;
+    
+    {
+        std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+        
+        if (g_StarfieldState.cubemapRenderJob.pending) {
+            ExecuteCubemapRenderJob(context, g_StarfieldState.cubemapRenderJob);
+            g_StarfieldState.cubemapRenderJob.resultCode = 0;
+            g_StarfieldState.cubemapRenderJob.complete = true;
+            g_StarfieldState.cubemapRenderJob.pending = false;
+            
+            for (int i = 0; i < 6; i++) {
+                if (g_StarfieldState.cubemapRenderJob.targetTextures[i]) {
+                    g_StarfieldState.cubemapRenderJob.targetTextures[i]->Release();
+                    g_StarfieldState.cubemapRenderJob.targetTextures[i] = nullptr;
+                }
+            }
+        }
     }
     
-    LogToFile("[StarfieldCubemap] Render complete");
+    context->Release();
+}
+
+extern "C" __declspec(dllexport)
+int CR_RenderStarfieldCubemap(ID3D11Texture2D* targetTextures[6], int faceSize)
+{
+    if (!targetTextures || faceSize <= 0) {
+        LogToFile("[StarfieldCubemap] Error: Invalid parameters");
+        return -1;
+    }
+    
+    if (!g_StarfieldState.device) {
+        LogToFile("[StarfieldCubemap] Error: Device not initialized");
+        return -2;
+    }
+    
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    
+    // Release any previously pending textures (safety for re-entry)
+    if (g_StarfieldState.cubemapRenderJob.pending || g_StarfieldState.cubemapRenderJob.complete) {
+        for (int i = 0; i < 6; i++) {
+            if (g_StarfieldState.cubemapRenderJob.targetTextures[i]) {
+                g_StarfieldState.cubemapRenderJob.targetTextures[i]->Release();
+                g_StarfieldState.cubemapRenderJob.targetTextures[i] = nullptr;
+            }
+        }
+    }
+    
+    // Stage the job
+    for (int i = 0; i < 6; i++) {
+        if (targetTextures[i]) {
+            targetTextures[i]->AddRef();
+            g_StarfieldState.cubemapRenderJob.targetTextures[i] = targetTextures[i];
+        } else {
+            g_StarfieldState.cubemapRenderJob.targetTextures[i] = nullptr;
+        }
+    }
+    g_StarfieldState.cubemapRenderJob.faceSize = faceSize;
+    g_StarfieldState.cubemapRenderJob.pending = true;
+    g_StarfieldState.cubemapRenderJob.complete = false;
+    g_StarfieldState.cubemapRenderJob.resultCode = 0;
+    
+    LogToFile("[StarfieldCubemap] Job staged (%dx%d)", faceSize, faceSize);
     return 0;
+}
+
+extern "C" __declspec(dllexport)
+UnityRenderingEvent CR_GetCubemapRenderEventFunc()
+{
+    return OnCubemapRenderEvent;
+}
+
+extern "C" __declspec(dllexport)
+int CR_CubemapRenderStatus()
+{
+    std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
+    if (g_StarfieldState.cubemapRenderJob.complete) return g_StarfieldState.cubemapRenderJob.resultCode;
+    if (g_StarfieldState.cubemapRenderJob.pending) return 1; // still running
+    return -1; // no job
 }
 
 extern "C" __declspec(dllexport)
