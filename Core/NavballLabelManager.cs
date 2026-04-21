@@ -428,18 +428,17 @@ namespace CinematicShaders.Core
             }
 
             // Calculate orbit vectors using KSP's built-in world-space properties
-            // (already in surface frame, matching the working approach in VesselTargetSelector)
+            // Matching KSP NavBall.cs DrawOrbitalCues() exactly for frame-correct results
             Vector3d vel = FlightGlobals.ActiveVessel.obt_velocity;
-
-            // Use fixed celestial up axis (transformed to surface frame) for consistent orbital plane reference
-            // This matches KSP's navball and NavHud behavior, preventing drift in eccentric orbits
-            Vector3d upAxisSurface = (Planetarium.Rotation * FlightGlobals.upAxis).normalized;
+            Vector3d wCoM = FlightGlobals.ActiveVessel.CurrentCoM;
+            Vector3d cbPos = FlightGlobals.ActiveVessel.mainBody.position;
+            Vector3d radialVec = (wCoM - cbPos).normalized;
 
             Vector3d prograde = vel.normalized;
             Vector3d retrograde = -prograde;
             // Radial out points away from body center (perpendicular to prograde in orbital plane)
             // ProjectOnPlane gives the body-up component perpendicular to velocity, matching KSP's NavBall.cs
-            Vector3d radialOut = (upAxisSurface - prograde * Vector3d.Dot(upAxisSurface, prograde)).normalized;
+            Vector3d radialOut = (radialVec - prograde * Vector3d.Dot(radialVec, prograde)).normalized;
             Vector3d radialIn = -radialOut;
             // Normal is perpendicular to velocity and radial (right-hand rule)
             Vector3d normal = Vector3d.Cross(radialOut, prograde).normalized;
@@ -488,7 +487,7 @@ namespace CinematicShaders.Core
                 {
                     pointingNDC = new Vector2((ptUV.x - 0.5f) * 2 * aspect, (ptUV.y - 0.5f) * 2);
                     Vector3 vesselUp = FlightGlobals.ActiveVessel.transform.forward;
-                    Vector3 worldUp = (Planetarium.Rotation * FlightGlobals.upAxis).normalized;
+                    Vector3 worldUp = FlightGlobals.upAxis;
                     Vector3 projectedWorldUp = Vector3.ProjectOnPlane(worldUp, vesselForward).normalized;
                     rollAngle = Vector3.SignedAngle(projectedWorldUp, vesselUp, vesselForward) * Mathf.Deg2Rad;
                     pointingIntensity = 1.0f;
