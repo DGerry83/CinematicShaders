@@ -110,6 +110,7 @@ namespace CinematicShaders.Core
         private Texture2D[] _iconTextures;
         private bool _texturesLoaded = false;
         private bool _texturesUploaded = false;
+        private int _textureUploadDelayFrames = 0; // Frame delay after load to avoid GPU upload race
         private NavballIconStyle _currentIconStyle = NavballIconStyle.Retro;
 
         // Pointing icon texture
@@ -209,7 +210,8 @@ namespace CinematicShaders.Core
                 _texturesLoaded = true;
                 _texturesUploaded = false; // Force re-upload
                 _pointingTextureUploaded = false;
-                ModFileLogger.Log($"[NavballLabelManager] Textures loaded for style: {style}");
+                _textureUploadDelayFrames = 2; // Wait 2 frames for Unity to commit texture data to GPU
+                ModFileLogger.Log($"[NavballLabelManager] Textures loaded for style: {style}, upload delayed {_textureUploadDelayFrames} frames");
             }
             catch (Exception ex)
             {
@@ -388,11 +390,19 @@ namespace CinematicShaders.Core
             // Also check if native textures were invalidated and need re-upload
             if (_texturesLoaded && !_texturesUploaded)
             {
-                TryUploadTextures();
+                if (_textureUploadDelayFrames > 0)
+                {
+                    _textureUploadDelayFrames--;
+                }
+                else
+                {
+                    TryUploadTextures();
+                }
             }
             else if (_texturesLoaded && _texturesUploaded && StarfieldNative.CR_NavballTexturesNeedReupload() != 0)
             {
                 ModFileLogger.Log("[NavballLabelManager] Detected textures invalidated, resetting upload flags");
+                _textureUploadDelayFrames = 0; // No delay for re-upload after invalidation
                 _texturesUploaded = false;
                 _pointingTextureUploaded = false;
                 _maneuverTextTextureUploaded = false;
