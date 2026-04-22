@@ -18,6 +18,7 @@
 #include "../include/ConsolePS.h"
 #include <vector>
 #include <mutex>
+#include <atomic>
 #include <algorithm>
 #include <cmath>
 #include <unordered_map>
@@ -44,6 +45,9 @@ struct CubemapRenderJob {
     bool complete = false;
     int resultCode = 0;
 };
+
+// Render-frame counter for deterministic texture upload readiness (Navball GPU race fix)
+static std::atomic<int> g_StarfieldRenderFrameCount{0};
 
 static struct {
     ID3D11Device* device = nullptr;
@@ -1858,6 +1862,8 @@ static void ExecuteSoftBloomRender(ID3D11DeviceContext* context, ID3D11RenderTar
 
 static void UNITY_INTERFACE_API OnStarfieldRenderEvent(int eventId)
 {
+    g_StarfieldRenderFrameCount.fetch_add(1, std::memory_order_relaxed);
+    
     if (!g_StarfieldState.device) return;
     
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
@@ -3770,6 +3776,12 @@ byte CR_NavballTexturesNeedReupload()
 {
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
     return g_StarfieldState.navballTexturesInvalidated ? 1 : 0;
+}
+
+extern "C" __declspec(dllexport)
+int CR_GetStarfieldRenderFrameCount()
+{
+    return g_StarfieldRenderFrameCount.load(std::memory_order_relaxed);
 }
 
 // ============================================================================

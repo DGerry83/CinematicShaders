@@ -250,6 +250,9 @@ namespace CinematicShaders.Native
         public static extern void CR_StarfieldShutdown();
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CR_GetStarfieldRenderFrameCount();
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_StarfieldGenerateCatalog(int seed, int count);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]

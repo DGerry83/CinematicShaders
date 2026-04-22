@@ -110,6 +110,7 @@ namespace CinematicShaders.Core
         private Texture2D[] _iconTextures;
         private bool _texturesLoaded = false;
         private bool _texturesUploaded = false;
+        private int _textureLoadRenderFrame = -1; // Render frame when textures were loaded (deterministic upload guard)
         private NavballIconStyle _currentIconStyle = NavballIconStyle.Retro;
 
         // Pointing icon texture
@@ -209,7 +210,8 @@ namespace CinematicShaders.Core
                 _texturesLoaded = true;
                 _texturesUploaded = false; // Force re-upload
                 _pointingTextureUploaded = false;
-                ModFileLogger.Log($"[NavballLabelManager] Textures loaded for style: {style}");
+                _textureLoadRenderFrame = StarfieldNative.CR_GetStarfieldRenderFrameCount();
+                ModFileLogger.Log($"[NavballLabelManager] Textures loaded for style: {style}, renderFrame={_textureLoadRenderFrame}");
             }
             catch (Exception ex)
             {
@@ -388,7 +390,18 @@ namespace CinematicShaders.Core
             // Also check if native textures were invalidated and need re-upload
             if (_texturesLoaded && !_texturesUploaded)
             {
-                TryUploadTextures();
+                int currentRenderFrame = StarfieldNative.CR_GetStarfieldRenderFrameCount();
+                if (currentRenderFrame <= _textureLoadRenderFrame)
+                {
+                    // Our render callback hasn't fired since textures were loaded.
+                    // Unity may not have committed the texture data to GPU yet.
+                    // Defer upload until at least one render frame has passed.
+                    ModFileLogger.Log($"[NavballLabelManager] Deferring upload - waiting for render frame (loaded={_textureLoadRenderFrame}, current={currentRenderFrame})");
+                }
+                else
+                {
+                    TryUploadTextures();
+                }
             }
             else if (_texturesLoaded && _texturesUploaded && StarfieldNative.CR_NavballTexturesNeedReupload() != 0)
             {

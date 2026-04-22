@@ -196,6 +196,9 @@ __declspec(dllexport) UnityRenderingEvent CR_GetCubemapRenderEventFunc();
 // Cubemap render status query: -1 = no job, 0 = complete success, 1 = pending, negative = error
 __declspec(dllexport) int CR_CubemapRenderStatus();
 
+// Render-frame counter for deterministic texture upload readiness
+__declspec(dllexport) int CR_GetStarfieldRenderFrameCount();
+
 #ifdef __cplusplus
 }
 #endif
