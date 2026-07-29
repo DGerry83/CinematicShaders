@@ -12,6 +12,7 @@ set "SCRIPT_DIR=%~dp0"
 REM Define mod root destinations
 set "DEST1=%SCRIPT_DIR%GameData\CinematicShaders"
 set "DEST2=C:\SSDGames\KSPReleaseTest\GameData\CinematicShaders"
+set "DEST3=C:\SSDGames\ReformTestInstance\GameData\CinematicShaders"
 
 set "DEPLOY_COUNT=0"
 
@@ -20,7 +21,7 @@ echo CinematicShaders Asset Deployment
 echo ============================================
 echo.
 
-for %%D in ("%DEST1%" "%DEST2%") do (
+for %%D in ("%DEST1%" "%DEST2%" "%DEST3%") do (
     set /a DEPLOY_COUNT+=1
     echo --- Deploying to: %%~D ---
     
