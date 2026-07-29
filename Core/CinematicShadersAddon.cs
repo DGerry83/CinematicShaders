@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using CinematicShaders.Native;
 using CinematicShaders.Native.Structs;
 using CinematicShaders.Shaders.GTAO;
@@ -61,7 +61,9 @@ namespace CinematicShaders.Core
             GTAOSettings.Load();
             StarfieldSettings.Load();
             
-            System.Diagnostics.Debug.Assert(System.Runtime.InteropServices.Marshal.SizeOf(typeof(KartographerParamsNative)) == 1088,
+            // Size contract from StructToolset generator output ("Total Size: 1120 bytes");
+            // matches static_assert in NativePlugin/include/KartographerParams_generated.h
+            System.Diagnostics.Debug.Assert(System.Runtime.InteropServices.Marshal.SizeOf(typeof(KartographerParamsNative)) == 1120,
                 $"KartographerParamsNative size mismatch");
             
             // If we're already in a game session, re-apply per-save settings to override
