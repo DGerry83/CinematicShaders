@@ -1,4 +1,4 @@
-﻿using CinematicShaders.Core;
+using CinematicShaders.Core;
 using CinematicShaders.Native;
 using System;
 using UnityEngine;
@@ -47,6 +47,7 @@ namespace CinematicShaders.Core
 
         // Bloom mode toggle: false = Classic (original 4-spike), true = Soft HDR (2-pass)
         public static bool UseSoftBloom { get; set; } = true;
+        public static bool RestoreOriginalSkyboxOnDisable { get; set; } = true;
         
         // Navball icon style enum - must be defined before use
         public enum NavballIconStyle
@@ -256,6 +257,7 @@ namespace CinematicShaders.Core
                 BloomIntensity = float.Parse(settingsNode.GetValue("BloomIntensity") ?? "0.5");
                 ColorSaturation = float.Parse(settingsNode.GetValue("ColorSaturation") ?? "1.0");
                 UseSoftBloom = bool.Parse(settingsNode.GetValue("UseSoftBloom") ?? "true");
+                RestoreOriginalSkyboxOnDisable = bool.Parse(settingsNode.GetValue("RestoreOriginalSkyboxOnDisable") ?? "true");
                 RotationX = float.Parse(settingsNode.GetValue("RotationX") ?? "0.0");
                 RotationY = float.Parse(settingsNode.GetValue("RotationY") ?? "0.0");
                 RotationZ = float.Parse(settingsNode.GetValue("RotationZ") ?? "0.0");
@@ -705,6 +707,7 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("BloomIntensity", BloomIntensity);
                 settingsNode.AddValue("ColorSaturation", ColorSaturation);
                 settingsNode.AddValue("UseSoftBloom", UseSoftBloom);
+                settingsNode.AddValue("RestoreOriginalSkyboxOnDisable", RestoreOriginalSkyboxOnDisable);
                 settingsNode.AddValue("RotationX", RotationX);
                 settingsNode.AddValue("RotationY", RotationY);
                 settingsNode.AddValue("RotationZ", RotationZ);

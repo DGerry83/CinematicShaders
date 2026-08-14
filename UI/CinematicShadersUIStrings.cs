@@ -68,6 +68,8 @@ namespace CinematicShaders.UI
             // ------------------------------------------------------------------------
             public const string TabName = "Starfield";
             public const string EnableToggle = " Enable Procedural Starfield";
+            public const string RestoreOriginalSkyboxOnDisableToggle = " Restore original skybox when disabled";
+            public const string RestoreOriginalSkyboxOnDisableTooltip = "When off, the injected starfield cubemap remains in place after the starfield overlay is turned off.";
             public const string NativeLoadError = "Native plugin failed to load. Check KSP.log for details.";
             public const string Initializing = "Initializing starfield...";
 

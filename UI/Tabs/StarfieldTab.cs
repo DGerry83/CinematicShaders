@@ -1,4 +1,4 @@
-﻿using CinematicShaders.Core;
+using CinematicShaders.Core;
 using CinematicShaders.Native;
 using CinematicShaders.Shaders.Starfield;
 using System;
@@ -47,6 +47,7 @@ namespace CinematicShaders.UI.Tabs
         private float _bloomIntensity;
         private float _colorSaturation;
         private bool _useSoftBloom;
+        private bool _restoreOriginalSkyboxOnDisable;
         private int _catalogSeed;
         private int _catalogSize;
 
@@ -97,6 +98,7 @@ namespace CinematicShaders.UI.Tabs
             _bloomIntensity = StarfieldSettings.BloomIntensity;
             _colorSaturation = StarfieldSettings.ColorSaturation;
             _useSoftBloom = StarfieldSettings.UseSoftBloom;
+            _restoreOriginalSkyboxOnDisable = StarfieldSettings.RestoreOriginalSkyboxOnDisable;
             _catalogSeed = StarfieldSettings.CatalogSeed;
             _catalogSize = StarfieldSettings.CatalogSize;
             _rotationX = StarfieldSettings.RotationX;
@@ -140,6 +142,17 @@ namespace CinematicShaders.UI.Tabs
                 if (_showRenderingSection)
                 {
                     DrawEnableToggle(oldEnabled);
+
+                    bool newRestore = GUILayout.Toggle(_restoreOriginalSkyboxOnDisable,
+                        new GUIContent(CinematicShadersUIStrings.Starfield.RestoreOriginalSkyboxOnDisableToggle,
+                            CinematicShadersUIStrings.Starfield.RestoreOriginalSkyboxOnDisableTooltip),
+                        HighLogic.Skin.toggle);
+                    if (newRestore != _restoreOriginalSkyboxOnDisable)
+                    {
+                        _restoreOriginalSkyboxOnDisable = newRestore;
+                        StarfieldSettings.RestoreOriginalSkyboxOnDisable = newRestore;
+                    }
+
                     if (!StarfieldSettings.EnableStarfield)
                         GUI.enabled = false;
 
@@ -687,6 +700,7 @@ namespace CinematicShaders.UI.Tabs
             StarfieldSettings.BloomIntensity = _bloomIntensity;
             StarfieldSettings.ColorSaturation = _colorSaturation;
             StarfieldSettings.UseSoftBloom = _useSoftBloom;
+            StarfieldSettings.RestoreOriginalSkyboxOnDisable = _restoreOriginalSkyboxOnDisable;
             StarfieldSettings.RotationX = _rotationX;
             StarfieldSettings.RotationY = _rotationY;
             StarfieldSettings.RotationZ = _rotationZ;
@@ -719,6 +733,7 @@ namespace CinematicShaders.UI.Tabs
             _bloomIntensity = 0.5f;
             _colorSaturation = 1.0f;
             _useSoftBloom = false;
+            _restoreOriginalSkyboxOnDisable = true;
             _catalogSize = 50000;
             _rotationX = 0.0f;
             _rotationY = 0.0f;
