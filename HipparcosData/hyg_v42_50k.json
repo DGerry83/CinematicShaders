@@ -2,11 +2,11 @@
   "metadata": {
     "version": 1,
     "source_catalog": "HYG v42",
-    "bin_file": ".\\hyg_v42_50k.bin",
+    "bin_file": "hyg_v42_50k.bin",
     "star_count": 50000,
-    "named_star_count": 3312,
+    "named_star_count": 3322,
     "constellation_count": 88,
-    "generated": "2026-04-17T22:57:50.881274"
+    "generated": "2026-08-17T17:17:50.259439"
   },
   "stars": {
     "88": {
@@ -1865,6 +1865,17 @@
       "x": 35.733354,
       "y": -11.025427,
       "z": -6.716585
+    },
+    "5372": {
+      "proper": "Tarandus",
+      "constellation": "Cepheus",
+      "full_designation": "Cephei",
+      "spectral": "K",
+      "magnitude": 4.24,
+      "distance_ly": 280.2,
+      "x": 5.357793,
+      "y": -1.65718,
+      "z": 85.727534
     },
     "5434": {
       "proper": "Junnanmen",
@@ -5349,6 +5360,17 @@
       "y": -36.343153,
       "z": 17.561644
     },
+    "14862": {
+      "proper": "Shangcheng",
+      "constellation": "Cassiopeia",
+      "full_designation": "Cassiopeiae",
+      "spectral": "A",
+      "magnitude": 4.85,
+      "distance_ly": 165.39,
+      "x": 9.131248,
+      "y": -10.135747,
+      "z": 48.840454
+    },
     "14879": {
       "proper": "Dalim",
       "bayer": "Alp",
@@ -6322,6 +6344,17 @@
       "y": -89.91922,
       "z": 47.882552
     },
+    "17884": {
+      "proper": "Custos",
+      "constellation": "Camelopardalis",
+      "full_designation": "Camelopardalis",
+      "spectral": "M",
+      "magnitude": 4.39,
+      "distance_ly": 795.5,
+      "x": 54.468786,
+      "y": -85.106118,
+      "z": 221.98754
+    },
     "17886": {
       "flamsteed": 42,
       "constellation": "Perseus",
@@ -6509,6 +6542,7 @@
       "z": -40.863054
     },
     "18724": {
+      "proper": "Bibing",
       "bayer": "Lam",
       "flamsteed": 35,
       "constellation": "Taurus",
@@ -7296,6 +7330,7 @@
       "z": 14.648891
     },
     "20877": {
+      "proper": "Shakata",
       "flamsteed": 75,
       "constellation": "Taurus",
       "full_designation": "75 Tauri",
@@ -7923,6 +7958,7 @@
       "z": 31.506969
     },
     "22565": {
+      "proper": "Lembu",
       "flamsteed": 97,
       "constellation": "Taurus",
       "full_designation": "97 Tauri",
@@ -10907,6 +10943,17 @@
       "y": -83.384834,
       "z": 87.720661
     },
+    "29997": {
+      "proper": "Shangwei",
+      "constellation": "Camelopardalis",
+      "full_designation": "Camelopardalis",
+      "spectral": "A",
+      "magnitude": 4.76,
+      "distance_ly": 174.98,
+      "x": -1.556212,
+      "y": -18.881878,
+      "z": 50.191283
+    },
     "30003": {
       "flamsteed": 10,
       "constellation": "Gemini",
@@ -11554,6 +11601,17 @@
       "y": -19.951258,
       "z": -125.276017
     },
+    "31940": {
+      "proper": "Kamelos",
+      "constellation": "Camelopardalis",
+      "full_designation": "Camelopardalis",
+      "spectral": "K",
+      "magnitude": 5.75,
+      "distance_ly": 698.41,
+      "x": -7.825701,
+      "y": -43.843164,
+      "z": 209.450084
+    },
     "31944": {
       "flamsteed": 41,
       "constellation": "Camelopardalis",
@@ -12144,6 +12202,17 @@
       "x": -84.530434,
       "y": -318.440504,
       "z": 160.082207
+    },
+    "33694": {
+      "proper": "Tonglingxing",
+      "constellation": "Camelopardalis",
+      "full_designation": "Camelopardalis",
+      "spectral": "K",
+      "magnitude": 4.55,
+      "distance_ly": 183.75,
+      "x": -3.289278,
+      "y": -12.261351,
+      "z": 54.888833
     },
     "33719": {
       "proper": "Citalá",
@@ -12912,6 +12981,17 @@
       "x": -5.311938,
       "y": -12.130011,
       "z": 8.238737
+    },
+    "36948": {
+      "proper": "Moth",
+      "constellation": "Puppis",
+      "full_designation": "Puppis",
+      "spectral": "G",
+      "magnitude": 8.23,
+      "distance_ly": 115.29,
+      "x": -12.140623,
+      "y": -27.335339,
+      "z": -18.838253
     },
     "36962": {
       "bayer": "Ups",
@@ -19904,6 +19984,17 @@
       "y": 6.487005,
       "z": 6.445292
     },
+    "61966": {
+      "proper": "Lumbung",
+      "constellation": "Crux",
+      "full_designation": "Crucis",
+      "spectral": "B",
+      "magnitude": 4.91,
+      "distance_ly": 956.47,
+      "x": -145.54617,
+      "y": 26.937819,
+      "z": -253.158623
+    },
     "61968": {
       "flamsteed": 31,
       "constellation": "Virgo",
@@ -21255,6 +21346,7 @@
       "z": 38.896377
     },
     "67275": {
+      "proper": "Tepiamenit",
       "bayer": "Tau",
       "flamsteed": 4,
       "constellation": "Boötes",
@@ -22101,6 +22193,7 @@
       "z": -23.01645
     },
     "71053": {
+      "proper": "Kalasungsang",
       "bayer": "Rho",
       "flamsteed": 25,
       "constellation": "Boötes",
@@ -22148,6 +22241,7 @@
       "z": -136.005022
     },
     "71284": {
+      "proper": "Genghe",
       "bayer": "Sig",
       "flamsteed": 28,
       "constellation": "Boötes",
@@ -22321,6 +22415,7 @@
       "z": -64.418072
     },
     "71995": {
+      "proper": "Alrumh",
       "flamsteed": 34,
       "constellation": "Boötes",
       "full_designation": "34 Boötis",
@@ -22332,7 +22427,7 @@
       "z": 96.464975
     },
     "72105": {
-      "proper": "Izar",
+      "proper": "Pulcherrima",
       "bayer": "Eps",
       "flamsteed": 36,
       "constellation": "Boötes",
@@ -22401,6 +22496,7 @@
       "z": -13.01071
     },
     "72220": {
+      "proper": "Maenalus",
       "flamsteed": 109,
       "constellation": "Virgo",
       "full_designation": "109 Virginis",
@@ -23108,6 +23204,7 @@
       "z": 9.851393
     },
     "74666": {
+      "proper": "Qigong",
       "bayer": "Del",
       "flamsteed": 49,
       "constellation": "Boötes",
@@ -23651,6 +23748,7 @@
       "z": -58.332932
     },
     "76127": {
+      "proper": "Guansuo",
       "bayer": "The",
       "flamsteed": 4,
       "constellation": "Corona Borealis",
@@ -24013,6 +24111,7 @@
       "z": -63.481486
     },
     "76952": {
+      "proper": "Baltesha",
       "bayer": "Gam",
       "flamsteed": 8,
       "constellation": "Corona Borealis",
@@ -24036,6 +24135,7 @@
       "z": -65.829164
     },
     "77048": {
+      "proper": "Stephanos",
       "bayer": "Pi",
       "flamsteed": 9,
       "constellation": "Corona Borealis",
@@ -24181,6 +24281,7 @@
       "z": 36.45959
     },
     "77512": {
+      "proper": "Matrichakra",
       "bayer": "Del",
       "flamsteed": 10,
       "constellation": "Corona Borealis",
@@ -24619,6 +24720,7 @@
       "z": 23.538494
     },
     "78493": {
+      "proper": "Aurwandilsta",
       "bayer": "Iot",
       "flamsteed": 14,
       "constellation": "Corona Borealis",
@@ -25240,6 +25342,7 @@
       "z": -72.494651
     },
     "79992": {
+      "proper": "Asuusiha",
       "bayer": "Tau",
       "flamsteed": 22,
       "constellation": "Hercules",
@@ -25454,6 +25557,7 @@
       "z": -50.979132
     },
     "80582": {
+      "proper": "Yaqana",
       "bayer": "Eps",
       "constellation": "Norma",
       "full_designation": "Epsilon Normae",
@@ -25841,6 +25945,7 @@
       "z": 203.894615
     },
     "81693": {
+      "proper": "Tianji",
       "bayer": "Zet",
       "flamsteed": 40,
       "constellation": "Hercules",
@@ -26334,6 +26439,17 @@
       "y": 80.386753,
       "z": -123.53816
     },
+    "83100": {
+      "proper": "Shengong",
+      "constellation": "Scorpius",
+      "full_designation": "Scorpii",
+      "spectral": "A",
+      "magnitude": 6.05,
+      "distance_ly": 315.43,
+      "x": -20.190421,
+      "y": 73.893712,
+      "z": -59.035511
+    },
     "83153": {
       "bayer": "Eps-1",
       "constellation": "Ara",
@@ -26357,6 +26473,7 @@
       "z": -14.238213
     },
     "83207": {
+      "proper": "Khepdenreret",
       "bayer": "Eps",
       "flamsteed": 58,
       "constellation": "Hercules",
@@ -26577,6 +26694,7 @@
       "z": 9.676738
     },
     "84380": {
+      "proper": "Nüchuang",
       "bayer": "Pi",
       "flamsteed": 67,
       "constellation": "Hercules",
@@ -27232,6 +27350,7 @@
       "z": -36.279846
     },
     "86414": {
+      "proper": "Tianbang",
       "bayer": "Iot",
       "flamsteed": 85,
       "constellation": "Hercules",
@@ -28440,8 +28559,8 @@
     },
     "90969": {
       "bayer": "Kap-2",
-      "constellation": "Corona Austrina",
-      "full_designation": "Kap-2 Coronae Austrinae",
+      "constellation": "Corona Australis",
+      "full_designation": "Kap-2 Coronae Australis",
       "spectral": "B",
       "magnitude": 6.31,
       "distance_ly": 153.99,
@@ -28451,8 +28570,8 @@
     },
     "90968": {
       "bayer": "Kap-1",
-      "constellation": "Corona Austrina",
-      "full_designation": "Kap-1 Coronae Austrinae",
+      "constellation": "Corona Australis",
+      "full_designation": "Kap-1 Coronae Australis",
       "spectral": "B",
       "magnitude": 5.67,
       "distance_ly": 973.6,
@@ -28462,8 +28581,8 @@
     },
     "90982": {
       "bayer": "The",
-      "constellation": "Corona Austrina",
-      "full_designation": "Theta Coronae Austrinae",
+      "constellation": "Corona Australis",
+      "full_designation": "Theta Coronae Australis",
       "spectral": "G",
       "magnitude": 4.62,
       "distance_ly": 557.53,
@@ -28483,6 +28602,7 @@
       "z": -257.753942
     },
     "91117": {
+      "proper": "Tianbian",
       "bayer": "Alp",
       "constellation": "Scutum",
       "full_designation": "Alpha Scuti",
@@ -28574,8 +28694,8 @@
     },
     "91875": {
       "bayer": "Lam",
-      "constellation": "Corona Austrina",
-      "full_designation": "Lambda Coronae Austrinae",
+      "constellation": "Corona Australis",
+      "full_designation": "Lambda Coronae Australis",
       "spectral": "A",
       "magnitude": 5.11,
       "distance_ly": 205.26,
@@ -28584,6 +28704,7 @@
       "z": -39.024426
     },
     "91919": {
+      "proper": "Pongaponga",
       "bayer": "Eps-1",
       "flamsteed": 4,
       "constellation": "Lyra",
@@ -28608,6 +28729,7 @@
       "z": 30.404986
     },
     "91971": {
+      "proper": "Kautoki",
       "bayer": "Zet-1",
       "flamsteed": 6,
       "constellation": "Lyra",
@@ -28620,6 +28742,7 @@
       "z": 29.210771
     },
     "91973": {
+      "proper": "Urquchillay",
       "bayer": "Zet-2",
       "flamsteed": 7,
       "constellation": "Lyra",
@@ -28722,8 +28845,8 @@
     },
     "92226": {
       "bayer": "Mu",
-      "constellation": "Corona Austrina",
-      "full_designation": "Mu Coronae Austrinae",
+      "constellation": "Corona Australis",
+      "full_designation": "Mu Coronae Australis",
       "spectral": "G",
       "magnitude": 5.2,
       "distance_ly": 395.82,
@@ -28744,8 +28867,8 @@
     },
     "92308": {
       "bayer": "Eta-1",
-      "constellation": "Corona Austrina",
-      "full_designation": "Eta-1 Coronae Austrinae",
+      "constellation": "Corona Australis",
+      "full_designation": "Eta-1 Coronae Australis",
       "spectral": "A",
       "magnitude": 5.46,
       "distance_ly": 336.24,
@@ -28755,8 +28878,8 @@
     },
     "92382": {
       "bayer": "Eta-2",
-      "constellation": "Corona Austrina",
-      "full_designation": "Eta-2 Coronae Austrinae",
+      "constellation": "Corona Australis",
+      "full_designation": "Eta-2 Coronae Australis",
       "spectral": "B",
       "magnitude": 5.6,
       "distance_ly": 481.77,
@@ -28950,6 +29073,7 @@
       "z": 99.914948
     },
     "92791": {
+      "proper": "Jiantai",
       "bayer": "Del-2",
       "flamsteed": 12,
       "constellation": "Lyra",
@@ -29009,6 +29133,7 @@
       "z": -30.937099
     },
     "92862": {
+      "proper": "Niandao",
       "flamsteed": 13,
       "constellation": "Lyra",
       "full_designation": "13 Lyrae",
@@ -29148,8 +29273,8 @@
     },
     "93174": {
       "bayer": "Eps",
-      "constellation": "Corona Austrina",
-      "full_designation": "Epsilon Coronae Austrinae",
+      "constellation": "Corona Australis",
+      "full_designation": "Epsilon Coronae Australis",
       "spectral": "F",
       "magnitude": 4.83,
       "distance_ly": 98.45,
@@ -29193,6 +29318,7 @@
       "z": 11.405346
     },
     "93244": {
+      "proper": "Arin-majlep",
       "bayer": "Eps",
       "flamsteed": 13,
       "constellation": "Aquila",
@@ -29275,8 +29401,8 @@
     },
     "93542": {
       "bayer": "Zet",
-      "constellation": "Corona Austrina",
-      "full_designation": "Zeta Coronae Austrinae",
+      "constellation": "Corona Australis",
+      "full_designation": "Zeta Coronae Australis",
       "spectral": "A",
       "magnitude": 4.74,
       "distance_ly": 193.11,
@@ -29356,8 +29482,8 @@
     },
     "93825": {
       "bayer": "Gam",
-      "constellation": "Corona Austrina",
-      "full_designation": "Gamma Coronae Austrinae",
+      "constellation": "Corona Australis",
+      "full_designation": "Gamma Coronae Australis",
       "spectral": "F",
       "magnitude": 4.23,
       "distance_ly": 56.44,
@@ -29413,8 +29539,8 @@
     },
     "94005": {
       "bayer": "Del",
-      "constellation": "Corona Austrina",
-      "full_designation": "Delta Coronae Austrinae",
+      "constellation": "Corona Australis",
+      "full_designation": "Delta Coronae Australis",
       "spectral": "K",
       "magnitude": 4.57,
       "distance_ly": 178.52,
@@ -29447,8 +29573,8 @@
     "94114": {
       "proper": "Meridiana",
       "bayer": "Alp",
-      "constellation": "Corona Austrina",
-      "full_designation": "Alpha Coronae Austrinae",
+      "constellation": "Corona Australis",
+      "full_designation": "Alpha Coronae Australis",
       "spectral": "A",
       "magnitude": 4.11,
       "distance_ly": 125.35,
@@ -29482,8 +29608,8 @@
     },
     "94160": {
       "bayer": "Bet",
-      "constellation": "Corona Austrina",
-      "full_designation": "Beta Coronae Austrinae",
+      "constellation": "Corona Australis",
+      "full_designation": "Beta Coronae Australis",
       "spectral": "K",
       "magnitude": 4.1,
       "distance_ly": 474.06,
@@ -29630,6 +29756,7 @@
       "z": 90.726612
     },
     "94713": {
+      "proper": "Ninnisig",
       "bayer": "The",
       "flamsteed": 21,
       "constellation": "Lyra",
@@ -29996,6 +30123,7 @@
       "z": -62.195868
     },
     "95501": {
+      "proper": "Guqi",
       "bayer": "Del",
       "flamsteed": 30,
       "constellation": "Aquila",
@@ -30343,6 +30471,7 @@
       "z": -2.605361
     },
     "96665": {
+      "proper": "Hru",
       "bayer": "Sig",
       "flamsteed": 44,
       "constellation": "Aquila",
@@ -30424,6 +30553,7 @@
       "z": -20.689668
     },
     "96837": {
+      "proper": "Shakh",
       "bayer": "Bet",
       "flamsteed": 6,
       "constellation": "Sagitta",
@@ -30575,6 +30705,7 @@
       "z": 11.788652
     },
     "97365": {
+      "proper": "Zuoqi",
       "bayer": "Del",
       "flamsteed": 7,
       "constellation": "Sagitta",
@@ -30724,6 +30855,7 @@
       "z": -37.811123
     },
     "97804": {
+      "proper": "Pagru",
       "bayer": "Eta",
       "flamsteed": 55,
       "constellation": "Aquila",
@@ -30932,6 +31064,7 @@
       "z": -21.750428
     },
     "98337": {
+      "proper": "Telum",
       "bayer": "Gam",
       "flamsteed": 12,
       "constellation": "Sagitta",
@@ -31425,6 +31558,17 @@
       "x": 102.254717,
       "y": 155.030652,
       "z": 197.362343
+    },
+    "99711": {
+      "proper": "Phoenicia",
+      "constellation": "Aquila",
+      "full_designation": "Aquilae",
+      "spectral": "K",
+      "magnitude": 7.79,
+      "distance_ly": 63.0,
+      "x": 10.659924,
+      "y": 16.105781,
+      "z": -0.29224
     },
     "99738": {
       "flamsteed": 21,

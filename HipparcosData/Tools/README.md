@@ -10,6 +10,15 @@ This folder contains Python scripts for managing the HYG star catalog conversion
 | **generate_catalog_jsons.py** | Creates JSON metadata for each .bin | After running convert_hyg.py |
 | **validate_catalog.py** | Validates binary catalog integrity | When checking catalog health, debugging issues |
 
+> **Legacy:** `generate_catalog_jsons_v1_legacy.py` is the pre-2026-08-17 JSON
+> generator, kept for reference only — **do not run it**. It was superseded after
+> the #006 catalog verification found it responsible for the CrA naming bug
+> ("Corona Austrina"), a silent HYG-name fallback when the IAU names CSV was
+> missing, and suppression of IAU-only named stars. Its defects are documented in
+> the file header. The current `generate_catalog_jsons.py` hard-errors if the IAU
+> names CSV (`ReferenceNotes/StarNamesFix/iau_proper_stars.csv`, gitignored — keep
+> it present) is missing.
+
 ## Useful Validation Scripts (Keep)
 
 | Script | Purpose | When to Use |

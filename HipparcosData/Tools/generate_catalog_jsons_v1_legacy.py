@@ -1,23 +1,29 @@
 #!/usr/bin/env python3
 """
+LEGACY — superseded 2026-08-17 by the current generate_catalog_jsons.py (formerly
+generate_catalog_jsons_v2.py). Kept for reference only; do not run.
+
+This is the generator that produced the 2026-03-29 and 2026-04-17 catalog JSONs.
+Known defects fixed in the successor (see ISSUES #006 verification session):
+- CrA mapped to "Corona Austrina"/"Coronae Austrinae" (IAU: "Corona Australis"/"Coronae Australis")
+- load_iau_names() silently fell back to HYG names when the IAU CSV was missing
+  (this is how the stale 2026-03-29 hyg_v42.json lost its IAU name overlay)
+- Inclusion gate required a HYG proper/bayer/flamsteed designation, suppressing
+  IAU-only names (e.g. HIP 36948 "Moth", HIP 102626 "Speedy Mic")
+- star_sizes lacked an explicit v6 entry; metadata.bin_file stored the raw -i path
+
 Generate matching JSON files for each star catalog bin.
 Each JSON contains only the named stars and constellation lines relevant to that specific bin.
 
 Run from HipparcosData root: python Tools/generate_catalog_jsons.py
 
 Output: hyg_v42.json, hyg_v42_80k.json, hyg_v42_50k.json, hyg_v42_20k.json
-
-History: promoted 2026-08-17 from generate_catalog_jsons_v2.py (fixes over the
-legacy version, now generate_catalog_jsons_v1_legacy.py): IAU-official CrA naming,
-hard error on missing IAU names CSV (no silent HYG fallback), inclusion of
-IAU-only named stars, explicit star_sizes v6 entry, bare-basename metadata.bin_file.
 """
 import csv
 import json
 import os
 import re
 import struct
-import sys
 import argparse
 from datetime import datetime
 
@@ -33,7 +39,7 @@ CONSTELLATION_NOMINATIVE = {
     'CVn': 'Canes Venatici', 'CMa': 'Canis Major', 'CMi': 'Canis Minor',
     'Cap': 'Capricornus', 'Car': 'Carina', 'Cas': 'Cassiopeia', 'Cen': 'Centaurus',
     'Cep': 'Cepheus', 'Cet': 'Cetus', 'Cha': 'Chamaeleon', 'Cir': 'Circinus',
-    'Col': 'Columba', 'Com': 'Coma Berenices', 'CrA': 'Corona Australis',
+    'Col': 'Columba', 'Com': 'Coma Berenices', 'CrA': 'Corona Austrina',
     'CrB': 'Corona Borealis', 'Crv': 'Corvus', 'Crt': 'Crater', 'Cru': 'Crux',
     'Cyg': 'Cygnus', 'Del': 'Delphinus', 'Dor': 'Dorado', 'Dra': 'Draco',
     'Equ': 'Equuleus', 'Eri': 'Eridanus', 'For': 'Fornax', 'Gem': 'Gemini',
@@ -61,7 +67,7 @@ CONSTELLATION_GENITIVE = {
     'Car': 'Carinae', 'Cas': 'Cassiopeiae', 'Cen': 'Centauri', 'Cep': 'Cephei',
     'Cet': 'Ceti', 'Cha': 'Chamaeleontis', 'Cir': 'Circini', 'CMa': 'Canis Majoris',
     'CMi': 'Canis Minoris', 'Cnc': 'Cancri', 'Col': 'Columbae',
-    'Com': 'Comae Berenices', 'CrA': 'Coronae Australis', 'CrB': 'Coronae Borealis',
+    'Com': 'Comae Berenices', 'CrA': 'Coronae Austrinae', 'CrB': 'Coronae Borealis',
     'Crt': 'Crateris', 'Cru': 'Crucis', 'Crv': 'Corvi', 'CVn': 'Canum Venaticorum',
     'Cyg': 'Cygni', 'Del': 'Delphini', 'Dor': 'Doradus', 'Dra': 'Draconis',
     'Equ': 'Equulei', 'Eri': 'Eridani', 'For': 'Fornacis', 'Gem': 'Geminorum',
@@ -149,7 +155,7 @@ def load_iau_names():
     """Load official IAU proper names from iau_proper_stars.csv.
     
     Returns a dict mapping HIP number (int) to official proper name.
-    Hard errors if the CSV is missing or unreadable.
+    Falls back to empty dict if the CSV is not found.
     """
     script_dir = os.path.dirname(os.path.abspath(__file__))
     # Try project-relative path first
@@ -160,8 +166,8 @@ def load_iau_names():
         iau_csv_path = os.path.join(script_dir, 'iau_proper_stars.csv')
     
     if not os.path.exists(iau_csv_path):
-        print(f"Error: iau_proper_stars.csv not found at {iau_csv_path}", file=sys.stderr)
-        sys.exit(1)
+        print("  Warning: iau_proper_stars.csv not found — using HYG names only")
+        return {}
     
     iau_names = {}
     try:
@@ -176,8 +182,8 @@ def load_iau_names():
                         iau_names[hip] = name
         print(f"  Loaded {len(iau_names)} IAU proper names from {os.path.basename(iau_csv_path)}")
     except Exception as e:
-        print(f"Error: Could not load IAU names: {e}", file=sys.stderr)
-        sys.exit(1)
+        print(f"  Warning: Could not load IAU names: {e}")
+        return {}
     
     return iau_names
 
@@ -225,7 +231,7 @@ def generate_catalog_json(bin_file, csv_path, constellations, output_name, iau_n
     star_count = header['star_count']
     
     # Star record sizes by version
-    star_sizes = {1: 32, 2: 36, 3: 44, 4: 48, 6: 48}
+    star_sizes = {1: 32, 2: 36, 3: 44, 4: 48}
     star_size = star_sizes.get(version, 48)
     
     print(f"  Version: {version}, Stars: {star_count}, Record size: {star_size}")
@@ -255,21 +261,20 @@ def generate_catalog_json(bin_file, csv_path, constellations, output_name, iau_n
             if hip_id not in catalog_hip_ids:
                 continue
             
-            # Only include if it has naming data (HYG or IAU proper name)
+            # Only include if it has naming data
             proper = row.get('proper', '').strip()
             bayer = row.get('bayer', '').strip()
             flamsteed = row.get('flam', '').strip()
             con = row.get('con', '').strip()
             
-            # Use IAU proper name if available, otherwise fall back to HYG
-            iau_name = iau_names.get(hip_id) if iau_names else None
-            
-            if not proper and not bayer and not flamsteed and not iau_name:
+            if not proper and not bayer and not flamsteed:
                 continue
             
             # Build entry
             entry = {}
             
+            # Use IAU proper name if available, otherwise fall back to HYG
+            iau_name = iau_names.get(hip_id) if iau_names else None
             if iau_name:
                 entry['proper'] = iau_name
             elif proper:
@@ -345,7 +350,7 @@ def generate_catalog_json(bin_file, csv_path, constellations, output_name, iau_n
         "metadata": {
             "version": 1,
             "source_catalog": "HYG v42",
-            "bin_file": os.path.basename(bin_file),
+            "bin_file": bin_file,
             "star_count": star_count,
             "named_star_count": len(stars),
             "constellation_count": len(filtered_constellations),
@@ -377,7 +382,7 @@ def main():
     csv_path = os.path.join(script_dir, '..', 'hyg_v42csv', 'hyg_v42.csv')
     
     if not os.path.exists(csv_path):
-        print(f"Error: HYG CSV not found at {csv_path}", file=sys.stderr)
+        print(f"Error: HYG CSV not found at {csv_path}")
         return 1
     
     # Ensure output directory exists
