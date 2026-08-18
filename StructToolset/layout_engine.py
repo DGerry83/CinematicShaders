@@ -209,7 +209,7 @@ class HLSLayoutEngine:
         # (total_size) exceeded the real struct size (offset): for
         # KartographerParams, C++ sizeof and C# Marshal.SizeOf both measured
         # 1108 vs the asserted 1120, breaking the C++ static_assert (native
-        # build) and the C# startup assert (BUG-17 / LOCAL-09).
+        # build) and the C# startup assert (#027 / #028).
         # 4-byte granularity uses the proven padding path in all three
         # downstream engines/emitters.
         while offset < total_size:
