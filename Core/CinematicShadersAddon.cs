@@ -144,6 +144,9 @@ namespace CinematicShaders.Core
             // Mark catalog for reload on scene change (device may have reset)
             StarfieldSettings.InvalidateCatalogForReload();
 
+            // Switch to this scene's GTAO profile before the enable checks below
+            GTAOSettings.ApplySceneProfile(scene);
+
             if (GTAOSettings.EnableGTAO)
             {
                 if (scene == GameScenes.EDITOR && GTAOManager.IsActive)

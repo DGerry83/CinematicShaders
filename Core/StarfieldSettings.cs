@@ -675,9 +675,13 @@ namespace CinematicShaders.Core
                 if (System.IO.File.Exists(SettingsPath))
                 {
                     node = ConfigNode.Load(SettingsPath) ?? node;
+                    // Rewrite our node from scratch: AddValue appends and GetValue reads
+                    // the first match, so adding onto the existing node would duplicate
+                    // keys and the stale values would win on next load
+                    node.RemoveNode("StarfieldSettings");
                 }
 
-                ConfigNode settingsNode = node.GetNode("StarfieldSettings") ?? node.AddNode("StarfieldSettings");
+                ConfigNode settingsNode = node.AddNode("StarfieldSettings");
 
                 settingsNode.AddValue("EnableStarfield", EnableStarfield);
                 // NOTE: Exposure, BlurPixels, BloomThreshold, BloomIntensity, ColorSaturation and

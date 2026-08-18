@@ -56,6 +56,12 @@ namespace CinematicShaders.UI
             public const string DebugModeViewNormals = "View Normals";
             public const string DebugModeNormalAlpha = "Normal Alpha";
             public const string NativeLoadError = "Native plugin failed to load. Check KSP.log for details.";
+            public const string SceneSelectorLabel = "Settings for scene:";
+            public const string SceneFlight = "Flight";
+            public const string SceneSpaceCenter = "KSC";
+            public const string SceneTrackingStation = "Tracking";
+            public const string SceneEditor = "Editor";
+            public const string SceneLiveSuffix = " (current)";
         }
 
         // ============================================================================
