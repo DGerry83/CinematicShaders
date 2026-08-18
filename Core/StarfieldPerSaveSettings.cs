@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEngine;
 
 namespace CinematicShaders.Core
@@ -6,10 +7,23 @@ namespace CinematicShaders.Core
     /// Per-save settings for Starfield - persisted to the save file via ScenarioModule
     /// These are the visual rendering settings and active catalog, not generation params
     /// </summary>
+    [KSPScenario(ScenarioCreationOptions.AddToAllGames | ScenarioCreationOptions.AddToExistingGames,
+        GameScenes.FLIGHT, GameScenes.SPACECENTER, GameScenes.TRACKSTATION)]
     public class StarfieldPerSaveSettings : ScenarioModule
     {
         private static StarfieldPerSaveSettings _instance;
-        public static StarfieldPerSaveSettings Instance => _instance;
+        public static StarfieldPerSaveSettings Instance
+        {
+            get
+            {
+                // Lazy resolution fallback if the static reference was lost (e.g., scene transition timing)
+                if (_instance == null && ScenarioRunner.Instance != null)
+                {
+                    _instance = ScenarioRunner.GetLoadedModules().OfType<StarfieldPerSaveSettings>().FirstOrDefault();
+                }
+                return _instance;
+            }
+        }
 
         // Per-save: Visual rendering settings
         [KSPField(isPersistant = true)]
@@ -40,7 +54,22 @@ namespace CinematicShaders.Core
         public override void OnAwake()
         {
             base.OnAwake();
+
+            // Scene transitions destroy and recreate the module; log if we replace a live instance
+            if (_instance != null && _instance != this)
+            {
+                Debug.LogWarning("[StarfieldPerSaveSettings] Replacing instance (scene transition)");
+            }
             _instance = this;
+        }
+
+        public void OnDestroy()
+        {
+            // Clear the static reference so it never dangles to a destroyed instance
+            if (_instance == this)
+            {
+                _instance = null;
+            }
         }
 
         /// <summary>
@@ -88,18 +117,28 @@ namespace CinematicShaders.Core
 
         public override void OnSave(ConfigNode node)
         {
-            base.OnSave(node);
+            // Capture runtime state into the [KSPField] fields BEFORE base.OnSave serializes them
             CaptureFromSettings();
-            Debug.Log("[StarfieldPerSaveSettings] OnSave - captured settings to save file");
+            base.OnSave(node);
+            Debug.Log($"[StarfieldPerSaveSettings] OnSave - EnableStarfield={EnableStarfield}, Catalog={ActiveCatalogPath}");
         }
 
         public override void OnLoad(ConfigNode node)
         {
             base.OnLoad(node);
-            // Settings are loaded from the [KSPField] attributes automatically
-            // We just need to apply them
+
+            // Migration: saves predating this module get an empty node (injected via
+            // AddToExistingGames). Seed the fields from current settings instead of
+            // applying C# defaults over them.
+            if (!node.HasValue("EnableStarfield"))
+            {
+                Debug.Log("[StarfieldPerSaveSettings] OnLoad - no saved data, initializing from current settings (migration)");
+                CaptureFromSettings();
+            }
+
+            // Applies loaded values; in the migration path this is a value no-op but
+            // still triggers the catalog-reload invalidation a save load requires
             ApplyToSettings();
-            Debug.Log("[StarfieldPerSaveSettings] OnLoad - applied settings from save file");
         }
     }
 }
