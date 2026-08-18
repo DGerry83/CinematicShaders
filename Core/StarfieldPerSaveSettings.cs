@@ -137,17 +137,17 @@ namespace CinematicShaders.Core
             base.OnLoad(node);
 
             // Migration: saves predating this module get an empty node (injected via
-            // AddToExistingGames). Seed from the global settings on disk - the statics
-            // may still hold the previously loaded save's applied values at this point.
+            // AddToExistingGames), and brand-new saves start the same way. These visual
+            // settings are per-save only (not in Settings.cfg), so seed from the module's
+            // code defaults - freshly constructed fields already hold them - rather than
+            // the statics, which may still carry the previously loaded save's values.
             if (!node.HasValue("EnableStarfield"))
             {
-                Debug.Log("[StarfieldPerSaveSettings] OnLoad - no saved data, migrating from global settings");
-                StarfieldSettings.Load();
-                CaptureFromSettings();
+                Debug.Log("[StarfieldPerSaveSettings] OnLoad - no saved data, seeding defaults");
             }
 
-            // Applies loaded values; in the migration path this is a value no-op but
-            // still triggers the catalog-reload invalidation a save load requires
+            // Applies loaded values; in the migration path this resets any stale statics
+            // to the defaults and triggers the catalog-reload invalidation a save load requires
             ApplyToSettings();
         }
     }
