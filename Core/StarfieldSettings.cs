@@ -157,7 +157,7 @@ namespace CinematicShaders.Core
         /// to a clean relative path from KSP root using forward slashes.
         /// Returns empty string if path is invalid or outside game folder.
         /// </summary>
-        private static string NormalizeCatalogPath(string path)
+        internal static string NormalizeCatalogPath(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
                 return "";

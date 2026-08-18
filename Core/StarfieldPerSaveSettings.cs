@@ -108,7 +108,7 @@ namespace CinematicShaders.Core
             BloomThreshold = StarfieldSettings.BloomThreshold;
             BloomIntensity = StarfieldSettings.BloomIntensity;
             ColorSaturation = StarfieldSettings.ColorSaturation;
-            ActiveCatalogPath = StarfieldSettings.ActiveCatalogPath;
+            ActiveCatalogPath = StarfieldSettings.NormalizeCatalogPath(StarfieldSettings.ActiveCatalogPath);
             // IsReadOnly = StarfieldSettings.IsReadOnly;
             
             // NOTE: Kartographer settings are NOT per-save - they persist via Settings.cfg
@@ -117,8 +117,17 @@ namespace CinematicShaders.Core
 
         public override void OnSave(ConfigNode node)
         {
-            // Capture runtime state into the [KSPField] fields BEFORE base.OnSave serializes them
+            // Stock ScenarioModule.Save() serializes the [KSPField]s via Fields.Save(node)
+            // BEFORE invoking OnSave (KSPSOURCE/ScenarioModule.cs:87-88), and the game
+            // captures scenario data before onGameStateSave fires, so the values already
+            // written to this node are stale. Capture runtime state now, then overwrite
+            // the serialized values with the fresh ones.
             CaptureFromSettings();
+            foreach (BaseField field in Fields)
+            {
+                if (!field.isPersistant || field.uiControlOnly) continue;
+                node.SetValue(field.name, field.GetStringValue(this, false), true);
+            }
             base.OnSave(node);
             Debug.Log($"[StarfieldPerSaveSettings] OnSave - EnableStarfield={EnableStarfield}, Catalog={ActiveCatalogPath}");
         }
@@ -128,11 +137,12 @@ namespace CinematicShaders.Core
             base.OnLoad(node);
 
             // Migration: saves predating this module get an empty node (injected via
-            // AddToExistingGames). Seed the fields from current settings instead of
-            // applying C# defaults over them.
+            // AddToExistingGames). Seed from the global settings on disk - the statics
+            // may still hold the previously loaded save's applied values at this point.
             if (!node.HasValue("EnableStarfield"))
             {
-                Debug.Log("[StarfieldPerSaveSettings] OnLoad - no saved data, initializing from current settings (migration)");
+                Debug.Log("[StarfieldPerSaveSettings] OnLoad - no saved data, migrating from global settings");
+                StarfieldSettings.Load();
                 CaptureFromSettings();
             }
 
