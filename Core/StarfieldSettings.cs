@@ -44,6 +44,10 @@ namespace CinematicShaders.Core
         // Color
         public static float ColorSaturation { get; set; } = 1.0f;  // 0.5=realistic, 1.0=natural, 2.0=vivid
 
+        // Advanced rendering factors (per-save; 0.0 = effect off, 1.0 = default strength)
+        public static float ExtinctionFactor { get; set; } = 1.0f;  // scales atmospheric extinction
+        public static float DimmingFactor { get; set; } = 1.0f;     // scales sun-glare + planetary dimming
+
 
         // Bloom mode toggle: false = Classic (original 4-spike), true = Soft HDR (2-pass)
         public static bool UseSoftBloom { get; set; } = true;

@@ -46,6 +46,8 @@ namespace CinematicShaders.UI.Tabs
         private float _bloomThreshold;
         private float _bloomIntensity;
         private float _colorSaturation;
+        private float _extinctionFactor;
+        private float _dimmingFactor;
         private bool _useSoftBloom;
         private bool _restoreOriginalSkyboxOnDisable;
         private int _catalogSeed;
@@ -97,6 +99,8 @@ namespace CinematicShaders.UI.Tabs
             _bloomThreshold = StarfieldSettings.BloomThreshold;
             _bloomIntensity = StarfieldSettings.BloomIntensity;
             _colorSaturation = StarfieldSettings.ColorSaturation;
+            _extinctionFactor = StarfieldSettings.ExtinctionFactor;
+            _dimmingFactor = StarfieldSettings.DimmingFactor;
             _useSoftBloom = StarfieldSettings.UseSoftBloom;
             _restoreOriginalSkyboxOnDisable = StarfieldSettings.RestoreOriginalSkyboxOnDisable;
             _catalogSeed = StarfieldSettings.CatalogSeed;
@@ -209,6 +213,10 @@ namespace CinematicShaders.UI.Tabs
                     }
                     GUILayout.EndHorizontal();
 
+                    DrawRenderingSlider(CinematicShadersUIStrings.Starfield.ExtinctionFactorLabel, ref _extinctionFactor, 0.0f, 2.0f, "F2",
+                        CinematicShadersUIStrings.Starfield.ExtinctionFactorTooltip);
+                    DrawRenderingSlider(CinematicShadersUIStrings.Starfield.DimmingFactorLabel, ref _dimmingFactor, 0.0f, 2.0f, "F2",
+                        CinematicShadersUIStrings.Starfield.DimmingFactorTooltip);
 
                     GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.TIGHT);
                 }
@@ -699,6 +707,8 @@ namespace CinematicShaders.UI.Tabs
             StarfieldSettings.BloomThreshold = _bloomThreshold;
             StarfieldSettings.BloomIntensity = _bloomIntensity;
             StarfieldSettings.ColorSaturation = _colorSaturation;
+            StarfieldSettings.ExtinctionFactor = _extinctionFactor;
+            StarfieldSettings.DimmingFactor = _dimmingFactor;
             StarfieldSettings.UseSoftBloom = _useSoftBloom;
             StarfieldSettings.RestoreOriginalSkyboxOnDisable = _restoreOriginalSkyboxOnDisable;
             StarfieldSettings.RotationX = _rotationX;

@@ -128,6 +128,8 @@ namespace CinematicShaders.UI
             public const string BloomIsotropyLabel = "Bloom Mode";
             public const string BloomModeClassic = "Classic (Spiky)";
             public const string BloomModeSoft = "Soft HDR";
+            public const string ExtinctionFactorLabel = "Atmo Extinction";
+            public const string DimmingFactorLabel = "Glare Dimming";
 
             // Main Generation Section
             public const string CatalogSeedLabel = "Catalog Seed";
@@ -165,6 +167,8 @@ namespace CinematicShaders.UI
             public const string BloomThresholdTooltip = "HDR values above this trigger bloom";
             public const string BloomIntensityTooltip = "Bloom strength";
             public const string BloomIsotropyTooltip = "Classic uses original 4-spike, Soft uses 2-pass blur";
+            public const string ExtinctionFactorTooltip = "Atmospheric star dimming strength (0=Off, 1=Default, 2=Strong)";
+            public const string DimmingFactorTooltip = "Sun glare & planetary dimming strength (0=Off, 1=Default, 2=Strong)";
 
             // Main Generation Section Tooltips
             public const string CatalogSeedTooltip = "Random seed for star placement";

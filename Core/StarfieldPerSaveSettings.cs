@@ -44,6 +44,12 @@ namespace CinematicShaders.Core
         [KSPField(isPersistant = true)]
         public float ColorSaturation = 1.0f;
 
+        [KSPField(isPersistant = true)]
+        public float ExtinctionFactor = 1.0f;
+
+        [KSPField(isPersistant = true)]
+        public float DimmingFactor = 1.0f;
+
         // Per-save: Active catalog
         [KSPField(isPersistant = true)]
         public string ActiveCatalogPath = "";
@@ -84,6 +90,8 @@ namespace CinematicShaders.Core
             StarfieldSettings.BloomThreshold = BloomThreshold;
             StarfieldSettings.BloomIntensity = BloomIntensity;
             StarfieldSettings.ColorSaturation = ColorSaturation;
+            StarfieldSettings.ExtinctionFactor = ExtinctionFactor;
+            StarfieldSettings.DimmingFactor = DimmingFactor;
             StarfieldSettings.ActiveCatalogPath = ActiveCatalogPath;
             // StarfieldSettings.IsReadOnly = IsReadOnly;
             
@@ -108,6 +116,8 @@ namespace CinematicShaders.Core
             BloomThreshold = StarfieldSettings.BloomThreshold;
             BloomIntensity = StarfieldSettings.BloomIntensity;
             ColorSaturation = StarfieldSettings.ColorSaturation;
+            ExtinctionFactor = StarfieldSettings.ExtinctionFactor;
+            DimmingFactor = StarfieldSettings.DimmingFactor;
             ActiveCatalogPath = StarfieldSettings.NormalizeCatalogPath(StarfieldSettings.ActiveCatalogPath);
             // IsReadOnly = StarfieldSettings.IsReadOnly;
             
