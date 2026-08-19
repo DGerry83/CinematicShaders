@@ -11,39 +11,9 @@ namespace CinematicShaders.UI.Content
         public static readonly ScanScreenContent Default = new ScanScreenContent();
         
         /// <inheritdoc/>
-        public string[] BorderLines => new string[]
-        {
-            "╔═══════════════════════[NO DATA]═════════════════════════╗",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "╚═════════════════════════════════════════════════════════╝"
-        };
+        public string[] BorderLines => CinematicShadersUIStrings.StarConsole.ScanBorderLines;
         
         /// <inheritdoc/>
-        public string[] ContentLines => new string[]
-        {
-            "                                                           ",
-            "                                                           ",
-            "                                                           ",
-            "          ╔════════════════════════════════════╗           ",
-            "          ║ ███████╗ ██████╗ █████╗ ███╗   ██╗ ║           ",
-            "          ║ ██╔════╝██╔════╝██╔══██╗████╗  ██║ ║           ",
-            "          ║ ███████╗██║     ███████║██╔██╗ ██║ ║           ",
-            "          ║ ╚════██║██║     ██╔══██║██║╚██╗██║ ║           ",
-            "          ║ ███████║╚██████╗██║  ██║██║ ╚████║ ║           ",
-            "          ║ ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═══╝ ║           ",
-            "          ╚════════════════════════════════════╝           ",
-            "                                                           ",
-            "                                                           "
-        };
+        public string[] ContentLines => CinematicShadersUIStrings.StarConsole.ScanContentLines;
     }
 }

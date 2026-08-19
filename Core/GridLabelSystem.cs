@@ -1,4 +1,5 @@
 using CinematicShaders.Native;
+using CinematicShaders.UI;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -207,8 +208,8 @@ namespace CinematicShaders.Core
             RegisterLabel(new GridLabel
             {
                 Id = "huck",
-                Text = "H\nU\nC\nK\nv0.6.28",
-                DefaultText = "H\nU\nC\nK\nv0.6.28",
+                Text = CinematicShadersUIStrings.Kartographer.HuckText,
+                DefaultText = CinematicShadersUIStrings.Kartographer.HuckText,
                 InitialsText = null,
                 DefaultInitialsText = null,
                 Latitude = -75f,
@@ -225,13 +226,13 @@ namespace CinematicShaders.Core
                 SnapHorizontal = GridSnapHorizontal.Left,
                 Variants = new Dictionary<int, string>
                 {
-                    { 1, "OLOGRAPHIC\nNIVERSAL\nELESTIAL\nARTOGRAPHER\nv0.6.28" },  // Jumbo + Large
-                    { 3, "H\nU\nC\nK\nv0.6.28" },  // Medium + Small
-                    { 4, "H\nU\nC\nK" }  // Tiny: no version number
+                    { 1, CinematicShadersUIStrings.Kartographer.HuckTextLongBody },  // Jumbo + Large
+                    { 3, CinematicShadersUIStrings.Kartographer.HuckText },  // Medium + Small
+                    { 4, CinematicShadersUIStrings.Kartographer.HuckTextNoVersion }  // Tiny: no version number
                 },
                 InitialsVariants = new Dictionary<int, string>
                 {
-                    { 1, "H\nU\nC\nK" }  // Jumbo + Large
+                    { 1, CinematicShadersUIStrings.Kartographer.HuckTextNoVersion }  // Jumbo + Large
                 },
                 RotationDegrees = -2f,
                 PaddingLeft = 0.12f,
@@ -245,8 +246,8 @@ namespace CinematicShaders.Core
             RegisterLabel(new GridLabel
             {
                 Id = "situation_a",
-                Text = "SITUATION\nINFO\nDEBUG",
-                DefaultText = "SITUATION\nINFO\nDEBUG",
+                Text = CinematicShadersUIStrings.Kartographer.SituationPlaceholderText,
+                DefaultText = CinematicShadersUIStrings.Kartographer.SituationPlaceholderText,
                 Latitude = 60f,  // Will be overridden based on grid preset
                 Longitude = 0f,
                 FontSizePixels = DEFAULT_FONT_SIZE,
@@ -271,8 +272,8 @@ namespace CinematicShaders.Core
             RegisterLabel(new GridLabel
             {
                 Id = "situation_b",
-                Text = "SITUATION\nINFO\nDEBUG",
-                DefaultText = "SITUATION\nINFO\nDEBUG",
+                Text = CinematicShadersUIStrings.Kartographer.SituationPlaceholderText,
+                DefaultText = CinematicShadersUIStrings.Kartographer.SituationPlaceholderText,
                 Latitude = 60f,  // Will be overridden
                 Longitude = 180f,  // Opposite side
                 FontSizePixels = DEFAULT_FONT_SIZE,
@@ -1181,29 +1182,29 @@ namespace CinematicShaders.Core
         /// </summary>
         private string TryCompressLine(string line, float maxWidth, float fontSize, uint color)
         {
-            // Try M→KM
-            string compressed = ConvertLineUnit(line, 1e3, "KM");
+            // Try M→KM (unit tokens shared with the producer — see UIStrings.Common)
+            string compressed = ConvertLineUnit(line, 1e3, CinematicShadersUIStrings.Common.UnitKilometers);
             if (compressed != line)
             {
                 StarfieldNative.CR_TextMeasure(_textSystem, compressed, fontSize, out float w, out float h);
                 if (w <= maxWidth) return compressed;
                 
                 // Still too wide? Try KM→MM
-                string compressed2 = ConvertLineUnit(compressed, 1e6, "MM");
+                string compressed2 = ConvertLineUnit(compressed, 1e6, CinematicShadersUIStrings.Common.UnitMegameters);
                 if (compressed2 != compressed)
                 {
                     StarfieldNative.CR_TextMeasure(_textSystem, compressed2, fontSize, out float w2, out float h2);
                     if (w2 <= maxWidth) return compressed2;
                     
                     // Still too wide? Try MM→GM
-                    string compressed3 = ConvertLineUnit(compressed2, 1e9, "GM");
+                    string compressed3 = ConvertLineUnit(compressed2, 1e9, CinematicShadersUIStrings.Common.UnitGigameters);
                     if (compressed3 != compressed2)
                     {
                         StarfieldNative.CR_TextMeasure(_textSystem, compressed3, fontSize, out float w3, out float h3);
                         if (w3 <= maxWidth) return compressed3;
                         
                         // Still too wide? Try GM→TM
-                        string compressed4 = ConvertLineUnit(compressed3, 1e12, "TM");
+                        string compressed4 = ConvertLineUnit(compressed3, 1e12, CinematicShadersUIStrings.Common.UnitTerameters);
                         if (compressed4 != compressed3)
                         {
                             StarfieldNative.CR_TextMeasure(_textSystem, compressed4, fontSize, out float w4, out float h4);
@@ -1229,10 +1230,10 @@ namespace CinematicShaders.Core
             string numberPart = line.Substring(colonIdx + 1).Trim();
             
             // Determine current unit based on divisor
-            string currentUnit = divisor == 1e3 ? " M" : 
-                                divisor == 1e6 ? " KM" : 
-                                divisor == 1e9 ? " MM" : 
-                                divisor == 1e12 ? " GM" : "";
+            string currentUnit = divisor == 1e3 ? CinematicShadersUIStrings.Common.UnitMetersToken :
+                                divisor == 1e6 ? CinematicShadersUIStrings.Common.UnitKilometersToken :
+                                divisor == 1e9 ? CinematicShadersUIStrings.Common.UnitMegametersToken :
+                                divisor == 1e12 ? CinematicShadersUIStrings.Common.UnitGigametersToken : "";
             
             if (string.IsNullOrEmpty(currentUnit) || !numberPart.EndsWith(currentUnit))
                 return line;

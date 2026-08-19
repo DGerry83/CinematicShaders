@@ -1,4 +1,5 @@
 using System;
+using CinematicShaders.UI;
 
 namespace CinematicShaders.Core
 {
@@ -61,7 +62,7 @@ namespace CinematicShaders.Core
         {
             string name = GetDisplayName();
             if (IsReadOnly)
-                return "🔒 " + name;
+                return CinematicShadersUIStrings.Starfield.ReadOnlyLockPrefix + name;
             return name;
         }
     }

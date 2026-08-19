@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using CinematicShaders.UI;
 using UnityEngine;
 
 namespace CinematicShaders.Core
@@ -460,11 +461,11 @@ namespace CinematicShaders.Core
             var star = new NamedStar
             {
                 HipparcosID = hipId,
-                Name = StripDirectionalSuffix(rawName) ?? $"HIP {hipId}",
-                SpectralType = starData.TryGetValue("spectral", out object spectralObj) && spectralObj is string spectralStr ? spectralStr : "?",
+                Name = StripDirectionalSuffix(rawName) ?? string.Format(CinematicShadersUIStrings.Kartographer.HipIdFormat, hipId),
+                SpectralType = starData.TryGetValue("spectral", out object spectralObj) && spectralObj is string spectralStr ? spectralStr : CinematicShadersUIStrings.Common.UnknownValueSentinel,
                 Magnitude = GetFloat(starData, "magnitude", 99f),
                 DistanceLy = GetFloat(starData, "distance_ly", 0f),
-                Constellation = starData.TryGetValue("constellation", out object constObj) && constObj is string constStr ? constStr : "?"
+                Constellation = starData.TryGetValue("constellation", out object constObj) && constObj is string constStr ? constStr : CinematicShadersUIStrings.Common.UnknownValueSentinel
             };
             
             float x = GetFloat(starData, "x", 0f);

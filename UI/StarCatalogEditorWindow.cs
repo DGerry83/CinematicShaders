@@ -177,7 +177,7 @@ namespace CinematicShaders.UI
             
             // Show appropriate help text based on whether JSON exists
             string helpText = _jsonExists 
-                ? "JSON EXISTS - CLICK SCAN TO REGENERATE (WILL OVERWRITE)"
+                ? CinematicShadersUIStrings.Kartographer.ScanOverwriteHelpText
                 : CinematicShadersUIStrings.Kartographer.ScanHelpText;
             GUILayout.Label(helpText, CinematicShadersUIResources.Styles.Help());
             GUILayout.Space(10);
@@ -256,7 +256,7 @@ namespace CinematicShaders.UI
         {
             // Manual close button in top-right
             Rect closeRect = new Rect(_windowRect.width - 30, 8, 22, 18);
-            if (GUI.Button(closeRect, "X"))
+            if (GUI.Button(closeRect, CinematicShadersUIStrings.Common.CloseButton))
             {
                 Hide();
             }
@@ -304,7 +304,7 @@ namespace CinematicShaders.UI
                 bool isSelected = (_selectedStar == star);
                 GUIStyle style = isSelected ? HighLogic.Skin.button : HighLogic.Skin.label;
                 
-                string displayText = $"HIP {star.HipparcosID}: {star.Name}".ToUpper();
+                string displayText = string.Format(CinematicShadersUIStrings.Kartographer.SearchResultFormat, star.HipparcosID, star.Name).ToUpper();
                 if (GUILayout.Button(displayText, style))
                 {
                     SelectStar(star);
@@ -325,7 +325,7 @@ namespace CinematicShaders.UI
             // FIELD ORDER: HIP, NAME, DISTANCE, SPECTRAL, MAGNITUDE, CONSTELLATION
             GUILayout.Label($"{CinematicShadersUIStrings.Kartographer.HipLabel} {_selectedStar.HipparcosID}");
             GUILayout.Label($"{CinematicShadersUIStrings.Kartographer.NameLabel} {_selectedStar.Name}");
-            GUILayout.Label($"{CinematicShadersUIStrings.Kartographer.DistanceLabel} {_selectedStar.DistanceLy:F1} LY");
+            GUILayout.Label($"{CinematicShadersUIStrings.Kartographer.DistanceLabel} " + string.Format(CinematicShadersUIStrings.Kartographer.DistanceLyFormat, _selectedStar.DistanceLy));
             GUILayout.Label($"{CinematicShadersUIStrings.Kartographer.SpectralLabel} {_selectedStar.SpectralType}");
             GUILayout.Label($"{CinematicShadersUIStrings.Kartographer.MagnitudeLabel} {_selectedStar.Magnitude:F2}");
             GUILayout.Label($"{CinematicShadersUIStrings.Kartographer.ConstellationLabel} {_selectedStar.Constellation}");
@@ -434,7 +434,7 @@ namespace CinematicShaders.UI
                 if (string.IsNullOrEmpty(originalName))
                 {
                     Debug.LogWarning($"[StarCatalogEditor] Could not find original name for HIP {_selectedStar.HipparcosID}, using designation");
-                    originalName = $"HIP {_selectedStar.HipparcosID}";
+                    originalName = string.Format(CinematicShadersUIStrings.Kartographer.HipIdFormat, _selectedStar.HipparcosID);
                 }
                 
                 // Ensure custom JSON exists

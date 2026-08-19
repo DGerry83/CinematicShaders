@@ -234,21 +234,21 @@ namespace CinematicShaders.Core
         /// </summary>
         private string GetSpectralDescription(string spectralType)
         {
-            if (string.IsNullOrEmpty(spectralType) || spectralType == "?")
-                return "UNKNOWN";
+            if (string.IsNullOrEmpty(spectralType) || spectralType == CinematicShadersUIStrings.Common.UnknownValueSentinel)
+                return CinematicShadersUIStrings.Kartographer.SpectralUnknown;
             
             char type = spectralType[0];
             switch (type)
             {
-                case 'O': return "O - BLUE SUPERGIANT";
-                case 'B': return "B - BLUE-WHITE";
-                case 'A': return "A - WHITE";
-                case 'F': return "F - YELLOW-WHITE";
-                case 'G': return "G - YELLOW";
-                case 'K': return "L - ORANGE";
-                case 'M': return "M - RED GIANT";
-                case 'L': return "L - BROWN DWARF";
-                default: return "?? UNKNOWN";
+                case 'O': return CinematicShadersUIStrings.Kartographer.SpectralDescO;
+                case 'B': return CinematicShadersUIStrings.Kartographer.SpectralDescB;
+                case 'A': return CinematicShadersUIStrings.Kartographer.SpectralDescA;
+                case 'F': return CinematicShadersUIStrings.Kartographer.SpectralDescF;
+                case 'G': return CinematicShadersUIStrings.Kartographer.SpectralDescG;
+                case 'K': return CinematicShadersUIStrings.Kartographer.SpectralDescK;
+                case 'M': return CinematicShadersUIStrings.Kartographer.SpectralDescM;
+                case 'L': return CinematicShadersUIStrings.Kartographer.SpectralDescL;
+                default: return CinematicShadersUIStrings.Kartographer.SpectralDescUnknown;
             }
         }
 
@@ -264,32 +264,30 @@ namespace CinematicShaders.Core
             var sb = new System.Text.StringBuilder();
             
             // NAME: <name>
-            sb.Append("NAME: ");
-            sb.Append(star.Name.ToUpper());
-            sb.Append('\n');
+            sb.Append(string.Format(CinematicShadersUIStrings.Kartographer.StarNameFormat, star.Name.ToUpper()));
             
             // DISTANCE: <distance> LY
             if (star.DistanceLy > 0)
             {
-                sb.Append($"DISTANCE: {star.DistanceLy:F1} LY\n");
+                sb.Append(string.Format(CinematicShadersUIStrings.Kartographer.StarDistanceFormat, star.DistanceLy));
             }
             else
             {
-                sb.Append("DISTANCE: UNKNOWN\n");
+                sb.Append(CinematicShadersUIStrings.Kartographer.StarDistanceUnknown);
             }
             
             // MAGNITUDE: <mag>
-            sb.Append($"MAGNITUDE: {star.Magnitude:F2}\n");
+            sb.Append(string.Format(CinematicShadersUIStrings.Kartographer.StarMagnitudeFormat, star.Magnitude));
             
             // TYPE: <spectral description>
             string typeDesc = GetSpectralDescription(star.SpectralType);
-            sb.Append($"TYPE: {typeDesc}\n");
+            sb.Append(string.Format(CinematicShadersUIStrings.Kartographer.StarTypeFormat, typeDesc));
             
             // CONSTELLATION: <constellation name>
-            sb.Append($"CONSTELLATION: {star.Constellation.ToUpper()}\n");
+            sb.Append(string.Format(CinematicShadersUIStrings.Kartographer.StarConstellationFormat, star.Constellation.ToUpper()));
             
-            // HIP#####
-            sb.Append($"HIP{star.HipparcosID}");
+            // HIP #####
+            sb.Append(string.Format(CinematicShadersUIStrings.Kartographer.HipIdFormat, star.HipparcosID));
 
             return sb.ToString();
         }
@@ -309,14 +307,14 @@ namespace CinematicShaders.Core
                 int visibleChars = (int)(fullText.Length * typeT);
                 visibleChars = Mathf.Clamp(visibleChars, 0, fullText.Length);
                 // Use ^| escape sequence - C++ will decode to U+258C LEFT HALF BLOCK
-                return fullText.Substring(0, visibleChars) + "^|";
+                return fullText.Substring(0, visibleChars) + TypeOnAnimationController.CursorToken;
             }
             
             // Complete phase: full text with blinking cursor at 2Hz
             // 2Hz blink = 0.25s on, 0.25s off
             bool cursorVisible = (Time.time * 2.0f) % 2.0f < 1.0f;
             // Use ^| escape sequence - C++ will decode to U+258C LEFT HALF BLOCK
-            return fullText + (cursorVisible ? "^|" : " ");
+            return fullText + (cursorVisible ? TypeOnAnimationController.CursorToken : " ");
         }
 
         /// <summary>
@@ -332,7 +330,7 @@ namespace CinematicShaders.Core
             
             // Box phase: show just cursor (box visible, text starting)
             if (_animationPhase == SelectionAnimationPhase.Box)
-                return "^|";
+                return TypeOnAnimationController.CursorToken;
             
             // Text phase: progressively reveal with cursor
             if (_animationPhase == SelectionAnimationPhase.Text)
@@ -367,7 +365,7 @@ namespace CinematicShaders.Core
             _selectionFlickerT = 0.0f;
             _textTypeT = 0.0f;
             _fullStarText = BuildStarText(star);
-            _currentDisplayText = "^|";  // Start with just cursor (escape sequence for U+258C)
+            _currentDisplayText = TypeOnAnimationController.CursorToken;  // Start with just cursor (escape sequence for U+258C)
             _textDirty = true;
             
             // Animation started
@@ -634,7 +632,7 @@ namespace CinematicShaders.Core
             Debug.Log("[KartographerSelector] Building grid label texture...");
             
             // Build multi-line text: "HOLOGRAPHIC\nUNIVERSAL\nCELESTIAL\nKARTOGRAPHER"
-            string gridLabelText = "HOLOGRAPHIC\nUNIVERSAL\nCELESTIAL\nKARTOGRAPHER";
+            string gridLabelText = CinematicShadersUIStrings.Kartographer.HuckGridLabelText;
             uint color = 0xFFFFFFFF; // White ARGB
 
             // Layout and render text
@@ -841,7 +839,7 @@ namespace CinematicShaders.Core
                 // Force text cache invalidation to ensure updated names display immediately
                 _textDirty = true;
                 _fullStarText = BuildStarText(star);
-                _currentDisplayText = "^|";
+                _currentDisplayText = TypeOnAnimationController.CursorToken;
                 
                 StartAnimationForStar(star);
                 

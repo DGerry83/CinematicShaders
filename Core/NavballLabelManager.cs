@@ -1,6 +1,7 @@
 using CinematicShaders.Native;
 using CinematicShaders.Native.Structs;
 using CinematicShaders.Shaders.Starfield;
+using CinematicShaders.UI;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -857,7 +858,7 @@ namespace CinematicShaders.Core
             int hours = (int)(seconds / 3600);
             int minutes = (int)((seconds % 3600) / 60);
             int secs = (int)(seconds % 60);
-            string prefix = negative ? "T+ " : "T- ";
+            string prefix = negative ? CinematicShadersUIStrings.Kartographer.ManeuverTimePrefixPlus : CinematicShadersUIStrings.Kartographer.ManeuverTimePrefixMinus;
             if (hours > 0) return $"{prefix}{hours}:{minutes:D2}:{secs:D2}";
             else return $"{prefix}{minutes:D2}:{secs:D2}";
         }
@@ -867,24 +868,24 @@ namespace CinematicShaders.Core
         /// </summary>
         private string BuildDVBar(float remainingDV, float totalDV)
         {
-            if (totalDV <= 0.0001f) return "[          ]";
+            if (totalDV <= 0.0001f) return CinematicShadersUIStrings.Kartographer.ManeuverDvBarEmpty;
             float pct = Mathf.Clamp01(remainingDV / totalDV);
             float filled = pct * 10f;
             int fullBlocks = Mathf.FloorToInt(filled);
             float remainder = filled - fullBlocks;
             char currentBlock = ' ';
-            if (remainder >= 0.875f) currentBlock = '█';      // 87.5-99.9% → full block
-            else if (remainder >= 0.625f) currentBlock = '▓'; // 62.5-87.5% → three-quarters
-            else if (remainder >= 0.375f) currentBlock = '▒'; // 37.5-62.5% → half
-            else if (remainder >= 0.125f) currentBlock = '░'; // 12.5-37.5% → quarter
+            if (remainder >= 0.875f) currentBlock = CinematicShadersUIStrings.Kartographer.DvBarBlockFull;      // 87.5-99.9% → full block
+            else if (remainder >= 0.625f) currentBlock = CinematicShadersUIStrings.Kartographer.DvBarBlockThreeQuarter; // 62.5-87.5% → three-quarters
+            else if (remainder >= 0.375f) currentBlock = CinematicShadersUIStrings.Kartographer.DvBarBlockHalf; // 37.5-62.5% → half
+            else if (remainder >= 0.125f) currentBlock = CinematicShadersUIStrings.Kartographer.DvBarBlockQuarter; // 12.5-37.5% → quarter
             // else remains ' ' for 0-12.5%
             var sb = new System.Text.StringBuilder();
-            sb.Append('█', fullBlocks);
+            sb.Append(CinematicShadersUIStrings.Kartographer.DvBarBlockFull, fullBlocks);
             if (fullBlocks < 10)
                 sb.Append(currentBlock);
             int spaces = Mathf.Max(0, 10 - fullBlocks - 1);
             sb.Append(' ', spaces);
-            return $"[{sb}]";
+            return string.Format(CinematicShadersUIStrings.Kartographer.ManeuverDvBarFormat, sb);
         }
 
         /// <summary>
@@ -893,12 +894,12 @@ namespace CinematicShaders.Core
         private string FormatDV(double dv)
         {
             float fv = (float)dv;
-            if (fv >= 1e15f) return $"{fv/1e15f:F2} Tm/s";
-            if (fv >= 1e12f) return $"{fv/1e12f:F2} Gm/s";
-            if (fv >= 1e9f)  return $"{fv/1e9f:F2} Mm/s";
-            if (fv >= 1e6f)  return $"{fv/1e6f:F2} km/s";
-            if (fv >= 1000f) return $"{fv/1000f:F2} km/s";
-            return $"{fv:F1} m/s";
+            if (fv >= 1e15f) return $"{fv/1e15f:F2} {CinematicShadersUIStrings.Common.UnitTerametersPerSecond}";
+            if (fv >= 1e12f) return $"{fv/1e12f:F2} {CinematicShadersUIStrings.Common.UnitGigametersPerSecond}";
+            if (fv >= 1e9f)  return $"{fv/1e9f:F2} {CinematicShadersUIStrings.Common.UnitMegametersPerSecond}";
+            if (fv >= 1e6f)  return $"{fv/1e6f:F2} {CinematicShadersUIStrings.Common.UnitKilometersPerSecond}";
+            if (fv >= 1000f) return $"{fv/1000f:F2} {CinematicShadersUIStrings.Common.UnitKilometersPerSecond}";
+            return $"{fv:F1} {CinematicShadersUIStrings.Common.UnitMetersPerSecond}";
         }
 
         /// <summary>

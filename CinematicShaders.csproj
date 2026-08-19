@@ -93,7 +93,6 @@
     <Compile Include="UI\StarCatalogEditorWindow.cs" />
     <Compile Include="UI\StarCatalogHolographicDisplay.cs" />
     <Compile Include="UI\Tabs\GTAOTab.cs" />
-    <Compile Include="UI\Tabs\GridLabelDebugUI.cs" />
     <Compile Include="UI\Tabs\KartographerTab.cs" />
     <Compile Include="UI\Tabs\StarfieldTab.cs" />
 

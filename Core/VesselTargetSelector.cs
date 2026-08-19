@@ -62,10 +62,6 @@ namespace CinematicShaders.Core
         private string _lastRenderedText = null;
         private bool _textDirty = true;
 
-        // Situation display state
-        private string _situationText = "";
-        private float _lastSituationUpdate = 0f;
-
         // Text system
         private IntPtr _textSystem = IntPtr.Zero;
         private RenderTexture _textTexture = null;
@@ -117,9 +113,6 @@ namespace CinematicShaders.Core
 
             // Update target info display (screen-space, follows target)
             UpdateTargetInfo(canLog);
-
-            // Update situation info display (grid-fixed, dual-sided)
-            UpdateSituationInfo();
         }
 
         /// <summary>
@@ -195,31 +188,6 @@ namespace CinematicShaders.Core
 
             // Push to native
             PushTargetToNative(visible);
-        }
-
-        /// <summary>
-        /// Update situation info display (grid-fixed, dual-sided)
-        /// Uses GridLabelSystem to render text on the holographic grid
-        /// </summary>
-        private void UpdateSituationInfo()
-        {
-            if (!StarfieldSettings.KartographerSituationDisplay)
-                return;
-
-            if (FlightGlobals.ActiveVessel == null)
-                return;
-
-            // Update text periodically
-            float now = Time.time;
-            if (now - _lastSituationUpdate > DYNAMIC_UPDATE_INTERVAL)
-            {
-                _lastSituationUpdate = now;
-                _situationText = BuildSituationText();
-            }
-
-            // The actual rendering is handled by GridLabelSystem via the "situation_info" label
-            // The label's position is calculated based on grid rotation setting
-            // This is managed in CinematicShadersAddon.Update() which updates the label system
         }
 
         /// <summary>
@@ -310,124 +278,24 @@ namespace CinematicShaders.Core
             var sb = new System.Text.StringBuilder();
 
             // Target name (no label) - sanitized
-            string targetName = SanitizeText(target.GetDisplayName()) ?? "UNKNOWN";
+            string targetName = SanitizeText(target.GetDisplayName()) ?? CinematicShadersUIStrings.Kartographer.TargetNameUnknown;
             sb.Append(targetName.ToUpper() + '\n');
 
             // Distance
             double distance = GetDistanceToTarget(target);
             if (distance > 1000000)
-                sb.Append($"DIST: {distance/1000:F1} KM\n");
+                sb.Append(string.Format(CinematicShadersUIStrings.Kartographer.TargetDistKmFormat, distance / 1000));
             else
-                sb.Append($"DIST: {distance:F1} M\n");
+                sb.Append(string.Format(CinematicShadersUIStrings.Kartographer.TargetDistMFormat, distance));
 
             // Relative velocity
             double rvel = GetRelativeVelocity(target);
-            sb.Append($"RVEL: {rvel:F1} M/S\n");
+            sb.Append(string.Format(CinematicShadersUIStrings.Kartographer.TargetRvelFormat, rvel));
 
             // Time to encounter (closest approach / SOI change / impact)
             AppendEncounterText(sb, target);
 
             return sb.ToString();
-        }
-
-        /// <summary>
-        /// Build situation info text
-        /// </summary>
-        private string BuildSituationText()
-        {
-            var sb = new System.Text.StringBuilder();
-
-            // SOI (no label) - sanitized
-            if (FlightGlobals.currentMainBody != null)
-                sb.Append(SanitizeText(FlightGlobals.currentMainBody.bodyDisplayName).ToUpper() + '\n');
-
-            // Situation (no label)
-            if (FlightGlobals.ActiveVessel != null)
-                sb.Append(FlightGlobals.ActiveVessel.situation.ToString().ToUpper() + '\n');
-
-            // Altitude
-            if (FlightGlobals.ActiveVessel != null)
-            {
-                double alt = FlightGlobals.ActiveVessel.altitude;
-                if (alt > 1000000)
-                    sb.Append($"ALT: {alt/1000:F1} KM\n");
-                else
-                    sb.Append($"ALT: {alt:F1} M\n");
-            }
-
-            // Apoapsis/Periapsis
-            if (FlightGlobals.ActiveVessel?.orbit != null)
-            {
-                double ap = FlightGlobals.ActiveVessel.orbit.ApA;
-                double pe = FlightGlobals.ActiveVessel.orbit.PeA;
-
-                if (ap > 1000000)
-                    sb.Append($"A/P: {ap/1000:F1} KM\n");
-                else
-                    sb.Append($"A/P: {ap:F1} M\n");
-
-                if (pe > 1000000)
-                    sb.Append($"P/E: {pe/1000:F1} KM");
-                else
-                    sb.Append($"P/E: {pe:F1} M");
-            }
-
-            return sb.ToString();
-        }
-
-        /// <summary>
-        /// Calculate dual-sided grid positions for situation display
-        /// </summary>
-        private Vector3[] CalculateSituationPositions()
-        {
-            // Get grid preset
-            int[] gridMeridians = { 8, 12, 16, 24, 32 };
-            int[] gridParallels = { 5, 8, 10, 15, 20 };
-            int preset = Mathf.Clamp(StarfieldSettings.KartographerGridSize, 0, 3);
-            int numLong = gridMeridians[preset];
-            int numLat = gridParallels[preset];
-
-            // Second cell past equator going up
-            int latCell = numLat / 2 + 2;
-            latCell = Mathf.Min(latCell, numLat - 1);
-
-            // Rotation step (0 to numLong-1, discrete meridian alignment)
-            // Negate the step so slider to the right rotates labels clockwise
-            int rotationStep = StarfieldSettings.KartographerSituationRotationStep[preset] % numLong;
-            int lonCell1 = (numLong - rotationStep) % numLong;
-            int lonCell2 = (lonCell1 + numLong / 2) % numLong; // Opposite side
-
-            // Calculate spherical coordinates
-            float thetaStep = 2.0f * Mathf.PI / numLong;
-            float phiStep = Mathf.PI / numLat;
-
-            float phi = latCell * phiStep;
-            float theta1 = -Mathf.PI + (lonCell1 + 0.5f) * thetaStep;
-            float theta2 = -Mathf.PI + (lonCell2 + 0.5f) * thetaStep;
-
-            // Convert to Cartesian
-            Vector3 pos1 = SphericalToCartesian(phi, theta1);
-            Vector3 pos2 = SphericalToCartesian(phi, theta2);
-
-            // Apply grid rotation
-            pos1 = KartographerMath.ApplyCatalogRotation(pos1, 0,
-                StarfieldSettings.KartographerRotationYaw,
-                StarfieldSettings.KartographerRotationPitch);
-            pos2 = KartographerMath.ApplyCatalogRotation(pos2, 0,
-                StarfieldSettings.KartographerRotationYaw,
-                StarfieldSettings.KartographerRotationPitch);
-
-            return new Vector3[] { pos1, pos2 };
-        }
-
-        private Vector3 SphericalToCartesian(float phi, float theta)
-        {
-            float sinPhi = Mathf.Sin(phi);
-            return new Vector3(
-                sinPhi * Mathf.Cos(theta),
-                Mathf.Cos(phi),
-                sinPhi * Mathf.Sin(theta)
-            );
         }
 
         /// <summary>
@@ -667,8 +535,6 @@ namespace CinematicShaders.Core
                 if (current != null && current != _currentTarget)
                 {
                     // New target - reset animation
-                    string targetName = current.GetDisplayName() ?? "UNKNOWN";
-                    
                     _currentTarget = current;
                     _starHash = UnityEngine.Random.value;
                     InitializeTextSystem();
@@ -783,7 +649,7 @@ namespace CinematicShaders.Core
             }
             catch (Exception)
             {
-                return ((long)seconds + "S");
+                return string.Format(CinematicShadersUIStrings.Kartographer.EncounterTimeFallbackFormat, (long)seconds);
             }
         }
 
@@ -793,8 +659,8 @@ namespace CinematicShaders.Core
         private static string FormatEncounterDistance(double meters)
         {
             if (meters > 1000000)
-                return $"{meters / 1000:F1} KM";
-            return $"{meters:F1} M";
+                return string.Format(CinematicShadersUIStrings.Kartographer.DistanceKmFormat, meters / 1000);
+            return string.Format(CinematicShadersUIStrings.Kartographer.DistanceMFormat, meters);
         }
 
         /// <summary>

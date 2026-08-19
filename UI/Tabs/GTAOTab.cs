@@ -122,7 +122,7 @@ namespace CinematicShaders.UI.Tabs
                 DrawQualityDropdown();
                 DrawSlider(CinematicShadersUIStrings.GTAO.RadiusLabel, ref _radius, 0.5f, 10.0f, "F1");
                 GUILayout.Label(CinematicShadersUIStrings.GTAO.RadiusTooltip, helpStyle);
-                DrawSlider(CinematicShadersUIStrings.GTAO.DetailRangeLabel, ref _maxPixelRadius, 20f, 300f, "F0", "px");
+                DrawSlider(CinematicShadersUIStrings.GTAO.DetailRangeLabel, ref _maxPixelRadius, 20f, 300f, "F0", CinematicShadersUIStrings.GTAO.PixelSuffix);
 
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
 
@@ -132,8 +132,8 @@ namespace CinematicShaders.UI.Tabs
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
 
                 GUILayout.Label(CinematicShadersUIStrings.GTAO.DistanceFadeSection, HighLogic.Skin.label);
-                DrawSliderExponential(CinematicShadersUIStrings.GTAO.StartFadeLabel, ref _fadeStartDistance, 2000f, 25000f, 2.5f, "F0", "m");
-                DrawSliderExponential(CinematicShadersUIStrings.GTAO.EndFadeLabel, ref _fadeEndDistance, 25000f, 200000f, 2.0f, "F0", "m");
+                DrawSliderExponential(CinematicShadersUIStrings.GTAO.StartFadeLabel, ref _fadeStartDistance, 2000f, 25000f, 2.5f, "F0", CinematicShadersUIStrings.GTAO.MeterSuffix);
+                DrawSliderExponential(CinematicShadersUIStrings.GTAO.EndFadeLabel, ref _fadeEndDistance, 25000f, 200000f, 2.0f, "F0", CinematicShadersUIStrings.GTAO.MeterSuffix);
                 DrawSlider(CinematicShadersUIStrings.GTAO.EdgeHardnessLabel, ref _fadeCurve, 0.5f, 3.0f, "F1");
 
                 GUILayout.Label(CinematicShadersUIStrings.GTAO.EdgeHardnessTooltip, helpStyle);

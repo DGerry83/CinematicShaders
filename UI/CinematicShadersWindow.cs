@@ -1,4 +1,4 @@
-﻿using CinematicShaders.UI.Tabs;
+using CinematicShaders.UI.Tabs;
 using CinematicShaders.Core;
 using CinematicShaders.Shaders.Starfield;
 using UnityEngine;
@@ -45,7 +45,7 @@ namespace CinematicShaders.UI
             }
             catch (Exception ex)
             {
-                errorMessage = "Failed to initialize GTAO: " + ex.Message;
+                errorMessage = string.Format(CinematicShadersUIStrings.Common.InitErrorFormat, ex.Message);
                 Debug.LogError($"[CinematicShaders] {errorMessage}\n{ex}");
             }
         }

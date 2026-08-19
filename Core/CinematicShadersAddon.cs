@@ -429,9 +429,10 @@ namespace CinematicShaders.Core
         {
             // Always output meters - per-line width detection in GenerateTexture will 
             // compress individual lines to KM/MM/GM/TM if they don't fit in texture
-            if (meters >= 100) return $"{prefix}{meters:F0} M";
-            if (meters >= 10) return $"{prefix}{meters:F1} M";
-            return $"{prefix}{meters:F2} M";
+            // (unit token shared with the parser — see UIStrings.Common)
+            if (meters >= 100) return $"{prefix}{meters:F0}{CinematicShadersUIStrings.Common.UnitMetersToken}";
+            if (meters >= 10) return $"{prefix}{meters:F1}{CinematicShadersUIStrings.Common.UnitMetersToken}";
+            return $"{prefix}{meters:F2}{CinematicShadersUIStrings.Common.UnitMetersToken}";
         }
         
         /// <summary>
@@ -440,7 +441,7 @@ namespace CinematicShaders.Core
         private string BuildSituationText()
         {
             if (FlightGlobals.ActiveVessel == null)
-                return "NO VESSEL";
+                return CinematicShadersUIStrings.Kartographer.SituationNoVessel;
             
             var sb = new System.Text.StringBuilder();
             
@@ -452,7 +453,7 @@ namespace CinematicShaders.Core
             sb.Append(FlightGlobals.ActiveVessel.situation.ToString().ToUpper() + '\n');
             
             // Altitude - use smart formatting
-            sb.Append(FormatDistanceSmart(FlightGlobals.ActiveVessel.altitude, "ALT: ") + '\n');
+            sb.Append(FormatDistanceSmart(FlightGlobals.ActiveVessel.altitude, CinematicShadersUIStrings.Kartographer.SituationAltPrefix) + '\n');
             
             // Apoapsis/Periapsis
             if (FlightGlobals.ActiveVessel.orbit != null)
@@ -460,8 +461,8 @@ namespace CinematicShaders.Core
                 double ap = FlightGlobals.ActiveVessel.orbit.ApA;
                 double pe = FlightGlobals.ActiveVessel.orbit.PeA;
                 
-                sb.Append(FormatDistanceSmart(ap, "A/P: ") + '\n');
-                sb.Append(FormatDistanceSmart(pe, "P/E: "));
+                sb.Append(FormatDistanceSmart(ap, CinematicShadersUIStrings.Kartographer.SituationApoapsisPrefix) + '\n');
+                sb.Append(FormatDistanceSmart(pe, CinematicShadersUIStrings.Kartographer.SituationPeriapsisPrefix));
             }
             
             return sb.ToString();

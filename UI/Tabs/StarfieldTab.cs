@@ -236,7 +236,7 @@ namespace CinematicShaders.UI.Tabs
                         {
                             GUIStyle redLabelStyle = new GUIStyle(HighLogic.Skin.label);
                             redLabelStyle.normal.textColor = Color.red;
-                            GUILayout.Label("Non-generated catalogs can only be rotated.", redLabelStyle);
+                            GUILayout.Label(CinematicShadersUIStrings.Starfield.NonProceduralLockMessage, redLabelStyle);
                         }
                         else
                         {
@@ -245,13 +245,13 @@ namespace CinematicShaders.UI.Tabs
                     }
 
                     DrawIntSlider(CinematicShadersUIStrings.Starfield.CatalogSeedLabel, ref _catalogSeed, 0, 99999,
-                        CinematicShadersUIStrings.Starfield.CatalogSeedTooltip);
+                        IntSliderTarget.CatalogSeed, CinematicShadersUIStrings.Starfield.CatalogSeedTooltip);
                     DrawIntSlider(CinematicShadersUIStrings.Starfield.CatalogSizeLabel, ref _catalogSize, 1000, 100000,
-                        CinematicShadersUIStrings.Starfield.CatalogSizeTooltip);
+                        IntSliderTarget.CatalogSize, CinematicShadersUIStrings.Starfield.CatalogSizeTooltip);
                     DrawGenerationSlider(CinematicShadersUIStrings.Starfield.MinMagnitudeLabel, ref _minMagnitude, -2.0f, 3.0f, "F1");
                     DrawGenerationSlider(CinematicShadersUIStrings.Starfield.MaxMagnitudeLabel, ref _maxMagnitude, 5.0f, 12.0f, "F1");
                     DrawIntSlider(CinematicShadersUIStrings.Starfield.HeroCountLabel, ref _heroCount, 16, 1024,
-                        CinematicShadersUIStrings.Starfield.HeroCountTooltip);
+                        IntSliderTarget.HeroCount, CinematicShadersUIStrings.Starfield.HeroCountTooltip);
                     DrawGenerationSlider(CinematicShadersUIStrings.Starfield.MainSequenceLabel, ref _mainSequenceStrength, 0.0f, 1.0f, "F2",
                         CinematicShadersUIStrings.Starfield.MainSequenceTooltip);
                     DrawGenerationSlider(CinematicShadersUIStrings.Starfield.RedGiantFrequencyLabel, ref _redGiantFrequency, 0.0f, 1.0f, "F2");
@@ -410,7 +410,10 @@ namespace CinematicShaders.UI.Tabs
         /// <summary>
         /// Integer generation slider: throttled like DrawGenerationSlider.
         /// </summary>
-        private void DrawIntSlider(string label, ref int value, int min, int max, string tooltip = null)
+        // D7: explicit routing target — replaces fragile label-string identity comparison.
+        private enum IntSliderTarget { CatalogSeed, CatalogSize, HeroCount }
+
+        private void DrawIntSlider(string label, ref int value, int min, int max, IntSliderTarget target, string tooltip = null)
         {
             GUILayout.BeginHorizontal();
             GUIContent labelContent = new GUIContent(label, tooltip);
@@ -427,12 +430,12 @@ namespace CinematicShaders.UI.Tabs
             {
                 value = newIntValue;
 
-                if (label == CinematicShadersUIStrings.Starfield.CatalogSeedLabel)
-                    StarfieldSettings.CatalogSeed = value;
-                else if (label == CinematicShadersUIStrings.Starfield.CatalogSizeLabel)
-                    StarfieldSettings.CatalogSize = value;
-                else if (label == CinematicShadersUIStrings.Starfield.HeroCountLabel)
-                    StarfieldSettings.HeroCount = value;
+                switch (target)
+                {
+                    case IntSliderTarget.CatalogSeed: StarfieldSettings.CatalogSeed = value; break;
+                    case IntSliderTarget.CatalogSize: StarfieldSettings.CatalogSize = value; break;
+                    case IntSliderTarget.HeroCount: StarfieldSettings.HeroCount = value; break;
+                }
 
                 StarfieldSettings.InvalidateCatalog();
                 _generationPushPending = true;
@@ -586,7 +589,7 @@ namespace CinematicShaders.UI.Tabs
                 _newCatalogName = GUILayout.TextField(_newCatalogName, GUILayout.Width(250));
 
                 GUILayout.BeginHorizontal();
-                if (GUILayout.Button("Cancel", GUILayout.Width(70)))
+                if (GUILayout.Button(CinematicShadersUIStrings.Starfield.CancelButton, GUILayout.Width(70)))
                     _showSaveAsDialog = false;
 
                 if (GUILayout.Button(CinematicShadersUIStrings.Starfield.SaveButton, GUILayout.Width(70)))

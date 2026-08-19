@@ -13,6 +13,36 @@ namespace CinematicShaders.UI
             // Symbols
             public const string CollapsedPrefix = "▶ ";
             public const string DropdownArrow = " ▼";
+
+            // Buttons
+            public const string CloseButton = "X";
+
+            // Dual-use: shown on screen AND written to the log — single shared const.
+            public const string InitErrorFormat = "Failed to initialize GTAO: {0}";
+
+            // ------------------------------------------------------------------------
+            // UNIT TOKENS — produced by CinematicShadersAddon.FormatDistanceSmart and
+            // PARSED by GridLabelSystem.ConvertLineUnit (situation-display unit
+            // compression). Producer and parser must stay in sync; do not edit one side.
+            // ------------------------------------------------------------------------
+            public const string UnitMeters = "M";
+            public const string UnitKilometers = "KM";
+            public const string UnitMegameters = "MM";
+            public const string UnitGigameters = "GM";
+            public const string UnitTerameters = "TM";
+            public const string UnitMetersToken = " " + UnitMeters;
+            public const string UnitKilometersToken = " " + UnitKilometers;
+            public const string UnitMegametersToken = " " + UnitMegameters;
+            public const string UnitGigametersToken = " " + UnitGigameters;
+            public const string UnitMetersPerSecond = "m/s";
+            public const string UnitKilometersPerSecond = "km/s";
+            public const string UnitMegametersPerSecond = "Mm/s";
+            public const string UnitGigametersPerSecond = "Gm/s";
+            public const string UnitTerametersPerSecond = "Tm/s";
+
+            // Data sentinel for missing spectral/constellation values — compared against
+            // by KartographerSelector.GetSpectralDescription; both sides use this const.
+            public const string UnknownValueSentinel = "?";
         }
 
         // ============================================================================
@@ -62,6 +92,10 @@ namespace CinematicShaders.UI
             public const string SceneTrackingStation = "Tracking";
             public const string SceneEditor = "Editor";
             public const string SceneLiveSuffix = " (current)";
+
+            // Slider unit suffixes
+            public const string PixelSuffix = "px";
+            public const string MeterSuffix = "m";
         }
 
         // ============================================================================
@@ -98,6 +132,9 @@ namespace CinematicShaders.UI
             public const string DisplayNameLabel = "Display Name:";
             public const string DefaultCatalogFileName = "MyStarfield";
             public const string DefaultCatalogDisplayName = "My Starfield";
+
+            // Catalog dropdown read-only indicator (glyph must exist in the IMGUI font)
+            public const string ReadOnlyLockPrefix = "🔒 ";
             
             // Buttons
             public const string CancelButton = "Cancel";
@@ -112,6 +149,7 @@ namespace CinematicShaders.UI
             // READ-ONLY PROTECTION UI
             // ------------------------------------------------------------------------
             public const string ReadOnlyLockMessage = "Generation parameters locked (Read-Only mode)";
+            public const string NonProceduralLockMessage = "Non-generated catalogs can only be rotated.";
             public const string ReadOnlyToggleOn = "Read-Only Protection <color=#33FF33>ON</color>";
             public const string ReadOnlyToggleOff = "Read-Only Protection <color=#FF3333>OFF</color>";
             public const string ReadOnlyWarningTitle = "WARNING: Disabling Read-Only Protection";
@@ -223,6 +261,79 @@ namespace CinematicShaders.UI
             public const string TargetEncounterNA = "TTE: N/A";
 
             // ------------------------------------------------------------------------
+            // VESSEL TARGET INFO (base lines) — distance formats are shared with the
+            // encounter lines above (SEP / P/E values) via const composition.
+            // ------------------------------------------------------------------------
+            public const string DistanceKmFormat = "{0:F1} KM";
+            public const string DistanceMFormat = "{0:F1} M";
+            public const string TargetDistKmFormat = "DIST: " + DistanceKmFormat + "\n";
+            public const string TargetDistMFormat = "DIST: " + DistanceMFormat + "\n";
+            public const string TargetRvelFormat = "RVEL: {0:F1} M/S\n";
+            public const string TargetNameUnknown = "UNKNOWN";
+            public const string EncounterTimeFallbackFormat = "{0}S";
+
+            // ------------------------------------------------------------------------
+            // STAR INFO BOX
+            // ------------------------------------------------------------------------
+            public const string StarNameFormat = "NAME: {0}\n";
+            // Shared LY distance format (star info box + catalog editor);
+            // StarDistanceFormat composes from it — keep in sync.
+            public const string DistanceLyFormat = "{0:F1} LY";
+            public const string StarDistanceFormat = "DISTANCE: " + DistanceLyFormat + "\n";
+            public const string StarDistanceUnknown = "DISTANCE: UNKNOWN\n";
+            public const string StarMagnitudeFormat = "MAGNITUDE: {0:F2}\n";
+            public const string StarTypeFormat = "TYPE: {0}\n";
+            public const string StarConstellationFormat = "CONSTELLATION: {0}\n";
+            public const string HipIdFormat = "HIP {0}";
+
+            // Spectral descriptions. NOTE: SpectralDescK carries a known text bug
+            // ("L - ORANGE" for class K) — moved verbatim; fix tracked as issue #036.
+            public const string SpectralUnknown = "UNKNOWN";
+            public const string SpectralDescO = "O - BLUE SUPERGIANT";
+            public const string SpectralDescB = "B - BLUE-WHITE";
+            public const string SpectralDescA = "A - WHITE";
+            public const string SpectralDescF = "F - YELLOW-WHITE";
+            public const string SpectralDescG = "G - YELLOW";
+            public const string SpectralDescK = "L - ORANGE"; // BUG #036 (verbatim move)
+            public const string SpectralDescM = "M - RED GIANT";
+            public const string SpectralDescL = "L - BROWN DWARF";
+            public const string SpectralDescUnknown = "?? UNKNOWN";
+
+            // ------------------------------------------------------------------------
+            // GRID LABELS (HUCK) — version string is flavor text, kept verbatim.
+            // PAIRING INVARIANT: HuckTextLongBody is initials-stripped BY DESIGN — the
+            // big initials render in a separate pass using HuckTextNoVersion.
+            // ------------------------------------------------------------------------
+            public const string HuckText = "H\nU\nC\nK\nv0.6.28";
+            public const string HuckTextNoVersion = "H\nU\nC\nK";
+            public const string HuckTextLongBody = "OLOGRAPHIC\nNIVERSAL\nELESTIAL\nARTOGRAPHER\nv0.6.28";
+            public const string HuckGridLabelText = "HOLOGRAPHIC\nUNIVERSAL\nCELESTIAL\nKARTOGRAPHER";
+            public const string SituationPlaceholderText = "SITUATION\nINFO\nDEBUG";
+
+            // ------------------------------------------------------------------------
+            // SITUATION DISPLAY (grid-fixed)
+            // NOTE: "P/E:" here = orbit periapsis, distinct from TargetSoiPeriapsisFormat.
+            // The distance lines are produced with Common.UnitMetersToken and PARSED by
+            // GridLabelSystem.ConvertLineUnit — keep both sides in sync.
+            // ------------------------------------------------------------------------
+            public const string SituationNoVessel = "NO VESSEL";
+            public const string SituationAltPrefix = "ALT: ";
+            public const string SituationApoapsisPrefix = "A/P: ";
+            public const string SituationPeriapsisPrefix = "P/E: ";
+
+            // ------------------------------------------------------------------------
+            // MANEUVER READOUT (navball) — block glyphs must exist in the HUD font.
+            // ------------------------------------------------------------------------
+            public const string ManeuverTimePrefixPlus = "T+ ";
+            public const string ManeuverTimePrefixMinus = "T- ";
+            public const string ManeuverDvBarEmpty = "[          ]";
+            public const string ManeuverDvBarFormat = "[{0}]";
+            public const char DvBarBlockFull = '█';
+            public const char DvBarBlockThreeQuarter = '▓';
+            public const char DvBarBlockHalf = '▒';
+            public const char DvBarBlockQuarter = '░';
+
+            // ------------------------------------------------------------------------
             // SECTION HEADERS
             // ------------------------------------------------------------------------
             public const string DisplayOptionsSection = " ▼ Display Options";
@@ -320,6 +431,157 @@ namespace CinematicShaders.UI
             // Star Catalog Scan
             public const string ScanButton = "SCAN";
             public const string ScanHelpText = "NO JSON FOUND - CLICK SCAN TO CREATE";
+            public const string ScanOverwriteHelpText = "JSON EXISTS - CLICK SCAN TO REGENERATE (WILL OVERWRITE)";
+
+            // Search result row: composes the shared HIP format (D4).
+            public const string SearchResultFormat = HipIdFormat + ": {1}";
+        }
+
+        // ============================================================================
+        // STAR CONSOLE - Holographic terminal overlay (title bar, glyphs, screen art)
+        // ============================================================================
+        public static class StarConsole
+        {
+            // Title bar
+            public const string StarConsoleTitle = "STAR CONSOLE";
+            public const string PowerOnLabel = "[•] PWR";
+            public const string PowerOffLabel = "[ ] PWR";
+
+            // Glyphs — must exist in the HUD/console font; verbatim only, never substitute.
+            public const string EditCursorGlyph = "▌";
+            public const string ResultBullet = "•";
+            public const string SearchPlaceholder = "...";
+
+            // Page number between the scroll arrows. WARNING: column-48-pinned —
+            // StarCatalogHolographicDisplay.UpdatePageNumberDisplay left-pads so the
+            // '/' lands on column 48; only the format lives here, the pin logic stays.
+            public const string PageNumberFormat = "{0}/{1}";
+
+            // ------------------------------------------------------------------------
+            // FIXED-WIDTH ASCII ART — WARNING: every line below is layout-coupled to
+            // the console grid (59 columns). Moved byte-identically; changing any
+            // character or padding shifts the rendered layout. The Scan screen
+            // click-zone bounding box is COMPUTED from the ScanContentLines art text.
+            // ------------------------------------------------------------------------
+
+            // Splash screen logo (STAR + tagline + version)
+            public static readonly string[] SplashLines = new string[]
+            {
+                @" ________   _________    ________      ________",
+                @"|\   ____\ |\___   ___\ |\   __  \    |\   __  \",
+                @"\ \  \___|_\|___ \  \_| \ \  \|\  \   \ \  \|\  \",
+                @" \ \_____  \    \ \  \   \ \   __  \   \ \   _  _\",
+                @"  \|____|\  \  __\ \  \ __\ \  \ \  \ __\ \  \\  \|",
+                @"    ____\_\  \|\__\ \__\\__\ \__\ \__\\__\ \__\\ _\|\__\",
+                @"   |\_________\|__|\|__\|__|\|__|\|__\|__|\|__|\|__\|__|",
+                @"   \|_________|System for Tabulation of Astrometric Records",
+                @"                                                       v1.0"
+            };
+
+            // Main screen (star data + search results)
+            public static readonly string[] MainBorderLines = new string[]
+            {
+                "╔════[STAR DATA]═══════════════════╦╦═════[RESULTS]═══════╗",
+                "║                                  ║║                     ║",
+                "║                                  ║║                     ║",
+                "║                                  ║║                     ║",
+                "║                                  ║║                     ║",
+                "║                                  ║║                     ║",
+                "║                                  ║║                     ║",
+                "║                                  ║║                     ║",
+                "║                                  ║║                     ║",
+                "╟──────────────────────────────────╢║                     ║",
+                "║                                  ║║                     ║",
+                "║                                  ║║                     ║",
+                "╚══════════════════════════════════╩╩═════════════════════╝"
+            };
+
+            public static readonly string[] MainContentLines = new string[]
+            {
+                "                                                           ",
+                "  HIP:                                                     ",
+                "  NAME:                                                    ",
+                "  DISTANCE:                                                ",
+                "  SPECTRAL:                                                ",
+                "  MAG:                                                     ",
+                "  CONST:                                                   ",
+                "                                                           ",
+                "                 [SAVE]   [RESET]                          ",
+                "                                                           ",
+                "  SEARCH                  [RESCAN]                         ",
+                "  ►                                    ▲               ▼   ",
+                "                                                           "
+            };
+
+            // Scan screen (shown when no JSON data is available)
+            public static readonly string[] ScanBorderLines = new string[]
+            {
+                "╔═══════════════════════[NO DATA]═════════════════════════╗",
+                "║                                                         ║",
+                "║                                                         ║",
+                "║                                                         ║",
+                "║                                                         ║",
+                "║                                                         ║",
+                "║                                                         ║",
+                "║                                                         ║",
+                "║                                                         ║",
+                "║                                                         ║",
+                "║                                                         ║",
+                "║                                                         ║",
+                "╚═════════════════════════════════════════════════════════╝"
+            };
+
+            public static readonly string[] ScanContentLines = new string[]
+            {
+                "                                                           ",
+                "                                                           ",
+                "                                                           ",
+                "          ╔════════════════════════════════════╗           ",
+                "          ║ ███████╗ ██████╗ █████╗ ███╗   ██╗ ║           ",
+                "          ║ ██╔════╝██╔════╝██╔══██╗████╗  ██║ ║           ",
+                "          ║ ███████╗██║     ███████║██╔██╗ ██║ ║           ",
+                "          ║ ╚════██║██║     ██╔══██║██║╚██╗██║ ║           ",
+                "          ║ ███████║╚██████╗██║  ██║██║ ╚████║ ║           ",
+                "          ║ ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═══╝ ║           ",
+                "          ╚════════════════════════════════════╝           ",
+                "                                                           ",
+                "                                                           "
+            };
+
+            // Confirm-rescan dialog
+            public static readonly string[] ConfirmRescanBorderLines = new string[]
+            {
+                "╔════════════════════[ARE YOU SURE?]══════════════════════╗",
+                "║                                                         ║",
+                "║                                                         ║",
+                "║                                                         ║",
+                "║                                                         ║",
+                "║                                                         ║",
+                "║                                                         ║",
+                "║                                                         ║",
+                "║                                                         ║",
+                "║                                                         ║",
+                "║                                                         ║",
+                "║                                                         ║",
+                "╚═════════════════════════════════════════════════════════╝"
+            };
+
+            public static readonly string[] ConfirmRescanContentLines = new string[]
+            {
+                "                                                           ",
+                "                                                           ",
+                "                                                           ",
+                "                !STAR NAMES WILL BE RESET!                 ",
+                "                                                           ",
+                "                                                           ",
+                "                                                           ",
+                "                                                           ",
+                "                                                           ",
+                "                                                           ",
+                "   [YES]                                            [NO]   ",
+                "                                                           ",
+                "                                                           "
+            };
         }
     }
 }
