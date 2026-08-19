@@ -748,12 +748,17 @@ namespace CinematicShaders.Core
                     break;
 
                 case EncounterMode.SoiChange:
-                    string bodyName = SanitizeText(info.BodyName ?? "").ToUpper();
                     sb.Append(string.Format(
                         info.SoiEntering
                             ? CinematicShadersUIStrings.Kartographer.TargetSoiEnterFormat
                             : CinematicShadersUIStrings.Kartographer.TargetSoiExitFormat,
-                        FormatEncounterTime(info.TimeSeconds), bodyName));
+                        FormatEncounterTime(info.TimeSeconds)));
+                    if (info.HasNewSoiPeriapsis)
+                    {
+                        sb.Append('\n');
+                        sb.Append(string.Format(CinematicShadersUIStrings.Kartographer.TargetSoiPeriapsisFormat,
+                            FormatEncounterDistance(info.NewSoiPeriapsisMeters)));
+                    }
                     break;
 
                 case EncounterMode.Impact:

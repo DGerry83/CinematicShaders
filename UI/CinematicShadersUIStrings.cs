@@ -210,12 +210,15 @@ namespace CinematicShaders.UI
 
             // ------------------------------------------------------------------------
             // VESSEL TARGET INFO (time-to-encounter)
-            // {0} = time (KSPUtil.PrintTime), {1}/{2} = separation distance / approach index
+            // {0} = time (KSPUtil.PrintTime); CA: {1}/{2} = separation distance / approach
+            // index; SOI lines are target-relevant only and carry no body name; P/E is the
+            // periapsis altitude in the SOI being entered.
             // ------------------------------------------------------------------------
             public const string TargetCaSingleFormat = "CA: {0}  SEP: {1}";
             public const string TargetCaIndexedFormat = "CA{0}: {1}  SEP: {2}";
-            public const string TargetSoiEnterFormat = "SOI+: {0}  {1}";
-            public const string TargetSoiExitFormat = "SOI-: {0}  {1}";
+            public const string TargetSoiEnterFormat = "SOI+: {0}";
+            public const string TargetSoiExitFormat = "SOI-: {0}";
+            public const string TargetSoiPeriapsisFormat = "P/E: {0}";
             public const string TargetImpactFormat = "IMPACT: {0}";
             public const string TargetEncounterNA = "TTE: N/A";
 

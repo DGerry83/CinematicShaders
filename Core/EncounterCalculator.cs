@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace CinematicShaders.Core
@@ -16,16 +17,17 @@ namespace CinematicShaders.Core
 
     /// <summary>
     /// Result of an encounter-time calculation for the current target.
-    /// Times are seconds until the event; separations are meters.
+    /// Times are seconds until the event; separations/altitudes are meters.
     /// </summary>
     public struct EncounterInfo
     {
         public EncounterMode Mode;
         public double TimeSeconds;
-        public double SeparationMeters;    // ClosestApproach only
-        public string BodyName;            // SoiChange only (raw display name, caller sanitizes)
-        public bool SoiEntering;           // SoiChange only: true = entering SOI, false = escaping
-        public bool HasSecondApproach;     // ClosestApproach only
+        public double SeparationMeters;      // ClosestApproach only
+        public bool SoiEntering;             // SoiChange only: true = entering target SOI, false = leaving it
+        public bool HasNewSoiPeriapsis;      // SoiChange only
+        public double NewSoiPeriapsisMeters; // SoiChange only: periapsis altitude in the SOI being entered
+        public bool HasSecondApproach;       // ClosestApproach only
         public double SecondTimeSeconds;
         public double SecondSeparationMeters;
     }
@@ -35,8 +37,17 @@ namespace CinematicShaders.Core
     /// replicating stock map-view behavior (OrbitTargeter / PatchedConics) using public
     /// KSP APIs only. See ReferenceNotes/active/2026-08-18_039Update_PlanContinuation/SECTION5_SPEC.md.
     ///
-    /// Mode priority: IMPACT (target body only, current patch) &gt; SOI change &gt; closest approach.
+    /// Mode priority: IMPACT (target body only, current patch) &gt; SOI change (target-relevant
+    /// transitions only — this is a target tracker, not a general orbit tracker) &gt; closest approach.
     /// Impact is an estimate: sea-level radius crossing, no terrain elevation or atmosphere.
+    ///
+    /// Chain hygiene notes (verified against the KSP 1.12 decompilation):
+    /// - The solver never nulls Orbit.nextPatch; stale patch objects keep old transitions.
+    ///   Only links whose patch was re-solved this frame (activePatch) may be followed.
+    /// - patches[0].StartUT is rewritten to "now" every solver frame — a stale value means
+    ///   the whole chain is untrustworthy.
+    /// - The main orbit chain is always the no-maneuver trajectory; with maneuver nodes the
+    ///   maneuver-adjusted prediction lives in PatchedConicSolver.flightPlan.
     /// </summary>
     public static class EncounterCalculator
     {
@@ -48,14 +59,18 @@ namespace CinematicShaders.Core
         private const double SolverEpsilon = 0.0001;
         private const int MaxGeometryIterations = 20;
 
+        // The solver rewrites patches[0].StartUT every frame it runs. Tolerance must exceed
+        // one frame of UT at maximum rails warp (100,000x ≈ 1,700 UT-s per frame at 60 FPS).
+        private const double FreshnessToleranceSeconds = 3600.0;
+
         // Window cap for the orbit-to-orbit sweep when the synodic period is undefined
         // (hyperbolic) or the patch never ends (FINAL hyperbolic, EndUT = +infinity).
-        private const double OrbitSweepCapSeconds = 365.0 * 24.0 * 3600.0; // 1 Kerbin/Earth year, display estimate only
+        private const double OrbitSweepCapSeconds = 365.0 * 24.0 * 3600.0; // 1 year, display estimate only
         private const int CoarseSampleCount = 64;
 
         /// <summary>
         /// Compute encounter info for the given target. Returns Mode == None when no
-        /// valid metric exists (no target, landed, no encounter, guard failures).
+        /// valid metric exists (no target, landed, stale chain, no encounter).
         /// </summary>
         public static EncounterInfo Calculate(ITargetable target)
         {
@@ -79,6 +94,9 @@ namespace CinematicShaders.Core
                 if (targetBody == null) return none; // unknown ITargetable flavor
             }
 
+            List<Orbit> chain = GetOurPatchChain(activeVessel, vesselOrbit, now);
+            if (chain.Count == 0) return none; // stale/invalid chain
+
             // Priority 1: IMPACT — target body only, current patch only (spec Q2/Q3).
             if (targetBody != null && vesselOrbit.referenceBody == targetBody)
             {
@@ -92,14 +110,14 @@ namespace CinematicShaders.Core
                 }
             }
 
-            // Priority 2: SOI change — first pending ENCOUNTER/ESCAPE in our patch chain.
+            // Priority 2: SOI change — target-relevant transitions only.
             EncounterInfo soi;
-            if (TryGetSoiChange(vesselOrbit, now, out soi)) return soi;
+            if (TryGetSoiChange(chain, targetBody, now, out soi)) return soi;
 
             // Priority 3: closest approach.
             if (targetVessel != null)
-                return VesselClosestApproach(vesselOrbit, targetVessel, now);
-            return BodyClosestApproach(vesselOrbit, targetBody, now);
+                return VesselClosestApproach(chain, targetVessel, now);
+            return BodyClosestApproach(chain, targetBody, now);
         }
 
         /// <summary>
@@ -113,9 +131,76 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
-        /// Impact = next crossing of the body's sea-level radius on the current patch.
-        /// Stock never terminates patches at the surface (PatchTransitionType.IMPACT is
-        /// a dead enum), so this is hand-computed. Estimate only: ignores terrain height.
+        /// Build the active vessel's effective patch chain: the maneuver-adjusted flight
+        /// plan when maneuver nodes exist, otherwise the live no-maneuver chain. Guards
+        /// against stale links (the solver reuses patch objects and never nulls nextPatch;
+        /// only activePatch-marked links were re-solved this frame).
+        /// </summary>
+        private static List<Orbit> GetOurPatchChain(Vessel vessel, Orbit vesselOrbit, double now)
+        {
+            List<Orbit> chain = new List<Orbit>();
+
+            PatchedConicSolver solver = vessel.patchedConicSolver;
+            if (solver == null)
+            {
+                // Patched conics not unlocked (early career): current orbit only, always fresh.
+                chain.Add(vesselOrbit);
+                return chain;
+            }
+
+            // Freshness gate: StartUT is rewritten to now on every solver frame.
+            if (double.IsNaN(vesselOrbit.StartUT) ||
+                Math.Abs(now - vesselOrbit.StartUT) > FreshnessToleranceSeconds)
+                return chain;
+
+            List<Orbit> flightPlan = solver.flightPlan;
+            if (flightPlan != null && flightPlan.Count > 0)
+            {
+                // flightPlan = pre-node main-chain patches + one post-maneuver patch per node.
+                foreach (Orbit p in flightPlan)
+                {
+                    if (p == null || chain.Contains(p)) continue;
+                    chain.Add(p);
+                    if (chain.Count >= MaxPatchChainLinks) return chain;
+                }
+                // Continuation patches after the last flight-plan entry.
+                Orbit last = chain[chain.Count - 1];
+                for (Orbit p = last.nextPatch;
+                     p != null && p.activePatch && chain.Count < MaxPatchChainLinks;
+                     p = p.nextPatch)
+                {
+                    chain.Add(p);
+                }
+                return chain;
+            }
+
+            chain.Add(vesselOrbit);
+            for (Orbit p = vesselOrbit.nextPatch;
+                 p != null && p.activePatch && chain.Count < MaxPatchChainLinks;
+                 p = p.nextPatch)
+            {
+                chain.Add(p);
+            }
+            return chain;
+        }
+
+        /// <summary>
+        /// Walk another vessel's patch chain with the same stale-link guard.
+        /// </summary>
+        private static List<Orbit> GetFreshChain(Orbit first, int cap)
+        {
+            List<Orbit> chain = new List<Orbit>();
+            if (first == null) return chain;
+            chain.Add(first);
+            for (Orbit p = first.nextPatch; p != null && p.activePatch && chain.Count < cap; p = p.nextPatch)
+                chain.Add(p);
+            return chain;
+        }
+
+        /// <summary>
+        /// Impact = next crossing of the target body's sea-level radius on the current patch.
+        /// Stock never terminates patches at the surface (PatchTransitionType.IMPACT is a
+        /// dead enum), so this is hand-computed. Estimate only: ignores terrain height.
         /// </summary>
         private static bool TryGetImpactTime(Orbit orbit, double now, out double tImpact)
         {
@@ -135,36 +220,44 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
-        /// First patch in the chain ending in an SOI transition wins. ENCOUNTER means
-        /// entering nextPatch's body; ESCAPE means leaving this patch's body.
+        /// SOI mode is target-relevant only: entering the TARGET body's SOI (ENCOUNTER into
+        /// it) or leaving it (ESCAPE from it). The first target-relevant transition in the
+        /// chain wins, even if an unrelated transition happens sooner. Also reports the
+        /// periapsis altitude in the SOI being transitioned into.
         /// </summary>
-        private static bool TryGetSoiChange(Orbit startPatch, double now, out EncounterInfo info)
+        private static bool TryGetSoiChange(List<Orbit> chain, CelestialBody targetBody,
+            double now, out EncounterInfo info)
         {
             info = default(EncounterInfo);
-            Orbit p = startPatch;
-            for (int i = 0; p != null && i < MaxPatchChainLinks; i++, p = p.nextPatch)
+            if (targetBody == null) return false; // vessel targets never trigger SOI mode
+
+            for (int i = 0; i < chain.Count; i++)
             {
+                Orbit p = chain[i];
                 if (double.IsNaN(p.EndUT) || double.IsInfinity(p.EndUT)) continue;
 
-                if (p.patchEndTransition == Orbit.PatchTransitionType.ENCOUNTER &&
-                    p.nextPatch != null && p.nextPatch.referenceBody != null)
-                {
-                    info.Mode = EncounterMode.SoiChange;
-                    info.TimeSeconds = p.EndUT - now;
-                    info.SoiEntering = true;
-                    info.BodyName = p.nextPatch.referenceBody.bodyDisplayName;
-                    return true;
-                }
+                bool entering = p.patchEndTransition == Orbit.PatchTransitionType.ENCOUNTER &&
+                                p.nextPatch != null && p.nextPatch.referenceBody == targetBody;
+                bool leaving = p.patchEndTransition == Orbit.PatchTransitionType.ESCAPE &&
+                               p.referenceBody == targetBody;
+                if (!entering && !leaving) continue;
 
-                if (p.patchEndTransition == Orbit.PatchTransitionType.ESCAPE &&
-                    p.referenceBody != null)
+                info.Mode = EncounterMode.SoiChange;
+                info.TimeSeconds = p.EndUT - now;
+                info.SoiEntering = entering;
+
+                // Periapsis in the new SOI (the patch transitioned into).
+                Orbit np = p.nextPatch;
+                if (np != null && np.referenceBody != null)
                 {
-                    info.Mode = EncounterMode.SoiChange;
-                    info.TimeSeconds = p.EndUT - now;
-                    info.SoiEntering = false;
-                    info.BodyName = p.referenceBody.bodyDisplayName;
-                    return true;
+                    double peA = np.PeA;
+                    if (!double.IsNaN(peA) && !double.IsInfinity(peA))
+                    {
+                        info.HasNewSoiPeriapsis = true;
+                        info.NewSoiPeriapsisMeters = peA;
+                    }
                 }
+                return true;
             }
             return false;
         }
@@ -174,24 +267,23 @@ namespace CinematicShaders.Core
         /// patches (ours x target's) sharing a reference body and solve for intercepts on
         /// it. Up to two solutions (rendezvous orbits can cross twice).
         /// </summary>
-        private static EncounterInfo VesselClosestApproach(Orbit vesselOrbit, Vessel targetVessel, double now)
+        private static EncounterInfo VesselClosestApproach(List<Orbit> ourChain, Vessel targetVessel, double now)
         {
             EncounterInfo none = default(EncounterInfo);
             if (!IsOrbiting(targetVessel)) return none;
-            Orbit targetOrbit = targetVessel.orbit;
-            if (targetOrbit == null) return none;
+            if (targetVessel.orbit == null) return none;
 
-            Orbit p = vesselOrbit;
-            for (int i = 0; p != null && i < MaxPatchChainLinks; i++, p = p.nextPatch)
+            List<Orbit> targetChain = GetFreshChain(targetVessel.orbit, MaxPatchChainLinks);
+
+            for (int i = 0; i < ourChain.Count; i++)
             {
-                Orbit t = targetOrbit;
-                for (int j = 0; t != null && j < MaxPatchChainLinks; j++, t = t.nextPatch)
+                for (int j = 0; j < targetChain.Count; j++)
                 {
-                    if (t.referenceBody != p.referenceBody) continue;
+                    if (targetChain[j].referenceBody != ourChain[i].referenceBody) continue;
 
                     // First same-body pair only (matches stock's FindPatch behavior).
                     EncounterInfo found;
-                    if (TryVesselInterceptOnPatches(p, t, now, out found)) return found;
+                    if (TryVesselInterceptOnPatches(ourChain[i], targetChain[j], now, out found)) return found;
                     return none;
                 }
             }
@@ -244,7 +336,7 @@ namespace CinematicShaders.Core
             // Promote B if it is the only valid solution.
             if (!validA)
             {
-                validA = true; validB = false;
+                validB = false;
                 utA = utB; sepA = sepB;
             }
 
@@ -265,7 +357,7 @@ namespace CinematicShaders.Core
         {
             separationMeters = 0.0;
             if (double.IsNaN(ut) || double.IsInfinity(ut)) return false;
-            if (ut < now) return false;                    // past solution (e.g. hyperbolic post-Pe)
+            if (ut < now) return false;                     // past solution (e.g. hyperbolic post-Pe)
             if (ut > p.EndUT || ut > s.EndUT) return false; // beyond either patch
             if (!PatchedConics.TAIsWithinPatchBounds(taP, p)) return false;
             if (!PatchedConics.TAIsWithinPatchBounds(taS, s)) return false;
@@ -290,23 +382,23 @@ namespace CinematicShaders.Core
 
         /// <summary>
         /// Body target: if any patch in our chain is around that body, closest approach is
-        /// that patch's periapsis. Otherwise (no encounter) sweep the vessel orbit against
-        /// the body's own orbit and refine the minimum — stock shows the same thing via its
-        /// approach markers, but its solver is not frame-safe for cross-SOI inputs, so we
-        /// sample in the absolute (getTruePositionAtUT) frame instead.
+        /// that patch's periapsis. Otherwise (no encounter) sweep each chain patch against
+        /// the body's own orbit — stock shows this via approach markers, but its solver is
+        /// not frame-safe for cross-SOI inputs, so we sample in the absolute
+        /// (getTruePositionAtUT) frame instead.
         /// </summary>
-        private static EncounterInfo BodyClosestApproach(Orbit vesselOrbit, CelestialBody targetBody, double now)
+        private static EncounterInfo BodyClosestApproach(List<Orbit> chain, CelestialBody targetBody, double now)
         {
             EncounterInfo none = default(EncounterInfo);
             if (targetBody == null) return none;
 
-            Orbit p = vesselOrbit;
-            for (int i = 0; p != null && i < MaxPatchChainLinks; i++, p = p.nextPatch)
+            for (int i = 0; i < chain.Count; i++)
             {
+                Orbit p = chain[i];
                 if (p.referenceBody != targetBody) continue;
 
                 double utPe;
-                if (p == vesselOrbit)
+                if (i == 0)
                 {
                     // Live patch: timeToPe is maintained by the game. Negative = hyperbolic
                     // trajectory already past periapsis (no future approach).
@@ -330,21 +422,12 @@ namespace CinematicShaders.Core
                 return peInfo;
             }
 
-            // No encounter with the body in the patch chain: orbit-vs-orbit sweep.
+            // No encounter with the body in the chain: orbit-vs-orbit sweep.
             // (Kerbol's own GetOrbit() may be null — guard.)
-            Orbit bodyOrbit = targetBody.GetOrbit();
-            if (bodyOrbit == null) return none;
-
-            double maxUT = vesselOrbit.EndUT;
-            double synodic = Orbit.SynodicPeriod(vesselOrbit, bodyOrbit);
-            if (!double.IsNaN(synodic) && !double.IsInfinity(synodic) && synodic > 0.0)
-                maxUT = Math.Min(maxUT, now + synodic);
-            if (double.IsInfinity(maxUT) || double.IsNaN(maxUT) || maxUT > now + OrbitSweepCapSeconds)
-                maxUT = now + OrbitSweepCapSeconds;
-            if (maxUT <= now) return none;
+            if (targetBody.GetOrbit() == null) return none;
 
             double utCa, sepCa;
-            if (!TrySweepClosestApproach(vesselOrbit, targetBody, now, maxUT, out utCa, out sepCa))
+            if (!TrySweepClosestApproach(chain, targetBody, now, out utCa, out sepCa))
                 return none;
 
             EncounterInfo info = default(EncounterInfo);
@@ -355,40 +438,64 @@ namespace CinematicShaders.Core
         }
 
         /// <summary>
-        /// Coarse sweep for the global minimum over [minUT, maxUT], then golden-section
-        /// refinement inside the winning sample bucket. Distance is computed in the
-        /// absolute frame so orbits around different bodies compare correctly.
+        /// Per-patch coarse sweep for the global distance minimum over each patch's validity
+        /// window, then golden-section refinement inside the winning sample bucket. Distance
+        /// is computed in the absolute frame so orbits around different bodies compare
+        /// correctly.
         /// </summary>
-        private static bool TrySweepClosestApproach(Orbit vesselOrbit, CelestialBody targetBody,
-            double minUT, double maxUT, out double utCa, out double sepCa)
+        private static bool TrySweepClosestApproach(List<Orbit> chain, CelestialBody targetBody,
+            double now, out double utCa, out double sepCa)
         {
             utCa = 0.0;
             sepCa = 0.0;
 
             try
             {
-                double step = (maxUT - minUT) / CoarseSampleCount;
-                if (step <= 0.0) return false;
+                // Coarse sweep over every chain patch's own window; track the global best.
+                Orbit bestPatch = null;
+                double bestT = 0.0, bestDist = double.MaxValue, bestStep = 0.0;
+                double bestWindowStart = 0.0, bestWindowEnd = 0.0;
 
-                int best = -1;
-                double bestDist = double.MaxValue;
-                for (int i = 0; i <= CoarseSampleCount; i++)
+                for (int i = 0; i < chain.Count; i++)
                 {
-                    double t = minUT + i * step;
-                    double d = AbsoluteSeparation(vesselOrbit, targetBody, t);
-                    if (double.IsNaN(d) || double.IsInfinity(d)) continue;
-                    if (d < bestDist) { bestDist = d; best = i; }
+                    Orbit p = chain[i];
+                    double wStart = Math.Max(p.StartUT, now);
+                    double wEnd = p.EndUT;
+
+                    double syn = Orbit.SynodicPeriod(p, targetBody.GetOrbit());
+                    if (!double.IsNaN(syn) && !double.IsInfinity(syn) && syn > 0.0)
+                        wEnd = Math.Min(wEnd, now + syn);
+                    if (double.IsNaN(wEnd) || double.IsInfinity(wEnd) || wEnd > now + OrbitSweepCapSeconds)
+                        wEnd = now + OrbitSweepCapSeconds;
+                    if (wEnd <= wStart) continue;
+
+                    double step = (wEnd - wStart) / CoarseSampleCount;
+                    for (int s = 0; s <= CoarseSampleCount; s++)
+                    {
+                        double t = wStart + s * step;
+                        double d = AbsoluteSeparation(p, targetBody, t);
+                        if (double.IsNaN(d) || double.IsInfinity(d)) continue;
+                        if (d < bestDist)
+                        {
+                            bestDist = d;
+                            bestT = t;
+                            bestStep = step;
+                            bestPatch = p;
+                            bestWindowStart = wStart;
+                            bestWindowEnd = wEnd;
+                        }
+                    }
                 }
-                if (best < 0) return false;
+                if (bestPatch == null) return false;
 
                 // Refine within +/- one sample interval around the coarse minimum.
-                double a = Math.Max(minUT, minUT + (best - 1) * step);
-                double b = Math.Min(maxUT, minUT + (best + 1) * step);
+                double a = Math.Max(bestWindowStart, bestT - bestStep);
+                double b = Math.Min(bestWindowEnd, bestT + bestStep);
                 const double invPhi = 0.6180339887498949; // 1/phi
                 double c = b - invPhi * (b - a);
                 double d2 = a + invPhi * (b - a);
-                double fc = AbsoluteSeparation(vesselOrbit, targetBody, c);
-                double fd = AbsoluteSeparation(vesselOrbit, targetBody, d2);
+                double fc = AbsoluteSeparation(bestPatch, targetBody, c);
+                double fd = AbsoluteSeparation(bestPatch, targetBody, d2);
                 for (int iter = 0; iter < 40; iter++)
                 {
                     if (double.IsNaN(fc) || double.IsNaN(fd)) break;
@@ -396,18 +503,18 @@ namespace CinematicShaders.Core
                     {
                         b = d2; d2 = c; fd = fc;
                         c = b - invPhi * (b - a);
-                        fc = AbsoluteSeparation(vesselOrbit, targetBody, c);
+                        fc = AbsoluteSeparation(bestPatch, targetBody, c);
                     }
                     else
                     {
                         a = c; c = d2; fc = fd;
                         d2 = a + invPhi * (b - a);
-                        fd = AbsoluteSeparation(vesselOrbit, targetBody, d2);
+                        fd = AbsoluteSeparation(bestPatch, targetBody, d2);
                     }
                 }
 
                 utCa = 0.5 * (a + b);
-                sepCa = AbsoluteSeparation(vesselOrbit, targetBody, utCa);
+                sepCa = AbsoluteSeparation(bestPatch, targetBody, utCa);
                 if (double.IsNaN(utCa) || double.IsNaN(sepCa) || double.IsInfinity(sepCa)) return false;
                 return true;
             }
