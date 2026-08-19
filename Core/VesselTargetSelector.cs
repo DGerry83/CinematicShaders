@@ -3,6 +3,7 @@ using System.Linq;
 using CinematicShaders.Native;
 using CinematicShaders.Native.Structs;
 using CinematicShaders.Shaders.Starfield;
+using CinematicShaders.UI;
 using UnityEngine;
 
 namespace CinematicShaders.Core
@@ -323,9 +324,8 @@ namespace CinematicShaders.Core
             double rvel = GetRelativeVelocity(target);
             sb.Append($"RVEL: {rvel:F1} M/S\n");
 
-            // Time to encounter
-            string tte = GetTimeToEncounter(target);
-            sb.Append($"TTE: {tte}");
+            // Time to encounter (closest approach / SOI change / impact)
+            AppendEncounterText(sb, target);
 
             return sb.ToString();
         }
@@ -720,11 +720,76 @@ namespace CinematicShaders.Core
             return (targetVel - vesselVel).magnitude;
         }
 
-        private string GetTimeToEncounter(ITargetable target)
+        /// <summary>
+        /// Append time-to-encounter lines (closest approach with separation, SOI change,
+        /// or impact) to the target info text. Falls back to "TTE: N/A" when no valid
+        /// metric exists. See EncounterCalculator for the calculation.
+        /// </summary>
+        private void AppendEncounterText(System.Text.StringBuilder sb, ITargetable target)
         {
-            // TODO: Calculate actual encounter time
-            // For now return N/A
-            return "N/A";
+            EncounterInfo info = EncounterCalculator.Calculate(target);
+
+            switch (info.Mode)
+            {
+                case EncounterMode.ClosestApproach:
+                    if (info.HasSecondApproach)
+                    {
+                        sb.Append(string.Format(CinematicShadersUIStrings.Kartographer.TargetCaIndexedFormat,
+                            1, FormatEncounterTime(info.TimeSeconds), FormatEncounterDistance(info.SeparationMeters)));
+                        sb.Append('\n');
+                        sb.Append(string.Format(CinematicShadersUIStrings.Kartographer.TargetCaIndexedFormat,
+                            2, FormatEncounterTime(info.SecondTimeSeconds), FormatEncounterDistance(info.SecondSeparationMeters)));
+                    }
+                    else
+                    {
+                        sb.Append(string.Format(CinematicShadersUIStrings.Kartographer.TargetCaSingleFormat,
+                            FormatEncounterTime(info.TimeSeconds), FormatEncounterDistance(info.SeparationMeters)));
+                    }
+                    break;
+
+                case EncounterMode.SoiChange:
+                    string bodyName = SanitizeText(info.BodyName ?? "").ToUpper();
+                    sb.Append(string.Format(
+                        info.SoiEntering
+                            ? CinematicShadersUIStrings.Kartographer.TargetSoiEnterFormat
+                            : CinematicShadersUIStrings.Kartographer.TargetSoiExitFormat,
+                        FormatEncounterTime(info.TimeSeconds), bodyName));
+                    break;
+
+                case EncounterMode.Impact:
+                    sb.Append(string.Format(CinematicShadersUIStrings.Kartographer.TargetImpactFormat,
+                        FormatEncounterTime(info.TimeSeconds)));
+                    break;
+
+                default:
+                    sb.Append(CinematicShadersUIStrings.Kartographer.TargetEncounterNA);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Stock-consistent time formatting ("T " captions use the same KSPUtil call).
+        /// </summary>
+        private static string FormatEncounterTime(double seconds)
+        {
+            try
+            {
+                return KSPUtil.PrintTime(seconds, 3, true).ToUpper();
+            }
+            catch (Exception)
+            {
+                return ((long)seconds + "S");
+            }
+        }
+
+        /// <summary>
+        /// Mirrors the DIST line convention: meters below 1000 km, kilometers above.
+        /// </summary>
+        private static string FormatEncounterDistance(double meters)
+        {
+            if (meters > 1000000)
+                return $"{meters / 1000:F1} KM";
+            return $"{meters:F1} M";
         }
 
         /// <summary>

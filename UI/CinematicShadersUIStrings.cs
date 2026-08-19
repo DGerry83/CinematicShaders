@@ -209,6 +209,17 @@ namespace CinematicShaders.UI
             public const string Initializing = "Initializing Kartographer...";
 
             // ------------------------------------------------------------------------
+            // VESSEL TARGET INFO (time-to-encounter)
+            // {0} = time (KSPUtil.PrintTime), {1}/{2} = separation distance / approach index
+            // ------------------------------------------------------------------------
+            public const string TargetCaSingleFormat = "CA: {0}  SEP: {1}";
+            public const string TargetCaIndexedFormat = "CA{0}: {1}  SEP: {2}";
+            public const string TargetSoiEnterFormat = "SOI+: {0}  {1}";
+            public const string TargetSoiExitFormat = "SOI-: {0}  {1}";
+            public const string TargetImpactFormat = "IMPACT: {0}";
+            public const string TargetEncounterNA = "TTE: N/A";
+
+            // ------------------------------------------------------------------------
             // SECTION HEADERS
             // ------------------------------------------------------------------------
             public const string DisplayOptionsSection = " ▼ Display Options";
