@@ -286,15 +286,14 @@ namespace CinematicShaders.UI
             public const string StarConstellationFormat = "CONSTELLATION: {0}\n";
             public const string HipIdFormat = "HIP {0}";
 
-            // Spectral descriptions. NOTE: SpectralDescK carries a known text bug
-            // ("L - ORANGE" for class K) — moved verbatim; fix tracked as issue #036.
+            // Spectral descriptions for star info box (single-letter spectral class).
             public const string SpectralUnknown = "UNKNOWN";
             public const string SpectralDescO = "O - BLUE SUPERGIANT";
             public const string SpectralDescB = "B - BLUE-WHITE";
             public const string SpectralDescA = "A - WHITE";
             public const string SpectralDescF = "F - YELLOW-WHITE";
             public const string SpectralDescG = "G - YELLOW";
-            public const string SpectralDescK = "L - ORANGE"; // BUG #036 (verbatim move)
+            public const string SpectralDescK = "K - ORANGE";
             public const string SpectralDescM = "M - RED GIANT";
             public const string SpectralDescL = "L - BROWN DWARF";
             public const string SpectralDescUnknown = "?? UNKNOWN";
