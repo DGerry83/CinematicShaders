@@ -234,9 +234,7 @@ namespace CinematicShaders.UI.Tabs
                         GUI.enabled = false;
                         if (isIntentional)
                         {
-                            GUIStyle redLabelStyle = new GUIStyle(HighLogic.Skin.label);
-                            redLabelStyle.normal.textColor = Color.red;
-                            GUILayout.Label(CinematicShadersUIStrings.Starfield.NonProceduralLockMessage, redLabelStyle);
+                            GUILayout.Label(CinematicShadersUIStrings.Starfield.NonProceduralLockMessage, CinematicShadersUIResources.Styles.Error());
                         }
                         else
                         {
@@ -306,26 +304,7 @@ namespace CinematicShaders.UI.Tabs
             {
                 GUI.enabled = oldEnabled;
             }
-            DrawTooltip();
-        }
-
-        private void DrawTooltip()
-        {
-            if (string.IsNullOrEmpty(GUI.tooltip))
-                return;
-
-            Vector2 mousePos = Event.current.mousePosition;
-            GUIStyle tooltipStyle = HighLogic.Skin.box;
-            float tooltipWidth = Mathf.Min(250f, tooltipStyle.CalcSize(new GUIContent(GUI.tooltip)).x + 20f);
-            float tooltipHeight = tooltipStyle.CalcHeight(new GUIContent(GUI.tooltip), tooltipWidth) + 10f;
-
-            float x = mousePos.x + 15f;
-            float y = mousePos.y + 15f;
-            Rect windowRect = CinematicShadersWindow.Instance.WindowRect;
-            x = Mathf.Min(x, windowRect.width - tooltipWidth - 5f);
-            y = Mathf.Min(y, windowRect.height - tooltipHeight - 5f);
-
-            GUI.Box(new Rect(x, y, tooltipWidth, tooltipHeight), GUI.tooltip, tooltipStyle);
+            CinematicShadersWindow.Instance.DrawTooltip();
         }
 
         private void DrawEnableToggle(bool parentEnabledState)
@@ -487,8 +466,7 @@ namespace CinematicShaders.UI.Tabs
             GUILayout.Space(5);
 
             GUILayout.BeginHorizontal();
-            GUIStyle toggleStyle = new GUIStyle(HighLogic.Skin.toggle);
-            toggleStyle.richText = true;
+            GUIStyle toggleStyle = CinematicShadersUIResources.Styles.RichTextToggle();
 
             string toggleLabel = StarfieldSettings.IsReadOnly ?
                 CinematicShadersUIStrings.Starfield.ReadOnlyToggleOn :

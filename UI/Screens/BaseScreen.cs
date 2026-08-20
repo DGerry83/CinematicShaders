@@ -394,14 +394,9 @@ namespace CinematicShaders.UI.Screens
         protected Color GetGridColor()
         {
             int colorIndex = StarfieldSettings.KartographerGridColor;
-            switch (colorIndex)
-            {
-                case 0: return new Color(0.1f, 0.9f, 0.7f);  // Seafoam
-                case 1: return new Color(1.0f, 0.65f, 0.0f); // Amber
-                case 2: return new Color(0.85f, 0.95f, 1.0f); // White
-                case 3: return new Color(0.25f, 1.0f, 0.0f);  // Green
-                default: return new Color(0.1f, 0.9f, 0.7f);  // Default seafoam
-            }
+            Color[] all = CinematicShadersUIResources.Colors.GridColors.All;
+            if (colorIndex < 0 || colorIndex >= all.Length) colorIndex = 0;
+            return all[colorIndex];
         }
         
         /// <summary>
@@ -410,11 +405,7 @@ namespace CinematicShaders.UI.Screens
         /// <returns>Color packed as 0xFFRRGGBB</returns>
         protected uint GetGridColorUint()
         {
-            Color c = GetGridColor();
-            uint r = (uint)(c.r * 255) & 0xFF;
-            uint g = (uint)(c.g * 255) & 0xFF;
-            uint b = (uint)(c.b * 255) & 0xFF;
-            return 0xFF000000 | (r << 16) | (g << 8) | b;  // ARGB format (A=FF)
+            return CinematicShadersUIResources.Colors.PackArgb(GetGridColor());
         }
 
         /// <summary>

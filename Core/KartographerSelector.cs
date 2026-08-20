@@ -191,10 +191,7 @@ namespace CinematicShaders.Core
 
             try
             {
-                // Build font path: ../PluginData/Fonts/AcPlus_Rainbow100_re_66.ttf
-                // C# DLL is in Plugins/, font is in PluginData/ at mod root level
-                string assemblyPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-                string fontPath = Path.GetFullPath(Path.Combine(assemblyPath, "..", "PluginData", "Fonts", "AcPlus_Rainbow100_re_66.ttf"));
+                string fontPath = CinematicShadersUIResources.Fonts.GetHudFontPath();
 
                 if (!File.Exists(fontPath))
                 {
@@ -469,7 +466,7 @@ namespace CinematicShaders.Core
             }
 
             // Layout text in native code
-            uint color = 0xFFFFFFFF; // White ARGB
+            uint color = CinematicShadersUIResources.Colors.HudTextWhiteArgb;
             int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, text, FONT_SIZE, 
                 color, 0f, 0f, 0f, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
 
@@ -633,7 +630,7 @@ namespace CinematicShaders.Core
             
             // Build multi-line text: "HOLOGRAPHIC\nUNIVERSAL\nCELESTIAL\nKARTOGRAPHER"
             string gridLabelText = CinematicShadersUIStrings.Kartographer.HuckGridLabelText;
-            uint color = 0xFFFFFFFF; // White ARGB
+            uint color = CinematicShadersUIResources.Colors.HudTextWhiteArgb;
 
             // Layout and render text
             int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, gridLabelText, GRID_LABEL_BASE_SIZE, 

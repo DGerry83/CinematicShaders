@@ -40,18 +40,10 @@ namespace CinematicShaders.Core
         private const int ICON_COUNT = 7;
 
         /// <summary>
-        /// Navball icon colors (RGB) - Custom palette
+        /// Navball icon colors (RGB) - palette lives in CinematicShadersUIResources.Colors.NavballIconColors
+        /// (indices match the native struct order: 0 Prograde ... 6 Maneuver)
         /// </summary>
-        public static readonly Color[] IconColors = new Color[ICON_COUNT]
-        {
-            new Color(184f/255f, 220f/255f, 141f/255f),  // 0: Prograde - Sage green (greener)
-            new Color(184f/255f, 220f/255f, 141f/255f),  // 1: Retrograde - Sage green (greener)
-            new Color(182f/255f, 123f/255f, 182f/255f),  // 2: Normal - Purple
-            new Color(182f/255f, 123f/255f, 182f/255f),  // 3: AntiNormal - Purple
-            new Color(120f/255f, 210f/255f, 210f/255f),  // 4: Radial In - Brighter cyan
-            new Color(120f/255f, 210f/255f, 210f/255f),  // 5: Radial Out - Brighter cyan
-            new Color(122f/255f, 134f/255f, 210f/255f)   // 6: Maneuver - Brighter blue
-        };
+        public static readonly Color[] IconColors = CinematicShadersUIResources.Colors.NavballIconColors;
 
         public static readonly string[] IconNames = new string[ICON_COUNT]
         {
@@ -85,27 +77,7 @@ namespace CinematicShaders.Core
         private Vector3d _lastRadialOut;
         private Vector3d? _lastManeuver;
 
-        // Texture loading - KSP (default) style
-        private static readonly string[] IconFileNamesKSP = {
-            "prograde_sdf.png",
-            "retrograde_sdf.png",
-            "normal_sdf.png",
-            "antinormal_sdf.png",
-            "radial_in_sdf.png",
-            "radial_out_sdf.png",
-            "maneuver_sdf.png"
-        };
-        
-        // Texture loading - Retro style
-        private static readonly string[] IconFileNamesRetro = {
-            "prograde_retro_sdf.png",
-            "retrograde_retro_sdf.png",
-            "normal_retro_sdf.png",
-            "antinormal_retro_sdf.png",
-            "radial_in_retro_sdf.png",
-            "radial_out_retro_sdf.png",
-            "maneuver_retro_sdf.png"
-        };
+        // Texture loading - filename arrays live in CinematicShadersUIResources.Textures
         
         private const int ICON_TEXTURE_SIZE = 128;
         private Texture2D[] _iconTextures;
@@ -114,9 +86,7 @@ namespace CinematicShaders.Core
         private int _textureLoadRenderFrame = -1; // Render frame when textures were loaded (deterministic upload guard)
         private NavballIconStyle _currentIconStyle = NavballIconStyle.Retro;
 
-        // Pointing icon texture
-        private const string HEADING_ICON_FILE_KSP = "heading_sdf.png";
-        private const string HEADING_ICON_FILE_RETRO = "heading_retro_sdf.png";
+        // Pointing icon texture - filenames live in CinematicShadersUIResources.Textures
         private Texture2D _pointingIconTexture;
         private bool _pointingTextureLoaded = false;
         private bool _pointingTextureUploaded = false;
@@ -147,13 +117,13 @@ namespace CinematicShaders.Core
             try
             {
                 // Build path to GameData/CinematicShaders/PluginData/NavballIcons
-                string basePath = Path.Combine(KSPUtil.ApplicationRootPath, "GameData", "CinematicShaders", "PluginData", "NavballIcons");
+                string basePath = Path.Combine(KSPUtil.ApplicationRootPath, "GameData", "CinematicShaders", "PluginData", CinematicShadersUIResources.Textures.NavballIconsFolder);
 
                 ModFileLogger.Log($"[NavballLabelManager] Loading textures from: {basePath}, style: {style}");
 
                 // Select filename array based on style
-                string[] iconFileNames = (style == NavballIconStyle.Retro) ? IconFileNamesRetro : IconFileNamesKSP;
-                string headingFileName = (style == NavballIconStyle.Retro) ? HEADING_ICON_FILE_RETRO : HEADING_ICON_FILE_KSP;
+                string[] iconFileNames = (style == NavballIconStyle.Retro) ? CinematicShadersUIResources.Textures.NavballIconFileNamesRetro : CinematicShadersUIResources.Textures.NavballIconFileNamesKSP;
+                string headingFileName = (style == NavballIconStyle.Retro) ? CinematicShadersUIResources.Textures.NavballHeadingIconRetro : CinematicShadersUIResources.Textures.NavballHeadingIconKsp;
 
                 // Clean up old textures if reloading
                 if (_iconTextures != null)
@@ -345,7 +315,7 @@ namespace CinematicShaders.Core
             IntPtr textSystem = CinematicShadersAddon.SituationLabelSystem?.GetTextSystem() ?? IntPtr.Zero;
             if (textSystem == IntPtr.Zero) return;
 
-            uint white = 0xFFFFFFFF;
+            uint white = CinematicShadersUIResources.Colors.HudTextWhiteArgb;
             int glyphCount = StarfieldNative.CR_TextLayoutEx(
                 textSystem, text, MANEUVER_FONT_SIZE, white, 0f, 0f, 0f, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
 

@@ -171,7 +171,7 @@ namespace CinematicShaders.UI.Tabs
             // Update grid labels independently of selector - runs when Kartographer is enabled
             UpdateGridLabels();
 
-            DrawTooltip();
+            CinematicShadersWindow.Instance.DrawTooltip();
         }
 
         private void DrawEnableToggle()
@@ -1211,23 +1211,5 @@ namespace CinematicShaders.UI.Tabs
             }
         }
 
-        private void DrawTooltip()
-        {
-            if (string.IsNullOrEmpty(GUI.tooltip))
-                return;
-
-            Vector2 mousePos = Event.current.mousePosition;
-            GUIStyle tooltipStyle = HighLogic.Skin.box;
-            float tooltipWidth = Mathf.Min(250f, tooltipStyle.CalcSize(new GUIContent(GUI.tooltip)).x + 20f);
-            float tooltipHeight = tooltipStyle.CalcHeight(new GUIContent(GUI.tooltip), tooltipWidth) + 10f;
-
-            float x = mousePos.x + 15f;
-            float y = mousePos.y + 15f;
-            Rect windowRect = CinematicShadersWindow.Instance.WindowRect;
-            x = Mathf.Min(x, windowRect.width - tooltipWidth - 5f);
-            y = Mathf.Min(y, windowRect.height - tooltipHeight - 5f);
-
-            GUI.Box(new Rect(x, y, tooltipWidth, tooltipHeight), GUI.tooltip, tooltipStyle);
-        }
     }
 }

@@ -94,12 +94,12 @@ namespace CinematicShaders.Core
 
             if (_toolbarIcon == null)
             {
-                _toolbarIcon = GameDatabase.Instance.GetTexture("CinematicShaders/Icons/ToolbarIcon", false);
+                _toolbarIcon = GameDatabase.Instance.GetTexture(CinematicShadersUIResources.Textures.ToolbarIconPath, false);
                 if (_toolbarIcon == null)
                 {
                     _toolbarIcon = new Texture2D(38, 38, TextureFormat.RGBA32, false);
                     Color[] pixels = new Color[38 * 38];
-                    for (int i = 0; i < pixels.Length; i++) pixels[i] = new Color(1f, 0.5f, 0f);
+                    for (int i = 0; i < pixels.Length; i++) pixels[i] = CinematicShadersUIResources.Colors.TOOLBAR_FALLBACK_ORANGE;
                     _toolbarIcon.SetPixels(pixels);
                     _toolbarIcon.Apply();
                 }

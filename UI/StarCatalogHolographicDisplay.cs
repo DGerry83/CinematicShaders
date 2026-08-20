@@ -608,9 +608,7 @@ namespace CinematicShaders.UI
             }
             
             // Title (center)
-            GUIStyle titleStyle = new GUIStyle(HighLogic.Skin.label);
-            titleStyle.alignment = TextAnchor.MiddleCenter;
-            titleStyle.fontStyle = FontStyle.Bold;
+            GUIStyle titleStyle = CinematicShadersUIResources.Styles.ConsoleTitle();
             Rect titleRect = new Rect(_windowRect.width * 0.25f, titleY, _windowRect.width * 0.5f, buttonHeight);
             GUI.Label(titleRect, CinematicShadersUIStrings.StarConsole.StarConsoleTitle, titleStyle);
             
@@ -625,7 +623,7 @@ namespace CinematicShaders.UI
         private void DrawWindowBorder()
         {
             // Grey border color (standard KSP UI grey)
-            Color borderColor = new Color(0.7f, 0.7f, 0.7f, 1f);
+            Color borderColor = CinematicShadersUIResources.Colors.CONSOLE_BORDER_GREY;
             GUI.color = borderColor;
             
             // Top border (under title bar)
@@ -653,7 +651,7 @@ namespace CinematicShaders.UI
         {
 
             // Draw black background for CRT area (Layer 0)
-            GUI.color = Color.black;
+            GUI.color = CinematicShadersUIResources.Colors.CRT_BACKGROUND;
             Rect crtRect = new Rect(
                 BORDER_THICKNESS, 
                 TITLE_BAR_HEIGHT + BORDER_THICKNESS,
@@ -695,18 +693,12 @@ namespace CinematicShaders.UI
             if (_stylesInitialized) return;
             
             // Close button style
-            _closeButtonStyle = new GUIStyle(HighLogic.Skin.button);
-            _closeButtonStyle.fontSize = 12;
-            _closeButtonStyle.padding = new RectOffset(2, 2, 2, 2);
+            _closeButtonStyle = CinematicShadersUIResources.Styles.ConsoleCloseButton();
             
             // PWR button styles
-            _pwrButtonStyle = new GUIStyle(HighLogic.Skin.button);
-            _pwrButtonStyle.fontSize = 11;
-            _pwrButtonStyle.alignment = TextAnchor.MiddleLeft;
-            _pwrButtonStyle.padding = new RectOffset(4, 4, 2, 2);
+            _pwrButtonStyle = CinematicShadersUIResources.Styles.ConsolePwrButton();
             
-            _pwrButtonActiveStyle = new GUIStyle(_pwrButtonStyle);
-            _pwrButtonActiveStyle.normal.textColor = new Color(0.2f, 0.9f, 0.3f);  // Green when on
+            _pwrButtonActiveStyle = CinematicShadersUIResources.Styles.ConsolePwrButtonActive();
             
             _stylesInitialized = true;
         }

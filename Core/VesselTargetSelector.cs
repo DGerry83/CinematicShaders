@@ -308,8 +308,7 @@ namespace CinematicShaders.Core
 
             try
             {
-                string assemblyPath = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-                string fontPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(assemblyPath, "..", "PluginData", "Fonts", "AcPlus_Rainbow100_re_66.ttf"));
+                string fontPath = CinematicShadersUIResources.Fonts.GetHudFontPath();
 
                 if (!System.IO.File.Exists(fontPath)) return;
 
@@ -358,7 +357,7 @@ namespace CinematicShaders.Core
             // During Box phase and later: render text (even if just cursor)
             if (string.IsNullOrEmpty(displayText)) return;
 
-            uint color = 0xFFFFFFFF; // White ARGB
+            uint color = CinematicShadersUIResources.Colors.HudTextWhiteArgb;
             int glyphCount = StarfieldNative.CR_TextLayoutEx(_textSystem, displayText, FONT_SIZE, 
                 color, 0f, 0f, 0f, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
             if (glyphCount <= 0) return;
