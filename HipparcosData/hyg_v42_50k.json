@@ -15,7 +15,7 @@
       "full_designation": "Tau Phoenicis",
       "spectral": "G",
       "magnitude": 5.71,
-      "distance_ly": 593.01,
+      "distance_ly": 488.56,
       "x": 119.736878,
       "y": -0.562356,
       "z": -136.823418
@@ -70,7 +70,7 @@
       "full_designation": "Zeta Sculptoris",
       "spectral": "B",
       "magnitude": 5.04,
-      "distance_ly": 502.55,
+      "distance_ly": 676.2,
       "x": 133.807455,
       "y": -1.36158,
       "z": -76.389577
@@ -126,7 +126,7 @@
       "full_designation": "33 Piscium",
       "spectral": "K",
       "magnitude": 4.61,
-      "distance_ly": 128.81,
+      "distance_ly": 138.7,
       "x": 39.287997,
       "y": -0.914841,
       "z": -3.927804
@@ -262,7 +262,7 @@
       "full_designation": "Kap-2 Sculptoris",
       "spectral": "K",
       "magnitude": 5.41,
-      "distance_ly": 793.57,
+      "distance_ly": 570.88,
       "x": 214.952607,
       "y": -10.864269,
       "z": -113.475053
@@ -286,7 +286,7 @@
       "full_designation": "Gamma Pegasi",
       "spectral": "B",
       "magnitude": 2.83,
-      "distance_ly": 391.54,
+      "distance_ly": 469.46,
       "x": 115.664183,
       "y": -6.687324,
       "z": 31.442127
@@ -331,7 +331,7 @@
       "full_designation": "35 Piscium",
       "spectral": "F",
       "magnitude": 6.02,
-      "distance_ly": 253.62,
+      "distance_ly": 239.99,
       "x": 76.676686,
       "y": -5.019156,
       "z": 11.92437
@@ -511,7 +511,7 @@
       "full_designation": "42 Piscium",
       "spectral": "K",
       "magnitude": 6.25,
-      "distance_ly": 501.78,
+      "distance_ly": 588.17,
       "x": 148.890825,
       "y": -14.61509,
       "z": 35.868965
@@ -633,7 +633,7 @@
       "full_designation": "46 Piscium",
       "spectral": "K",
       "magnitude": 6.4,
-      "distance_ly": 561.37,
+      "distance_ly": 479.31,
       "x": 161.023575,
       "y": -19.752974,
       "z": 57.493613
@@ -799,7 +799,7 @@
       "full_designation": "Theta Tucanae",
       "spectral": "A",
       "magnitude": 6.11,
-      "distance_ly": 424.13,
+      "distance_ly": 456.65,
       "x": 41.322307,
       "y": -6.063137,
       "z": -123.149711
@@ -854,7 +854,7 @@
       "full_designation": "53 Piscium",
       "spectral": "B",
       "magnitude": 5.89,
-      "distance_ly": 1038.71,
+      "distance_ly": 927.45,
       "x": 303.333338,
       "y": -49.113713,
       "z": 83.669867
@@ -879,7 +879,7 @@
       "full_designation": "Zeta Cassiopeiae",
       "spectral": "B",
       "magnitude": 3.69,
-      "distance_ly": 593.01,
+      "distance_ly": 489.3,
       "x": 105.743565,
       "y": -17.207892,
       "z": 146.901502
@@ -994,7 +994,7 @@
       "full_designation": "Xi Cassiopeiae",
       "spectral": "B",
       "magnitude": 4.8,
-      "distance_ly": 1430.51,
+      "distance_ly": 1123.82,
       "x": 274.222888,
       "y": -50.904565,
       "z": 338.492753
@@ -1064,7 +1064,7 @@
       "full_designation": "Phi-1 Ceti",
       "spectral": "K",
       "magnitude": 4.77,
-      "distance_ly": 233.64,
+      "distance_ly": 215.62,
       "x": 69.103848,
       "y": -13.491898,
       "z": -13.188762
@@ -1086,7 +1086,7 @@
       "full_designation": "Sculptoris",
       "spectral": "G",
       "magnitude": 7.78,
-      "distance_ly": 105.59,
+      "distance_ly": 111.25,
       "x": 28.425119,
       "y": -5.582477,
       "z": -14.452867
@@ -1131,7 +1131,7 @@
       "full_designation": "57 Piscium",
       "spectral": "M",
       "magnitude": 5.36,
-      "distance_ly": 776.56,
+      "distance_ly": 714.28,
       "x": 224.74591,
       "y": -46.286311,
       "z": 63.530014
@@ -1199,7 +1199,7 @@
       "full_designation": "61 Piscium",
       "spectral": "F",
       "magnitude": 6.51,
-      "distance_ly": 186.06,
+      "distance_ly": 206.58,
       "x": 52.122595,
       "y": -11.058513,
       "z": 20.373731
@@ -1393,7 +1393,7 @@
       "full_designation": "Ups-1 Cassiopeiae",
       "spectral": "K",
       "magnitude": 4.83,
-      "distance_ly": 328.46,
+      "distance_ly": 359.92,
       "x": 50.420166,
       "y": -12.338344,
       "z": 86.296046
@@ -1478,7 +1478,7 @@
       "full_designation": "Eta Andromedae",
       "spectral": "G",
       "magnitude": 4.4,
-      "distance_ly": 229.69,
+      "distance_ly": 259.63,
       "x": 62.61915,
       "y": -15.963361,
       "z": 27.988017
@@ -1489,7 +1489,7 @@
       "full_designation": "68 Piscium",
       "spectral": "G",
       "magnitude": 5.44,
-      "distance_ly": 648.42,
+      "distance_ly": 821.68,
       "x": 168.38599,
       "y": -43.418942,
       "z": 96.360017
@@ -1669,7 +1669,7 @@
       "full_designation": "Psi-1 Piscium",
       "spectral": "A",
       "magnitude": 5.33,
-      "distance_ly": 275.0,
+      "distance_ly": 304.57,
       "x": 75.264054,
       "y": -22.18089,
       "z": 30.865551
@@ -1781,7 +1781,7 @@
       "full_designation": "Psi-2 Piscium",
       "spectral": "A",
       "magnitude": 5.56,
-      "distance_ly": 154.28,
+      "distance_ly": 181.62,
       "x": 42.308177,
       "y": -12.925365,
       "z": 16.750865
@@ -1999,7 +1999,7 @@
       "full_designation": "45 Andromedae",
       "spectral": "B",
       "magnitude": 5.8,
-      "distance_ly": 789.72,
+      "distance_ly": 659.18,
       "x": 182.356513,
       "y": -58.523074,
       "z": 148.150167
@@ -2080,7 +2080,7 @@
       "full_designation": "Zeta Piscium",
       "spectral": "A",
       "magnitude": 5.21,
-      "distance_ly": 173.86,
+      "distance_ly": 133.35,
       "x": 50.128801,
       "y": -16.707567,
       "z": 7.027196
@@ -2105,7 +2105,7 @@
       "full_designation": "Zeta Piscium",
       "spectral": "F",
       "magnitude": 6.44,
-      "distance_ly": 306.54,
+      "distance_ly": 132.1,
       "x": 88.381439,
       "y": -29.46675,
       "z": 12.394783
@@ -2138,7 +2138,7 @@
       "full_designation": "88 Piscium",
       "spectral": "G",
       "magnitude": 6.04,
-      "distance_ly": 519.36,
+      "distance_ly": 457.66,
       "x": 149.727568,
       "y": -50.611934,
       "z": 19.392524
@@ -2399,7 +2399,7 @@
       "full_designation": "94 Piscium",
       "spectral": "K",
       "magnitude": 5.5,
-      "distance_ly": 279.0,
+      "distance_ly": 301.17,
       "x": 75.054884,
       "y": -29.828005,
       "z": 28.189168
@@ -2511,7 +2511,7 @@
       "full_designation": "38 Cassiopeiae",
       "spectral": "F",
       "magnitude": 5.82,
-      "distance_ly": 94.51,
+      "distance_ly": 89.94,
       "x": 9.019863,
       "y": -3.792957,
       "z": 27.275089
@@ -2535,7 +2535,7 @@
       "full_designation": "Eta Piscium",
       "spectral": "G",
       "magnitude": 3.62,
-      "distance_ly": 349.58,
+      "distance_ly": 373.45,
       "x": 95.233975,
       "y": -40.171366,
       "z": 28.364911
@@ -2580,7 +2580,7 @@
       "full_designation": "101 Piscium",
       "spectral": "B",
       "magnitude": 6.23,
-      "distance_ly": 1553.12,
+      "distance_ly": 1236.56,
       "x": 421.041068,
       "y": -186.962385,
       "z": 120.526932
@@ -2648,13 +2648,14 @@
       "proper": "Nembus",
       "flamsteed": 51,
       "constellation": "Andromeda",
-      "full_designation": "51 Andromedae",
+      "full_designation": "Upsilon Andromedae",
       "spectral": "K",
       "magnitude": 3.59,
       "distance_ly": 177.16,
       "x": 32.669331,
       "y": -14.886999,
-      "z": 40.762548
+      "z": 40.762548,
+      "bayer": "Ups"
     },
     "7650": {
       "flamsteed": 40,
@@ -2867,7 +2868,7 @@
       "full_designation": "Omicron Piscium",
       "spectral": "K",
       "magnitude": 4.26,
-      "distance_ly": 279.48,
+      "distance_ly": 260.31,
       "x": 75.808974,
       "y": -37.546943,
       "z": 13.637807
@@ -2936,7 +2937,7 @@
       "full_designation": "Zeta Ceti",
       "spectral": "K",
       "magnitude": 3.74,
-      "distance_ly": 234.98,
+      "distance_ly": 253.29,
       "x": 62.65906,
       "y": -33.12747,
       "z": -12.925362
@@ -3018,7 +3019,7 @@
       "full_designation": "Xi Piscium",
       "spectral": "K",
       "magnitude": 4.61,
-      "distance_ly": 179.11,
+      "distance_ly": 195.72,
       "x": 48.236339,
       "y": -26.069281,
       "z": 3.053521
@@ -3053,7 +3054,7 @@
       "full_designation": "Epsilon Cassiopeiae",
       "spectral": "B",
       "magnitude": 3.35,
-      "distance_ly": 411.81,
+      "distance_ly": 465.69,
       "x": 49.169644,
       "y": -26.806887,
       "z": 113.163436
@@ -3156,7 +3157,7 @@
       "full_designation": "Iota Arietis",
       "spectral": "K",
       "magnitude": 5.09,
-      "distance_ly": 520.18,
+      "distance_ly": 439.11,
       "x": 132.365839,
       "y": -74.39489,
       "z": 48.801672
@@ -3212,7 +3213,7 @@
       "full_designation": "57 Ceti",
       "spectral": "M",
       "magnitude": 5.43,
-      "distance_ly": 588.73,
+      "distance_ly": 684.7,
       "x": 146.194756,
       "y": -84.210066,
       "z": -64.170938
@@ -3337,7 +3338,7 @@
       "full_designation": "60 Ceti",
       "spectral": "A",
       "magnitude": 5.42,
-      "distance_ly": 280.93,
+      "distance_ly": 303.92,
       "x": 73.985486,
       "y": -44.101649,
       "z": 0.193184
@@ -3533,7 +3534,7 @@
       "full_designation": "15 Arietis",
       "spectral": "M",
       "magnitude": 5.68,
-      "distance_ly": 558.49,
+      "distance_ly": 667.6,
       "x": 135.89537,
       "y": -87.098165,
       "z": 57.159847
@@ -3646,7 +3647,7 @@
       "full_designation": "Xi-1 Ceti",
       "spectral": "G",
       "magnitude": 4.36,
-      "distance_ly": 383.26,
+      "distance_ly": 313.06,
       "x": 97.101875,
       "y": -63.662733,
       "z": 18.071856
@@ -3895,7 +3896,7 @@
       "full_designation": "69 Ceti",
       "spectral": "M",
       "magnitude": 5.29,
-      "distance_ly": 1076.42,
+      "distance_ly": 848.41,
       "x": 268.725746,
       "y": -191.580781,
       "z": 2.279138
@@ -3951,7 +3952,7 @@
       "full_designation": "Xi Arietis",
       "spectral": "B",
       "magnitude": 5.48,
-      "distance_ly": 872.07,
+      "distance_ly": 767.73,
       "x": 212.063638,
       "y": -155.232137,
       "z": 49.233324
@@ -4244,7 +4245,7 @@
       "full_designation": "Nu Ceti",
       "spectral": "G",
       "magnitude": 4.87,
-      "distance_ly": 340.1,
+      "distance_ly": 403.14,
       "x": 80.687079,
       "y": -65.266003,
       "z": 10.163258
@@ -4377,7 +4378,7 @@
       "full_designation": "Nu Arietis",
       "spectral": "A",
       "magnitude": 5.45,
-      "distance_ly": 336.94,
+      "distance_ly": 269.7,
       "x": 73.711422,
       "y": -61.205407,
       "z": 38.634536
@@ -4764,7 +4765,7 @@
       "full_designation": "Eta-2 Fornacis",
       "spectral": "K",
       "magnitude": 5.92,
-      "distance_ly": 449.87,
+      "distance_ly": 424.99,
       "x": 82.353368,
       "y": -75.626001,
       "z": -80.76909
@@ -4810,7 +4811,7 @@
       "full_designation": "Eta Persei",
       "spectral": "K",
       "magnitude": 3.77,
-      "distance_ly": 879.13,
+      "distance_ly": 998.73,
       "x": 111.116108,
       "y": -102.442422,
       "z": 223.184985
@@ -4846,7 +4847,7 @@
       "full_designation": "17 Persei",
       "spectral": "K",
       "magnitude": 4.56,
-      "distance_ly": 467.27,
+      "distance_ly": 419.43,
       "x": 85.936298,
       "y": -79.796835,
       "z": 82.296682
@@ -5076,7 +5077,7 @@
       "full_designation": "Eridani",
       "spectral": "G",
       "magnitude": 7.81,
-      "distance_ly": 441.35,
+      "distance_ly": 527.27,
       "x": 89.377224,
       "y": -89.515869,
       "z": -48.058112
@@ -5237,7 +5238,7 @@
       "full_designation": "Gamma Persei",
       "spectral": "G",
       "magnitude": 2.91,
-      "distance_ly": 243.22,
+      "distance_ly": 230.9,
       "x": 30.696986,
       "y": -32.009546,
       "z": 59.949578
@@ -5381,7 +5382,8 @@
       "distance_ly": 46.43,
       "x": 8.329775,
       "y": -9.25728,
-      "z": -6.899408
+      "z": -6.899408,
+      "flamsteed": 12
     },
     "14893": {
       "flamsteed": 56,
@@ -5425,7 +5427,7 @@
       "full_designation": "Zeta Eridani",
       "spectral": "A",
       "magnitude": 4.8,
-      "distance_ly": 109.74,
+      "distance_ly": 119.06,
       "x": 21.831836,
       "y": -25.077889,
       "z": -5.15902
@@ -5556,13 +5558,14 @@
     "15510": {
       "proper": "82 G. Eri",
       "constellation": "Eridanus",
-      "full_designation": "Eridani",
+      "full_designation": "82 Eridani",
       "spectral": "G",
       "magnitude": 4.26,
       "distance_ly": 19.71,
       "x": 2.839238,
       "y": -3.381499,
-      "z": -4.127499
+      "z": -4.127499,
+      "flamsteed": 82
     },
     "15514": {
       "flamsteed": 59,
@@ -5674,7 +5677,7 @@
       "full_designation": "65 Arietis",
       "spectral": "A",
       "magnitude": 6.07,
-      "distance_ly": 312.11,
+      "distance_ly": 336.89,
       "x": 56.163642,
       "y": -69.62629,
       "z": 33.986953
@@ -5731,7 +5734,7 @@
       "full_designation": "Chi-3 Fornacis",
       "spectral": "A",
       "magnitude": 6.49,
-      "distance_ly": 372.75,
+      "distance_ly": 337.83,
       "x": 56.967976,
       "y": -73.041779,
       "z": -66.93878
@@ -5856,7 +5859,7 @@
       "full_designation": "Tau-5 Eridani",
       "spectral": "B",
       "magnitude": 4.26,
-      "distance_ly": 293.31,
+      "distance_ly": 320.03,
       "x": 49.785855,
       "y": -67.151682,
       "z": -33.152769
@@ -5912,7 +5915,7 @@
       "full_designation": "9 Tauri",
       "spectral": "A",
       "magnitude": 6.72,
-      "distance_ly": 426.35,
+      "distance_ly": 483.77,
       "x": 70.204853,
       "y": -97.491156,
       "z": 51.518881
@@ -5978,7 +5981,7 @@
       "full_designation": "11 Tauri",
       "spectral": "A",
       "magnitude": 6.11,
-      "distance_ly": 477.53,
+      "distance_ly": 561.69,
       "x": 75.539927,
       "y": -108.659205,
       "z": 62.638813
@@ -6048,7 +6051,7 @@
       "full_designation": "14 Tauri",
       "spectral": "G",
       "magnitude": 6.13,
-      "distance_ly": 409.74,
+      "distance_ly": 388.83,
       "x": 66.244607,
       "y": -98.014944,
       "z": 42.27668
@@ -6095,7 +6098,7 @@
       "full_designation": "16 Tauri",
       "spectral": "B",
       "magnitude": 5.45,
-      "distance_ly": 377.06,
+      "distance_ly": 441.63,
       "x": 58.617318,
       "y": -87.564472,
       "z": 47.554545
@@ -6141,7 +6144,7 @@
       "full_designation": "Nu Persei",
       "spectral": "F",
       "magnitude": 3.77,
-      "distance_ly": 556.58,
+      "distance_ly": 595.54,
       "x": 69.722894,
       "y": -104.539005,
       "z": 115.460753
@@ -6153,7 +6156,7 @@
       "full_designation": "19 Tauri",
       "spectral": "B",
       "magnitude": 4.3,
-      "distance_ly": 409.23,
+      "distance_ly": 341.72,
       "x": 63.361504,
       "y": -95.01397,
       "z": 51.966577
@@ -6176,7 +6179,7 @@
       "full_designation": "20 Tauri",
       "spectral": "B",
       "magnitude": 3.87,
-      "distance_ly": 383.26,
+      "distance_ly": 425.16,
       "x": 59.14718,
       "y": -89.215057,
       "z": 48.48319
@@ -6188,7 +6191,7 @@
       "full_designation": "21 Tauri",
       "spectral": "B",
       "magnitude": 5.76,
-      "distance_ly": 371.9,
+      "distance_ly": 446.46,
       "x": 57.278032,
       "y": -86.462186,
       "z": 47.384166
@@ -6223,7 +6226,7 @@
       "full_designation": "23 Tauri",
       "spectral": "B",
       "magnitude": 4.14,
-      "distance_ly": 380.14,
+      "distance_ly": 461.52,
       "x": 58.663928,
       "y": -88.906234,
       "z": 47.309232
@@ -6315,7 +6318,7 @@
       "full_designation": "26 Tauri",
       "spectral": "F",
       "magnitude": 6.47,
-      "distance_ly": 246.71,
+      "distance_ly": 281.31,
       "x": 37.43751,
       "y": -58.174681,
       "z": 30.59442
@@ -6339,7 +6342,7 @@
       "full_designation": "28 Tauri",
       "spectral": "B",
       "magnitude": 5.05,
-      "distance_ly": 381.92,
+      "distance_ly": 450.4,
       "x": 57.734463,
       "y": -89.91922,
       "z": 47.882552
@@ -6406,7 +6409,7 @@
       "full_designation": "30 Eridani",
       "spectral": "B",
       "magnitude": 5.48,
-      "distance_ly": 585.56,
+      "distance_ly": 781.47,
       "x": 94.262342,
       "y": -151.873097,
       "z": -16.774721
@@ -6500,7 +6503,7 @@
       "full_designation": "Gamma Eridani",
       "spectral": "M",
       "magnitude": 2.97,
-      "distance_ly": 203.34,
+      "distance_ly": 191.84,
       "x": 30.760217,
       "y": -52.235828,
       "z": -14.56308
@@ -6524,7 +6527,7 @@
       "full_designation": "Xi Persei",
       "spectral": "O",
       "magnitude": 3.98,
-      "distance_ly": 1244.87,
+      "distance_ly": 1333.59,
       "x": 156.01015,
       "y": -267.421217,
       "z": 223.218208
@@ -6549,7 +6552,7 @@
       "full_designation": "Lambda Tauri",
       "spectral": "B",
       "magnitude": 3.41,
-      "distance_ly": 483.91,
+      "distance_ly": 405.68,
       "x": 72.055648,
       "y": -125.663969,
       "z": 32.088342
@@ -6605,7 +6608,7 @@
       "full_designation": "40 Tauri",
       "spectral": "B",
       "magnitude": 5.32,
-      "distance_ly": 640.78,
+      "distance_ly": 722.21,
       "x": 95.010692,
       "y": -170.952164,
       "z": 18.610485
@@ -6854,7 +6857,7 @@
       "full_designation": "Mu Persei",
       "spectral": "G",
       "magnitude": 4.12,
-      "distance_ly": 900.98,
+      "distance_ly": 827.91,
       "x": 81.176514,
       "y": -164.424627,
       "z": 206.603982
@@ -7004,7 +7007,7 @@
       "full_designation": "Gamma Tauri",
       "spectral": "G",
       "magnitude": 3.65,
-      "distance_ly": 161.54,
+      "distance_ly": 150.55,
       "x": 20.197375,
       "y": -43.211662,
       "z": 13.342572
@@ -7049,7 +7052,7 @@
       "full_designation": "54 Persei",
       "spectral": "G",
       "magnitude": 4.93,
-      "distance_ly": 218.31,
+      "distance_ly": 232.43,
       "x": 23.204333,
       "y": -49.995533,
       "z": 37.97614
@@ -7174,7 +7177,7 @@
       "full_designation": "62 Tauri",
       "spectral": "B",
       "magnitude": 6.34,
-      "distance_ly": 908.51,
+      "distance_ly": 692.01,
       "x": 103.262614,
       "y": -231.920816,
       "z": 114.632395
@@ -7183,13 +7186,14 @@
       "proper": "Beemim",
       "flamsteed": 43,
       "constellation": "Eridanus",
-      "full_designation": "43 Eridani",
+      "full_designation": "Ups-3 Eridani",
       "spectral": "K",
       "magnitude": 3.97,
       "distance_ly": 296.24,
       "x": 30.609599,
       "y": -68.780131,
-      "z": -50.811792
+      "z": -50.811792,
+      "bayer": "Ups-3"
     },
     "20542": {
       "bayer": "Del-2",
@@ -7647,7 +7651,7 @@
       "full_designation": "Sig-1 Tauri",
       "spectral": "A",
       "magnitude": 5.08,
-      "distance_ly": 147.05,
+      "distance_ly": 191.42,
       "x": 14.988128,
       "y": -40.711111,
       "z": 12.275875
@@ -7703,7 +7707,7 @@
       "full_designation": "54 Eridani",
       "spectral": "M",
       "magnitude": 4.32,
-      "distance_ly": 368.54,
+      "distance_ly": 433.55,
       "x": 36.197962,
       "y": -100.052855,
       "z": -38.036843
@@ -7816,7 +7820,7 @@
       "full_designation": "Mu Eridani",
       "spectral": "B",
       "magnitude": 4.01,
-      "distance_ly": 521.85,
+      "distance_ly": 561.13,
       "x": 51.015593,
       "y": -151.376745,
       "z": -9.083835
@@ -7906,7 +7910,7 @@
       "full_designation": "Eridani",
       "spectral": "K",
       "magnitude": 7.91,
-      "distance_ly": 385.07,
+      "distance_ly": 429.35,
       "x": 32.206232,
       "y": -102.609681,
       "z": -48.714197
@@ -7952,7 +7956,7 @@
       "full_designation": "Pi-4 Orionis",
       "spectral": "B",
       "magnitude": 3.68,
-      "distance_ly": 1052.12,
+      "distance_ly": 842.45,
       "x": 94.925539,
       "y": -306.683598,
       "z": 31.506969
@@ -8114,7 +8118,7 @@
       "full_designation": "Iota Aurigae",
       "spectral": "K",
       "magnitude": 2.69,
-      "distance_ly": 493.43,
+      "distance_ly": 449.93,
       "x": 34.378539,
       "y": -121.884168,
       "z": 82.763748
@@ -8136,7 +8140,7 @@
       "full_designation": "99 Tauri",
       "spectral": "G",
       "magnitude": 5.79,
-      "distance_ly": 455.53,
+      "distance_ly": 587.44,
       "x": 34.212143,
       "y": -122.97067,
       "z": 56.692238
@@ -8193,7 +8197,7 @@
       "full_designation": "101 Tauri",
       "spectral": "F",
       "magnitude": 6.75,
-      "distance_ly": 133.12,
+      "distance_ly": 145.75,
       "x": 10.202339,
       "y": -37.902753,
       "z": 11.193575
@@ -8248,7 +8252,7 @@
       "full_designation": "6 Aurigae",
       "spectral": "K",
       "magnitude": 6.46,
-      "distance_ly": 1098.17,
+      "distance_ly": 1177.8,
       "x": 66.670067,
       "y": -250.507002,
       "z": 214.868079
@@ -8273,7 +8277,7 @@
       "full_designation": "Epsilon Aurigae",
       "spectral": "F",
       "magnitude": 3.03,
-      "distance_ly": 2131.74,
+      "distance_ly": 3301.51,
       "x": 118.129799,
       "y": -456.518488,
       "z": 452.57303
@@ -8286,7 +8290,7 @@
       "full_designation": "Zeta Aurigae",
       "spectral": "K",
       "magnitude": 3.69,
-      "distance_ly": 785.92,
+      "distance_ly": 2289.78,
       "x": 45.114162,
       "y": -175.957014,
       "z": 158.327189
@@ -8581,7 +8585,7 @@
       "full_designation": "Lambda Eridani",
       "spectral": "B",
       "magnitude": 4.25,
-      "distance_ly": 811.33,
+      "distance_ly": 899.59,
       "x": 54.107143,
       "y": -239.830695,
       "z": -37.859151
@@ -8651,7 +8655,7 @@
       "full_designation": "Kappa Leporis",
       "spectral": "B",
       "magnitude": 4.36,
-      "distance_ly": 728.03,
+      "distance_ly": 467.08,
       "x": 44.086239,
       "y": -213.030877,
       "z": -49.989446
@@ -8721,7 +8725,7 @@
       "full_designation": "14 Aurigae",
       "spectral": "A",
       "magnitude": 5.01,
-      "distance_ly": 285.6,
+      "distance_ly": 271.51,
       "x": 14.249454,
       "y": -72.306953,
       "z": 47.290525
@@ -8790,7 +8794,7 @@
       "full_designation": "16 Aurigae",
       "spectral": "K",
       "magnitude": 4.54,
-      "distance_ly": 232.3,
+      "distance_ly": 343.0,
       "x": 10.794657,
       "y": -58.493626,
       "z": 39.178443
@@ -8903,7 +8907,7 @@
       "full_designation": "19 Aurigae",
       "spectral": "A",
       "magnitude": 5.05,
-      "distance_ly": 2077.43,
+      "distance_ly": 3794.28,
       "x": 91.705223,
       "y": -520.289934,
       "z": 355.787132
@@ -9360,7 +9364,7 @@
       "full_designation": "120 Tauri",
       "spectral": "B",
       "magnitude": 5.67,
-      "distance_ly": 1553.12,
+      "distance_ly": 1283.62,
       "x": 52.033993,
       "y": -448.4683,
       "z": 151.414627
@@ -9430,7 +9434,7 @@
       "full_designation": "The-2 Orionis",
       "spectral": "O",
       "magnitude": 4.98,
-      "distance_ly": 1545.76,
+      "distance_ly": 1097.13,
       "x": 50.584197,
       "y": -469.098632,
       "z": -44.733371
@@ -9454,7 +9458,7 @@
       "full_designation": "Iota Orionis",
       "spectral": "O",
       "magnitude": 2.75,
-      "distance_ly": 2329.69,
+      "distance_ly": 1633.31,
       "x": 76.014147,
       "y": -706.411475,
       "z": -73.54604
@@ -9577,7 +9581,7 @@
       "full_designation": "20 Camelopardalis",
       "spectral": "G",
       "magnitude": 7.46,
-      "distance_ly": 542.69,
+      "distance_ly": 879.65,
       "x": 9.024069,
       "y": -91.421676,
       "z": 138.730227
@@ -9670,7 +9674,7 @@
       "full_designation": "Alpha Columbae",
       "spectral": "B",
       "magnitude": 2.65,
-      "distance_ly": 261.34,
+      "distance_ly": 286.08,
       "x": 5.885917,
       "y": -66.110037,
       "z": -44.89318
@@ -9727,7 +9731,7 @@
       "full_designation": "12 Leporis",
       "spectral": "A",
       "magnitude": 5.88,
-      "distance_ly": 994.38,
+      "distance_ly": 754.85,
       "x": 21.834451,
       "y": -281.080466,
       "z": -116.050746
@@ -10202,7 +10206,7 @@
       "full_designation": "57 Orionis",
       "spectral": "B",
       "magnitude": 5.92,
-      "distance_ly": 1822.1,
+      "distance_ly": 2000.1,
       "x": 11.596881,
       "y": -525.670066,
       "z": 188.776762
@@ -10271,7 +10275,7 @@
       "full_designation": "Gamma Columbae",
       "spectral": "B",
       "magnitude": 4.36,
-      "distance_ly": 869.75,
+      "distance_ly": 1054.91,
       "x": 2.339512,
       "y": -217.669281,
       "z": -154.031992
@@ -10410,7 +10414,7 @@
       "full_designation": "36 Aurigae",
       "spectral": "B",
       "magnitude": 5.71,
-      "distance_ly": 1156.58,
+      "distance_ly": 1033.91,
       "x": -1.012422,
       "y": -237.729024,
       "z": 263.120064
@@ -10467,7 +10471,7 @@
       "full_designation": "Chi-2 Orionis",
       "spectral": "B",
       "magnitude": 4.64,
-      "distance_ly": 1801.97,
+      "distance_ly": 4271.29,
       "x": -8.871117,
       "y": -518.633356,
       "z": 190.215445
@@ -10534,7 +10538,7 @@
       "full_designation": "Eta-1 Doradus",
       "spectral": "A",
       "magnitude": 5.72,
-      "distance_ly": 321.65,
+      "distance_ly": 341.65,
       "x": -1.075697,
       "y": -40.03539,
       "z": -90.121078
@@ -10579,7 +10583,7 @@
       "full_designation": "Theta Columbae",
       "spectral": "B",
       "magnitude": 5.0,
-      "distance_ly": 721.58,
+      "distance_ly": 781.57,
       "x": -5.782732,
       "y": -176.005131,
       "z": -133.923795
@@ -10591,7 +10595,7 @@
       "full_designation": "Nu Orionis",
       "spectral": "B",
       "magnitude": 4.42,
-      "distance_ly": 516.07,
+      "distance_ly": 603.61,
       "x": -5.054138,
       "y": -152.917263,
       "z": 40.334489
@@ -10658,7 +10662,7 @@
       "full_designation": "Delta Pictoris",
       "spectral": "B",
       "magnitude": 4.72,
-      "distance_ly": 1299.43,
+      "distance_ly": 1516.79,
       "x": -10.273101,
       "y": -228.464394,
       "z": -326.230539
@@ -10713,7 +10717,7 @@
       "full_designation": "5 Geminorum",
       "spectral": "K",
       "magnitude": 5.83,
-      "distance_ly": 568.22,
+      "distance_ly": 526.16,
       "x": -7.983016,
       "y": -158.429396,
       "z": 72.025559
@@ -10805,7 +10809,7 @@
       "full_designation": "Eta Geminorum",
       "spectral": "M",
       "magnitude": 3.31,
-      "distance_ly": 384.62,
+      "distance_ly": 689.37,
       "x": -7.067151,
       "y": -108.713368,
       "z": 45.140745
@@ -10839,7 +10843,7 @@
       "full_designation": "40 Camelopardalis",
       "spectral": "K",
       "magnitude": 5.37,
-      "distance_ly": 491.94,
+      "distance_ly": 663.7,
       "x": -5.154369,
       "y": -75.240847,
       "z": 130.62101
@@ -10894,7 +10898,7 @@
       "full_designation": "75 Orionis",
       "spectral": "A",
       "magnitude": 5.39,
-      "distance_ly": 225.4,
+      "distance_ly": 269.18,
       "x": -5.077297,
       "y": -67.881106,
       "z": 11.932147
@@ -10960,7 +10964,7 @@
       "full_designation": "10 Geminorum",
       "spectral": "G",
       "magnitude": 6.58,
-      "distance_ly": 883.89,
+      "distance_ly": 1071.96,
       "x": -20.463517,
       "y": -247.486322,
       "z": 108.510043
@@ -11096,7 +11100,7 @@
       "full_designation": "Nu Pictoris",
       "spectral": "A",
       "magnitude": 5.6,
-      "distance_ly": 157.41,
+      "distance_ly": 178.99,
       "x": -2.66987,
       "y": -26.595485,
       "z": -40.18491
@@ -11177,7 +11181,7 @@
       "full_designation": "9 Monocerotis",
       "spectral": "B",
       "magnitude": 6.5,
-      "distance_ly": 937.23,
+      "distance_ly": 1079.67,
       "x": -33.695689,
       "y": -284.538281,
       "z": -21.82397
@@ -11312,7 +11316,7 @@
       "full_designation": "Xi-1 Canis Majoris",
       "spectral": "B",
       "magnitude": 4.34,
-      "distance_ly": 1382.02,
+      "distance_ly": 1505.8,
       "x": -53.872246,
       "y": -385.075042,
       "z": -168.408118
@@ -11423,7 +11427,7 @@
       "full_designation": "9 Lyncis",
       "spectral": "F",
       "magnitude": 6.56,
-      "distance_ly": 272.71,
+      "distance_ly": 318.18,
       "x": -7.248296,
       "y": -45.716075,
       "z": 69.630971
@@ -11506,7 +11510,7 @@
       "full_designation": "Nu-3 Canis Majoris",
       "spectral": "K",
       "magnitude": 4.42,
-      "distance_ly": 421.39,
+      "distance_ly": 480.52,
       "x": -20.194927,
       "y": -121.035795,
       "z": -40.433628
@@ -11585,7 +11589,7 @@
       "full_designation": "Puppis",
       "spectral": "G",
       "magnitude": 8.05,
-      "distance_ly": 278.53,
+      "distance_ly": 296.33,
       "x": -9.824884,
       "y": -55.678794,
       "z": -64.000065
@@ -11735,7 +11739,7 @@
       "full_designation": "32 Geminorum",
       "spectral": "A",
       "magnitude": 6.47,
-      "distance_ly": 2861.02,
+      "distance_ly": 3131.0,
       "x": -170.256052,
       "y": -838.646215,
       "z": 192.751405
@@ -11791,7 +11795,7 @@
       "full_designation": "11 Canis Majoris",
       "spectral": "B",
       "magnitude": 5.28,
-      "distance_ly": 795.5,
+      "distance_ly": 898.55,
       "x": -47.952874,
       "y": -231.293764,
       "z": -60.763169
@@ -11904,7 +11908,7 @@
       "full_designation": "Psi-7 Aurigae",
       "spectral": "K",
       "magnitude": 4.99,
-      "distance_ly": 378.81,
+      "distance_ly": 339.49,
       "x": -19.027882,
       "y": -84.492261,
       "z": 77.385743
@@ -12027,7 +12031,7 @@
       "full_designation": "Psi-8 Aurigae",
       "spectral": "B",
       "magnitude": 6.46,
-      "distance_ly": 748.06,
+      "distance_ly": 667.03,
       "x": -41.862792,
       "y": -174.534696,
       "z": 142.794459
@@ -12233,7 +12237,7 @@
       "full_designation": "Sigma Canis Majoris",
       "spectral": "K",
       "magnitude": 3.49,
-      "distance_ly": 1120.81,
+      "distance_ly": 1300.2,
       "x": -80.775471,
       "y": -292.659236,
       "z": -160.9853
@@ -12245,7 +12249,7 @@
       "full_designation": "Omega Geminorum",
       "spectral": "G",
       "magnitude": 5.2,
-      "distance_ly": 1489.3,
+      "distance_ly": 927.13,
       "x": -112.012449,
       "y": -401.095617,
       "z": 187.291702
@@ -12294,7 +12298,7 @@
       "full_designation": "Zeta Geminorum",
       "spectral": "G",
       "magnitude": 4.01,
-      "distance_ly": 1376.19,
+      "distance_ly": 1061.39,
       "x": -109.067807,
       "y": -379.683873,
       "z": 148.25163
@@ -12340,7 +12344,7 @@
       "full_designation": "Gam-1 Volantis",
       "spectral": "F",
       "magnitude": 5.68,
-      "distance_ly": 161.94,
+      "distance_ly": 143.36,
       "x": -4.895376,
       "y": -15.837351,
       "z": -46.803544
@@ -12507,7 +12511,7 @@
       "full_designation": "52 Geminorum",
       "spectral": "M",
       "magnitude": 5.84,
-      "distance_ly": 300.33,
+      "distance_ly": 395.35,
       "x": -26.746821,
       "y": -79.134142,
       "z": 38.747686
@@ -12563,7 +12567,7 @@
       "full_designation": "Delta Volantis",
       "spectral": "F",
       "magnitude": 3.97,
-      "distance_ly": 737.91,
+      "distance_ly": 686.33,
       "x": -27.934552,
       "y": -80.182853,
       "z": -209.706812
@@ -12620,7 +12624,7 @@
       "full_designation": "Tau Canis Majoris",
       "spectral": "O",
       "magnitude": 4.37,
-      "distance_ly": 2992.26,
+      "distance_ly": 5657.52,
       "x": -280.07639,
       "y": -783.212348,
       "z": -387.061103
@@ -12688,7 +12692,7 @@
       "full_designation": "57 Geminorum",
       "spectral": "G",
       "magnitude": 5.04,
-      "distance_ly": 158.95,
+      "distance_ly": 179.43,
       "x": -15.727118,
       "y": -41.252647,
       "z": 20.63438
@@ -12757,7 +12761,7 @@
       "full_designation": "Epsilon Canis Minoris",
       "spectral": "G",
       "magnitude": 4.99,
-      "distance_ly": 1042.03,
+      "distance_ly": 817.27,
       "x": -115.111431,
       "y": -293.5477,
       "z": 51.499062
@@ -13022,7 +13026,7 @@
       "full_designation": "70 Geminorum",
       "spectral": "K",
       "magnitude": 5.58,
-      "distance_ly": 371.9,
+      "distance_ly": 327.52,
       "x": -38.913747,
       "y": -84.850471,
       "z": 65.481049
@@ -13161,7 +13165,7 @@
       "full_designation": "79 Geminorum",
       "spectral": "A",
       "magnitude": 6.53,
-      "distance_ly": 516.89,
+      "distance_ly": 442.76,
       "x": -65.823342,
       "y": -133.248421,
       "z": 55.023464
@@ -13309,7 +13313,7 @@
       "full_designation": "Xi Puppis",
       "spectral": "G",
       "magnitude": 3.34,
-      "distance_ly": 1199.1,
+      "distance_ly": 1085.05,
       "x": -153.118527,
       "y": -296.362603,
       "z": -154.558514
@@ -13365,7 +13369,7 @@
       "full_designation": "10 Puppis",
       "spectral": "F",
       "magnitude": 5.69,
-      "distance_ly": 1090.82,
+      "distance_ly": 2220.11,
       "x": -152.164164,
       "y": -285.233782,
       "z": -85.693977
@@ -13421,7 +13425,7 @@
       "full_designation": "85 Geminorum",
       "spectral": "A",
       "magnitude": 5.38,
-      "distance_ly": 374.46,
+      "distance_ly": 509.44,
       "x": -52.204869,
       "y": -94.505677,
       "z": 39.049008
@@ -13532,7 +13536,7 @@
       "full_designation": "5 Cancri",
       "spectral": "B",
       "magnitude": 5.99,
-      "distance_ly": 539.99,
+      "distance_ly": 495.23,
       "x": -80.29191,
       "y": -136.984578,
       "z": 46.898537
@@ -13600,7 +13604,7 @@
       "full_designation": "14 Puppis",
       "spectral": "B",
       "magnitude": 6.12,
-      "distance_ly": 1325.84,
+      "distance_ly": 2207.64,
       "x": -198.063437,
       "y": -327.395178,
       "z": -137.218647
@@ -13670,7 +13674,7 @@
       "full_designation": "Epsilon Volantis",
       "spectral": "B",
       "magnitude": 4.35,
-      "distance_ly": 562.34,
+      "distance_ly": 644.62,
       "x": -33.295483,
       "y": -53.320205,
       "z": -160.545681
@@ -13829,7 +13833,7 @@
       "full_designation": "Beta Cancri",
       "spectral": "K",
       "magnitude": 3.53,
-      "distance_ly": 303.4,
+      "distance_ly": 322.84,
       "x": -51.522087,
       "y": -76.015371,
       "z": 14.84954
@@ -13862,7 +13866,7 @@
       "full_designation": "Ursae Majoris",
       "spectral": "G",
       "magnitude": 8.2,
-      "distance_ly": 177.84,
+      "distance_ly": 196.96,
       "x": -14.7896,
       "y": -21.444841,
       "z": 47.900183
@@ -13931,7 +13935,7 @@
       "full_designation": "Lambda Cancri",
       "spectral": "B",
       "magnitude": 5.92,
-      "distance_ly": 457.44,
+      "distance_ly": 568.59,
       "x": -73.723045,
       "y": -104.765465,
       "z": 57.095809
@@ -14521,7 +14525,7 @@
       "full_designation": "Eta Hydrae",
       "spectral": "B",
       "magnitude": 4.3,
-      "distance_ly": 586.61,
+      "distance_ly": 510.8,
       "x": -117.329664,
       "y": -135.898249,
       "z": 10.66243
@@ -14614,7 +14618,7 @@
       "full_designation": "12 Hydrae",
       "spectral": "G",
       "magnitude": 4.32,
-      "distance_ly": 245.05,
+      "distance_ly": 205.34,
       "x": -48.487966,
       "y": -54.625007,
       "z": -17.599924
@@ -14822,7 +14826,7 @@
       "full_designation": "Zeta Hydrae",
       "spectral": "G",
       "magnitude": 3.11,
-      "distance_ly": 167.17,
+      "distance_ly": 153.03,
       "x": -35.316755,
       "y": -36.765697,
       "z": 5.309278
@@ -14949,7 +14953,7 @@
       "full_designation": "Alpha Cancri",
       "spectral": "A",
       "magnitude": 4.26,
-      "distance_ly": 188.31,
+      "distance_ly": 177.93,
       "x": -39.690103,
       "y": -40.217629,
       "z": 11.863811
@@ -15089,7 +15093,7 @@
       "full_designation": "Omega Hydrae",
       "spectral": "K",
       "magnitude": 4.99,
-      "distance_ly": 896.03,
+      "distance_ly": 608.4,
       "x": -198.469921,
       "y": -188.385732,
       "z": 24.384833
@@ -15159,7 +15163,7 @@
       "full_designation": "19 Hydrae",
       "spectral": "B",
       "magnitude": 5.6,
-      "distance_ly": 614.23,
+      "distance_ly": 669.49,
       "x": -136.575598,
       "y": -126.577814,
       "z": -28.127063
@@ -15205,7 +15209,7 @@
       "full_designation": "Xi Cancri",
       "spectral": "K",
       "magnitude": 5.16,
-      "distance_ly": 373.18,
+      "distance_ly": 407.49,
       "x": -77.988303,
       "y": -71.865489,
       "z": 42.945282
@@ -15354,7 +15358,7 @@
       "full_designation": "Pi-2 Cancri",
       "spectral": "K",
       "magnitude": 5.36,
-      "distance_ly": 607.37,
+      "distance_ly": 573.52,
       "x": -135.393281,
       "y": -118.495639,
       "z": 48.013606
@@ -15421,7 +15425,7 @@
       "full_designation": "25 Hydrae",
       "spectral": "K",
       "magnitude": 7.07,
-      "distance_ly": 527.76,
+      "distance_ly": 591.92,
       "x": -120.140719,
       "y": -103.07611,
       "z": -33.537618
@@ -15476,7 +15480,7 @@
       "full_designation": "20 Ursae Majoris",
       "spectral": "K",
       "magnitude": 7.55,
-      "distance_ly": 649.71,
+      "distance_ly": 752.86,
       "x": -76.942298,
       "y": -64.281872,
       "z": 172.132278
@@ -15614,7 +15618,7 @@
       "full_designation": "3 Leonis",
       "spectral": "K",
       "magnitude": 5.72,
-      "distance_ly": 405.16,
+      "distance_ly": 456.41,
       "x": -97.052139,
       "y": -75.494365,
       "z": 17.692796
@@ -15622,13 +15626,14 @@
     "46471": {
       "proper": "Intercrus",
       "constellation": "Ursa Major",
-      "full_designation": "Ursae Majoris",
+      "full_designation": "41 Lyncis",
       "spectral": "K",
       "magnitude": 5.4,
       "distance_ly": 279.96,
       "x": -47.431774,
       "y": -36.836132,
-      "z": 61.329924
+      "z": 61.329924,
+      "flamsteed": 41
     },
     "46509": {
       "bayer": "Tau-1",
@@ -15681,7 +15686,7 @@
       "full_designation": "Zet-1 Antliae",
       "spectral": "A",
       "magnitude": 5.75,
-      "distance_ly": 405.67,
+      "distance_ly": 340.71,
       "x": -83.997782,
       "y": -64.007522,
       "z": -65.706277
@@ -15727,7 +15732,7 @@
       "full_designation": "Lambda Leonis",
       "spectral": "K",
       "magnitude": 4.32,
-      "distance_ly": 329.12,
+      "distance_ly": 372.52,
       "x": -74.131964,
       "y": -56.004334,
       "z": 39.376137
@@ -15750,7 +15755,7 @@
       "full_designation": "6 Leonis",
       "spectral": "K",
       "magnitude": 5.07,
-      "distance_ly": 499.47,
+      "distance_ly": 618.0,
       "x": -120.532512,
       "y": -90.861063,
       "z": 25.843929
@@ -15939,7 +15944,7 @@
       "full_designation": "34 Hydrae",
       "spectral": "A",
       "magnitude": 6.4,
-      "distance_ly": 424.13,
+      "distance_ly": 489.25,
       "x": -104.391958,
       "y": -74.559404,
       "z": -21.293519
@@ -16008,7 +16013,7 @@
       "full_designation": "Kappa Hydrae",
       "spectral": "B",
       "magnitude": 5.07,
-      "distance_ly": 436.04,
+      "distance_ly": 466.26,
       "x": -106.2031,
       "y": -74.153048,
       "z": -33.094297
@@ -16112,7 +16117,7 @@
       "full_designation": "Epsilon Leonis",
       "spectral": "G",
       "magnitude": 2.97,
-      "distance_ly": 246.71,
+      "distance_ly": 227.45,
       "x": -57.700126,
       "y": -38.244772,
       "z": 30.494289
@@ -16145,7 +16150,7 @@
       "full_designation": "18 Leonis",
       "spectral": "K",
       "magnitude": 5.67,
-      "distance_ly": 512.02,
+      "distance_ly": 731.28,
       "x": -128.281102,
       "y": -84.594799,
       "z": 32.129987
@@ -16200,7 +16205,7 @@
       "full_designation": "16 Leonis Minoris",
       "spectral": "K",
       "magnitude": 6.64,
-      "distance_ly": 1309.86,
+      "distance_ly": 1488.07,
       "x": -261.029626,
       "y": -165.924343,
       "z": 256.164813
@@ -16256,7 +16261,7 @@
       "full_designation": "23 Leonis",
       "spectral": "M",
       "magnitude": 6.45,
-      "distance_ly": 1203.53,
+      "distance_ly": 1011.24,
       "x": -304.02444,
       "y": -191.763797,
       "z": 83.423365
@@ -16280,7 +16285,7 @@
       "full_designation": "Ups-1 Hydrae",
       "spectral": "G",
       "magnitude": 4.11,
-      "distance_ly": 263.88,
+      "distance_ly": 248.48,
       "x": -66.227032,
       "y": -41.59319,
       "z": -20.730703
@@ -16325,7 +16330,7 @@
       "full_designation": "17 Leonis Minoris",
       "spectral": "F",
       "magnitude": 6.71,
-      "distance_ly": 420.3,
+      "distance_ly": 557.85,
       "x": -86.302465,
       "y": -53.739216,
       "z": 79.186218
@@ -16372,7 +16377,7 @@
       "full_designation": "Hydrae",
       "spectral": "K",
       "magnitude": 4.94,
-      "distance_ly": 614.23,
+      "distance_ly": 574.33,
       "x": -152.168245,
       "y": -92.455966,
       "z": -61.341498
@@ -16462,7 +16467,7 @@
       "full_designation": "Pi Leonis",
       "spectral": "M",
       "magnitude": 4.68,
-      "distance_ly": 406.17,
+      "distance_ly": 476.05,
       "x": -106.845097,
       "y": -61.554441,
       "z": 17.426851
@@ -16600,7 +16605,7 @@
       "full_designation": "16 Sextantis",
       "spectral": "K",
       "magnitude": 6.6,
-      "distance_ly": 572.2,
+      "distance_ly": 718.79,
       "x": -154.449305,
       "y": -81.046569,
       "z": 18.858701
@@ -16711,7 +16716,7 @@
       "full_designation": "22 Leonis Minoris",
       "spectral": "G",
       "magnitude": 6.47,
-      "distance_ly": 662.92,
+      "distance_ly": 702.33,
       "x": -155.51727,
       "y": -76.603537,
       "z": 106.102341
@@ -16768,7 +16773,7 @@
       "full_designation": "Zeta Leonis",
       "spectral": "F",
       "magnitude": 3.43,
-      "distance_ly": 274.08,
+      "distance_ly": 232.34,
       "x": -69.409312,
       "y": -33.594777,
       "z": 33.397009
@@ -16781,7 +16786,7 @@
       "full_designation": "Lambda Ursae Majoris",
       "spectral": "A",
       "magnitude": 3.45,
-      "distance_ly": 137.5,
+      "distance_ly": 225.57,
       "x": -27.815454,
       "y": -13.402145,
       "z": 28.706022
@@ -16861,7 +16866,7 @@
       "full_designation": "42 Leonis",
       "spectral": "A",
       "magnitude": 6.16,
-      "distance_ly": 465.27,
+      "distance_ly": 511.41,
       "x": -125.359867,
       "y": -57.236579,
       "z": 36.86317
@@ -16874,7 +16879,7 @@
       "full_designation": "Mu Ursae Majoris",
       "spectral": "M",
       "magnitude": 3.06,
-      "distance_ly": 230.34,
+      "distance_ly": 183.25,
       "x": -48.161684,
       "y": -21.865099,
       "z": 46.794651
@@ -16929,7 +16934,7 @@
       "full_designation": "24 Sextantis",
       "spectral": "G",
       "magnitude": 6.45,
-      "distance_ly": 252.64,
+      "distance_ly": 239.11,
       "x": -70.681171,
       "y": -31.664294,
       "z": -1.219711
@@ -17098,7 +17103,7 @@
       "full_designation": "Beta Sextantis",
       "spectral": "B",
       "magnitude": 5.08,
-      "distance_ly": 404.66,
+      "distance_ly": 366.88,
       "x": -114.678544,
       "y": -47.330714,
       "z": -1.379402
@@ -17153,7 +17158,7 @@
       "full_designation": "32 Sextantis",
       "spectral": "K",
       "magnitude": 7.09,
-      "distance_ly": 950.89,
+      "distance_ly": 714.02,
       "x": -269.57426,
       "y": -108.493538,
       "z": 23.611666
@@ -17264,7 +17269,7 @@
       "full_designation": "36 Leonis Minoris",
       "spectral": "K",
       "magnitude": 6.42,
-      "distance_ly": 1443.17,
+      "distance_ly": 1704.05,
       "x": -343.209681,
       "y": -128.540948,
       "z": 247.933698
@@ -17319,7 +17324,7 @@
       "full_designation": "39 Leonis Minoris",
       "spectral": "A",
       "magnitude": 7.11,
-      "distance_ly": 496.43,
+      "distance_ly": 608.14,
       "x": -126.909034,
       "y": -45.969821,
       "z": 70.34091
@@ -17539,7 +17544,7 @@
       "full_designation": "53 Leonis",
       "spectral": "A",
       "magnitude": 5.32,
-      "distance_ly": 380.58,
+      "distance_ly": 354.93,
       "x": -109.293551,
       "y": -34.849986,
       "z": 21.35485
@@ -17662,7 +17667,7 @@
       "full_designation": "48 Leonis Minoris",
       "spectral": "A",
       "magnitude": 6.19,
-      "distance_ly": 387.82,
+      "distance_ly": 426.36,
       "x": -103.004315,
       "y": -30.167995,
       "z": 51.173047
@@ -17717,7 +17722,7 @@
       "full_designation": "57 Leonis",
       "spectral": "K",
       "magnitude": 6.66,
-      "distance_ly": 746.35,
+      "distance_ly": 913.19,
       "x": -220.010107,
       "y": -62.904586,
       "z": 1.729072
@@ -17843,7 +17848,7 @@
       "full_designation": "Beta Ursae Majoris",
       "spectral": "A",
       "magnitude": 2.34,
-      "distance_ly": 79.74,
+      "distance_ly": 84.49,
       "x": -13.103033,
       "y": -3.398358,
       "z": 20.360601
@@ -17900,7 +17905,7 @@
       "full_designation": "51 Ursae Majoris",
       "spectral": "A",
       "magnitude": 6.01,
-      "distance_ly": 257.22,
+      "distance_ly": 298.17,
       "x": -60.134917,
       "y": -14.848356,
       "z": 48.815176
@@ -17911,7 +17916,7 @@
       "full_designation": "Leonis",
       "spectral": "K",
       "magnitude": 8.21,
-      "distance_ly": 515.25,
+      "distance_ly": 454.34,
       "x": -153.260473,
       "y": -37.686294,
       "z": -6.927309
@@ -18024,7 +18029,7 @@
       "full_designation": "Beta Crateris",
       "spectral": "A",
       "magnitude": 4.46,
-      "distance_ly": 340.1,
+      "distance_ly": 316.52,
       "x": -93.979241,
       "y": -20.122462,
       "z": -40.451687
@@ -18128,7 +18133,7 @@
       "full_designation": "Crateris",
       "spectral": "K",
       "magnitude": 8.05,
-      "distance_ly": 437.79,
+      "distance_ly": 369.1,
       "x": -120.572962,
       "y": -22.459787,
       "z": -54.542905
@@ -18186,7 +18191,7 @@
       "full_designation": "Pi Centauri",
       "spectral": "B",
       "magnitude": 3.9,
-      "distance_ly": 357.63,
+      "distance_ly": 233.64,
       "x": -62.768014,
       "y": -10.783606,
       "z": -89.257117
@@ -18301,7 +18306,7 @@
       "full_designation": "82 Leonis",
       "spectral": "A",
       "magnitude": 6.73,
-      "distance_ly": 278.77,
+      "distance_ly": 316.95,
       "x": -84.372148,
       "y": -12.738434,
       "z": 4.9217
@@ -18415,7 +18420,7 @@
       "full_designation": "Lambda Draconis",
       "spectral": "M",
       "magnitude": 3.82,
-      "distance_ly": 333.15,
+      "distance_ly": 377.24,
       "x": -35.773586,
       "y": -4.486959,
       "z": 95.570558
@@ -18470,7 +18475,7 @@
       "full_designation": "Leonis",
       "spectral": "G",
       "magnitude": 6.45,
-      "distance_ly": 398.72,
+      "distance_ly": 450.83,
       "x": -113.87372,
       "y": -12.439743,
       "z": 42.695774
@@ -18492,7 +18497,7 @@
       "full_designation": "2 Draconis",
       "spectral": "K",
       "magnitude": 5.19,
-      "distance_ly": 237.55,
+      "distance_ly": 263.08,
       "x": -25.577066,
       "y": -2.683,
       "z": 68.141673
@@ -18550,7 +18555,7 @@
       "full_designation": "Omega Virginis",
       "spectral": "M",
       "magnitude": 5.24,
-      "distance_ly": 497.19,
+      "distance_ly": 586.13,
       "x": -150.239364,
       "y": -14.162035,
       "z": 21.569187
@@ -18674,7 +18679,7 @@
       "full_designation": "Lambda Muscae",
       "spectral": "A",
       "magnitude": 3.63,
-      "distance_ly": 127.16,
+      "distance_ly": 137.45,
       "x": -15.372609,
       "y": -0.966692,
       "z": -35.814787
@@ -18710,7 +18715,7 @@
       "full_designation": "Chi Ursae Majoris",
       "spectral": "K",
       "magnitude": 3.69,
-      "distance_ly": 183.65,
+      "distance_ly": 198.41,
       "x": -37.766969,
       "y": -2.301619,
       "z": 41.698309
@@ -18794,7 +18799,8 @@
       "distance_ly": 309.74,
       "x": -78.778366,
       "y": -2.438319,
-      "z": -52.978439
+      "z": -52.978439,
+      "flamsteed": 28
     },
     "57939": {
       "proper": "Groombridge 1830",
@@ -18927,7 +18933,7 @@
       "full_designation": "1 Comae Berenices",
       "spectral": "G",
       "magnitude": 6.57,
-      "distance_ly": 505.67,
+      "distance_ly": 542.3,
       "x": -143.649651,
       "y": 1.08932,
       "z": 58.315106
@@ -18982,7 +18988,7 @@
       "full_designation": "Kappa Chamaeleontis",
       "spectral": "K",
       "magnitude": 5.04,
-      "distance_ly": 476.84,
+      "distance_ly": 502.43,
       "x": -34.074738,
       "y": 0.70997,
       "z": -142.170644
@@ -19062,7 +19068,7 @@
       "full_designation": "11 Virginis",
       "spectral": "A",
       "magnitude": 5.72,
-      "distance_ly": 143.68,
+      "distance_ly": 153.89,
       "x": -43.784566,
       "y": 1.922579,
       "z": 4.457175
@@ -19118,7 +19124,7 @@
       "full_designation": "68 Ursae Majoris",
       "spectral": "K",
       "magnitude": 6.34,
-      "distance_ly": 886.29,
+      "distance_ly": 840.26,
       "x": -147.58928,
       "y": 7.572381,
       "z": 228.040286
@@ -19163,7 +19169,7 @@
       "full_designation": "Delta Crucis",
       "spectral": "B",
       "magnitude": 2.79,
-      "distance_ly": 345.14,
+      "distance_ly": 455.01,
       "x": -54.778605,
       "y": 3.62525,
       "z": -90.466
@@ -19211,7 +19217,7 @@
       "full_designation": "2 Canum Venaticorum",
       "spectral": "M",
       "magnitude": 5.69,
-      "distance_ly": 771.05,
+      "distance_ly": 721.5,
       "x": -178.891202,
       "y": 12.607989,
       "z": 154.035676
@@ -19321,7 +19327,7 @@
       "full_designation": "10 Comae Berenices",
       "spectral": "A",
       "magnitude": 6.64,
-      "distance_ly": 351.08,
+      "distance_ly": 277.19,
       "x": -94.275596,
       "y": 8.183278,
       "z": 51.30374
@@ -19334,7 +19340,7 @@
       "full_designation": "Eta Virginis",
       "spectral": "A",
       "magnitude": 3.89,
-      "distance_ly": 265.38,
+      "distance_ly": 247.67,
       "x": -81.054806,
       "y": 7.05786,
       "z": -0.946921
@@ -19457,7 +19463,7 @@
       "full_designation": "4 Canum Venaticorum",
       "spectral": "F",
       "magnitude": 6.03,
-      "distance_ly": 310.33,
+      "distance_ly": 428.88,
       "x": -69.724982,
       "y": 7.261814,
       "z": 64.333033
@@ -19727,7 +19733,7 @@
       "full_designation": "Gamma Muscae",
       "spectral": "B",
       "magnitude": 3.84,
-      "distance_ly": 324.86,
+      "distance_ly": 379.19,
       "x": -30.252522,
       "y": 4.314584,
       "z": -94.79796
@@ -19809,7 +19815,7 @@
       "full_designation": "6 Draconis",
       "spectral": "K",
       "magnitude": 4.95,
-      "distance_ly": 601.76,
+      "distance_ly": 492.99,
       "x": -62.314914,
       "y": 9.517033,
       "z": 173.398985
@@ -19821,7 +19827,7 @@
       "full_designation": "23 Comae Berenices",
       "spectral": "A",
       "magnitude": 4.8,
-      "distance_ly": 310.03,
+      "distance_ly": 357.83,
       "x": -86.726287,
       "y": 13.290876,
       "z": 36.574715
@@ -20012,7 +20018,7 @@
       "full_designation": "28 Virginis",
       "spectral": "K",
       "magnitude": 6.81,
-      "distance_ly": 813.36,
+      "distance_ly": 920.54,
       "x": -243.11043,
       "y": 45.015577,
       "z": -32.551465
@@ -20156,7 +20162,7 @@
       "full_designation": "11 Canum Venaticorum",
       "spectral": "A",
       "magnitude": 6.25,
-      "distance_ly": 448.63,
+      "distance_ly": 478.18,
       "x": -89.152962,
       "y": 19.233501,
       "z": 102.967274
@@ -20211,7 +20217,7 @@
       "full_designation": "32 Comae Berenices",
       "spectral": "M",
       "magnitude": 6.32,
-      "distance_ly": 1953.03,
+      "distance_ly": 1072.14,
       "x": -557.625298,
       "y": 129.261593,
       "z": 175.811749
@@ -20280,7 +20286,7 @@
       "full_designation": "Psi Virginis",
       "spectral": "M",
       "magnitude": 4.77,
-      "distance_ly": 544.5,
+      "distance_ly": 649.65,
       "x": -160.028453,
       "y": 38.680014,
       "z": -27.665937
@@ -20349,7 +20355,7 @@
       "full_designation": "Delta Virginis",
       "spectral": "M",
       "magnitude": 3.39,
-      "distance_ly": 198.39,
+      "distance_ly": 187.38,
       "x": -58.94191,
       "y": 14.587593,
       "z": 3.604756
@@ -20362,7 +20368,7 @@
       "full_designation": "Alp-1 Canum Venaticorum",
       "spectral": "F",
       "magnitude": 5.61,
-      "distance_ly": 120.35,
+      "distance_ly": 106.54,
       "x": -28.092342,
       "y": 7.005189,
       "z": 22.877614
@@ -20375,7 +20381,7 @@
       "full_designation": "Alp-2 Canum Venaticorum",
       "spectral": "A",
       "magnitude": 2.89,
-      "distance_ly": 114.8,
+      "distance_ly": 99.67,
       "x": -26.795114,
       "y": 6.684223,
       "z": 21.824384
@@ -20386,7 +20392,7 @@
       "full_designation": "36 Comae Berenices",
       "spectral": "M",
       "magnitude": 4.76,
-      "distance_ly": 324.21,
+      "distance_ly": 347.23,
       "x": -91.732311,
       "y": 24.118592,
       "z": 29.741363
@@ -20564,7 +20570,7 @@
       "full_designation": "49 Virginis",
       "spectral": "K",
       "magnitude": 5.15,
-      "distance_ly": 307.4,
+      "distance_ly": 292.52,
       "x": -88.565516,
       "y": 27.033624,
       "z": -17.564504
@@ -20634,7 +20640,7 @@
       "full_designation": "16 Canum Venaticorum",
       "spectral": "A",
       "magnitude": 7.16,
-      "distance_ly": 729.66,
+      "distance_ly": 637.31,
       "x": -166.451931,
       "y": 52.499259,
       "z": 139.947632
@@ -20927,7 +20933,7 @@
       "full_designation": "Centauri",
       "spectral": "A",
       "magnitude": 7.01,
-      "distance_ly": 319.45,
+      "distance_ly": 350.59,
       "x": -56.858287,
       "y": 21.997276,
       "z": -76.655891
@@ -20974,7 +20980,7 @@
       "full_designation": "68 Virginis",
       "spectral": "K",
       "magnitude": 5.27,
-      "distance_ly": 440.16,
+      "distance_ly": 491.61,
       "x": -122.334517,
       "y": 48.633025,
       "z": -29.686413
@@ -21096,7 +21102,7 @@
       "full_designation": "77 Virginis",
       "spectral": "F",
       "magnitude": 7.02,
-      "distance_ly": 258.24,
+      "distance_ly": 276.87,
       "x": -72.048437,
       "y": 31.106736,
       "z": -10.502558
@@ -21230,7 +21236,7 @@
       "full_designation": "83 Ursae Majoris",
       "spectral": "M",
       "magnitude": 4.63,
-      "distance_ly": 523.52,
+      "distance_ly": 582.81,
       "x": -83.974953,
       "y": 39.487818,
       "z": 130.971319
@@ -21340,7 +21346,7 @@
       "full_designation": "3 Boötis",
       "spectral": "F",
       "magnitude": 5.97,
-      "distance_ly": 292.52,
+      "distance_ly": 309.38,
       "x": -72.208038,
       "y": 36.286093,
       "z": 38.896377
@@ -21411,7 +21417,7 @@
       "full_designation": "Upsilon Boötis",
       "spectral": "K",
       "magnitude": 4.05,
-      "distance_ly": 263.45,
+      "distance_ly": 242.99,
       "x": -69.023958,
       "y": 35.731771,
       "z": 21.990689
@@ -21423,7 +21429,7 @@
       "full_designation": "Nu Centauri",
       "spectral": "B",
       "magnitude": 3.41,
-      "distance_ly": 436.62,
+      "distance_ly": 405.28,
       "x": -88.774682,
       "y": 45.96956,
       "z": -89.0322
@@ -21683,7 +21689,7 @@
       "full_designation": "Alpha Draconis",
       "spectral": "A",
       "magnitude": 3.67,
-      "distance_ly": 303.12,
+      "distance_ly": 260.6,
       "x": -34.416017,
       "y": 20.758849,
       "z": 83.796391
@@ -21694,7 +21700,7 @@
       "full_designation": "Theta Apodis",
       "spectral": "M",
       "magnitude": 5.69,
-      "distance_ly": 368.95,
+      "distance_ly": 389.17,
       "x": -22.069657,
       "y": 13.435885,
       "z": -110.13201
@@ -21815,13 +21821,14 @@
     "69403": {
       "flamsteed": 97,
       "constellation": "Virgo",
-      "full_designation": "97 Virginis",
+      "full_designation": "Mu Virginis",
       "spectral": "F",
       "magnitude": 7.15,
-      "distance_ly": 222.94,
+      "distance_ly": 240.47,
       "x": -56.382355,
       "y": 36.810518,
-      "z": -11.751908
+      "z": -11.751908,
+      "bayer": "Mu"
     },
     "69415": {
       "flamsteed": 50,
@@ -21842,7 +21849,7 @@
       "full_designation": "Kappa Virginis",
       "spectral": "K",
       "magnitude": 4.18,
-      "distance_ly": 254.81,
+      "distance_ly": 281.46,
       "x": -64.306477,
       "y": 42.119366,
       "z": -13.933635
@@ -21963,7 +21970,7 @@
       "full_designation": "Lambda Virginis",
       "spectral": "A",
       "magnitude": 4.52,
-      "distance_ly": 186.48,
+      "distance_ly": 177.02,
       "x": -45.689342,
       "y": 31.728277,
       "z": -13.222219
@@ -22052,7 +22059,7 @@
       "full_designation": "51 Hydrae",
       "spectral": "K",
       "magnitude": 4.78,
-      "distance_ly": 157.41,
+      "distance_ly": 171.13,
       "x": -34.652085,
       "y": 24.968032,
       "z": -22.474799
@@ -22108,7 +22115,7 @@
       "full_designation": "22 Boötis",
       "spectral": "F",
       "magnitude": 5.4,
-      "distance_ly": 290.69,
+      "distance_ly": 312.49,
       "x": -67.548865,
       "y": 50.191862,
       "z": 29.350197
@@ -22176,7 +22183,7 @@
       "full_designation": "24 Boötis",
       "spectral": "G",
       "magnitude": 5.58,
-      "distance_ly": 326.16,
+      "distance_ly": 308.0,
       "x": -51.393838,
       "y": 38.950067,
       "z": 76.430065
@@ -22409,7 +22416,7 @@
       "full_designation": "4 Librae",
       "spectral": "B",
       "magnitude": 5.7,
-      "distance_ly": 497.19,
+      "distance_ly": 472.42,
       "x": -104.575605,
       "y": 90.287833,
       "z": -64.418072
@@ -22427,14 +22434,14 @@
       "z": 96.464975
     },
     "72105": {
-      "proper": "Pulcherrima",
+      "proper": "Izar",
       "bayer": "Eps",
       "flamsteed": 36,
       "constellation": "Boötes",
       "full_designation": "Epsilon Boötis",
       "spectral": "A",
       "magnitude": 2.35,
-      "distance_ly": 202.58,
+      "distance_ly": 235.89,
       "x": -41.582771,
       "y": 36.462926,
       "z": 28.269741
@@ -22479,7 +22486,7 @@
       "full_designation": "5 Librae",
       "spectral": "K",
       "magnitude": 6.33,
-      "distance_ly": 1449.58,
+      "distance_ly": 567.28,
       "x": -320.871669,
       "y": 283.789934,
       "z": -118.470045
@@ -22547,7 +22554,7 @@
       "full_designation": "Alpha Apodis",
       "spectral": "K",
       "magnitude": 3.83,
-      "distance_ly": 446.79,
+      "distance_ly": 497.88,
       "x": -19.356924,
       "y": 17.40793,
       "z": -134.489842
@@ -22605,7 +22612,7 @@
       "full_designation": "58 Hydrae",
       "spectral": "K",
       "magnitude": 4.42,
-      "distance_ly": 331.12,
+      "distance_ly": 301.93,
       "x": -66.036951,
       "y": 60.664821,
       "z": -47.600014
@@ -22699,7 +22706,7 @@
       "full_designation": "Boötis",
       "spectral": "K",
       "magnitude": 7.8,
-      "distance_ly": 358.81,
+      "distance_ly": 432.17,
       "x": -75.984659,
       "y": 71.719466,
       "z": 34.424841
@@ -22733,7 +22740,7 @@
       "full_designation": "Zeta Circini",
       "spectral": "B",
       "magnitude": 6.09,
-      "distance_ly": 1274.05,
+      "distance_ly": 1400.35,
       "x": -114.949414,
       "y": 109.761418,
       "z": -356.828849
@@ -22951,7 +22958,7 @@
       "full_designation": "Sigma Librae",
       "spectral": "M",
       "magnitude": 3.25,
-      "distance_ly": 288.38,
+      "distance_ly": 260.12,
       "x": -55.51919,
       "y": 57.527085,
       "z": -37.760649
@@ -23007,7 +23014,7 @@
       "full_designation": "10 Ursae Minoris",
       "spectral": "A",
       "magnitude": 7.56,
-      "distance_ly": 489.72,
+      "distance_ly": 429.98,
       "x": -28.791973,
       "y": 30.108427,
       "z": 144.255133
@@ -23063,7 +23070,7 @@
       "full_designation": "46 Boötis",
       "spectral": "K",
       "magnitude": 5.67,
-      "distance_ly": 517.71,
+      "distance_ly": 488.27,
       "x": -96.867031,
       "y": 104.238011,
       "z": 70.331724
@@ -23324,7 +23331,7 @@
       "full_designation": "Boötis",
       "spectral": "G",
       "magnitude": 7.88,
-      "distance_ly": 320.39,
+      "distance_ly": 342.4,
       "x": -47.33943,
       "y": 55.9706,
       "z": 65.389271
@@ -23493,7 +23500,7 @@
       "full_designation": "30 Librae",
       "spectral": "K",
       "magnitude": 6.46,
-      "distance_ly": 967.82,
+      "distance_ly": 877.02,
       "x": -181.206203,
       "y": 221.844055,
       "z": -77.471247
@@ -23550,7 +23557,7 @@
       "full_designation": "Epsilon Librae",
       "spectral": "F",
       "magnitude": 4.92,
-      "distance_ly": 101.86,
+      "distance_ly": 94.2,
       "x": -19.315192,
       "y": 23.894489,
       "z": -5.596007
@@ -23563,7 +23570,7 @@
       "full_designation": "Mu-1 Boötis",
       "spectral": "F",
       "magnitude": 4.31,
-      "distance_ly": 113.13,
+      "distance_ly": 122.73,
       "x": -17.300377,
       "y": 21.457918,
       "z": 21.056469
@@ -23659,7 +23666,7 @@
       "full_designation": "33 Librae",
       "spectral": "A",
       "magnitude": 6.69,
-      "distance_ly": 289.15,
+      "distance_ly": 258.6,
       "x": -51.610107,
       "y": 67.004414,
       "z": -26.571069
@@ -23718,7 +23725,7 @@
       "full_designation": "Nu-2 Boötis",
       "spectral": "A",
       "magnitude": 4.98,
-      "distance_ly": 388.28,
+      "distance_ly": 441.38,
       "x": -54.221334,
       "y": 71.812586,
       "z": 77.944174
@@ -23861,7 +23868,7 @@
       "full_designation": "Tau-3 Serpentis",
       "spectral": "G",
       "magnitude": 6.1,
-      "distance_ly": 379.25,
+      "distance_ly": 358.36,
       "x": -65.302062,
       "y": 89.513599,
       "z": 35.266691
@@ -23918,7 +23925,7 @@
       "full_designation": "Epsilon Trianguli Australis",
       "spectral": "K",
       "magnitude": 4.11,
-      "distance_ly": 201.7,
+      "distance_ly": 214.58,
       "x": -14.537768,
       "y": 20.142359,
       "z": -56.634489
@@ -23976,7 +23983,7 @@
       "full_designation": "41 Librae",
       "spectral": "G",
       "magnitude": 5.36,
-      "distance_ly": 311.22,
+      "distance_ly": 333.54,
       "x": -52.004859,
       "y": 73.523435,
       "z": -31.54073
@@ -24033,7 +24040,7 @@
       "full_designation": "Kap-2 Apodis",
       "spectral": "B",
       "magnitude": 5.64,
-      "distance_ly": 780.28,
+      "distance_ly": 715.52,
       "x": -39.008081,
       "y": 55.893666,
       "z": -229.319176
@@ -24238,7 +24245,7 @@
       "full_designation": "29 Serpentis",
       "spectral": "A",
       "magnitude": 6.7,
-      "distance_ly": 758.5,
+      "distance_ly": 673.11,
       "x": -123.346697,
       "y": 187.064843,
       "z": 62.252767
@@ -24312,7 +24319,7 @@
       "full_designation": "Omega Serpentis",
       "spectral": "G",
       "magnitude": 5.21,
-      "distance_ly": 273.39,
+      "distance_ly": 248.92,
       "x": -44.914398,
       "y": 70.700408,
       "z": 3.212649
@@ -24370,7 +24377,7 @@
       "full_designation": "36 Serpentis",
       "spectral": "A",
       "magnitude": 5.09,
-      "distance_ly": 162.27,
+      "distance_ly": 188.14,
       "x": -26.461653,
       "y": 42.044753,
       "z": -2.682242
@@ -24484,7 +24491,7 @@
       "full_designation": "47 Librae",
       "spectral": "B",
       "magnitude": 5.95,
-      "distance_ly": 771.05,
+      "distance_ly": 850.16,
       "x": -115.685228,
       "y": 190.654729,
       "z": -78.458609
@@ -24576,7 +24583,7 @@
       "full_designation": "Rho Scorpii",
       "spectral": "B",
       "magnitude": 3.87,
-      "distance_ly": 472.01,
+      "distance_ly": 445.46,
       "x": -64.636099,
       "y": 108.519131,
       "z": -70.633018
@@ -24691,7 +24698,7 @@
       "full_designation": "50 Librae",
       "spectral": "A",
       "magnitude": 5.53,
-      "distance_ly": 489.72,
+      "distance_ly": 463.88,
       "x": -73.821432,
       "y": 128.891501,
       "z": -21.963804
@@ -24833,7 +24840,7 @@
       "full_designation": "Delta Normae",
       "spectral": "A",
       "magnitude": 4.73,
-      "distance_ly": 122.34,
+      "distance_ly": 105.0,
       "x": -12.567618,
       "y": 23.26531,
       "z": -26.603102
@@ -24903,7 +24910,7 @@
       "full_designation": "Kappa Herculis",
       "spectral": "G",
       "magnitude": 5.0,
-      "distance_ly": 367.71,
+      "distance_ly": 393.85,
       "x": -50.571259,
       "y": 95.186266,
       "z": 33.050231
@@ -24916,7 +24923,7 @@
       "full_designation": "Kappa Herculis",
       "spectral": "K",
       "magnitude": 6.25,
-      "distance_ly": 2104.23,
+      "distance_ly": 415.61,
       "x": -289.369888,
       "y": 544.699215,
       "z": 189.212514
@@ -24995,7 +25002,7 @@
       "full_designation": "Coronae Borealis",
       "spectral": "K",
       "magnitude": 6.57,
-      "distance_ly": 408.72,
+      "distance_ly": 441.54,
       "x": -51.645678,
       "y": 99.279411,
       "z": 56.389141
@@ -25053,7 +25060,7 @@
       "full_designation": "Psi Scorpii",
       "spectral": "A",
       "magnitude": 4.93,
-      "distance_ly": 155.61,
+      "distance_ly": 144.08,
       "x": -21.326559,
       "y": 41.855643,
       "z": -8.337413
@@ -25108,7 +25115,7 @@
       "full_designation": "9 Herculis",
       "spectral": "K",
       "magnitude": 5.46,
-      "distance_ly": 397.27,
+      "distance_ly": 465.35,
       "x": -54.491207,
       "y": 108.411052,
       "z": 10.660459
@@ -25155,7 +25162,7 @@
       "full_designation": "Delta Ophiuchi",
       "spectral": "M",
       "magnitude": 2.73,
-      "distance_ly": 171.12,
+      "distance_ly": 159.79,
       "x": -23.290749,
       "y": 46.890988,
       "z": -3.380547
@@ -25178,7 +25185,7 @@
       "full_designation": "12 Herculis",
       "spectral": "K",
       "magnitude": 6.59,
-      "distance_ly": 765.62,
+      "distance_ly": 678.86,
       "x": -103.117846,
       "y": 208.423322,
       "z": 32.094487
@@ -25360,7 +25367,7 @@
       "full_designation": "Gam-2 Normae",
       "spectral": "G",
       "magnitude": 4.01,
-      "distance_ly": 128.76,
+      "distance_ly": 138.38,
       "x": -10.705758,
       "y": 22.916885,
       "z": -30.311157
@@ -25630,7 +25637,7 @@
       "full_designation": "Ophiuchi",
       "spectral": "K",
       "magnitude": 6.89,
-      "distance_ly": 192.54,
+      "distance_ly": 229.59,
       "x": -22.329431,
       "y": 52.905718,
       "z": -13.680158
@@ -25641,7 +25648,7 @@
       "full_designation": "30 Herculis",
       "spectral": "M",
       "magnitude": 4.83,
-      "distance_ly": 354.13,
+      "distance_ly": 384.32,
       "x": -31.377501,
       "y": 74.500728,
       "z": 72.485826
@@ -25689,7 +25696,7 @@
       "full_designation": "Beta Herculis",
       "spectral": "G",
       "magnitude": 2.78,
-      "distance_ly": 139.14,
+      "distance_ly": 148.24,
       "x": -15.155861,
       "y": 36.689058,
       "z": 15.62843
@@ -25781,7 +25788,7 @@
       "full_designation": "Ophiuchi",
       "spectral": "G",
       "magnitude": 7.89,
-      "distance_ly": 202.33,
+      "distance_ly": 239.33,
       "x": -23.009677,
       "y": 57.565318,
       "z": 2.256769
@@ -25883,7 +25890,7 @@
       "full_designation": "33 Herculis",
       "spectral": "B",
       "magnitude": 7.29,
-      "distance_ly": 874.41,
+      "distance_ly": 964.36,
       "x": -94.405649,
       "y": 248.722784,
       "z": 33.170525
@@ -26052,7 +26059,7 @@
       "full_designation": "15 Ophiuchi",
       "spectral": "F",
       "magnitude": 6.98,
-      "distance_ly": 301.44,
+      "distance_ly": 392.83,
       "x": -27.258022,
       "y": 80.46612,
       "z": -36.384879
@@ -26108,7 +26115,7 @@
       "full_designation": "19 Ophiuchi",
       "spectral": "A",
       "magnitude": 6.07,
-      "distance_ly": 541.79,
+      "distance_ly": 685.82,
       "x": -51.874961,
       "y": 157.691752,
       "z": 5.984217
@@ -26175,7 +26182,7 @@
       "full_designation": "20 Ophiuchi",
       "spectral": "F",
       "magnitude": 4.64,
-      "distance_ly": 104.3,
+      "distance_ly": 152.09,
       "x": -9.468343,
       "y": 29.953991,
       "z": -5.983039
@@ -26244,7 +26251,7 @@
       "full_designation": "Mu-1 Scorpii",
       "spectral": "B",
       "magnitude": 3.0,
-      "distance_ly": 501.01,
+      "distance_ly": 1741.17,
       "x": -35.43289,
       "y": 115.66204,
       "z": -94.671563
@@ -26267,7 +26274,7 @@
       "full_designation": "Mu-2 Scorpii",
       "spectral": "B",
       "magnitude": 3.56,
-      "distance_ly": 474.06,
+      "distance_ly": 575.92,
       "x": -33.31875,
       "y": 109.554458,
       "z": -89.520712
@@ -26323,7 +26330,7 @@
       "full_designation": "23 Ophiuchi",
       "spectral": "K",
       "magnitude": 5.23,
-      "distance_ly": 240.71,
+      "distance_ly": 253.95,
       "x": -20.657012,
       "y": 70.407508,
       "z": -7.911482
@@ -26434,7 +26441,7 @@
       "full_designation": "Zeta Arae",
       "spectral": "K",
       "magnitude": 3.12,
-      "distance_ly": 486.07,
+      "distance_ly": 565.02,
       "x": -22.05913,
       "y": 80.386753,
       "z": -123.53816
@@ -26616,7 +26623,7 @@
       "full_designation": "Zeta Draconis",
       "spectral": "B",
       "magnitude": 3.17,
-      "distance_ly": 328.46,
+      "distance_ly": 416.68,
       "x": -9.178442,
       "y": 40.388128,
       "z": 91.793254
@@ -26746,7 +26753,7 @@
       "full_designation": "68 Herculis",
       "spectral": "B",
       "magnitude": 4.8,
-      "distance_ly": 665.62,
+      "distance_ly": 949.34,
       "x": -31.649594,
       "y": 168.007506,
       "z": 111.449558
@@ -27032,7 +27039,7 @@
       "full_designation": "Lambda Herculis",
       "spectral": "K",
       "magnitude": 4.41,
-      "distance_ly": 369.37,
+      "distance_ly": 393.23,
       "x": -12.948576,
       "y": 100.86468,
       "z": 49.842035
@@ -27078,7 +27085,7 @@
       "full_designation": "Delta Arae",
       "spectral": "B",
       "magnitude": 3.6,
-      "distance_ly": 197.91,
+      "distance_ly": 225.42,
       "x": -3.736759,
       "y": 29.474564,
       "z": -52.908519
@@ -27147,7 +27154,7 @@
       "full_designation": "Delta Ursae Minoris",
       "spectral": "A",
       "magnitude": 4.35,
-      "distance_ly": 172.11,
+      "distance_ly": 182.41,
       "x": -0.379972,
       "y": 3.119005,
       "z": 52.676703
@@ -27357,7 +27364,7 @@
       "full_designation": "Iota Herculis",
       "spectral": "B",
       "magnitude": 3.82,
-      "distance_ly": 454.89,
+      "distance_ly": 500.57,
       "x": -8.66837,
       "y": 96.48418,
       "z": 100.3369
@@ -27474,7 +27481,7 @@
       "full_designation": "Draconis",
       "spectral": "A",
       "magnitude": 5.75,
-      "distance_ly": 532.93,
+      "distance_ly": 464.16,
       "x": -6.737285,
       "y": 96.264768,
       "z": 131.85914
@@ -27531,7 +27538,7 @@
       "full_designation": "3 Sagittarii",
       "spectral": "F",
       "magnitude": 4.53,
-      "distance_ly": 985.37,
+      "distance_ly": 1162.48,
       "x": -14.494275,
       "y": 266.775691,
       "z": -141.045839
@@ -27555,7 +27562,7 @@
       "full_designation": "Gamma Ophiuchi",
       "spectral": "A",
       "magnitude": 3.75,
-      "distance_ly": 102.79,
+      "distance_ly": 97.02,
       "x": -1.662293,
       "y": 31.436744,
       "z": 1.488597
@@ -27610,7 +27617,7 @@
       "full_designation": "88 Herculis",
       "spectral": "B",
       "magnitude": 6.78,
-      "distance_ly": 950.89,
+      "distance_ly": 1034.63,
       "x": -8.397238,
       "y": 193.404472,
       "z": 217.997104
@@ -27751,7 +27758,7 @@
       "full_designation": "93 Herculis",
       "spectral": "K",
       "magnitude": 4.67,
-      "distance_ly": 671.1,
+      "distance_ly": 757.74,
       "x": 0.048945,
       "y": 197.029965,
       "z": 59.302737
@@ -27807,7 +27814,7 @@
       "full_designation": "67 Ophiuchi",
       "spectral": "B",
       "magnitude": 3.93,
-      "distance_ly": 1230.78,
+      "distance_ly": 2375.33,
       "x": 1.061054,
       "y": 376.863133,
       "z": 19.299314
@@ -27943,7 +27950,7 @@
       "full_designation": "Theta Arae",
       "spectral": "B",
       "magnitude": 3.65,
-      "distance_ly": 813.36,
+      "distance_ly": 1106.74,
       "x": 4.628533,
       "y": 159.924037,
       "z": -191.28926
@@ -27999,7 +28006,7 @@
       "full_designation": "100 Herculis",
       "spectral": "A",
       "magnitude": 5.79,
-      "distance_ly": 125.83,
+      "distance_ly": 208.29,
       "x": 1.18272,
       "y": 34.62655,
       "z": 16.97127
@@ -28033,7 +28040,7 @@
       "full_designation": "102 Herculis",
       "spectral": "B",
       "magnitude": 4.37,
-      "distance_ly": 916.17,
+      "distance_ly": 1163.35,
       "x": 10.031459,
       "y": 262.374329,
       "z": 99.815819
@@ -28176,7 +28183,7 @@
       "full_designation": "Eta Sagittarii",
       "spectral": "M",
       "magnitude": 3.1,
-      "distance_ly": 145.93,
+      "distance_ly": 136.55,
       "x": 2.754228,
       "y": 35.738834,
       "z": -26.777975
@@ -28233,7 +28240,7 @@
       "full_designation": "74 Ophiuchi",
       "spectral": "G",
       "magnitude": 4.85,
-      "distance_ly": 260.51,
+      "distance_ly": 242.64,
       "x": 7.249918,
       "y": 79.403247,
       "z": 4.705156
@@ -28257,7 +28264,7 @@
       "full_designation": "Delta Sagittarii",
       "spectral": "K",
       "magnitude": 2.72,
-      "distance_ly": 347.71,
+      "distance_ly": 415.65,
       "x": 8.460232,
       "y": 92.098382,
       "z": -53.027575
@@ -28314,7 +28321,7 @@
       "full_designation": "Xi Pavonis",
       "spectral": "M",
       "magnitude": 4.35,
-      "distance_ly": 468.62,
+      "distance_ly": 740.57,
       "x": 6.937554,
       "y": 68.218953,
       "z": -126.259656
@@ -28395,7 +28402,7 @@
       "full_designation": "18 Sagittarii",
       "spectral": "K",
       "magnitude": 5.58,
-      "distance_ly": 639.52,
+      "distance_ly": 569.21,
       "x": 18.36137,
       "y": 167.495985,
       "z": -100.272765
@@ -28418,7 +28425,7 @@
       "full_designation": "42 Draconis",
       "spectral": "K",
       "magnitude": 4.82,
-      "distance_ly": 314.82,
+      "distance_ly": 295.0,
       "x": 4.51784,
       "y": 39.674686,
       "z": 87.878659
@@ -28530,7 +28537,7 @@
       "full_designation": "61 Serpentis",
       "spectral": "A",
       "magnitude": 5.93,
-      "distance_ly": 614.23,
+      "distance_ly": 658.93,
       "x": 26.164815,
       "y": 186.468056,
       "z": -3.296486
@@ -28585,7 +28592,7 @@
       "full_designation": "Theta Coronae Australis",
       "spectral": "G",
       "magnitude": 4.62,
-      "distance_ly": 557.53,
+      "distance_ly": 528.85,
       "x": 18.41312,
       "y": 125.059291,
       "z": -115.072484
@@ -28654,7 +28661,7 @@
       "full_designation": "46 Draconis",
       "spectral": "B",
       "magnitude": 5.03,
-      "distance_ly": 340.46,
+      "distance_ly": 361.74,
       "x": 10.923881,
       "y": 58.045429,
       "z": 86.066145
@@ -28687,7 +28694,7 @@
       "full_designation": "Lyrae",
       "spectral": "G",
       "magnitude": 6.04,
-      "distance_ly": 454.89,
+      "distance_ly": 432.78,
       "x": 21.185517,
       "y": 110.010103,
       "z": 83.070331
@@ -28838,10 +28845,11 @@
       "full_designation": "Beta Scuti",
       "spectral": "G",
       "magnitude": 4.22,
-      "distance_ly": 916.17,
+      "distance_ly": 671.81,
       "x": 57.215132,
       "y": 274.025425,
-      "z": -23.250298
+      "z": -23.250298,
+      "flamsteed": 6
     },
     "92226": {
       "bayer": "Mu",
@@ -28893,7 +28901,7 @@
       "full_designation": "29 Sagittarii",
       "spectral": "K",
       "magnitude": 5.22,
-      "distance_ly": 934.54,
+      "distance_ly": 523.29,
       "x": 57.776277,
       "y": 262.407938,
       "z": -99.524093
@@ -28930,7 +28938,7 @@
       "full_designation": "Beta Lyrae",
       "spectral": "A",
       "magnitude": 3.52,
-      "distance_ly": 962.11,
+      "distance_ly": 906.44,
       "x": 53.40884,
       "y": 240.514817,
       "z": 162.223134
@@ -29055,7 +29063,7 @@
       "full_designation": "Nu-1 Sagittarii",
       "spectral": "K",
       "magnitude": 4.86,
-      "distance_ly": 1124.68,
+      "distance_ly": 1773.84,
       "x": 74.467326,
       "y": 309.170538,
       "z": -133.319898
@@ -29091,7 +29099,7 @@
       "full_designation": "113 Herculis",
       "spectral": "G",
       "magnitude": 4.57,
-      "distance_ly": 472.01,
+      "distance_ly": 431.99,
       "x": 31.602936,
       "y": 129.768194,
       "z": 55.719384
@@ -29163,7 +29171,7 @@
       "full_designation": "The-1 Serpentis",
       "spectral": "A",
       "magnitude": 4.62,
-      "distance_ly": 154.65,
+      "distance_ly": 134.39,
       "x": 11.483943,
       "y": 45.872196,
       "z": 3.475585
@@ -29176,7 +29184,7 @@
       "full_designation": "The-2 Serpentis",
       "spectral": "A",
       "magnitude": 4.98,
-      "distance_ly": 169.43,
+      "distance_ly": 132.96,
       "x": 12.587009,
       "y": 50.255684,
       "z": 3.806479
@@ -29198,7 +29206,7 @@
       "full_designation": "Kappa Pavonis",
       "spectral": "F",
       "magnitude": 4.4,
-      "distance_ly": 500.24,
+      "distance_ly": 621.83,
       "x": 14.597349,
       "y": 57.529297,
       "z": -141.425058
@@ -29255,7 +29263,7 @@
       "full_designation": "Lambda Telescopii",
       "spectral": "A",
       "magnitude": 4.85,
-      "distance_ly": 611.93,
+      "distance_ly": 493.3,
       "x": 28.531786,
       "y": 109.412352,
       "z": -149.716796
@@ -29301,7 +29309,7 @@
       "full_designation": "Gamma Lyrae",
       "spectral": "B",
       "magnitude": 3.25,
-      "distance_ly": 620.07,
+      "distance_ly": 656.83,
       "x": 40.69872,
       "y": 154.738921,
       "z": 102.67804
@@ -29325,7 +29333,7 @@
       "full_designation": "Epsilon Aquilae",
       "spectral": "K",
       "magnitude": 4.02,
-      "distance_ly": 154.94,
+      "distance_ly": 179.38,
       "x": 11.79959,
       "y": 44.328509,
       "z": 12.35001
@@ -29394,7 +29402,7 @@
       "full_designation": "14 Aquilae",
       "spectral": "A",
       "magnitude": 5.4,
-      "distance_ly": 499.47,
+      "distance_ly": 593.74,
       "x": 41.422687,
       "y": 147.099019,
       "z": -9.879713
@@ -29521,7 +29529,7 @@
       "full_designation": "Iota Lyrae",
       "spectral": "B",
       "magnitude": 5.25,
-      "distance_ly": 896.03,
+      "distance_ly": 961.2,
       "x": 64.25245,
       "y": 212.472082,
       "z": 161.86766
@@ -29588,7 +29596,7 @@
       "full_designation": "55 Draconis",
       "spectral": "A",
       "magnitude": 6.26,
-      "distance_ly": 304.82,
+      "distance_ly": 337.16,
       "x": 11.402802,
       "y": 36.295653,
       "z": 85.363598
@@ -29682,7 +29690,7 @@
       "full_designation": "Eta Lyrae",
       "spectral": "B",
       "magnitude": 4.43,
-      "distance_ly": 1387.9,
+      "distance_ly": 1120.54,
       "x": 104.385585,
       "y": 313.073293,
       "z": 268.637487
@@ -29921,7 +29929,7 @@
       "full_designation": "Sagittarii",
       "spectral": "K",
       "magnitude": 7.55,
-      "distance_ly": 360.79,
+      "distance_ly": 393.09,
       "x": 35.109071,
       "y": 95.077194,
       "z": -44.321033
@@ -29969,7 +29977,7 @@
       "full_designation": "Bet-1 Sagittarii",
       "spectral": "B",
       "magnitude": 3.96,
-      "distance_ly": 313.61,
+      "distance_ly": 389.29,
       "x": 24.213622,
       "y": 64.216561,
       "z": -67.345884
@@ -30037,7 +30045,7 @@
       "full_designation": "2 Cygni",
       "spectral": "B",
       "magnitude": 4.99,
-      "distance_ly": 842.78,
+      "distance_ly": 900.01,
       "x": 80.615025,
       "y": 209.663862,
       "z": 127.717111
@@ -30094,7 +30102,7 @@
       "full_designation": "Chi-2 Sagittarii",
       "spectral": "B",
       "magnitude": 7.27,
-      "distance_ly": 1772.59,
+      "distance_ly": 1495.79,
       "x": 180.115908,
       "y": 460.948743,
       "z": -224.617849
@@ -30280,7 +30288,7 @@
       "full_designation": "Bet-1 Cygni",
       "spectral": "K",
       "magnitude": 3.05,
-      "distance_ly": 434.3,
+      "distance_ly": 363.14,
       "x": 45.350466,
       "y": 108.51838,
       "z": 62.430012
@@ -30430,7 +30438,7 @@
       "full_designation": "Iota Aquilae",
       "spectral": "B",
       "magnitude": 4.36,
-      "distance_ly": 391.07,
+      "distance_ly": 575.51,
       "x": 49.101431,
       "y": 109.356067,
       "z": -2.692266
@@ -30616,7 +30624,7 @@
       "full_designation": "10 Vulpeculae",
       "spectral": "G",
       "magnitude": 5.5,
-      "distance_ly": 331.8,
+      "distance_ly": 360.31,
       "x": 40.057125,
       "y": 82.388773,
       "z": 44.230886
@@ -30652,7 +30660,7 @@
       "full_designation": "Delta Cygni",
       "spectral": "B",
       "magnitude": 2.86,
-      "distance_ly": 164.98,
+      "distance_ly": 154.23,
       "x": 15.779435,
       "y": 32.006459,
       "z": 35.8481
@@ -30677,7 +30685,7 @@
       "full_designation": "Gamma Aquilae",
       "spectral": "K",
       "magnitude": 2.72,
-      "distance_ly": 394.86,
+      "distance_ly": 583.47,
       "x": 53.215608,
       "y": 106.431852,
       "z": 22.297682
@@ -30952,7 +30960,7 @@
       "full_designation": "Iota Sagittarii",
       "spectral": "K",
       "magnitude": 4.12,
-      "distance_ly": 181.8,
+      "distance_ly": 201.24,
       "x": 20.00728,
       "y": 36.369941,
       "z": -37.203168
@@ -30990,7 +30998,7 @@
       "full_designation": "Omega Sagittarii",
       "spectral": "G",
       "magnitude": 4.7,
-      "distance_ly": 84.76,
+      "distance_ly": 76.35,
       "x": 11.280499,
       "y": 20.384256,
       "z": -11.514028
@@ -31093,7 +31101,7 @@
       "full_designation": "14 Vulpeculae",
       "spectral": "F",
       "magnitude": 5.68,
-      "distance_ly": 160.19,
+      "distance_ly": 173.72,
       "x": 22.447682,
       "y": 39.205529,
       "z": 19.270867
@@ -31148,7 +31156,7 @@
       "full_designation": "13 Sagittae",
       "spectral": "M",
       "magnitude": 5.33,
-      "distance_ly": 1019.24,
+      "distance_ly": 952.59,
       "x": 149.066742,
       "y": 258.047777,
       "z": 94.056399
@@ -31203,7 +31211,7 @@
       "full_designation": "64 Draconis",
       "spectral": "M",
       "magnitude": 5.22,
-      "distance_ly": 587.67,
+      "distance_ly": 645.84,
       "x": 38.755273,
       "y": 66.138887,
       "z": 163.059717
@@ -31294,7 +31302,7 @@
       "full_designation": "Tau Aquilae",
       "spectral": "K",
       "magnitude": 5.51,
-      "distance_ly": 461.98,
+      "distance_ly": 534.93,
       "x": 72.436519,
       "y": 120.389654,
       "z": 17.943762
@@ -31440,7 +31448,7 @@
       "full_designation": "18 Vulpeculae",
       "spectral": "A",
       "magnitude": 5.51,
-      "distance_ly": 423.58,
+      "distance_ly": 466.7,
       "x": 62.464561,
       "y": 97.524032,
       "z": 58.766119
@@ -31453,7 +31461,7 @@
       "full_designation": "Theta Aquilae",
       "spectral": "B",
       "magnitude": 3.24,
-      "distance_ly": 286.35,
+      "distance_ly": 228.58,
       "x": 47.588681,
       "y": 73.769106,
       "z": -1.258706
@@ -31573,13 +31581,14 @@
     "99738": {
       "flamsteed": 21,
       "constellation": "Vulpecula",
-      "full_designation": "21 Vulpeculae",
+      "full_designation": "Nu Vulpeculae",
       "spectral": "A",
       "magnitude": 5.19,
       "distance_ly": 297.32,
       "x": 44.204767,
       "y": 66.633044,
-      "z": 43.768867
+      "z": 43.768867,
+      "bayer": "Nu"
     },
     "99742": {
       "bayer": "Rho",
@@ -31643,7 +31652,7 @@
       "full_designation": "Aquilae",
       "spectral": "G",
       "magnitude": 6.44,
-      "distance_ly": 214.01,
+      "distance_ly": 237.61,
       "x": 36.598915,
       "y": 54.209052,
       "z": 5.240473
@@ -31699,7 +31708,7 @@
       "full_designation": "4 Capricorni",
       "spectral": "G",
       "magnitude": 5.86,
-      "distance_ly": 316.35,
+      "distance_ly": 355.08,
       "x": 51.012649,
       "y": 74.207708,
       "z": -36.03575
@@ -31770,7 +31779,7 @@
       "full_designation": "Nu Capricorni",
       "spectral": "B",
       "magnitude": 4.77,
-      "distance_ly": 253.23,
+      "distance_ly": 267.92,
       "x": 43.612148,
       "y": 61.902343,
       "z": -17.146901
@@ -31783,7 +31792,7 @@
       "full_designation": "Beta Capricorni",
       "spectral": "A",
       "magnitude": 3.05,
-      "distance_ly": 326.81,
+      "distance_ly": 388.44,
       "x": 55.920163,
       "y": 79.116953,
       "z": -25.564218
@@ -31794,7 +31803,7 @@
       "full_designation": "25 Vulpeculae",
       "spectral": "B",
       "magnitude": 5.5,
-      "distance_ly": 997.42,
+      "distance_ly": 1255.8,
       "x": 161.721161,
       "y": 226.6051,
       "z": 126.555616
@@ -32047,7 +32056,7 @@
       "full_designation": "Epsilon Delphini",
       "spectral": "B",
       "magnitude": 4.03,
-      "distance_ly": 330.45,
+      "distance_ly": 365.85,
       "x": 61.580495,
       "y": 77.965441,
       "z": 19.858319
@@ -32228,7 +32237,7 @@
       "full_designation": "29 Vulpeculae",
       "spectral": "A",
       "magnitude": 4.81,
-      "distance_ly": 232.8,
+      "distance_ly": 178.77,
       "x": 42.445603,
       "y": 51.252204,
       "z": 25.813199
@@ -32286,7 +32295,7 @@
       "full_designation": "1 Aquarii",
       "spectral": "K",
       "magnitude": 5.15,
-      "distance_ly": 233.14,
+      "distance_ly": 263.34,
       "x": 45.804352,
       "y": 54.871407,
       "z": 0.606856
@@ -32299,7 +32308,7 @@
       "full_designation": "Alpha Delphini",
       "spectral": "B",
       "magnitude": 3.77,
-      "distance_ly": 253.82,
+      "distance_ly": 237.55,
       "x": 48.015095,
       "y": 57.406003,
       "z": 21.335542
@@ -32368,7 +32377,7 @@
       "full_designation": "Mu-2 Octantis",
       "spectral": "G",
       "magnitude": 6.51,
-      "distance_ly": 144.38,
+      "distance_ly": 130.29,
       "x": 7.26085,
       "y": 8.521306,
       "z": -42.828259
@@ -32551,7 +32560,7 @@
       "full_designation": "Gam-2 Delphini",
       "spectral": "K",
       "magnitude": 4.27,
-      "distance_ly": 126.32,
+      "distance_ly": 115.92,
       "x": 24.733436,
       "y": 27.794763,
       "z": 10.756074
@@ -32576,7 +32585,7 @@
       "full_designation": "Epsilon Aquarii",
       "spectral": "A",
       "magnitude": 3.78,
-      "distance_ly": 207.74,
+      "distance_ly": 244.09,
       "x": 41.969653,
       "y": 46.744809,
       "z": -10.507937
@@ -32620,7 +32629,7 @@
       "full_designation": "55 Cygni",
       "spectral": "B",
       "magnitude": 4.81,
-      "distance_ly": 2329.69,
+      "distance_ly": 6001.03,
       "x": 332.83026,
       "y": 366.616188,
       "z": 514.801477
@@ -32842,7 +32851,7 @@
       "full_designation": "7 Aquarii",
       "spectral": "K",
       "magnitude": 5.49,
-      "distance_ly": 546.32,
+      "distance_ly": 648.22,
       "x": 115.161076,
       "y": 118.318921,
       "z": -28.215553
@@ -32911,7 +32920,7 @@
       "full_designation": "59 Cygni",
       "spectral": "B",
       "magnitude": 4.74,
-      "distance_ly": 1418.07,
+      "distance_ly": 2221.62,
       "x": 207.46128,
       "y": 207.776645,
       "z": 320.662751
@@ -32966,7 +32975,7 @@
       "full_designation": "9 Aquarii",
       "spectral": "G",
       "magnitude": 6.55,
-      "distance_ly": 695.43,
+      "distance_ly": 582.41,
       "x": 147.311577,
       "y": 145.854726,
       "z": -49.883695
@@ -33954,7 +33963,7 @@
       "full_designation": "Gamma Capricorni",
       "spectral": "A",
       "magnitude": 3.69,
-      "distance_ly": 157.03,
+      "distance_ly": 170.73,
       "x": 37.793496,
       "y": 26.44095,
       "z": -13.804954
@@ -34033,7 +34042,7 @@
       "full_designation": "Pi-1 Cygni",
       "spectral": "B",
       "magnitude": 4.69,
-      "distance_ly": 1725.69,
+      "distance_ly": 1435.17,
       "x": 273.366682,
       "y": 187.713963,
       "z": 412.287993
@@ -34376,7 +34385,7 @@
       "full_designation": "Gamma Gruis",
       "spectral": "B",
       "magnitude": 3.0,
-      "distance_ly": 211.1,
+      "distance_ly": 183.15,
       "x": 43.853581,
       "y": 26.892269,
       "z": -39.28078
@@ -34691,7 +34700,7 @@
       "full_designation": "Alpha Aquarii",
       "spectral": "G",
       "magnitude": 2.95,
-      "distance_ly": 523.52,
+      "distance_ly": 659.55,
       "x": 140.987693,
       "y": 76.722268,
       "z": -0.896054
@@ -35070,7 +35079,7 @@
       "full_designation": "Alpha Tucanae",
       "spectral": "K",
       "magnitude": 2.87,
-      "distance_ly": 199.73,
+      "distance_ly": 183.93,
       "x": 27.447381,
       "y": 13.018072,
       "z": -53.171301
@@ -35172,7 +35181,7 @@
       "full_designation": "Gamma Aquarii",
       "spectral": "A",
       "magnitude": 3.86,
-      "distance_ly": 163.73,
+      "distance_ly": 126.15,
       "x": 45.635919,
       "y": 20.880207,
       "z": -1.215412
@@ -35339,7 +35348,7 @@
       "full_designation": "Aquarii",
       "spectral": "G",
       "magnitude": 7.6,
-      "distance_ly": 427.47,
+      "distance_ly": 363.82,
       "x": 115.004344,
       "y": 49.379339,
       "z": -38.895048
@@ -35841,7 +35850,7 @@
       "full_designation": "Eta Pegasi",
       "spectral": "G",
       "magnitude": 2.93,
-      "distance_ly": 214.29,
+      "distance_ly": 196.12,
       "x": 53.59916,
       "y": 18.717064,
       "z": 33.070991
@@ -36046,7 +36055,7 @@
       "full_designation": "Mu Pegasi",
       "spectral": "M",
       "magnitude": 3.51,
-      "distance_ly": 106.1,
+      "distance_ly": 112.72,
       "x": 28.209183,
       "y": 8.893887,
       "z": 13.542862
@@ -36195,7 +36204,7 @@
       "full_designation": "Delta Aquarii",
       "spectral": "A",
       "magnitude": 3.27,
-      "distance_ly": 160.59,
+      "distance_ly": 140.92,
       "x": 45.459019,
       "y": 13.325406,
       "z": -13.423467
@@ -36274,7 +36283,7 @@
       "full_designation": "Lacertae",
       "spectral": "K",
       "magnitude": 4.99,
-      "distance_ly": 1598.8,
+      "distance_ly": 2326.69,
       "x": 304.725766,
       "y": 86.755537,
       "z": 374.042528
@@ -36378,7 +36387,7 @@
       "full_designation": "Omicron Andromedae",
       "spectral": "B",
       "magnitude": 3.62,
-      "distance_ly": 686.64,
+      "distance_ly": 350.51,
       "x": 150.676276,
       "y": 39.022904,
       "z": 141.757338
@@ -36650,7 +36659,7 @@
       "full_designation": "88 Aquarii",
       "spectral": "K",
       "magnitude": 3.68,
-      "distance_ly": 270.67,
+      "distance_ly": 257.4,
       "x": 75.510914,
       "y": 16.931759,
       "z": -29.973162
