@@ -1,6 +1,7 @@
 using CinematicShaders.Native;
 using CinematicShaders.Native.Structs;
 using CinematicShaders.Shaders.Starfield;
+using CinematicShaders.UI;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -39,18 +40,10 @@ namespace CinematicShaders.Core
         private const int ICON_COUNT = 7;
 
         /// <summary>
-        /// Navball icon colors (RGB) - Custom palette
+        /// Navball icon colors (RGB) - palette lives in CinematicShadersUIResources.Colors.NavballIconColors
+        /// (indices match the native struct order: 0 Prograde ... 6 Maneuver)
         /// </summary>
-        public static readonly Color[] IconColors = new Color[ICON_COUNT]
-        {
-            new Color(184f/255f, 220f/255f, 141f/255f),  // 0: Prograde - Sage green (greener)
-            new Color(184f/255f, 220f/255f, 141f/255f),  // 1: Retrograde - Sage green (greener)
-            new Color(182f/255f, 123f/255f, 182f/255f),  // 2: Normal - Purple
-            new Color(182f/255f, 123f/255f, 182f/255f),  // 3: AntiNormal - Purple
-            new Color(120f/255f, 210f/255f, 210f/255f),  // 4: Radial In - Brighter cyan
-            new Color(120f/255f, 210f/255f, 210f/255f),  // 5: Radial Out - Brighter cyan
-            new Color(122f/255f, 134f/255f, 210f/255f)   // 6: Maneuver - Brighter blue
-        };
+        public static readonly Color[] IconColors = CinematicShadersUIResources.Colors.NavballIconColors;
 
         public static readonly string[] IconNames = new string[ICON_COUNT]
         {
@@ -84,37 +77,16 @@ namespace CinematicShaders.Core
         private Vector3d _lastRadialOut;
         private Vector3d? _lastManeuver;
 
-        // Texture loading - KSP (default) style
-        private static readonly string[] IconFileNamesKSP = {
-            "prograde_sdf.png",
-            "retrograde_sdf.png",
-            "normal_sdf.png",
-            "antinormal_sdf.png",
-            "radial_out_sdf.png",
-            "radial_in_sdf.png",
-            "maneuver_sdf.png"
-        };
-        
-        // Texture loading - Retro style
-        private static readonly string[] IconFileNamesRetro = {
-            "prograde_retro_sdf.png",
-            "retrograde_retro_sdf.png",
-            "normal_retro_sdf.png",
-            "antinormal_retro_sdf.png",
-            "radial_out_retro_sdf.png",
-            "radial_in_retro_sdf.png",
-            "maneuver_retro_sdf.png"
-        };
+        // Texture loading - filename arrays live in CinematicShadersUIResources.Textures
         
         private const int ICON_TEXTURE_SIZE = 128;
         private Texture2D[] _iconTextures;
         private bool _texturesLoaded = false;
         private bool _texturesUploaded = false;
+        private int _textureLoadRenderFrame = -1; // Render frame when textures were loaded (deterministic upload guard)
         private NavballIconStyle _currentIconStyle = NavballIconStyle.Retro;
 
-        // Pointing icon texture
-        private const string HEADING_ICON_FILE_KSP = "heading_sdf.png";
-        private const string HEADING_ICON_FILE_RETRO = "heading_retro_sdf.png";
+        // Pointing icon texture - filenames live in CinematicShadersUIResources.Textures
         private Texture2D _pointingIconTexture;
         private bool _pointingTextureLoaded = false;
         private bool _pointingTextureUploaded = false;
@@ -145,13 +117,13 @@ namespace CinematicShaders.Core
             try
             {
                 // Build path to GameData/CinematicShaders/PluginData/NavballIcons
-                string basePath = Path.Combine(KSPUtil.ApplicationRootPath, "GameData", "CinematicShaders", "PluginData", "NavballIcons");
+                string basePath = Path.Combine(KSPUtil.ApplicationRootPath, "GameData", "CinematicShaders", "PluginData", CinematicShadersUIResources.Textures.NavballIconsFolder);
 
                 ModFileLogger.Log($"[NavballLabelManager] Loading textures from: {basePath}, style: {style}");
 
                 // Select filename array based on style
-                string[] iconFileNames = (style == NavballIconStyle.Retro) ? IconFileNamesRetro : IconFileNamesKSP;
-                string headingFileName = (style == NavballIconStyle.Retro) ? HEADING_ICON_FILE_RETRO : HEADING_ICON_FILE_KSP;
+                string[] iconFileNames = (style == NavballIconStyle.Retro) ? CinematicShadersUIResources.Textures.NavballIconFileNamesRetro : CinematicShadersUIResources.Textures.NavballIconFileNamesKSP;
+                string headingFileName = (style == NavballIconStyle.Retro) ? CinematicShadersUIResources.Textures.NavballHeadingIconRetro : CinematicShadersUIResources.Textures.NavballHeadingIconKsp;
 
                 // Clean up old textures if reloading
                 if (_iconTextures != null)
@@ -209,7 +181,8 @@ namespace CinematicShaders.Core
                 _texturesLoaded = true;
                 _texturesUploaded = false; // Force re-upload
                 _pointingTextureUploaded = false;
-                ModFileLogger.Log($"[NavballLabelManager] Textures loaded for style: {style}");
+                _textureLoadRenderFrame = StarfieldNative.CR_GetStarfieldRenderFrameCount();
+                ModFileLogger.Log($"[NavballLabelManager] Textures loaded for style: {style}, renderFrame={_textureLoadRenderFrame}");
             }
             catch (Exception ex)
             {
@@ -342,7 +315,7 @@ namespace CinematicShaders.Core
             IntPtr textSystem = CinematicShadersAddon.SituationLabelSystem?.GetTextSystem() ?? IntPtr.Zero;
             if (textSystem == IntPtr.Zero) return;
 
-            uint white = 0xFFFFFFFF;
+            uint white = CinematicShadersUIResources.Colors.HudTextWhiteArgb;
             int glyphCount = StarfieldNative.CR_TextLayoutEx(
                 textSystem, text, MANEUVER_FONT_SIZE, white, 0f, 0f, 0f, 1.0f);  // 1.0f = 1:1 aspect ratio (normal)
 
@@ -388,7 +361,18 @@ namespace CinematicShaders.Core
             // Also check if native textures were invalidated and need re-upload
             if (_texturesLoaded && !_texturesUploaded)
             {
-                TryUploadTextures();
+                int currentRenderFrame = StarfieldNative.CR_GetStarfieldRenderFrameCount();
+                if (currentRenderFrame <= _textureLoadRenderFrame)
+                {
+                    // Our render callback hasn't fired since textures were loaded.
+                    // Unity may not have committed the texture data to GPU yet.
+                    // Defer upload until at least one render frame has passed.
+                    ModFileLogger.Log($"[NavballLabelManager] Deferring upload - waiting for render frame (loaded={_textureLoadRenderFrame}, current={currentRenderFrame})");
+                }
+                else
+                {
+                    TryUploadTextures();
+                }
             }
             else if (_texturesLoaded && _texturesUploaded && StarfieldNative.CR_NavballTexturesNeedReupload() != 0)
             {
@@ -428,21 +412,21 @@ namespace CinematicShaders.Core
             }
 
             // Calculate orbit vectors using KSP's built-in world-space properties
-            // (already in surface frame, matching the working approach in VesselTargetSelector)
+            // Matching KSP NavBall.cs DrawOrbitalCues() exactly for frame-correct results
             Vector3d vel = FlightGlobals.ActiveVessel.obt_velocity;
-
-            // Use fixed celestial up axis (transformed to surface frame) for consistent orbital plane reference
-            // This matches KSP's navball and NavHud behavior, preventing drift in eccentric orbits
-            Vector3d upAxisSurface = (Planetarium.Rotation * FlightGlobals.upAxis).normalized;
+            Vector3d wCoM = FlightGlobals.ActiveVessel.CurrentCoM;
+            Vector3d cbPos = FlightGlobals.ActiveVessel.mainBody.position;
+            Vector3d radialVec = (wCoM - cbPos).normalized;
 
             Vector3d prograde = vel.normalized;
             Vector3d retrograde = -prograde;
             // Radial out points away from body center (perpendicular to prograde in orbital plane)
             // ProjectOnPlane gives the body-up component perpendicular to velocity, matching KSP's NavBall.cs
-            Vector3d radialOut = (upAxisSurface - prograde * Vector3d.Dot(upAxisSurface, prograde)).normalized;
+            Vector3d radialOut = (radialVec - prograde * Vector3d.Dot(radialVec, prograde)).normalized;
             Vector3d radialIn = -radialOut;
             // Normal is perpendicular to velocity and radial (right-hand rule)
-            Vector3d normal = Vector3d.Cross(radialOut, prograde).normalized;
+            // Negated to match KSP NavBall.cs convention: normalVector = -Cross(radial, obtVel)
+            Vector3d normal = -Vector3d.Cross(radialOut, prograde).normalized;
             Vector3d antinormal = -normal;
 
             // Cache for debugging
@@ -488,7 +472,7 @@ namespace CinematicShaders.Core
                 {
                     pointingNDC = new Vector2((ptUV.x - 0.5f) * 2 * aspect, (ptUV.y - 0.5f) * 2);
                     Vector3 vesselUp = FlightGlobals.ActiveVessel.transform.forward;
-                    Vector3 worldUp = (Planetarium.Rotation * FlightGlobals.upAxis).normalized;
+                    Vector3 worldUp = FlightGlobals.upAxis;
                     Vector3 projectedWorldUp = Vector3.ProjectOnPlane(worldUp, vesselForward).normalized;
                     rollAngle = Vector3.SignedAngle(projectedWorldUp, vesselUp, vesselForward) * Mathf.Deg2Rad;
                     pointingIntensity = 1.0f;
@@ -844,7 +828,7 @@ namespace CinematicShaders.Core
             int hours = (int)(seconds / 3600);
             int minutes = (int)((seconds % 3600) / 60);
             int secs = (int)(seconds % 60);
-            string prefix = negative ? "T+ " : "T- ";
+            string prefix = negative ? CinematicShadersUIStrings.Kartographer.ManeuverTimePrefixPlus : CinematicShadersUIStrings.Kartographer.ManeuverTimePrefixMinus;
             if (hours > 0) return $"{prefix}{hours}:{minutes:D2}:{secs:D2}";
             else return $"{prefix}{minutes:D2}:{secs:D2}";
         }
@@ -854,24 +838,24 @@ namespace CinematicShaders.Core
         /// </summary>
         private string BuildDVBar(float remainingDV, float totalDV)
         {
-            if (totalDV <= 0.0001f) return "[          ]";
+            if (totalDV <= 0.0001f) return CinematicShadersUIStrings.Kartographer.ManeuverDvBarEmpty;
             float pct = Mathf.Clamp01(remainingDV / totalDV);
             float filled = pct * 10f;
             int fullBlocks = Mathf.FloorToInt(filled);
             float remainder = filled - fullBlocks;
             char currentBlock = ' ';
-            if (remainder >= 0.875f) currentBlock = '█';      // 87.5-99.9% → full block
-            else if (remainder >= 0.625f) currentBlock = '▓'; // 62.5-87.5% → three-quarters
-            else if (remainder >= 0.375f) currentBlock = '▒'; // 37.5-62.5% → half
-            else if (remainder >= 0.125f) currentBlock = '░'; // 12.5-37.5% → quarter
+            if (remainder >= 0.875f) currentBlock = CinematicShadersUIStrings.Kartographer.DvBarBlockFull;      // 87.5-99.9% → full block
+            else if (remainder >= 0.625f) currentBlock = CinematicShadersUIStrings.Kartographer.DvBarBlockThreeQuarter; // 62.5-87.5% → three-quarters
+            else if (remainder >= 0.375f) currentBlock = CinematicShadersUIStrings.Kartographer.DvBarBlockHalf; // 37.5-62.5% → half
+            else if (remainder >= 0.125f) currentBlock = CinematicShadersUIStrings.Kartographer.DvBarBlockQuarter; // 12.5-37.5% → quarter
             // else remains ' ' for 0-12.5%
             var sb = new System.Text.StringBuilder();
-            sb.Append('█', fullBlocks);
+            sb.Append(CinematicShadersUIStrings.Kartographer.DvBarBlockFull, fullBlocks);
             if (fullBlocks < 10)
                 sb.Append(currentBlock);
             int spaces = Mathf.Max(0, 10 - fullBlocks - 1);
             sb.Append(' ', spaces);
-            return $"[{sb}]";
+            return string.Format(CinematicShadersUIStrings.Kartographer.ManeuverDvBarFormat, sb);
         }
 
         /// <summary>
@@ -880,12 +864,12 @@ namespace CinematicShaders.Core
         private string FormatDV(double dv)
         {
             float fv = (float)dv;
-            if (fv >= 1e15f) return $"{fv/1e15f:F2} Tm/s";
-            if (fv >= 1e12f) return $"{fv/1e12f:F2} Gm/s";
-            if (fv >= 1e9f)  return $"{fv/1e9f:F2} Mm/s";
-            if (fv >= 1e6f)  return $"{fv/1e6f:F2} km/s";
-            if (fv >= 1000f) return $"{fv/1000f:F2} km/s";
-            return $"{fv:F1} m/s";
+            if (fv >= 1e15f) return $"{fv/1e15f:F2} {CinematicShadersUIStrings.Common.UnitTerametersPerSecond}";
+            if (fv >= 1e12f) return $"{fv/1e12f:F2} {CinematicShadersUIStrings.Common.UnitGigametersPerSecond}";
+            if (fv >= 1e9f)  return $"{fv/1e9f:F2} {CinematicShadersUIStrings.Common.UnitMegametersPerSecond}";
+            if (fv >= 1e6f)  return $"{fv/1e6f:F2} {CinematicShadersUIStrings.Common.UnitKilometersPerSecond}";
+            if (fv >= 1000f) return $"{fv/1000f:F2} {CinematicShadersUIStrings.Common.UnitKilometersPerSecond}";
+            return $"{fv:F1} {CinematicShadersUIStrings.Common.UnitMetersPerSecond}";
         }
 
         /// <summary>

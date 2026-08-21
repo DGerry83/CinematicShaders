@@ -601,22 +601,20 @@ namespace CinematicShaders.UI
             Rect pwrRect = new Rect(BORDER_THICKNESS, titleY, 80f, buttonHeight);
             GUIStyle pwrStyle = _displayPowered ? _pwrButtonActiveStyle : _pwrButtonStyle;
             
-            string pwrLabel = _displayPowered ? "[•] PWR" : "[ ] PWR";
+            string pwrLabel = _displayPowered ? CinematicShadersUIStrings.StarConsole.PowerOnLabel : CinematicShadersUIStrings.StarConsole.PowerOffLabel;
             if (GUI.Button(pwrRect, pwrLabel, pwrStyle))
             {
                 TogglePower();
             }
             
             // Title (center)
-            GUIStyle titleStyle = new GUIStyle(HighLogic.Skin.label);
-            titleStyle.alignment = TextAnchor.MiddleCenter;
-            titleStyle.fontStyle = FontStyle.Bold;
+            GUIStyle titleStyle = CinematicShadersUIResources.Styles.ConsoleTitle();
             Rect titleRect = new Rect(_windowRect.width * 0.25f, titleY, _windowRect.width * 0.5f, buttonHeight);
-            GUI.Label(titleRect, "STAR CONSOLE", titleStyle);
+            GUI.Label(titleRect, CinematicShadersUIStrings.StarConsole.StarConsoleTitle, titleStyle);
             
             // X Button (right side)
             Rect closeRect = new Rect(_windowRect.width - BORDER_THICKNESS - 30f, titleY, 30f, buttonHeight);
-            if (GUI.Button(closeRect, "X", _closeButtonStyle))
+            if (GUI.Button(closeRect, CinematicShadersUIStrings.Common.CloseButton, _closeButtonStyle))
             {
                 Hide();
             }
@@ -625,7 +623,7 @@ namespace CinematicShaders.UI
         private void DrawWindowBorder()
         {
             // Grey border color (standard KSP UI grey)
-            Color borderColor = new Color(0.7f, 0.7f, 0.7f, 1f);
+            Color borderColor = CinematicShadersUIResources.Colors.CONSOLE_BORDER_GREY;
             GUI.color = borderColor;
             
             // Top border (under title bar)
@@ -653,7 +651,7 @@ namespace CinematicShaders.UI
         {
 
             // Draw black background for CRT area (Layer 0)
-            GUI.color = Color.black;
+            GUI.color = CinematicShadersUIResources.Colors.CRT_BACKGROUND;
             Rect crtRect = new Rect(
                 BORDER_THICKNESS, 
                 TITLE_BAR_HEIGHT + BORDER_THICKNESS,
@@ -695,18 +693,12 @@ namespace CinematicShaders.UI
             if (_stylesInitialized) return;
             
             // Close button style
-            _closeButtonStyle = new GUIStyle(HighLogic.Skin.button);
-            _closeButtonStyle.fontSize = 12;
-            _closeButtonStyle.padding = new RectOffset(2, 2, 2, 2);
+            _closeButtonStyle = CinematicShadersUIResources.Styles.ConsoleCloseButton();
             
             // PWR button styles
-            _pwrButtonStyle = new GUIStyle(HighLogic.Skin.button);
-            _pwrButtonStyle.fontSize = 11;
-            _pwrButtonStyle.alignment = TextAnchor.MiddleLeft;
-            _pwrButtonStyle.padding = new RectOffset(4, 4, 2, 2);
+            _pwrButtonStyle = CinematicShadersUIResources.Styles.ConsolePwrButton();
             
-            _pwrButtonActiveStyle = new GUIStyle(_pwrButtonStyle);
-            _pwrButtonActiveStyle.normal.textColor = new Color(0.2f, 0.9f, 0.3f);  // Green when on
+            _pwrButtonActiveStyle = CinematicShadersUIResources.Styles.ConsolePwrButtonActive();
             
             _stylesInitialized = true;
         }
@@ -886,7 +878,7 @@ namespace CinematicShaders.UI
             var element = GetElement(_editingElementId);
             if (element != null)
             {
-                string displayText = _editBuffer + (_cursorVisible ? "▌" : "");
+                string displayText = _editBuffer + (_cursorVisible ? CinematicShadersUIStrings.StarConsole.EditCursorGlyph : "");
                 var mainScreen = _screenManager?.CurrentScreen as MainScreen;
                 var elementLayer = mainScreen?.GetElementLayer();
                 elementLayer?.UpdateElementText(_editingElementId, displayText);
@@ -1539,7 +1531,7 @@ namespace CinematicShaders.UI
             _searchPageIndex = 0;
             
             // Update search input display
-            SetElementText("search_input", string.IsNullOrEmpty(_searchQuery) ? "..." : _searchQuery);
+            SetElementText("search_input", string.IsNullOrEmpty(_searchQuery) ? CinematicShadersUIStrings.StarConsole.SearchPlaceholder : _searchQuery);
             
             // Filter results
             UpdateSearchResults();
@@ -1632,7 +1624,7 @@ namespace CinematicShaders.UI
                 return;
             }
             
-            string pageText = $"{_searchPageIndex + 1}/{totalPages}";
+            string pageText = string.Format(CinematicShadersUIStrings.StarConsole.PageNumberFormat, _searchPageIndex + 1, totalPages);
             // Pin slash at column 48; left number grows leftward, right number grows rightward
             int regionStartCol = 43;
             int slashIndex = pageText.IndexOf('/');
@@ -1661,10 +1653,10 @@ namespace CinematicShaders.UI
                     var star = _filteredResults[i];
                     
                     // Only flag for animation if the content actually changed
-                    bool textChanged = element.DynamicText != star.Name || element.StaticText != "•" || !element.IsVisible;
+                    bool textChanged = element.DynamicText != star.Name || element.StaticText != CinematicShadersUIStrings.StarConsole.ResultBullet || !element.IsVisible;
                     
                     element.IsVisible = true;
-                    element.StaticText = "•";
+                    element.StaticText = CinematicShadersUIStrings.StarConsole.ResultBullet;
                     element.DynamicText = star.Name;
                     element.AssociatedData = star;
                     element.IsDirty = true;

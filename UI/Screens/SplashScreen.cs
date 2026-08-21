@@ -56,22 +56,6 @@ namespace CinematicShaders.UI.Screens
         public event Action<string> OnSplashComplete;
         
         /// <summary>
-        /// ASCII art lines for the STAR console logo.
-        /// </summary>
-        private static readonly string[] SPLASH_LINES = new string[]
-        {
-            @" ________   _________    ________      ________",
-            @"|\   ____\ |\___   ___\ |\   __  \    |\   __  \",
-            @"\ \  \___|_\|___ \  \_| \ \  \|\  \   \ \  \|\  \",
-            @" \ \_____  \    \ \  \   \ \   __  \   \ \   _  _\",
-            @"  \|____|\  \  __\ \  \ __\ \  \ \  \ __\ \  \\  \|",
-            @"    ____\_\  \|\__\ \__\\__\ \__\ \__\\__\ \__\\ _\|\__\",
-            @"   |\_________\|__|\|__\|__|\|__|\|__\|__|\|__|\|__\|__|",
-            @"   \|_________|System for Tabulation of Astrometric Records",
-            @"                                                       v1.0"
-        };
-        
-        /// <summary>
         /// Initializes a new SplashScreen with the specified font styling.
         /// </summary>
         /// <param name="fontSize">Font size for text rendering</param>
@@ -83,7 +67,7 @@ namespace CinematicShaders.UI.Screens
             _aspectRatio = aspectRatio;
             
             // Only use Layer 2 for the logo
-            AddLayer(new ContentLayer(SPLASH_LINES));
+            AddLayer(new ContentLayer(CinematicShadersUIStrings.StarConsole.SplashLines));
         }
         
 

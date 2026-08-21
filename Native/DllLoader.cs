@@ -94,6 +94,18 @@ namespace CinematicShaders.Native
                         Debug.LogError("[DllLoader] CR_TextInit export not found!");
                         return;
                     }
+                    
+                    // Verify Cubemap async render exports exist (Fix 4)
+                    if (GetProcAddress(_handle, "CR_GetCubemapRenderEventFunc") == IntPtr.Zero)
+                    {
+                        Debug.LogError("[DllLoader] CR_GetCubemapRenderEventFunc export not found!");
+                        return;
+                    }
+                    if (GetProcAddress(_handle, "CR_CubemapRenderStatus") == IntPtr.Zero)
+                    {
+                        Debug.LogError("[DllLoader] CR_CubemapRenderStatus export not found!");
+                        return;
+                    }
 
                     _loaded = true;
                     Debug.Log("[DllLoader] Native DLL loaded successfully with dependency path resolution");

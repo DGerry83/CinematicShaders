@@ -15,15 +15,19 @@ namespace CinematicShaders.Core
         private static bool _reflectionInitialized = false;
         
         // Face name mapping: XP/XN/YP/YN/ZP/ZN to CubemapFace enum
-        private static readonly string[] FaceNames = { "XP", "XN", "YP", "YN", "ZP", "ZN" };
+        // Swapped X and Z pairs to match native renderer's forward vector polarity
+        // vs KSP GalaxyCubeControl's inward-facing quad convention.
+        // Native faces 0/1 and 4/5 render inverted horizontal views; we compensate
+        // by injecting into the opposite face of the skybox cube.
+        private static readonly string[] FaceNames = { "XN", "XP", "YP", "YN", "ZN", "ZP" };
         private static readonly CubemapFace[] FaceIndices = 
         {
-            CubemapFace.PositiveX,
-            CubemapFace.NegativeX, 
+            CubemapFace.NegativeX,
+            CubemapFace.PositiveX, 
             CubemapFace.PositiveY,
             CubemapFace.NegativeY,
-            CubemapFace.PositiveZ,
-            CubemapFace.NegativeZ
+            CubemapFace.NegativeZ,
+            CubemapFace.PositiveZ
         };
         
         // Backup of original skybox textures for restoration

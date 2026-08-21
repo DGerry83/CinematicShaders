@@ -1,4 +1,4 @@
-﻿using CinematicShaders.Core;
+using CinematicShaders.Core;
 using CinematicShaders.Native;
 using CinematicShaders.UI;
 using System;
@@ -314,6 +314,13 @@ namespace CinematicShaders.Shaders.Starfield
                 };
             }
 
+            // Scale extinction by the user factor: 0 = no extinction, 1 = default, 2 = squared.
+            // Pow (not lerp) because extinction is near-binary exponential - linear scaling
+            // past 1.0 overshoots into negatives and is clamped away.
+            float extinctionFactor = Mathf.Clamp(StarfieldSettings.ExtinctionFactor, 0f, 2f);
+            float extinctionZenith = Mathf.Pow(atmoCalc.ExtinctionZenith, extinctionFactor);
+            float extinctionHorizon = Mathf.Pow(atmoCalc.ExtinctionHorizon, extinctionFactor);
+
             // Pass whiteTexture to bootstrap D3D11 device acquisition in native code
             // (Texture2D.whiteTexture is a built-in 4x4 texture, no allocation/disposal needed)
             // IntPtr.Zero for explicitRenderTarget = use current render target from context
@@ -326,15 +333,18 @@ namespace CinematicShaders.Shaders.Starfield
                 right,
                 up,
                 forward,
-                atmoCalc.ExtinctionZenith,
-                atmoCalc.ExtinctionHorizon,
+                extinctionZenith,
+                extinctionHorizon,
                 atmoRaw.UpVector,
                 IntPtr.Zero  // explicitRenderTarget - use context's current RT
             );
 
             // Calculate and push global scene dimming (sun glare + planetary occlusion)
-            float sunGlareDimming = GetSunGlareDimming();
-            float planetaryDimming = CalculatePlanetaryDimming(_scaledSpaceCamera);
+            // DimmingFactor scales both components via pow: 0 = no dimming, 1 = default,
+            // 2 = squared (pow keeps values in [0,1]; lerp past 1.0 went negative)
+            float dimmingFactor = Mathf.Clamp(StarfieldSettings.DimmingFactor, 0f, 2f);
+            float sunGlareDimming = Mathf.Pow(GetSunGlareDimming(), dimmingFactor);
+            float planetaryDimming = Mathf.Pow(CalculatePlanetaryDimming(_scaledSpaceCamera), dimmingFactor);
             StarfieldNative.CR_StarfieldSetDimming(sunGlareDimming, planetaryDimming);
 
             _frameIndex = (_frameIndex + 1) & 7; // Temporal index 0-7

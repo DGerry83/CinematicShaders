@@ -187,8 +187,11 @@ namespace CinematicShaders.Shaders.Starfield
                 Debug.Log("[StarfieldManager] Starfield disabled");
             }
             
-            // Restore original KSP skybox
-            KSPCubemapInjector.RestoreOriginalSkybox();
+            // Restore original KSP skybox only if requested
+            if (StarfieldSettings.RestoreOriginalSkyboxOnDisable)
+            {
+                KSPCubemapInjector.RestoreOriginalSkybox();
+            }
         }
 
         public static bool IsCompositorOnCurrentCamera()

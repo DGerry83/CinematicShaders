@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using CinematicShaders.Native;
 using CinematicShaders.Native.Structs;
 using CinematicShaders.Shaders.GTAO;
@@ -43,6 +43,10 @@ namespace CinematicShaders.Core
             
             ModFileLogger.Initialize();
             ModFileLogger.Log("CinematicShadersAddon awakened");
+            
+            // Ensure native DLL is loaded before any Update() methods are JIT-compiled.
+            // Fixes cubemap DllNotFoundException caused by P/Invoke resolution race.
+            DllLoader.EnsureLoaded();
         }
 
         void Start()
@@ -57,7 +61,9 @@ namespace CinematicShaders.Core
             GTAOSettings.Load();
             StarfieldSettings.Load();
             
-            System.Diagnostics.Debug.Assert(System.Runtime.InteropServices.Marshal.SizeOf(typeof(KartographerParamsNative)) == 1088,
+            // Size contract from StructToolset generator output ("Total Size: 1120 bytes");
+            // matches static_assert in NativePlugin/include/KartographerParams_generated.h
+            System.Diagnostics.Debug.Assert(System.Runtime.InteropServices.Marshal.SizeOf(typeof(KartographerParamsNative)) == 1120,
                 $"KartographerParamsNative size mismatch");
             
             // If we're already in a game session, re-apply per-save settings to override
@@ -88,12 +94,12 @@ namespace CinematicShaders.Core
 
             if (_toolbarIcon == null)
             {
-                _toolbarIcon = GameDatabase.Instance.GetTexture("CinematicShaders/Icons/ToolbarIcon", false);
+                _toolbarIcon = GameDatabase.Instance.GetTexture(CinematicShadersUIResources.Textures.ToolbarIconPath, false);
                 if (_toolbarIcon == null)
                 {
                     _toolbarIcon = new Texture2D(38, 38, TextureFormat.RGBA32, false);
                     Color[] pixels = new Color[38 * 38];
-                    for (int i = 0; i < pixels.Length; i++) pixels[i] = new Color(1f, 0.5f, 0f);
+                    for (int i = 0; i < pixels.Length; i++) pixels[i] = CinematicShadersUIResources.Colors.TOOLBAR_FALLBACK_ORANGE;
                     _toolbarIcon.SetPixels(pixels);
                     _toolbarIcon.Apply();
                 }
@@ -137,6 +143,9 @@ namespace CinematicShaders.Core
 
             // Mark catalog for reload on scene change (device may have reset)
             StarfieldSettings.InvalidateCatalogForReload();
+
+            // Switch to this scene's GTAO profile before the enable checks below
+            GTAOSettings.ApplySceneProfile(scene);
 
             if (GTAOSettings.EnableGTAO)
             {
@@ -216,6 +225,9 @@ namespace CinematicShaders.Core
             {
                 NavballManager.Update();
             }
+            
+            // Poll async cubemap render completion (Fix 4)
+            CubemapGenerationScheduler.CheckCubemapCompletion();
             
             // Update situation display only in playable scenes (Flight, Tracking Station, KSC)
             // Shows "NO VESSEL" when not in a vessel (e.g., Tracking Station)
@@ -417,9 +429,10 @@ namespace CinematicShaders.Core
         {
             // Always output meters - per-line width detection in GenerateTexture will 
             // compress individual lines to KM/MM/GM/TM if they don't fit in texture
-            if (meters >= 100) return $"{prefix}{meters:F0} M";
-            if (meters >= 10) return $"{prefix}{meters:F1} M";
-            return $"{prefix}{meters:F2} M";
+            // (unit token shared with the parser — see UIStrings.Common)
+            if (meters >= 100) return $"{prefix}{meters:F0}{CinematicShadersUIStrings.Common.UnitMetersToken}";
+            if (meters >= 10) return $"{prefix}{meters:F1}{CinematicShadersUIStrings.Common.UnitMetersToken}";
+            return $"{prefix}{meters:F2}{CinematicShadersUIStrings.Common.UnitMetersToken}";
         }
         
         /// <summary>
@@ -428,7 +441,7 @@ namespace CinematicShaders.Core
         private string BuildSituationText()
         {
             if (FlightGlobals.ActiveVessel == null)
-                return "NO VESSEL";
+                return CinematicShadersUIStrings.Kartographer.SituationNoVessel;
             
             var sb = new System.Text.StringBuilder();
             
@@ -440,7 +453,7 @@ namespace CinematicShaders.Core
             sb.Append(FlightGlobals.ActiveVessel.situation.ToString().ToUpper() + '\n');
             
             // Altitude - use smart formatting
-            sb.Append(FormatDistanceSmart(FlightGlobals.ActiveVessel.altitude, "ALT: ") + '\n');
+            sb.Append(FormatDistanceSmart(FlightGlobals.ActiveVessel.altitude, CinematicShadersUIStrings.Kartographer.SituationAltPrefix) + '\n');
             
             // Apoapsis/Periapsis
             if (FlightGlobals.ActiveVessel.orbit != null)
@@ -448,8 +461,8 @@ namespace CinematicShaders.Core
                 double ap = FlightGlobals.ActiveVessel.orbit.ApA;
                 double pe = FlightGlobals.ActiveVessel.orbit.PeA;
                 
-                sb.Append(FormatDistanceSmart(ap, "A/P: ") + '\n');
-                sb.Append(FormatDistanceSmart(pe, "P/E: "));
+                sb.Append(FormatDistanceSmart(ap, CinematicShadersUIStrings.Kartographer.SituationApoapsisPrefix) + '\n');
+                sb.Append(FormatDistanceSmart(pe, CinematicShadersUIStrings.Kartographer.SituationPeriapsisPrefix));
             }
             
             return sb.ToString();

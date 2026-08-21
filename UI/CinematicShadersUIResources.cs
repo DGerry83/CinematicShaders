@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace CinematicShaders.UI
 {
@@ -12,6 +12,42 @@ namespace CinematicShaders.UI
             public static readonly Color READONLY_OFF_RED = new Color(0.9f, 0.2f, 0.2f);
             public static readonly Color INFO_ORANGE = new Color(1f, 0.5490196f, 0f);
             public static readonly Color TEXT_DIM = Color.gray;
+
+            // Native text/HUD color: white ARGB passed to native text render calls
+            public const uint HudTextWhiteArgb = 0xFFFFFFFF;
+
+            // Star Console window chrome
+            public static readonly Color CONSOLE_BORDER_GREY = new Color(0.7f, 0.7f, 0.7f, 1f);
+            public static readonly Color CRT_BACKGROUND = Color.black;
+
+            // Toolbar icon fallback when the texture is missing (distinct from INFO_ORANGE)
+            public static readonly Color TOOLBAR_FALLBACK_ORANGE = new Color(1f, 0.5f, 0f);
+
+            /// <summary>
+            /// Navball icon palette (RGB) - indices match the native struct order:
+            /// 0 Prograde, 1 Retrograde, 2 Normal, 3 AntiNormal, 4 Radial In, 5 Radial Out, 6 Maneuver
+            /// </summary>
+            public static readonly Color[] NavballIconColors = new Color[]
+            {
+                new Color(184f/255f, 220f/255f, 141f/255f),  // 0: Prograde - Sage green (greener)
+                new Color(184f/255f, 220f/255f, 141f/255f),  // 1: Retrograde - Sage green (greener)
+                new Color(182f/255f, 123f/255f, 182f/255f),  // 2: Normal - Purple
+                new Color(182f/255f, 123f/255f, 182f/255f),  // 3: AntiNormal - Purple
+                new Color(120f/255f, 210f/255f, 210f/255f),  // 4: Radial In - Brighter cyan
+                new Color(120f/255f, 210f/255f, 210f/255f),  // 5: Radial Out - Brighter cyan
+                new Color(122f/255f, 134f/255f, 210f/255f)   // 6: Maneuver - Brighter blue
+            };
+
+            /// <summary>
+            /// Packs a Color as a uint in ARGB format (0xFFRRGGBB, A=FF) for native rendering.
+            /// </summary>
+            public static uint PackArgb(Color c)
+            {
+                uint r = (uint)(c.r * 255) & 0xFF;
+                uint g = (uint)(c.g * 255) & 0xFF;
+                uint b = (uint)(c.b * 255) & 0xFF;
+                return 0xFF000000 | (r << 16) | (g << 8) | b;
+            }
 
             public static class GridColors
             {
@@ -56,11 +92,7 @@ namespace CinematicShaders.UI
                 /// </summary>
                 public static uint GetColorUint(int colorIndex)
                 {
-                    Color c = GetColor(colorIndex);
-                    uint r = (uint)(c.r * 255) & 0xFF;
-                    uint g = (uint)(c.g * 255) & 0xFF;
-                    uint b = (uint)(c.b * 255) & 0xFF;
-                    return 0xFF000000 | (r << 16) | (g << 8) | b;  // ARGB format (A=FF)
+                    return PackArgb(GetColor(colorIndex));
                 }
             }
         }
@@ -102,6 +134,8 @@ namespace CinematicShaders.UI
                 public const float OFFSET_Y = 15f;
                 public const float MAX_WIDTH = 250f;
                 public const float PADDING = 20f;
+                public const float HEIGHT_PADDING = 10f;
+                public const float CLAMP_MARGIN = 5f;
                 public const float WINDOW_CLAMP_X = 300f;
                 public const float WINDOW_CLAMP_Y = 480f;
             }
@@ -181,6 +215,46 @@ namespace CinematicShaders.UI
                 return new GUIStyle(HighLogic.Skin.box);
             }
 
+            public static GUIStyle RichTextToggle()
+            {
+                GUIStyle style = new GUIStyle(HighLogic.Skin.toggle);
+                style.richText = true;
+                return style;
+            }
+
+            // Star Console title bar styles
+            public static GUIStyle ConsoleTitle()
+            {
+                GUIStyle style = new GUIStyle(HighLogic.Skin.label);
+                style.alignment = TextAnchor.MiddleCenter;
+                style.fontStyle = FontStyle.Bold;
+                return style;
+            }
+
+            public static GUIStyle ConsoleCloseButton()
+            {
+                GUIStyle style = new GUIStyle(HighLogic.Skin.button);
+                style.fontSize = 12;
+                style.padding = new RectOffset(2, 2, 2, 2);
+                return style;
+            }
+
+            public static GUIStyle ConsolePwrButton()
+            {
+                GUIStyle style = new GUIStyle(HighLogic.Skin.button);
+                style.fontSize = 11;
+                style.alignment = TextAnchor.MiddleLeft;
+                style.padding = new RectOffset(4, 4, 2, 2);
+                return style;
+            }
+
+            public static GUIStyle ConsolePwrButtonActive()
+            {
+                GUIStyle style = new GUIStyle(ConsolePwrButton());
+                style.normal.textColor = Colors.TOGGLE_ACTIVE_GREEN; // D6: snapped from (0.2,0.9,0.3)
+                return style;
+            }
+
             public static GUIStyle ColorButton(Color backgroundColor)
             {
                 GUIStyle style = new GUIStyle(HighLogic.Skin.button);
@@ -211,6 +285,60 @@ namespace CinematicShaders.UI
                 tex.Apply();
                 return tex;
             }
+        }
+        #endregion
+
+        #region Fonts
+        public static class Fonts
+        {
+            // HUD/console font, shipped in PluginData/Fonts/
+            public const string HudFontFileName = "AcPlus_Rainbow100_re_66.ttf";
+
+            /// <summary>
+            /// Builds the absolute HUD font path: ../PluginData/Fonts/ relative to the
+            /// managed DLL (which sits in Plugins/). Shared by all native text users.
+            /// </summary>
+            public static string GetHudFontPath()
+            {
+                string assemblyPath = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+                return System.IO.Path.GetFullPath(System.IO.Path.Combine(assemblyPath, "..", "PluginData", "Fonts", HudFontFileName));
+            }
+        }
+        #endregion
+
+        #region Textures
+        public static class Textures
+        {
+            // GameDatabase texture URL for the toolbar button
+            public const string ToolbarIconPath = "CinematicShaders/Icons/ToolbarIcon";
+
+            // Navball icon PNGs live under GameData/CinematicShaders/PluginData/NavballIcons
+            public const string NavballIconsFolder = "NavballIcons";
+
+            // Navball icon textures - KSP (default) style
+            public static readonly string[] NavballIconFileNamesKSP = {
+                "prograde_sdf.png",
+                "retrograde_sdf.png",
+                "normal_sdf.png",
+                "antinormal_sdf.png",
+                "radial_in_sdf.png",
+                "radial_out_sdf.png",
+                "maneuver_sdf.png"
+            };
+
+            // Navball icon textures - Retro style
+            public static readonly string[] NavballIconFileNamesRetro = {
+                "prograde_retro_sdf.png",
+                "retrograde_retro_sdf.png",
+                "normal_retro_sdf.png",
+                "antinormal_retro_sdf.png",
+                "radial_in_retro_sdf.png",
+                "radial_out_retro_sdf.png",
+                "maneuver_retro_sdf.png"
+            };
+
+            public const string NavballHeadingIconKsp = "heading_sdf.png";
+            public const string NavballHeadingIconRetro = "heading_retro_sdf.png";
         }
         #endregion
     }

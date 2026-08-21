@@ -11,40 +11,10 @@ namespace CinematicShaders.UI.Content
         public static readonly MainScreenContent Default = new MainScreenContent();
         
         /// <inheritdoc/>
-        public string[] BorderLines => new string[]
-        {
-            "╔════[STAR DATA]═══════════════════╦╦═════[RESULTS]═══════╗",
-            "║                                  ║║                     ║",
-            "║                                  ║║                     ║",
-            "║                                  ║║                     ║",
-            "║                                  ║║                     ║",
-            "║                                  ║║                     ║",
-            "║                                  ║║                     ║",
-            "║                                  ║║                     ║",
-            "║                                  ║║                     ║",
-            "╟──────────────────────────────────╢║                     ║",
-            "║                                  ║║                     ║",
-            "║                                  ║║                     ║",
-            "╚══════════════════════════════════╩╩═════════════════════╝"
-        };
+        public string[] BorderLines => CinematicShadersUIStrings.StarConsole.MainBorderLines;
         
         /// <inheritdoc/>
-        public string[] ContentLines => new string[]
-        {
-            "                                                           ",
-            "  HIP:                                                     ",
-            "  NAME:                                                    ",
-            "  DISTANCE:                                                ",
-            "  SPECTRAL:                                                ",
-            "  MAG:                                                     ",
-            "  CONST:                                                   ",
-            "                                                           ",
-            "                 [SAVE]   [RESET]                          ",
-            "                                                           ",
-            "  SEARCH                  [RESCAN]                         ",
-            "  ►                                    ▲               ▼   ",
-            "                                                           "
-        };
+        public string[] ContentLines => CinematicShadersUIStrings.StarConsole.MainContentLines;
         
         // Future: Localization support
         // public static IScreenContent LoadLocalized(string locale) { ... }

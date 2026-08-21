@@ -11,39 +11,9 @@ namespace CinematicShaders.UI.Content
         public static readonly ConfirmRescanScreenContent Default = new ConfirmRescanScreenContent();
         
         /// <inheritdoc/>
-        public string[] BorderLines => new string[]
-        {
-            "╔════════════════════[ARE YOU SURE?]══════════════════════╗",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "║                                                         ║",
-            "╚═════════════════════════════════════════════════════════╝"
-        };
+        public string[] BorderLines => CinematicShadersUIStrings.StarConsole.ConfirmRescanBorderLines;
         
         /// <inheritdoc/>
-        public string[] ContentLines => new string[]
-        {
-            "                                                           ",
-            "                                                           ",
-            "                                                           ",
-            "                !STAR NAMES WILL BE RESET!                 ",
-            "                                                           ",
-            "                                                           ",
-            "                                                           ",
-            "                                                           ",
-            "                                                           ",
-            "                                                           ",
-            "   [YES]                                            [NO]   ",
-            "                                                           ",
-            "                                                           "
-        };
+        public string[] ContentLines => CinematicShadersUIStrings.StarConsole.ConfirmRescanContentLines;
     }
 }

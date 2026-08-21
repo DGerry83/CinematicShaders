@@ -28,6 +28,13 @@ namespace CinematicShaders.Core
         private const float TEXT_TYPE_DURATION = 1.5f;
         private const float CURSOR_BLINK_HZ = 2.0f;
 
+        /// <summary>
+        /// Cursor escape token — C#↔native wire protocol: TextSystem.cpp decodes this to
+        /// U+258C LEFT HALF BLOCK. The value is contractual; do not change it.
+        /// Shared by all type-on HUD text (here and KartographerSelector).
+        /// </summary>
+        public const string CursorToken = "^|";
+
         // State
         private Phase _currentPhase = Phase.Complete;
         private float _circleT = 1.0f;      // 0-1 progress through Circle
@@ -195,20 +202,20 @@ namespace CinematicShaders.Core
                     break;
 
                 case Phase.Box:
-                    _displayText = "^|";  // Cursor only
+                    _displayText = CursorToken;  // Cursor only
                     break;
 
                 case Phase.Text:
                     // Progressive reveal (only if content has been set)
                     if (!_hasTextContent)
                     {
-                        _displayText = "^|";  // Cursor only until content arrives
+                        _displayText = CursorToken;  // Cursor only until content arrives
                     }
                     else
                     {
                         int visibleChars = (int)(_fullText.Length * _textTypeT);
                         visibleChars = Mathf.Clamp(visibleChars, 0, _fullText.Length);
-                        _displayText = _fullText.Substring(0, visibleChars) + "^|";
+                        _displayText = _fullText.Substring(0, visibleChars) + CursorToken;
                     }
                     break;
 
@@ -216,12 +223,12 @@ namespace CinematicShaders.Core
                     // Full text with 2Hz blinking cursor (only if content has been set)
                     if (!_hasTextContent)
                     {
-                        _displayText = "^|";
+                        _displayText = CursorToken;
                     }
                     else
                     {
                         bool cursorVisible = ((Time.time * CURSOR_BLINK_HZ) % 2.0f) < 1.0f;
-                        _displayText = _fullText + (cursorVisible ? "^|" : " ");
+                        _displayText = _fullText + (cursorVisible ? CursorToken : " ");
                     }
                     break;
             }

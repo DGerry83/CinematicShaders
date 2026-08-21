@@ -45,6 +45,7 @@
   <ItemGroup>
     <Compile Include="Core\AtmosphericScatteringData.cs" />
     <Compile Include="Core\CinematicShadersAddon.cs" />
+    <Compile Include="Core\EncounterCalculator.cs" />
     <Compile Include="Core\GTAOSettings.cs" />
     <Compile Include="Core\MiniJSON.cs" />
     <Compile Include="Core\AudioGroup.cs" />
@@ -92,7 +93,6 @@
     <Compile Include="UI\StarCatalogEditorWindow.cs" />
     <Compile Include="UI\StarCatalogHolographicDisplay.cs" />
     <Compile Include="UI\Tabs\GTAOTab.cs" />
-    <Compile Include="UI\Tabs\GridLabelDebugUI.cs" />
     <Compile Include="UI\Tabs\KartographerTab.cs" />
     <Compile Include="UI\Tabs\StarfieldTab.cs" />
 

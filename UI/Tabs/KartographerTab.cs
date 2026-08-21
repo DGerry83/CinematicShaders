@@ -171,7 +171,7 @@ namespace CinematicShaders.UI.Tabs
             // Update grid labels independently of selector - runs when Kartographer is enabled
             UpdateGridLabels();
 
-            DrawTooltip();
+            CinematicShadersWindow.Instance.DrawTooltip();
         }
 
         private void DrawEnableToggle()
@@ -523,166 +523,12 @@ namespace CinematicShaders.UI.Tabs
                 }
             }
 
-
-
-            /* LABEL POSITION TUNING - Disabled after final values were found
-            GUILayout.Space(10);
-            _showLabelTuning = GUILayout.Toggle(_showLabelTuning, "Label Position Tuning", HighLogic.Skin.button);
-            
-            if (_showLabelTuning)
-            {
-                if (CinematicShadersAddon.SituationLabelSystem != null)
-                {
-                    string[] labelIds = { "huck", "situation_a", "situation_b" };
-                    foreach (var labelId in labelIds)
-                    {
-                        var label = CinematicShadersAddon.SituationLabelSystem.GetLabel(labelId);
-                        if (label == null || !label.Enabled) continue;
-                        
-                        // Situation labels use fixed padding mode; HUCK uses proportional
-                        bool useFixed = label.UseFixedPadding;
-                        float currentPad = useFixed ? label.FixedPaddingLeft : label.PaddingLeft;
-                        float sliderMax = useFixed ? 0.2f : 0.5f;
-                        string padType = useFixed ? "Fixed Left" : "Left";
-                        
-                        GUILayout.Label($"{labelId}: {padType} Pad {currentPad:F3}");
-                        float newPadL = GUILayout.HorizontalSlider(currentPad, 0f, sliderMax);
-                        if (!Mathf.Approximately(newPadL, currentPad))
-                        {
-                            if (useFixed)
-                                label.FixedPaddingLeft = newPadL;
-                            else
-                                label.PaddingLeft = newPadL;
-                            label.PositionDirty = true;
-                        }
-                    }
-                }
-            }
-            */
-            
             // Reset button
             GUILayout.Space(10);
             if (GUILayout.Button(CinematicShadersUIStrings.Kartographer.ResetButton))
             {
                 ResetToDefaults();
             }
-            
-            /* DEBUG: Fixed padding tuning for situation labels - DISABLED
-            if (CinematicShadersAddon.SituationLabelSystem != null)
-            {
-                var labelA = CinematicShadersAddon.SituationLabelSystem.GetLabel("situation_a");
-                if (labelA != null && labelA.UseFixedPadding)
-                {
-                    GUILayout.Space(10);
-                    GUILayout.Label("<b>Debug: Fixed Padding</b>", HighLogic.Skin.label);
-                    
-                    GUILayout.Label($"Bottom Pad: {labelA.FixedPaddingBottom:F3}");
-                    float newPadB = GUILayout.HorizontalSlider(labelA.FixedPaddingBottom, 0f, 0.2f);
-                    if (!Mathf.Approximately(newPadB, labelA.FixedPaddingBottom))
-                    {
-                        labelA.FixedPaddingBottom = newPadB;
-                        labelA.PositionDirty = true;
-                        
-                        // Mirror to label B
-                        var labelB = CinematicShadersAddon.SituationLabelSystem.GetLabel("situation_b");
-                        if (labelB != null) labelB.FixedPaddingBottom = newPadB;
-                    }
-                    
-                    GUILayout.Label($"Left Pad: {labelA.FixedPaddingLeft:F3}");
-                    float newPadL = GUILayout.HorizontalSlider(labelA.FixedPaddingLeft, 0f, 0.2f);
-                    if (!Mathf.Approximately(newPadL, labelA.FixedPaddingLeft))
-                    {
-                        labelA.FixedPaddingLeft = newPadL;
-                        labelA.PositionDirty = true;
-                        
-                        // Mirror to label B
-                        var labelB = CinematicShadersAddon.SituationLabelSystem.GetLabel("situation_b");
-                        if (labelB != null) labelB.FixedPaddingLeft = newPadL;
-                    }
-                }
-            }
-            */
-
-            /* DEBUG UI DISABLED - Methods preserved for future use
-            // Debug buttons
-            GUILayout.Space(10);
-            GUILayout.Label("<b>Debug</b>", HighLogic.Skin.label);
-            
-            if (GUILayout.Button("Export Grid Label Texture"))
-            {
-                Debug.Log("[KartographerTab] Export Grid Label Texture button clicked");
-                ExportGridLabelDebug();
-            }
-            
-            if (GUILayout.Button("Dump Orbit Info"))
-            {
-                DumpOrbitInfo();
-            }
-            
-            // Situation info label debug tuning - uses Addon-managed label system
-            // Wire up debug sliders to the shared situation label system
-            if (CinematicShadersAddon.SituationLabelSystem != null)
-            {
-                // Sliders for situation_a (situation_b mirrors it)
-                var labelA = CinematicShadersAddon.SituationLabelSystem.GetLabel("situation_a");
-                if (labelA != null)
-                {
-                    GUILayout.Space(5);
-                    GUILayout.Label("<b>Situation Display Debug (A)</b>", HighLogic.Skin.label);
-                    
-                    GUILayout.Label($"Rotation: {labelA.RotationDegrees:F1}°");
-                    float newRot = GUILayout.HorizontalSlider(labelA.RotationDegrees, -10f, 10f);
-                    if (!Mathf.Approximately(newRot, labelA.RotationDegrees))
-                    {
-                        labelA.RotationDegrees = newRot;
-                        labelA.PositionDirty = true;
-                    }
-                    
-                    GUILayout.Label($"Left Padding: {labelA.PaddingLeft:F2}");
-                    float newPadL = GUILayout.HorizontalSlider(labelA.PaddingLeft, 0f, 0.7f);
-                    if (!Mathf.Approximately(newPadL, labelA.PaddingLeft))
-                    {
-                        labelA.PaddingLeft = newPadL;
-                        labelA.PositionDirty = true;
-                    }
-                    
-                    GUILayout.Label($"Bottom Padding: {labelA.PaddingBottom:F2}");
-                    float newPadB = GUILayout.HorizontalSlider(labelA.PaddingBottom, 0f, 0.7f);
-                    if (!Mathf.Approximately(newPadB, labelA.PaddingBottom))
-                    {
-                        labelA.PaddingBottom = newPadB;
-                        labelA.PositionDirty = true;
-                    }
-                    
-                    GUILayout.Label($"Font Size: {labelA.FontSizePixels:F0}");
-                    float newFont = GUILayout.HorizontalSlider(labelA.FontSizePixels, 8f, 48f);
-                    if (!Mathf.Approximately(newFont, labelA.FontSizePixels))
-                    {
-                        labelA.FontSizePixels = newFont;
-                        labelA.ForceTextureUpdate = true;
-                    }
-                    
-                    GUILayout.Label($"Line Spacing: {labelA.LineSpacing:F1}");
-                    float newSpacing = GUILayout.HorizontalSlider(labelA.LineSpacing, 0f, 20f);
-                    if (!Mathf.Approximately(newSpacing, labelA.LineSpacing))
-                    {
-                        labelA.LineSpacing = newSpacing;
-                        labelA.ForceTextureUpdate = true;
-                    }
-                    
-                    // Mirror to label B
-                    var labelB = CinematicShadersAddon.SituationLabelSystem.GetLabel("situation_b");
-                    if (labelB != null)
-                    {
-                        labelB.RotationDegrees = labelA.RotationDegrees;
-                        labelB.PaddingLeft = labelA.PaddingLeft;
-                        labelB.PaddingBottom = labelA.PaddingBottom;
-                        labelB.FontSizePixels = labelA.FontSizePixels;
-                        labelB.LineSpacing = labelA.LineSpacing;
-                    }
-                }
-            }
-            */
 
             GUILayout.EndVertical();
         }
@@ -1347,15 +1193,6 @@ namespace CinematicShaders.UI.Tabs
         private float ThicknessToDisplay(float internalVal) => internalVal / 0.0009f * 10f;
         private float DisplayToThickness(float displayVal) => displayVal / 10f * 0.0009f;
 
-        private string GetGridSizeLabel(int size)
-        {
-            if (size >= 0 && size < CinematicShadersUIStrings.Kartographer.GridSizeLabels.Length)
-            {
-                return CinematicShadersUIStrings.Kartographer.GridSizeLabels[size];
-            }
-            return CinematicShadersUIStrings.Kartographer.GridSizeMedium;
-        }
-
         /// <summary>
         /// Update grid labels - runs independently of selector when Kartographer is enabled
         /// Grid label system is now managed entirely by CinematicShadersAddon.UpdateGridLabelSystem()
@@ -1374,112 +1211,5 @@ namespace CinematicShaders.UI.Tabs
             }
         }
 
-        /// <summary>
-        /// Standalone grid label debug export - does not depend on selector
-        /// </summary>
-        private void ExportGridLabelDebug()
-        {
-            Debug.Log("[KartographerTab] Starting standalone grid label export...");
-            
-            try
-            {
-                // Create temporary selector just for this export
-                var debugSelector = new KartographerSelector();
-                
-                // Load catalog JSON path
-                string catalogPath = StarfieldSettings.ActiveCatalogPath;
-                if (!string.IsNullOrEmpty(catalogPath))
-                {
-                    string absolutePath = Path.Combine(KSPUtil.ApplicationRootPath, catalogPath);
-                    debugSelector.LoadJsonForCatalog(absolutePath);
-                }
-                
-                debugSelector.ExportGridLabelTexture();
-                
-                // Cleanup
-                debugSelector.Dispose();
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogError($"[KartographerTab] Export failed: {ex.Message}\n{ex.StackTrace}");
-            }
-        }
-        
-        /// <summary>
-        /// Update vessel target selector - draws circle around current target
-        /// </summary>
-        /// <summary>
-        /// Debug dump of orbit information for vessel
-        /// </summary>
-        private void DumpOrbitInfo()
-        {
-            Debug.Log("[ORBIT INFO DEBUG] ========== ORBIT INFO DUMP ==========");
-            
-            try
-            {
-                // SOI (Sphere of Influence)
-                if (FlightGlobals.currentMainBody != null)
-                {
-                    Debug.Log($"[ORBIT INFO DEBUG] SOI: {FlightGlobals.currentMainBody.bodyName}");
-                }
-                else
-                {
-                    Debug.Log("[ORBIT INFO DEBUG] SOI: UNKNOWN");
-                }
-                
-                // Situation
-                if (FlightGlobals.ActiveVessel != null)
-                {
-                    string situation = FlightGlobals.ActiveVessel.situation.ToString();
-                    Debug.Log($"[ORBIT INFO DEBUG] Situation: {situation}");
-                    
-                    // Altitude
-                    double altitude = FlightGlobals.ActiveVessel.altitude;
-                    Debug.Log($"[ORBIT INFO DEBUG] Altitude: {altitude:F1} m");
-                    
-                    // Orbit info
-                    if (FlightGlobals.ActiveVessel.orbit != null)
-                    {
-                        double apoapsis = FlightGlobals.ActiveVessel.orbit.ApA;
-                        double periapsis = FlightGlobals.ActiveVessel.orbit.PeA;
-                        Debug.Log($"[ORBIT INFO DEBUG] Apoapsis: {apoapsis:F1} m");
-                        Debug.Log($"[ORBIT INFO DEBUG] Periapsis: {periapsis:F1} m");
-                    }
-                    else
-                    {
-                        Debug.Log("[ORBIT INFO DEBUG] Orbit: NULL (landed/surface)");
-                    }
-                }
-                else
-                {
-                    Debug.Log("[ORBIT INFO DEBUG] ActiveVessel: NULL");
-                }
-                
-                Debug.Log("[ORBIT INFO DEBUG] ========== END DUMP ==========");
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogError($"[ORBIT INFO DEBUG] Exception during dump: {ex.Message}");
-            }
-        }
-
-        private void DrawTooltip()
-        {
-            if (string.IsNullOrEmpty(GUI.tooltip))
-                return;
-
-            Vector2 mousePos = Event.current.mousePosition;
-            GUIStyle tooltipStyle = HighLogic.Skin.box;
-            float tooltipWidth = Mathf.Min(250f, tooltipStyle.CalcSize(new GUIContent(GUI.tooltip)).x + 20f);
-            float tooltipHeight = tooltipStyle.CalcHeight(new GUIContent(GUI.tooltip), tooltipWidth) + 10f;
-
-            float x = mousePos.x + 15f;
-            float y = mousePos.y + 15f;
-            Rect windowRect = CinematicShadersWindow.Instance.WindowRect;
-            x = Mathf.Min(x, windowRect.width - tooltipWidth - 5f);
-            y = Mathf.Min(y, windowRect.height - tooltipHeight - 5f);
-
-            GUI.Box(new Rect(x, y, tooltipWidth, tooltipHeight), GUI.tooltip, tooltipStyle);
-        }
     }
 }

@@ -1,4 +1,4 @@
-﻿using CinematicShaders.UI.Tabs;
+using CinematicShaders.UI.Tabs;
 using CinematicShaders.Core;
 using CinematicShaders.Shaders.Starfield;
 using UnityEngine;
@@ -45,9 +45,32 @@ namespace CinematicShaders.UI
             }
             catch (Exception ex)
             {
-                errorMessage = "Failed to initialize GTAO: " + ex.Message;
+                errorMessage = string.Format(CinematicShadersUIStrings.Common.InitErrorFormat, ex.Message);
                 Debug.LogError($"[CinematicShaders] {errorMessage}\n{ex}");
             }
+        }
+
+        /// <summary>
+        /// Draws the IMGUI tooltip box near the mouse, clamped to the window rect.
+        /// Shared by all tabs (was a verbatim duplicate in StarfieldTab and KartographerTab).
+        /// </summary>
+        internal void DrawTooltip()
+        {
+            if (string.IsNullOrEmpty(GUI.tooltip))
+                return;
+
+            Vector2 mousePos = Event.current.mousePosition;
+            GUIStyle tooltipStyle = CinematicShadersUIResources.Styles.Tooltip();
+            float tooltipWidth = Mathf.Min(CinematicShadersUIResources.Layout.Tooltip.MAX_WIDTH, tooltipStyle.CalcSize(new GUIContent(GUI.tooltip)).x + CinematicShadersUIResources.Layout.Tooltip.PADDING);
+            float tooltipHeight = tooltipStyle.CalcHeight(new GUIContent(GUI.tooltip), tooltipWidth) + CinematicShadersUIResources.Layout.Tooltip.HEIGHT_PADDING;
+
+            float x = mousePos.x + CinematicShadersUIResources.Layout.Tooltip.OFFSET_X;
+            float y = mousePos.y + CinematicShadersUIResources.Layout.Tooltip.OFFSET_Y;
+            Rect windowRect = WindowRect;
+            x = Mathf.Min(x, windowRect.width - tooltipWidth - CinematicShadersUIResources.Layout.Tooltip.CLAMP_MARGIN);
+            y = Mathf.Min(y, windowRect.height - tooltipHeight - CinematicShadersUIResources.Layout.Tooltip.CLAMP_MARGIN);
+
+            GUI.Box(new Rect(x, y, tooltipWidth, tooltipHeight), GUI.tooltip, tooltipStyle);
         }
 
         private void InitStyles()

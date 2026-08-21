@@ -1,4 +1,4 @@
-﻿using CinematicShaders.Core;
+using CinematicShaders.Core;
 using CinematicShaders.Native;
 using System;
 using UnityEngine;
@@ -44,9 +44,14 @@ namespace CinematicShaders.Core
         // Color
         public static float ColorSaturation { get; set; } = 1.0f;  // 0.5=realistic, 1.0=natural, 2.0=vivid
 
+        // Advanced rendering factors (per-save; 0.0 = effect off, 1.0 = default strength)
+        public static float ExtinctionFactor { get; set; } = 1.0f;  // scales atmospheric extinction
+        public static float DimmingFactor { get; set; } = 1.0f;     // scales sun-glare + planetary dimming
+
 
         // Bloom mode toggle: false = Classic (original 4-spike), true = Soft HDR (2-pass)
         public static bool UseSoftBloom { get; set; } = true;
+        public static bool RestoreOriginalSkyboxOnDisable { get; set; } = true;
         
         // Navball icon style enum - must be defined before use
         public enum NavballIconStyle
@@ -156,7 +161,7 @@ namespace CinematicShaders.Core
         /// to a clean relative path from KSP root using forward slashes.
         /// Returns empty string if path is invalid or outside game folder.
         /// </summary>
-        private static string NormalizeCatalogPath(string path)
+        internal static string NormalizeCatalogPath(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
                 return "";
@@ -231,8 +236,9 @@ namespace CinematicShaders.Core
                 EnableStarfield = bool.Parse(settingsNode.GetValue("EnableStarfield") ?? "false");
                 CatalogSeed = int.Parse(settingsNode.GetValue("CatalogSeed") ?? "12345");
                 CatalogSize = int.Parse(settingsNode.GetValue("CatalogSize") ?? "20000");
-                Exposure = float.Parse(settingsNode.GetValue("Exposure") ?? "3.0");
-                BlurPixels = float.Parse(settingsNode.GetValue("BlurPixels") ?? "0.001");
+                // NOTE: Exposure, BlurPixels, BloomThreshold, BloomIntensity, ColorSaturation and
+                // ActiveCatalogPath are per-save (StarfieldPerSaveSettings ScenarioModule) and are
+                // deliberately NOT loaded from this global file - legacy keys in Settings.cfg are ignored.
                 MinMagnitude = float.Parse(settingsNode.GetValue("MinMagnitude") ?? "-1.0");
                 MaxMagnitude = float.Parse(settingsNode.GetValue("MaxMagnitude") ?? "10.0");
                 MagnitudeBias = float.Parse(settingsNode.GetValue("MagnitudeBias") ?? "0.25");
@@ -252,10 +258,8 @@ namespace CinematicShaders.Core
                 BulgeSoftness = float.Parse(settingsNode.GetValue("BulgeSoftness") ?? "0.0");
                 BulgeNoiseScale = float.Parse(settingsNode.GetValue("BulgeNoiseScale") ?? "20.0");
                 BulgeNoiseStrength = float.Parse(settingsNode.GetValue("BulgeNoiseStrength") ?? "0.0");
-                BloomThreshold = float.Parse(settingsNode.GetValue("BloomThreshold") ?? "0.08");
-                BloomIntensity = float.Parse(settingsNode.GetValue("BloomIntensity") ?? "0.5");
-                ColorSaturation = float.Parse(settingsNode.GetValue("ColorSaturation") ?? "1.0");
                 UseSoftBloom = bool.Parse(settingsNode.GetValue("UseSoftBloom") ?? "true");
+                RestoreOriginalSkyboxOnDisable = bool.Parse(settingsNode.GetValue("RestoreOriginalSkyboxOnDisable") ?? "true");
                 RotationX = float.Parse(settingsNode.GetValue("RotationX") ?? "0.0");
                 RotationY = float.Parse(settingsNode.GetValue("RotationY") ?? "0.0");
                 RotationZ = float.Parse(settingsNode.GetValue("RotationZ") ?? "0.0");
@@ -311,7 +315,6 @@ namespace CinematicShaders.Core
                 StarConsoleVolume = float.Parse(settingsNode.GetValue("StarConsoleVolume") ?? "0.5");
                 ModAudioManager.SetGroupVolume(AudioGroup.StarConsole, StarConsoleVolume);
                 StarConsoleDisplayMode = settingsNode.GetValue("StarConsoleDisplayMode") ?? "Medium";
-                ActiveCatalogPath = NormalizeCatalogPath(settingsNode.GetValue("ActiveCatalogPath") ?? "");
                 // IsReadOnly = bool.Parse(settingsNode.GetValue("IsReadOnly") ?? "false");
 
                 // Force regeneration on next push since we loaded new values
@@ -676,13 +679,18 @@ namespace CinematicShaders.Core
                 if (System.IO.File.Exists(SettingsPath))
                 {
                     node = ConfigNode.Load(SettingsPath) ?? node;
+                    // Rewrite our node from scratch: AddValue appends and GetValue reads
+                    // the first match, so adding onto the existing node would duplicate
+                    // keys and the stale values would win on next load
+                    node.RemoveNode("StarfieldSettings");
                 }
 
-                ConfigNode settingsNode = node.GetNode("StarfieldSettings") ?? node.AddNode("StarfieldSettings");
+                ConfigNode settingsNode = node.AddNode("StarfieldSettings");
 
                 settingsNode.AddValue("EnableStarfield", EnableStarfield);
-                settingsNode.AddValue("Exposure", Exposure);
-                settingsNode.AddValue("BlurPixels", BlurPixels);
+                // NOTE: Exposure, BlurPixels, BloomThreshold, BloomIntensity, ColorSaturation and
+                // ActiveCatalogPath are per-save (StarfieldPerSaveSettings ScenarioModule) and are
+                // deliberately NOT written to this global file - see Load() for details.
                 settingsNode.AddValue("MinMagnitude", MinMagnitude);
                 settingsNode.AddValue("MaxMagnitude", MaxMagnitude);
                 settingsNode.AddValue("MagnitudeBias", MagnitudeBias);
@@ -701,10 +709,8 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("BulgeSoftness", BulgeSoftness);
                 settingsNode.AddValue("BulgeNoiseScale", BulgeNoiseScale);
                 settingsNode.AddValue("BulgeNoiseStrength", BulgeNoiseStrength);
-                settingsNode.AddValue("BloomThreshold", BloomThreshold);
-                settingsNode.AddValue("BloomIntensity", BloomIntensity);
-                settingsNode.AddValue("ColorSaturation", ColorSaturation);
                 settingsNode.AddValue("UseSoftBloom", UseSoftBloom);
+                settingsNode.AddValue("RestoreOriginalSkyboxOnDisable", RestoreOriginalSkyboxOnDisable);
                 settingsNode.AddValue("RotationX", RotationX);
                 settingsNode.AddValue("RotationY", RotationY);
                 settingsNode.AddValue("RotationZ", RotationZ);
@@ -750,7 +756,6 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("KartographerGridColor", KartographerGridColor);
                 settingsNode.AddValue("StarConsoleVolume", StarConsoleVolume);
                 settingsNode.AddValue("StarConsoleDisplayMode", StarConsoleDisplayMode);
-                settingsNode.AddValue("ActiveCatalogPath", NormalizeCatalogPath(ActiveCatalogPath));
                 // settingsNode.AddValue("IsReadOnly", IsReadOnly);
                 settingsNode.AddValue("CatalogSeed", CatalogSeed);
                 settingsNode.AddValue("CatalogSize", CatalogSize);

@@ -25,7 +25,6 @@ namespace CinematicShaders {
 TextSystem::TextSystem()
     : m_initialized(false)
     , m_device(nullptr)
-    , m_context(nullptr)
     , m_atlasTex(nullptr)
     , m_atlasSRV(nullptr)
     , m_fontInfo(nullptr)
@@ -55,7 +54,6 @@ bool TextSystem::Init(ID3D11Device* device, const wchar_t* ttfPath, int atlasSiz
     }
     
     m_device = device;
-    device->GetImmediateContext(&m_context);
     
     // Load TTF file
     std::ifstream file(ttfPath, std::ios::binary | std::ios::ate);
@@ -148,11 +146,6 @@ void TextSystem::Shutdown() {
         delete m_fontInfo;
         m_fontInfo = nullptr;
     }
-    if (m_context) {
-        m_context->Release();
-        m_context = nullptr;
-    }
-    
     m_device = nullptr;
     m_ttfData.clear();
     m_atlasPixels.clear();
@@ -628,68 +621,6 @@ void TextSystem::ExportGlyphDebug(const char* baseFilename) {
                      glyphName, metric.width, metric.height);
         }
     }
-}
-
-ID3D11Buffer* TextSystem::GetOrCreateGlyphBuffer() {
-    if (m_instances.empty())
-        return nullptr;
-    
-    int requiredCount = static_cast<int>(m_instances.size());
-    int instanceSize = sizeof(GlyphInstance);
-    int requiredSize = requiredCount * instanceSize;
-    
-    // Create or resize buffer if needed
-    if (!m_glyphBuffer || m_glyphBufferCapacity < requiredCount) {
-        if (m_glyphBuffer) {
-            m_glyphBuffer->Release();
-            m_glyphBuffer = nullptr;
-        }
-        if (m_glyphBufferSRV) {
-            m_glyphBufferSRV->Release();
-            m_glyphBufferSRV = nullptr;
-        }
-        
-        // Allocate with some headroom
-        m_glyphBufferCapacity = std::max(requiredCount * 2, 256);
-        
-        D3D11_BUFFER_DESC desc = {};
-        desc.ByteWidth = m_glyphBufferCapacity * instanceSize;
-        desc.Usage = D3D11_USAGE_DYNAMIC;
-        desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-        desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        desc.StructureByteStride = instanceSize;
-        desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
-        
-        HRESULT hr = m_device->CreateBuffer(&desc, nullptr, &m_glyphBuffer);
-        if (FAILED(hr)) {
-            m_glyphBufferCapacity = 0;
-            return nullptr;
-        }
-        
-        // Create SRV for the buffer
-        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-        srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-        srvDesc.Buffer.FirstElement = 0;
-        srvDesc.Buffer.NumElements = m_glyphBufferCapacity;
-        
-        hr = m_device->CreateShaderResourceView(m_glyphBuffer, &srvDesc, &m_glyphBufferSRV);
-        if (FAILED(hr)) {
-            m_glyphBuffer->Release();
-            m_glyphBuffer = nullptr;
-            m_glyphBufferCapacity = 0;
-            return nullptr;
-        }
-    }
-    
-    // Update buffer with current glyph data
-    D3D11_MAPPED_SUBRESOURCE mapped;
-    if (SUCCEEDED(m_context->Map(m_glyphBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
-        memcpy(mapped.pData, m_instances.data(), requiredSize);
-        m_context->Unmap(m_glyphBuffer, 0);
-    }
-    
-    return m_glyphBuffer;
 }
 
 } // namespace CinematicShaders

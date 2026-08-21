@@ -83,8 +83,6 @@ public:
     int GetGlyphCount() const { return static_cast<int>(m_instances.size()); }
     int GetAtlasSize() const { return m_atlasWidth; }
     
-    // Create/update D3D11 buffer with current glyph instances for compute shader
-    ID3D11Buffer* GetOrCreateGlyphBuffer();
     ID3D11ShaderResourceView* GetGlyphBufferSRV() { return m_glyphBufferSRV; }
     
     // Flush pending atlas uploads on the render thread (must be called before draw/dispatch)
@@ -118,8 +116,6 @@ private:
 private:
     bool m_initialized;
     ID3D11Device* m_device;
-    ID3D11DeviceContext* m_context;
-    
     // D3D11 resources
     ID3D11Texture2D* m_atlasTex;
     ID3D11ShaderResourceView* m_atlasSRV;

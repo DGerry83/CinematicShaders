@@ -1,4 +1,4 @@
-﻿using CinematicShaders.Core;
+using CinematicShaders.Core;
 using CinematicShaders.Native;
 using CinematicShaders.Shaders.GTAO;
 using UnityEngine;
@@ -16,6 +16,7 @@ namespace CinematicShaders.UI.Tabs
             CinematicShadersUIStrings.GTAO.QualityUltra
         };
 
+        private GameScenes _selectedScene;
         private int _qualityPresetIndex;
         private float _radius;
         private float _intensity;
@@ -30,14 +31,49 @@ namespace CinematicShaders.UI.Tabs
 
         public GTAOTab()
         {
-            _qualityPresetIndex = GTAOSettings.QualityPreset;
-            _radius = GTAOSettings.EffectRadius;
-            _intensity = GTAOSettings.Intensity;
-            _maxPixelRadius = GTAOSettings.MaxPixelRadius;
-            _fadeStartDistance = GTAOSettings.FadeStartDistance;
-            _fadeEndDistance = GTAOSettings.FadeEndDistance;
-            _fadeCurve = GTAOSettings.FadeCurve;
+            // Edit the live scene's profile by default (fall back to Flight from scenes
+            // without a profile, e.g. the main menu)
+            _selectedScene = GTAOSettings.GetProfile(HighLogic.LoadedScene) != null
+                ? HighLogic.LoadedScene
+                : GameScenes.FLIGHT;
+            ReadProfileIntoLocals(_selectedScene);
             _currentDebugMode = GTAOSettings.DebugVisualizationMode;
+        }
+
+        private void ReadProfileIntoLocals(GameScenes scene)
+        {
+            GTAOSettings.GTAOProfile profile = GTAOSettings.GetProfile(scene);
+            _qualityPresetIndex = profile.QualityPreset;
+            _radius = profile.EffectRadius;
+            _intensity = profile.Intensity;
+            _maxPixelRadius = profile.MaxPixelRadius;
+            _fadeStartDistance = profile.FadeStartDistance;
+            _fadeEndDistance = profile.FadeEndDistance;
+            _fadeCurve = profile.FadeCurve;
+        }
+
+        private void WriteLocalsToProfile(GameScenes scene)
+        {
+            GTAOSettings.GTAOProfile profile = GTAOSettings.GetProfile(scene);
+            profile.QualityPreset = _qualityPresetIndex;
+            profile.EffectRadius = _radius;
+            profile.Intensity = _intensity;
+            profile.MaxPixelRadius = _maxPixelRadius;
+            profile.FadeStartDistance = _fadeStartDistance;
+            profile.FadeEndDistance = _fadeEndDistance;
+            profile.FadeCurve = _fadeCurve;
+        }
+
+        private static string SceneLabel(GameScenes scene)
+        {
+            switch (scene)
+            {
+                case GameScenes.FLIGHT: return CinematicShadersUIStrings.GTAO.SceneFlight;
+                case GameScenes.SPACECENTER: return CinematicShadersUIStrings.GTAO.SceneSpaceCenter;
+                case GameScenes.TRACKSTATION: return CinematicShadersUIStrings.GTAO.SceneTrackingStation;
+                case GameScenes.EDITOR: return CinematicShadersUIStrings.GTAO.SceneEditor;
+                default: return scene.ToString();
+            }
         }
 
         private void SetDebugMode(int mode)
@@ -77,6 +113,8 @@ namespace CinematicShaders.UI.Tabs
 
                 GUIStyle helpStyle = CinematicShadersUIResources.Styles.Help();
 
+                DrawSceneSelector();
+
                 DrawDebugSection();
 
                 GUILayout.Label(CinematicShadersUIStrings.GTAO.SamplingSection, HighLogic.Skin.label);
@@ -84,7 +122,7 @@ namespace CinematicShaders.UI.Tabs
                 DrawQualityDropdown();
                 DrawSlider(CinematicShadersUIStrings.GTAO.RadiusLabel, ref _radius, 0.5f, 10.0f, "F1");
                 GUILayout.Label(CinematicShadersUIStrings.GTAO.RadiusTooltip, helpStyle);
-                DrawSlider(CinematicShadersUIStrings.GTAO.DetailRangeLabel, ref _maxPixelRadius, 20f, 300f, "F0", "px");
+                DrawSlider(CinematicShadersUIStrings.GTAO.DetailRangeLabel, ref _maxPixelRadius, 20f, 300f, "F0", CinematicShadersUIStrings.GTAO.PixelSuffix);
 
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
 
@@ -94,8 +132,8 @@ namespace CinematicShaders.UI.Tabs
                 GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
 
                 GUILayout.Label(CinematicShadersUIStrings.GTAO.DistanceFadeSection, HighLogic.Skin.label);
-                DrawSliderExponential(CinematicShadersUIStrings.GTAO.StartFadeLabel, ref _fadeStartDistance, 2000f, 25000f, 2.5f, "F0", "m");
-                DrawSliderExponential(CinematicShadersUIStrings.GTAO.EndFadeLabel, ref _fadeEndDistance, 25000f, 200000f, 2.0f, "F0", "m");
+                DrawSliderExponential(CinematicShadersUIStrings.GTAO.StartFadeLabel, ref _fadeStartDistance, 2000f, 25000f, 2.5f, "F0", CinematicShadersUIStrings.GTAO.MeterSuffix);
+                DrawSliderExponential(CinematicShadersUIStrings.GTAO.EndFadeLabel, ref _fadeEndDistance, 25000f, 200000f, 2.0f, "F0", CinematicShadersUIStrings.GTAO.MeterSuffix);
                 DrawSlider(CinematicShadersUIStrings.GTAO.EdgeHardnessLabel, ref _fadeCurve, 0.5f, 3.0f, "F1");
 
                 GUILayout.Label(CinematicShadersUIStrings.GTAO.EdgeHardnessTooltip, helpStyle);
@@ -114,6 +152,41 @@ namespace CinematicShaders.UI.Tabs
             {
                 GUI.enabled = oldEnabled;
             }
+        }
+
+        private void DrawSceneSelector()
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(CinematicShadersUIStrings.GTAO.SceneSelectorLabel, HighLogic.Skin.label);
+
+            foreach (GameScenes scene in GTAOSettings.ProfileScenes)
+            {
+                string label = SceneLabel(scene);
+                if (scene == HighLogic.LoadedScene)
+                    label += CinematicShadersUIStrings.GTAO.SceneLiveSuffix;
+
+                GUIStyle style = scene == _selectedScene
+                    ? CinematicShadersUIResources.Styles.ToggleActive()
+                    : HighLogic.Skin.button;
+
+                if (GUILayout.Button(label, style))
+                {
+                    SelectScene(scene);
+                }
+            }
+
+            GUILayout.EndHorizontal();
+            GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.NORMAL);
+        }
+
+        private void SelectScene(GameScenes scene)
+        {
+            if (scene == _selectedScene) return;
+
+            WriteLocalsToProfile(_selectedScene);
+            _selectedScene = scene;
+            ReadProfileIntoLocals(scene);
+            _showQualityDropdown = false;
         }
 
         private void DrawDebugSection()
@@ -234,17 +307,25 @@ namespace CinematicShaders.UI.Tabs
 
             try
             {
-                GUIStyle toggleStyle = GTAOSettings.EnableGTAO ?
+                GTAOSettings.GTAOProfile profile = GTAOSettings.GetProfile(_selectedScene);
+
+                GUIStyle toggleStyle = profile.EnableGTAO ?
                     CinematicShadersUIResources.Styles.ToggleActive() : HighLogic.Skin.toggle;
 
-                bool newEnable = GUILayout.Toggle(GTAOSettings.EnableGTAO, CinematicShadersUIStrings.GTAO.EnableToggle, toggleStyle);
-                if (newEnable != GTAOSettings.EnableGTAO)
+                bool newEnable = GUILayout.Toggle(profile.EnableGTAO, CinematicShadersUIStrings.GTAO.EnableToggle, toggleStyle);
+                if (newEnable != profile.EnableGTAO)
                 {
-                    GTAOSettings.EnableGTAO = newEnable;
-                    GTAOManager.OnToggleChanged();
+                    profile.EnableGTAO = newEnable;
+
+                    // Only the live scene's toggle affects the renderer right now
+                    if (_selectedScene == HighLogic.LoadedScene)
+                    {
+                        GTAOSettings.EnableGTAO = newEnable;
+                        GTAOManager.OnToggleChanged();
+                    }
                 }
 
-                if (!GTAOSettings.EnableGTAO)
+                if (!profile.EnableGTAO)
                     GUI.enabled = false;
 
                 GUIStyle rawToggleStyle = GTAOSettings.GTAORawAOOutput ?
@@ -264,15 +345,14 @@ namespace CinematicShaders.UI.Tabs
 
         private void PushSettingsToNative()
         {
-            GTAOSettings.QualityPreset = _qualityPresetIndex;
-            GTAOSettings.EffectRadius = _radius;
-            GTAOSettings.Intensity = _intensity;
-            GTAOSettings.MaxPixelRadius = _maxPixelRadius;
-            GTAOSettings.FadeStartDistance = _fadeStartDistance;
-            GTAOSettings.FadeEndDistance = _fadeEndDistance;
-            GTAOSettings.FadeCurve = _fadeCurve;
+            WriteLocalsToProfile(_selectedScene);
 
-            GTAOSettings.PushSettingsToNative();
+            // Only the live scene's profile drives the renderer
+            if (_selectedScene == HighLogic.LoadedScene)
+            {
+                GTAOSettings.ApplySceneProfile(_selectedScene);
+                GTAOSettings.PushSettingsToNative();
+            }
         }
 
         private bool IsDeferredRenderingActive()

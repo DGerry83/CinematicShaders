@@ -201,8 +201,29 @@ class HLSLayoutEngine:
                 ))
                 offset += type_size
         
-        # Total size must be multiple of 16
+        # Total size must be multiple of the struct's alignment
         total_size = HLSLayoutEngine._align_up(offset, struct_def.size_align)
+        
+        # Materialize the trailing pad so the emitted struct actually occupies
+        # total_size in every language. Without this, the stated/asserted size
+        # (total_size) exceeded the real struct size (offset): for
+        # KartographerParams, C++ sizeof and C# Marshal.SizeOf both measured
+        # 1108 vs the asserted 1120, breaking the C++ static_assert (native
+        # build) and the C# startup assert (#027 / #028).
+        # 4-byte granularity uses the proven padding path in all three
+        # downstream engines/emitters.
+        while offset < total_size:
+            fields.append(LayoutField(
+                name=f"_auto_pad{pad_counter}",
+                type_name="padding_4b",
+                size=4,
+                offset=offset,
+                comment="Auto-inserted trailing pad to reach stated total size",
+                array_size=1,
+                is_padding=True
+            ))
+            offset += 4
+            pad_counter += 1
         
         return StructLayout(
             name=struct_def.name,

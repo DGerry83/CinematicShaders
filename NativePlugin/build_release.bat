@@ -112,4 +112,14 @@ if errorlevel 1 (
 )
 echo Deployed to: %DEPLOY_PATH2%
 
+REM Deploy to Reform test installation
+set "DEPLOY_PATH3=C:\SSDGames\ReformTestInstance\GameData\CinematicShaders\PluginData"
+if not exist "%DEPLOY_PATH3%" mkdir "%DEPLOY_PATH3%"
+copy /Y "build\CinematicShadersNative.dll" "%DEPLOY_PATH3%\"
+if errorlevel 1 (
+    echo Deploy failed to Reform test install!
+    exit /b 1
+)
+echo Deployed to: %DEPLOY_PATH3%
+
 endlocal

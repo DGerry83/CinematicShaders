@@ -1,4 +1,4 @@
-﻿using CinematicShaders.Core;
+using CinematicShaders.Core;
 using CinematicShaders.Native;
 using CinematicShaders.Shaders.Starfield;
 using System;
@@ -46,7 +46,10 @@ namespace CinematicShaders.UI.Tabs
         private float _bloomThreshold;
         private float _bloomIntensity;
         private float _colorSaturation;
+        private float _extinctionFactor;
+        private float _dimmingFactor;
         private bool _useSoftBloom;
+        private bool _restoreOriginalSkyboxOnDisable;
         private int _catalogSeed;
         private int _catalogSize;
 
@@ -96,7 +99,10 @@ namespace CinematicShaders.UI.Tabs
             _bloomThreshold = StarfieldSettings.BloomThreshold;
             _bloomIntensity = StarfieldSettings.BloomIntensity;
             _colorSaturation = StarfieldSettings.ColorSaturation;
+            _extinctionFactor = StarfieldSettings.ExtinctionFactor;
+            _dimmingFactor = StarfieldSettings.DimmingFactor;
             _useSoftBloom = StarfieldSettings.UseSoftBloom;
+            _restoreOriginalSkyboxOnDisable = StarfieldSettings.RestoreOriginalSkyboxOnDisable;
             _catalogSeed = StarfieldSettings.CatalogSeed;
             _catalogSize = StarfieldSettings.CatalogSize;
             _rotationX = StarfieldSettings.RotationX;
@@ -140,6 +146,17 @@ namespace CinematicShaders.UI.Tabs
                 if (_showRenderingSection)
                 {
                     DrawEnableToggle(oldEnabled);
+
+                    bool newRestore = GUILayout.Toggle(_restoreOriginalSkyboxOnDisable,
+                        new GUIContent(CinematicShadersUIStrings.Starfield.RestoreOriginalSkyboxOnDisableToggle,
+                            CinematicShadersUIStrings.Starfield.RestoreOriginalSkyboxOnDisableTooltip),
+                        HighLogic.Skin.toggle);
+                    if (newRestore != _restoreOriginalSkyboxOnDisable)
+                    {
+                        _restoreOriginalSkyboxOnDisable = newRestore;
+                        StarfieldSettings.RestoreOriginalSkyboxOnDisable = newRestore;
+                    }
+
                     if (!StarfieldSettings.EnableStarfield)
                         GUI.enabled = false;
 
@@ -196,6 +213,10 @@ namespace CinematicShaders.UI.Tabs
                     }
                     GUILayout.EndHorizontal();
 
+                    DrawRenderingSlider(CinematicShadersUIStrings.Starfield.ExtinctionFactorLabel, ref _extinctionFactor, 0.0f, 2.0f, "F2",
+                        CinematicShadersUIStrings.Starfield.ExtinctionFactorTooltip);
+                    DrawRenderingSlider(CinematicShadersUIStrings.Starfield.DimmingFactorLabel, ref _dimmingFactor, 0.0f, 2.0f, "F2",
+                        CinematicShadersUIStrings.Starfield.DimmingFactorTooltip);
 
                     GUILayout.Space(CinematicShadersUIResources.Layout.Spacing.TIGHT);
                 }
@@ -213,9 +234,7 @@ namespace CinematicShaders.UI.Tabs
                         GUI.enabled = false;
                         if (isIntentional)
                         {
-                            GUIStyle redLabelStyle = new GUIStyle(HighLogic.Skin.label);
-                            redLabelStyle.normal.textColor = Color.red;
-                            GUILayout.Label("Non-generated catalogs can only be rotated.", redLabelStyle);
+                            GUILayout.Label(CinematicShadersUIStrings.Starfield.NonProceduralLockMessage, CinematicShadersUIResources.Styles.Error());
                         }
                         else
                         {
@@ -224,13 +243,13 @@ namespace CinematicShaders.UI.Tabs
                     }
 
                     DrawIntSlider(CinematicShadersUIStrings.Starfield.CatalogSeedLabel, ref _catalogSeed, 0, 99999,
-                        CinematicShadersUIStrings.Starfield.CatalogSeedTooltip);
+                        IntSliderTarget.CatalogSeed, CinematicShadersUIStrings.Starfield.CatalogSeedTooltip);
                     DrawIntSlider(CinematicShadersUIStrings.Starfield.CatalogSizeLabel, ref _catalogSize, 1000, 100000,
-                        CinematicShadersUIStrings.Starfield.CatalogSizeTooltip);
+                        IntSliderTarget.CatalogSize, CinematicShadersUIStrings.Starfield.CatalogSizeTooltip);
                     DrawGenerationSlider(CinematicShadersUIStrings.Starfield.MinMagnitudeLabel, ref _minMagnitude, -2.0f, 3.0f, "F1");
                     DrawGenerationSlider(CinematicShadersUIStrings.Starfield.MaxMagnitudeLabel, ref _maxMagnitude, 5.0f, 12.0f, "F1");
                     DrawIntSlider(CinematicShadersUIStrings.Starfield.HeroCountLabel, ref _heroCount, 16, 1024,
-                        CinematicShadersUIStrings.Starfield.HeroCountTooltip);
+                        IntSliderTarget.HeroCount, CinematicShadersUIStrings.Starfield.HeroCountTooltip);
                     DrawGenerationSlider(CinematicShadersUIStrings.Starfield.MainSequenceLabel, ref _mainSequenceStrength, 0.0f, 1.0f, "F2",
                         CinematicShadersUIStrings.Starfield.MainSequenceTooltip);
                     DrawGenerationSlider(CinematicShadersUIStrings.Starfield.RedGiantFrequencyLabel, ref _redGiantFrequency, 0.0f, 1.0f, "F2");
@@ -285,26 +304,7 @@ namespace CinematicShaders.UI.Tabs
             {
                 GUI.enabled = oldEnabled;
             }
-            DrawTooltip();
-        }
-
-        private void DrawTooltip()
-        {
-            if (string.IsNullOrEmpty(GUI.tooltip))
-                return;
-
-            Vector2 mousePos = Event.current.mousePosition;
-            GUIStyle tooltipStyle = HighLogic.Skin.box;
-            float tooltipWidth = Mathf.Min(250f, tooltipStyle.CalcSize(new GUIContent(GUI.tooltip)).x + 20f);
-            float tooltipHeight = tooltipStyle.CalcHeight(new GUIContent(GUI.tooltip), tooltipWidth) + 10f;
-
-            float x = mousePos.x + 15f;
-            float y = mousePos.y + 15f;
-            Rect windowRect = CinematicShadersWindow.Instance.WindowRect;
-            x = Mathf.Min(x, windowRect.width - tooltipWidth - 5f);
-            y = Mathf.Min(y, windowRect.height - tooltipHeight - 5f);
-
-            GUI.Box(new Rect(x, y, tooltipWidth, tooltipHeight), GUI.tooltip, tooltipStyle);
+            CinematicShadersWindow.Instance.DrawTooltip();
         }
 
         private void DrawEnableToggle(bool parentEnabledState)
@@ -389,7 +389,10 @@ namespace CinematicShaders.UI.Tabs
         /// <summary>
         /// Integer generation slider: throttled like DrawGenerationSlider.
         /// </summary>
-        private void DrawIntSlider(string label, ref int value, int min, int max, string tooltip = null)
+        // D7: explicit routing target — replaces fragile label-string identity comparison.
+        private enum IntSliderTarget { CatalogSeed, CatalogSize, HeroCount }
+
+        private void DrawIntSlider(string label, ref int value, int min, int max, IntSliderTarget target, string tooltip = null)
         {
             GUILayout.BeginHorizontal();
             GUIContent labelContent = new GUIContent(label, tooltip);
@@ -406,12 +409,12 @@ namespace CinematicShaders.UI.Tabs
             {
                 value = newIntValue;
 
-                if (label == CinematicShadersUIStrings.Starfield.CatalogSeedLabel)
-                    StarfieldSettings.CatalogSeed = value;
-                else if (label == CinematicShadersUIStrings.Starfield.CatalogSizeLabel)
-                    StarfieldSettings.CatalogSize = value;
-                else if (label == CinematicShadersUIStrings.Starfield.HeroCountLabel)
-                    StarfieldSettings.HeroCount = value;
+                switch (target)
+                {
+                    case IntSliderTarget.CatalogSeed: StarfieldSettings.CatalogSeed = value; break;
+                    case IntSliderTarget.CatalogSize: StarfieldSettings.CatalogSize = value; break;
+                    case IntSliderTarget.HeroCount: StarfieldSettings.HeroCount = value; break;
+                }
 
                 StarfieldSettings.InvalidateCatalog();
                 _generationPushPending = true;
@@ -463,8 +466,7 @@ namespace CinematicShaders.UI.Tabs
             GUILayout.Space(5);
 
             GUILayout.BeginHorizontal();
-            GUIStyle toggleStyle = new GUIStyle(HighLogic.Skin.toggle);
-            toggleStyle.richText = true;
+            GUIStyle toggleStyle = CinematicShadersUIResources.Styles.RichTextToggle();
 
             string toggleLabel = StarfieldSettings.IsReadOnly ?
                 CinematicShadersUIStrings.Starfield.ReadOnlyToggleOn :
@@ -565,7 +567,7 @@ namespace CinematicShaders.UI.Tabs
                 _newCatalogName = GUILayout.TextField(_newCatalogName, GUILayout.Width(250));
 
                 GUILayout.BeginHorizontal();
-                if (GUILayout.Button("Cancel", GUILayout.Width(70)))
+                if (GUILayout.Button(CinematicShadersUIStrings.Starfield.CancelButton, GUILayout.Width(70)))
                     _showSaveAsDialog = false;
 
                 if (GUILayout.Button(CinematicShadersUIStrings.Starfield.SaveButton, GUILayout.Width(70)))
@@ -686,7 +688,10 @@ namespace CinematicShaders.UI.Tabs
             StarfieldSettings.BloomThreshold = _bloomThreshold;
             StarfieldSettings.BloomIntensity = _bloomIntensity;
             StarfieldSettings.ColorSaturation = _colorSaturation;
+            StarfieldSettings.ExtinctionFactor = _extinctionFactor;
+            StarfieldSettings.DimmingFactor = _dimmingFactor;
             StarfieldSettings.UseSoftBloom = _useSoftBloom;
+            StarfieldSettings.RestoreOriginalSkyboxOnDisable = _restoreOriginalSkyboxOnDisable;
             StarfieldSettings.RotationX = _rotationX;
             StarfieldSettings.RotationY = _rotationY;
             StarfieldSettings.RotationZ = _rotationZ;
@@ -719,6 +724,7 @@ namespace CinematicShaders.UI.Tabs
             _bloomIntensity = 0.5f;
             _colorSaturation = 1.0f;
             _useSoftBloom = false;
+            _restoreOriginalSkyboxOnDisable = true;
             _catalogSize = 50000;
             _rotationX = 0.0f;
             _rotationY = 0.0f;
