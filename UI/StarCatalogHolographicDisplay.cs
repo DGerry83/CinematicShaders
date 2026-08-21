@@ -72,8 +72,9 @@ namespace CinematicShaders.UI
         private List<HolographicTextElement> _resultElements =
             new List<HolographicTextElement>();
 
-        // Native text system reference (shared from KartographerSelector)
+        // Native text system reference (console-owned; falls back to selector-shared on init failure)
         private IntPtr _textSystem = IntPtr.Zero;
+        private bool _ownsTextSystem;
 
         // Display position (set by parent)
         private Rect _displayRect;
@@ -140,7 +141,34 @@ namespace CinematicShaders.UI
             string catalogPath = "")
         {
             _instanceId = ++s_instanceCount;
-            _textSystem = sharedTextSystem;
+            
+            // Create a console-owned text system; fall back to the selector-shared handle on failure.
+            string fontPath = CinematicShadersUIResources.Fonts.GetHudFontPath();
+            if (File.Exists(fontPath))
+            {
+                _textSystem = StarfieldNative.CR_TextInit(
+                    Texture2D.whiteTexture.GetNativeTexturePtr(),
+                    fontPath);
+                if (_textSystem != IntPtr.Zero)
+                {
+                    _ownsTextSystem = true;
+                    Debug.Log($"[StarCatalogHolographicDisplay] Console text system initialized with font: {fontPath}");
+                }
+                else
+                {
+                    Debug.LogError("[StarCatalogHolographicDisplay] Failed to initialize console text system; falling back to shared");
+                }
+            }
+            else
+            {
+                Debug.LogError($"[StarCatalogHolographicDisplay] Font file not found: {fontPath}; falling back to shared text system");
+            }
+            
+            if (!_ownsTextSystem)
+            {
+                _textSystem = sharedTextSystem;
+                _ownsTextSystem = false;
+            }
             
             // Get glyph-based display dimensions
             Vector2 dimensions = TerminalGridConfig.GetDisplayDimensions(size);
@@ -1415,10 +1443,15 @@ namespace CinematicShaders.UI
             _screenManager?.Shutdown();
             _screenManager = null;
             
+            // Release console-owned text system after ScreenManager shutdown
+            if (_ownsTextSystem && _textSystem != IntPtr.Zero)
+            {
+                StarfieldNative.CR_TextShutdown(_textSystem);
+            }
+            _textSystem = IntPtr.Zero;
+            
             // Ensure typing sound is stopped when window is destroyed
             ModAudioManager.StopLoop("starconsole_typing", 0.025f);
-
-            // Note: We don't shut down _textSystem here because it's shared
         }
         #endregion
 
