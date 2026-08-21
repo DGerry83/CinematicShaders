@@ -60,7 +60,7 @@ namespace CinematicShaders.UI.Screens.Layers
         
         // Grid-based content buffer
         private char[,] _gridBuffer = new char[GRID_ROWS, GRID_COLUMNS];
-        private readonly ConsoleCellInstanceNative[] _stagingCells = new ConsoleCellInstanceNative[767];
+        private readonly ConsoleCellInstanceNative[] _stagingCells = new ConsoleCellInstanceNative[StarfieldNative.MaxConsoleCells];
         
         // Constraint-based layout system (dual-path support)
         private MainScreenLayout _mainScreenLayout;

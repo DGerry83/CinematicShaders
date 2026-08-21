@@ -17,7 +17,7 @@ namespace CinematicShaders.UI.Screens.Layers
         public Vector2? CursorPosition { get; private set; }
         
         private readonly string[] _borderLines;
-        private readonly ConsoleCellInstanceNative[] _stagingCells = new ConsoleCellInstanceNative[767];
+        private readonly ConsoleCellInstanceNative[] _stagingCells = new ConsoleCellInstanceNative[StarfieldNative.MaxConsoleCells];
         
         public BorderLayer(string[] borderLines)
         {

@@ -49,6 +49,8 @@ struct CubemapRenderJob {
 // Render-frame counter for deterministic texture upload readiness (Navball GPU race fix)
 static std::atomic<int> g_StarfieldRenderFrameCount{0};
 
+static constexpr int MAX_CONSOLE_CELLS = 767; // must match StarfieldNative.MaxConsoleCells (C#)
+
 static struct {
     ID3D11Device* device = nullptr;
     ID3D11Texture2D* hdrTexture = nullptr;
@@ -324,7 +326,7 @@ static struct {
     
     // Console render staging
     struct ConsoleDrawJob {
-        ConsoleCellInstance cells[767];
+        ConsoleCellInstance cells[MAX_CONSOLE_CELLS];
         int cellCount = 0;
         float displayX = 0;
         float displayY = 0;
@@ -2634,7 +2636,7 @@ static bool EnsureConsoleRenderer(ID3D11Device* device) {
         return false;
 
     D3D11_BUFFER_DESC instDesc = {};
-    instDesc.ByteWidth = 767 * sizeof(ConsoleCellInstance); // max console cells
+    instDesc.ByteWidth = MAX_CONSOLE_CELLS * sizeof(ConsoleCellInstance); // max console cells
     instDesc.Usage = D3D11_USAGE_DYNAMIC;
     instDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     instDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
@@ -4696,7 +4698,7 @@ void CR_DrawConsoleGrid(
 
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
 
-    int count = cellCount > 767 ? 767 : cellCount;
+    int count = cellCount > MAX_CONSOLE_CELLS ? MAX_CONSOLE_CELLS : cellCount;
     memcpy(g_StarfieldState.consoleDrawJob.cells, cells, count * sizeof(ConsoleCellInstance));
     g_StarfieldState.consoleDrawJob.cellCount = count;
     g_StarfieldState.consoleDrawJob.displayX = displayX;

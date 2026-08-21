@@ -18,6 +18,9 @@ namespace CinematicShaders.Native
 
         public static bool IsLoaded => DllLoader.IsLoaded;
 
+        // Maximum console cell instances per frame. Must match MAX_CONSOLE_CELLS in StarfieldNative.cpp.
+        public const int MaxConsoleCells = 767;
+
         // ============================================================================
         // Text System structs and imports (Phase 2 - Font Integration)
         // ============================================================================
