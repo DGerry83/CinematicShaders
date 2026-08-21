@@ -22,7 +22,10 @@ namespace CinematicShaders.Core
         // Loop Tracking
         // ------------------------------------------------------------------------
         private static readonly Dictionary<string, AudioSource> _activeLoops = new Dictionary<string, AudioSource>();
+        private static readonly Dictionary<AudioSource, Coroutine> _activeFades = new Dictionary<AudioSource, Coroutine>();
         private static GameObject _audioRoot;
+
+        private const float DefaultFadeOutSeconds = 0.025f;
 
         // ------------------------------------------------------------------------
         // Coroutine Host (for fade-outs from static context)
@@ -182,13 +185,17 @@ namespace CinematicShaders.Core
                 // Already playing — just refresh volume in case settings changed
                 float effectiveVolume = GetEffectiveVolume(group) * Mathf.Clamp01(volumeScale);
                 existing.volume = effectiveVolume;
-                if (!existing.isPlaying && effectiveVolume > 0.001f)
+                if (effectiveVolume > 0.001f)
                 {
-                    existing.Play();
+                    StopFade(existing);
+                    if (!existing.isPlaying)
+                    {
+                        existing.Play();
+                    }
                 }
-                else if (existing.isPlaying && effectiveVolume <= 0.001f)
+                else if (existing.isPlaying)
                 {
-                    existing.Stop();
+                    StartFade(existing, DefaultFadeOutSeconds, killOnComplete: false);
                 }
                 return;
             }
@@ -229,30 +236,60 @@ namespace CinematicShaders.Core
 
             if (fadeOutSeconds > 0.001f && src.isPlaying)
             {
-                var host = _audioRoot?.GetComponent<AudioCoroutineHost>();
-                if (host != null)
-                {
-                    host.StartCoroutine(FadeAndKill(src, fadeOutSeconds));
-                    return;
-                }
+                StartFade(src, fadeOutSeconds, killOnComplete: true);
+                return;
             }
 
             src.Stop();
             Object.Destroy(src.gameObject);
         }
 
-        private static System.Collections.IEnumerator FadeAndKill(AudioSource src, float duration)
+        private static void StartFade(AudioSource src, float duration, bool killOnComplete)
+        {
+            if (src == null) return;
+
+            var host = EnsureAudioRoot().GetComponent<AudioCoroutineHost>();
+            if (host == null) return;
+
+            StopFade(src);
+            _activeFades[src] = host.StartCoroutine(FadeCoroutine(src, duration, killOnComplete));
+        }
+
+        private static void StopFade(AudioSource src)
+        {
+            if (src == null) return;
+
+            if (_activeFades.TryGetValue(src, out Coroutine routine) && routine != null)
+            {
+                var host = _audioRoot?.GetComponent<AudioCoroutineHost>();
+                if (host != null) host.StopCoroutine(routine);
+            }
+            _activeFades.Remove(src);
+        }
+
+        private static System.Collections.IEnumerator FadeCoroutine(AudioSource src, float duration, bool killOnComplete)
         {
             float startVol = src.volume;
             float timer = 0f;
             while (timer < duration)
             {
+                if (src == null)
+                {
+                    _activeFades.Remove(src);
+                    yield break;
+                }
+
                 timer += Time.deltaTime;
                 src.volume = Mathf.Lerp(startVol, 0f, timer / duration);
                 yield return null;
             }
-            src.Stop();
-            Object.Destroy(src.gameObject);
+
+            if (src != null)
+            {
+                src.Stop();
+                if (killOnComplete) Object.Destroy(src.gameObject);
+            }
+            _activeFades.Remove(src);
         }
 
         /// <summary>
@@ -279,10 +316,11 @@ namespace CinematicShaders.Core
                 float vol = GetMasterMuted() ? 0f : _masterVolume;
                 if (vol <= 0.001f)
                 {
-                    src.Stop();
+                    StartFade(src, DefaultFadeOutSeconds, killOnComplete: false);
                 }
                 else
                 {
+                    StopFade(src);
                     src.volume = vol;
                     if (!src.isPlaying) src.Play();
                 }
