@@ -4756,8 +4756,17 @@ static void ExecuteConsoleDraw(ID3D11DeviceContext* context)
                 g_StarfieldState.consoleRTV->Release();
                 g_StarfieldState.consoleRTV = nullptr;
             }
+            HRESULT hr = device->CreateRenderTargetView(job.targetTexture, nullptr, &g_StarfieldState.consoleRTV);
+            if (FAILED(hr) || g_StarfieldState.consoleRTV == nullptr) {
+                // #026: leave consoleRTV null and bail before any draw state is set up;
+                // do NOT cache consoleRTTexture so a later frame can retry.
+                g_StarfieldState.consoleRTV = nullptr;
+                LogToFile("[Console] CreateRenderTargetView FAILED (hr=0x%08X); skipping console draw", hr);
+                if (prevRTVs[0]) prevRTVs[0]->Release();
+                if (prevDSV) prevDSV->Release();
+                return;
+            }
             g_StarfieldState.consoleRTTexture = job.targetTexture;
-            device->CreateRenderTargetView(job.targetTexture, nullptr, &g_StarfieldState.consoleRTV);
         }
         if (g_StarfieldState.consoleRTV) {
             context->OMSetRenderTargets(1, &g_StarfieldState.consoleRTV, nullptr);
