@@ -90,6 +90,19 @@ namespace CinematicShaders.Native
             float aspectRatio);  // NEW: aspect ratio parameter
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CR_TextLayoutToCells(
+            IntPtr textSystem,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string text,
+            float fontSize,
+            uint color,
+            float originX,
+            float originY,
+            float lineSpacing,
+            float aspectRatio,
+            [In, Out] ConsoleCellInstanceNative[] cells,
+            int maxCells);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_TextDispatchEx(
             IntPtr textSystem,
             IntPtr outputTexture,

@@ -60,6 +60,7 @@ namespace CinematicShaders.UI.Screens.Layers
         
         // Grid-based content buffer
         private char[,] _gridBuffer = new char[GRID_ROWS, GRID_COLUMNS];
+        private readonly ConsoleCellInstanceNative[] _stagingCells = new ConsoleCellInstanceNative[767];
         
         // Constraint-based layout system (dual-path support)
         private MainScreenLayout _mainScreenLayout;
@@ -473,59 +474,32 @@ namespace CinematicShaders.UI.Screens.Layers
             if (string.IsNullOrEmpty(fullText))
                 return;
 
-            int glyphCount = StarfieldNative.CR_TextLayoutEx(ts, fullText, fontSize, color, 0f, 0f, 0f, aspectRatio);
-            if (glyphCount <= 0)
-                return;
+            int remaining = buffer.Length - writeIndex;
+            int maxCells = Mathf.Min(_stagingCells.Length, remaining);
+            int cellsWritten = StarfieldNative.CR_TextLayoutToCells(
+                ts, fullText, fontSize, color, 0f, 0f, 0f, aspectRatio,
+                _stagingCells, maxCells);
 
-            IntPtr glyphPtr = StarfieldNative.CR_TextGetGlyphPtr(ts);
-            int glyphSize = System.Runtime.InteropServices.Marshal.SizeOf<StarfieldNative.GlyphData>();
-            int glyphIndex = 0;
-            int lastVisibleGlyphIndex = -1;
-
-            for (int row = 0; row < GRID_ROWS && writeIndex < buffer.Length; row++)
+            if (cellsWritten > 0)
             {
-                for (int col = 0; col < GRID_COLUMNS && writeIndex < buffer.Length; col++)
+                Array.Copy(_stagingCells, 0, buffer, writeIndex, cellsWritten);
+
+                if (typeOnProgress > 0f && typeOnProgress < 1f)
                 {
-                    char c = _gridBuffer[row, col];
-                    if (c == '\0' || c == ' ')
-                    {
-                        glyphIndex++;
-                        continue;
-                    }
-
-                    if (glyphIndex >= glyphCount)
-                        break;
-
-                    var glyph = System.Runtime.InteropServices.Marshal.PtrToStructure<StarfieldNative.GlyphData>(
-                        IntPtr.Add(glyphPtr, glyphIndex * glyphSize));
-                    buffer[writeIndex] = new ConsoleCellInstanceNative
-                    {
-                        PosX = glyph.PosX,
-                        PosY = glyph.PosY,
-                        SizeX = glyph.SizeX,
-                        SizeY = glyph.SizeY,
-                        Color = color,
-                        U0 = glyph.UvX,
-                        V0 = glyph.UvY,
-                        U1 = glyph.UvW,
-                        V1 = glyph.UvH
-                    };
-                    lastVisibleGlyphIndex = glyphIndex;
-                    writeIndex++;
-                    glyphIndex++;
+                    var last = buffer[writeIndex + cellsWritten - 1];
+                    CursorPosition = new Vector2(last.PosX + last.SizeX, last.PosY);
                 }
-            }
-
-            if (typeOnProgress > 0f && typeOnProgress < 1f && lastVisibleGlyphIndex >= 0)
-            {
-                var lastGlyph = System.Runtime.InteropServices.Marshal.PtrToStructure<StarfieldNative.GlyphData>(
-                    IntPtr.Add(glyphPtr, lastVisibleGlyphIndex * glyphSize));
-                CursorPosition = new Vector2(lastGlyph.PosX + lastGlyph.SizeX, lastGlyph.PosY);
+                else
+                {
+                    CursorPosition = null;
+                }
             }
             else
             {
                 CursorPosition = null;
             }
+
+            writeIndex += cellsWritten;
         }
         
         /// <summary>

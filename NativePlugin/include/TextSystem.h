@@ -6,6 +6,9 @@
 #include <string>
 #include <mutex>
 
+// Console cell instance struct (layout frozen)
+#include "ConsoleCellInstance_generated.h"
+
 // Forward declare stbtt_fontinfo to avoid including stb_truetype.h in header
 struct stbtt_fontinfo;
 
@@ -174,6 +177,13 @@ typedef void* TextSystemHandle;
     __declspec(dllexport) int CR_TextLayout(TextSystemHandle handle, const char* text, float fontSize, uint32_t color);
     __declspec(dllexport) int CR_TextLayoutEx(TextSystemHandle handle, const char* text, float fontSize, uint32_t color, float originX, float originY, float lineSpacing,
                     float aspectRatio = 1.0f);
+    
+    // Layout text directly into ConsoleCellInstance buffer, skipping zero-size glyphs.
+    // Returns number of cells written (capped at maxCells), or 0 on invalid args/handle.
+    __declspec(dllexport) int CR_TextLayoutToCells(
+        TextSystemHandle handle, const char* text, float fontSize, uint32_t color,
+        float originX, float originY, float lineSpacing, float aspectRatio,
+        ConsoleCellInstance* outCells, int maxCells);
     
     // Get actual bounds of laid-out text (width/height via out params)
     __declspec(dllexport) void CR_TextGetBounds(TextSystemHandle handle, float* outWidth, float* outHeight);

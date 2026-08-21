@@ -694,6 +694,49 @@ int CR_TextLayoutEx(TextSystemHandle handle, const char* text, float fontSize, u
 }
 
 extern "C" __declspec(dllexport)
+int CR_TextLayoutToCells(
+    TextSystemHandle handle, const char* text, float fontSize, uint32_t color,
+    float originX, float originY, float lineSpacing, float aspectRatio,
+    ConsoleCellInstance* outCells, int maxCells) {
+    auto* ts = static_cast<TextSystem*>(handle);
+    if (!ts || !text || !outCells || maxCells <= 0) {
+        return 0;
+    }
+
+    int layoutCount = ts->LayoutStringEx(text, fontSize, color, originX, originY, lineSpacing, aspectRatio);
+    if (layoutCount <= 0) {
+        return 0;
+    }
+
+    int written = 0;
+    int glyphCount = ts->GetGlyphCount();
+    const GlyphInstance* instances = ts->GetGlyphPtr();
+    for (int i = 0; i < glyphCount; ++i) {
+        const GlyphInstance& inst = instances[i];
+        if (inst.sizeX <= 0.0f || inst.sizeY <= 0.0f) {
+            continue;
+        }
+        if (written >= maxCells) {
+            break;
+        }
+
+        ConsoleCellInstance& cell = outCells[written];
+        cell.PosX = inst.posX;
+        cell.PosY = inst.posY;
+        cell.SizeX = inst.sizeX;
+        cell.SizeY = inst.sizeY;
+        cell.U0 = inst.uvX;
+        cell.V0 = inst.uvY;
+        cell.U1 = inst.uvW;
+        cell.V1 = inst.uvH;
+        cell.Color = color;
+        ++written;
+    }
+
+    return written;
+}
+
+extern "C" __declspec(dllexport)
 void CR_TextGetBounds(TextSystemHandle handle, float* outWidth, float* outHeight) {
     if (!handle || !outWidth || !outHeight) {
         if (outWidth) *outWidth = 0.0f;
