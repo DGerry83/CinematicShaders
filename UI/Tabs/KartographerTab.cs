@@ -438,6 +438,18 @@ namespace CinematicShaders.UI.Tabs
 
                 GUILayout.Space(5);
 
+                // Distance unit compression toggle for situation display
+                bool newCompressUnits = GUILayout.Toggle(StarfieldSettings.SituationCompressUnits,
+                    new GUIContent(CinematicShadersUIStrings.Kartographer.SituationCompressUnitsToggle,
+                        CinematicShadersUIStrings.Kartographer.SituationCompressUnitsTooltip));
+                if (newCompressUnits != StarfieldSettings.SituationCompressUnits)
+                {
+                    StarfieldSettings.SituationCompressUnits = newCompressUnits;
+                    StarfieldSettings.Save();
+                }
+
+                GUILayout.Space(5);
+
                 // Grid Size: 0-3 (Jumbo, Large, Medium, Small), default 2 (Medium)
                 // Note: Tiny (4) is available in code but disabled in UI - too dense for labels
                 GUILayout.Label(new GUIContent(

@@ -110,6 +110,7 @@ namespace CinematicShaders.Core
             set => _kartographerGridSize = Mathf.Clamp(value, 0, 3);  // Max 3 = Small (Tiny disabled)
         }
         public static int KartographerGridColor { get; set; } = 0;                  // 0=Seafoam, 1=Amber, 2=White, 3=Green
+        public static bool SituationCompressUnits { get; set; } = false;            // Toggle-gated magnitude-based unit compression for situation display
         
         // Audio settings
         public static float StarConsoleVolume { get; set; } = 0.5f;                 // 0.0-1.0, Star Console UI audio group volume
@@ -311,6 +312,7 @@ namespace CinematicShaders.Core
                 KartographerRotationPitch = float.Parse(settingsNode.GetValue("KartographerRotationPitch") ?? "0.0");
                 KartographerGridSize = int.Parse(settingsNode.GetValue("KartographerGridSize") ?? "2");
                 KartographerGridColor = int.Parse(settingsNode.GetValue("KartographerGridColor") ?? "0");
+                SituationCompressUnits = bool.Parse(settingsNode.GetValue("SituationCompressUnits") ?? "false");
                 StarConsoleVolume = float.Parse(settingsNode.GetValue("StarConsoleVolume") ?? "0.5");
                 ModAudioManager.SetGroupVolume(AudioGroup.StarConsole, StarConsoleVolume);
                 StarConsoleDisplayMode = settingsNode.GetValue("StarConsoleDisplayMode") ?? "Medium";
@@ -752,6 +754,7 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("KartographerRotationPitch", KartographerRotationPitch);
                 settingsNode.AddValue("KartographerGridSize", KartographerGridSize);
                 settingsNode.AddValue("KartographerGridColor", KartographerGridColor);
+                settingsNode.AddValue("SituationCompressUnits", SituationCompressUnits);
                 settingsNode.AddValue("StarConsoleVolume", StarConsoleVolume);
                 settingsNode.AddValue("StarConsoleDisplayMode", StarConsoleDisplayMode);
                 // settingsNode.AddValue("IsReadOnly", IsReadOnly);

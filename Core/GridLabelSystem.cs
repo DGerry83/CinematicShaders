@@ -1178,38 +1178,38 @@ namespace CinematicShaders.Core
         /// </summary>
         private string TryCompressLine(string line, float maxWidth, float fontSize, uint color)
         {
-            // Try M→KM (unit tokens shared with the producer — see UIStrings.Common)
-            string compressed = ConvertLineUnit(line, 1e3, CinematicShadersUIStrings.Common.UnitKilometers);
-            if (compressed != line)
+            // Detect the line's current unit and enter the escalation chain at the
+            // next-larger unit. Leading-space tokens make suffix checks unambiguous
+            // as long as larger units are tested first.
+            // (unit tokens shared with the producer — see UIStrings.Common)
+            var divisors = new[] { 1e3, 1e6, 1e9, 1e12 };
+            var targetUnits = new[] {
+                CinematicShadersUIStrings.Common.UnitKilometers,
+                CinematicShadersUIStrings.Common.UnitMegameters,
+                CinematicShadersUIStrings.Common.UnitGigameters,
+                CinematicShadersUIStrings.Common.UnitTerameters
+            };
+
+            int startIdx;
+            if (line.EndsWith(CinematicShadersUIStrings.Common.UnitTerametersToken)) return line; // Already largest unit
+            else if (line.EndsWith(CinematicShadersUIStrings.Common.UnitGigametersToken)) startIdx = 3;
+            else if (line.EndsWith(CinematicShadersUIStrings.Common.UnitMegametersToken)) startIdx = 2;
+            else if (line.EndsWith(CinematicShadersUIStrings.Common.UnitKilometersToken)) startIdx = 1;
+            else if (line.EndsWith(CinematicShadersUIStrings.Common.UnitMetersToken)) startIdx = 0;
+            else return line; // Not a distance line we can compress
+
+            string current = line;
+            for (int i = startIdx; i < divisors.Length; i++)
             {
+                string compressed = ConvertLineUnit(current, divisors[i], targetUnits[i]);
+                if (compressed == current) break;
+
                 StarfieldNative.CR_TextMeasure(_textSystem, compressed, fontSize, out float w, out float h);
                 if (w <= maxWidth) return compressed;
-                
-                // Still too wide? Try KM→MM
-                string compressed2 = ConvertLineUnit(compressed, 1e6, CinematicShadersUIStrings.Common.UnitMegameters);
-                if (compressed2 != compressed)
-                {
-                    StarfieldNative.CR_TextMeasure(_textSystem, compressed2, fontSize, out float w2, out float h2);
-                    if (w2 <= maxWidth) return compressed2;
-                    
-                    // Still too wide? Try MM→GM
-                    string compressed3 = ConvertLineUnit(compressed2, 1e9, CinematicShadersUIStrings.Common.UnitGigameters);
-                    if (compressed3 != compressed2)
-                    {
-                        StarfieldNative.CR_TextMeasure(_textSystem, compressed3, fontSize, out float w3, out float h3);
-                        if (w3 <= maxWidth) return compressed3;
-                        
-                        // Still too wide? Try GM→TM
-                        string compressed4 = ConvertLineUnit(compressed3, 1e12, CinematicShadersUIStrings.Common.UnitTerameters);
-                        if (compressed4 != compressed3)
-                        {
-                            StarfieldNative.CR_TextMeasure(_textSystem, compressed4, fontSize, out float w4, out float h4);
-                            if (w4 <= maxWidth) return compressed4;
-                        }
-                    }
-                }
+
+                current = compressed;
             }
-            
+
             return line; // Could not compress to fit
         }
         
