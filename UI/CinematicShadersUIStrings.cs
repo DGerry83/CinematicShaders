@@ -133,8 +133,8 @@ namespace CinematicShaders.UI
             public const string DefaultCatalogFileName = "MyStarfield";
             public const string DefaultCatalogDisplayName = "My Starfield";
 
-            // Catalog dropdown read-only indicator (glyph must exist in the IMGUI font)
-            public const string ReadOnlyLockPrefix = "🔒 ";
+            // Catalog dropdown read-only indicator (ASCII because the IMGUI font lacks U+1F512)
+            public const string ReadOnlyLockPrefix = "[RO] ";
             
             // Buttons
             public const string CancelButton = "Cancel";
