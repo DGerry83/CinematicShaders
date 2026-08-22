@@ -233,11 +233,10 @@ namespace CinematicShaders.Core
                 ConfigNode settingsNode = node.GetNode("StarfieldSettings");
                 if (settingsNode == null) return;
 
-                EnableStarfield = bool.Parse(settingsNode.GetValue("EnableStarfield") ?? "false");
                 CatalogSeed = int.Parse(settingsNode.GetValue("CatalogSeed") ?? "12345");
                 CatalogSize = int.Parse(settingsNode.GetValue("CatalogSize") ?? "20000");
-                // NOTE: Exposure, BlurPixels, BloomThreshold, BloomIntensity, ColorSaturation and
-                // ActiveCatalogPath are per-save (StarfieldPerSaveSettings ScenarioModule) and are
+                // NOTE: EnableStarfield, Exposure, BlurPixels, BloomThreshold, BloomIntensity, ColorSaturation
+                // and ActiveCatalogPath are per-save (StarfieldPerSaveSettings ScenarioModule) and are
                 // deliberately NOT loaded from this global file - legacy keys in Settings.cfg are ignored.
                 MinMagnitude = float.Parse(settingsNode.GetValue("MinMagnitude") ?? "-1.0");
                 MaxMagnitude = float.Parse(settingsNode.GetValue("MaxMagnitude") ?? "10.0");
@@ -687,9 +686,8 @@ namespace CinematicShaders.Core
 
                 ConfigNode settingsNode = node.AddNode("StarfieldSettings");
 
-                settingsNode.AddValue("EnableStarfield", EnableStarfield);
-                // NOTE: Exposure, BlurPixels, BloomThreshold, BloomIntensity, ColorSaturation and
-                // ActiveCatalogPath are per-save (StarfieldPerSaveSettings ScenarioModule) and are
+                // NOTE: EnableStarfield, Exposure, BlurPixels, BloomThreshold, BloomIntensity, ColorSaturation
+                // and ActiveCatalogPath are per-save (StarfieldPerSaveSettings ScenarioModule) and are
                 // deliberately NOT written to this global file - see Load() for details.
                 settingsNode.AddValue("MinMagnitude", MinMagnitude);
                 settingsNode.AddValue("MaxMagnitude", MaxMagnitude);
