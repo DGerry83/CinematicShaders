@@ -1110,18 +1110,23 @@ namespace CinematicShaders.UI.Tabs
                     return;
                 }
                 
-                // Delete _Custom.json to reset star names (user was warned by confirmation screen)
+                // Back up _Custom.json instead of deleting (user was warned by confirmation screen)
                 string customJsonPath = Path.ChangeExtension(binPath, null) + "_Custom.json";
                 if (File.Exists(customJsonPath))
                 {
                     try
                     {
-                        File.Delete(customJsonPath);
-                        Debug.Log($"[KartographerTab] Deleted custom names override: {customJsonPath}");
+                        string backupPath = Path.ChangeExtension(binPath, null) + "_Custom.old.json";
+                        if (File.Exists(backupPath))
+                        {
+                            File.Delete(backupPath);
+                        }
+                        File.Move(customJsonPath, backupPath);
+                        Debug.Log($"[KartographerTab] Backed up custom names override: {customJsonPath} -> {backupPath}");
                     }
                     catch (Exception delEx)
                     {
-                        Debug.LogError($"[KartographerTab] Failed to delete custom JSON: {delEx.Message}");
+                        Debug.LogError($"[KartographerTab] Failed to back up custom JSON: {delEx.Message}");
                     }
                 }
                 
@@ -1139,7 +1144,7 @@ namespace CinematicShaders.UI.Tabs
                     }
                 }
                 
-                // Always refresh state — either we deleted _Custom.json, or we generated a new .json
+                // Always refresh state — either we renamed/backed-up _Custom.json, or we generated a new .json
                 StarCatalogStateManager.RefreshJsonState();
                 
                 // Force reload JSON from disk
