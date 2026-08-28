@@ -539,6 +539,15 @@ namespace CinematicShaders.Core
                     if (StarCatalogManager.LoadCatalog(absoluteCatalogPath))
                     {
                         _catalogNeedsReload = false;
+
+                        // Notify JSON/state listeners that the active catalog has changed.
+                        // SetCatalog self-guards same-path calls; Initialize is run-once.
+                        UnityEngine.Debug.Log($"[StarfieldSettings] Catalog loaded; notifying StarCatalogStateManager");
+                        if (!StarCatalogStateManager.IsInitialized)
+                            StarCatalogStateManager.Initialize(absoluteCatalogPath);
+                        else
+                            StarCatalogStateManager.SetCatalog(absoluteCatalogPath);
+
                         // Catalog loaded successfully - DO NOT generate in this same frame
                         // SyncTrackingVars() was called by LoadCatalog, so next frame won't detect changes
                         shouldGenerateCatalog = false;
