@@ -92,6 +92,9 @@ namespace CinematicShaders.Core
             GameEvents.onGameStateLoad.Add(OnGameStateLoad);
             GameEvents.onGameStateSave.Add(OnGameStateSave);
 
+            // Save settings before a scene switch so the capture lands in the old scene's profile (#035)
+            GameEvents.onGameSceneLoadRequested.Add(OnGameSceneLoadRequested);
+
             if (_toolbarIcon == null)
             {
                 _toolbarIcon = GameDatabase.Instance.GetTexture(CinematicShadersUIResources.Textures.ToolbarIconPath, false);
@@ -496,6 +499,7 @@ namespace CinematicShaders.Core
             GameEvents.onLevelWasLoadedGUIReady.Remove(OnLevelWasLoadedGUIReady);
             GameEvents.onGameStateLoad.Remove(OnGameStateLoad);
             GameEvents.onGameStateSave.Remove(OnGameStateSave);
+            GameEvents.onGameSceneLoadRequested.Remove(OnGameSceneLoadRequested);
 
             if (_toolbarButton != null && ApplicationLauncher.Instance != null)
             {
@@ -560,6 +564,15 @@ namespace CinematicShaders.Core
         {
             Debug.Log("[CinematicShaders] Game state saving - capturing per-save settings");
             // Per-save settings are automatically saved by KSP from StarfieldPerSaveSettings.Instance
+        }
+
+        private void OnGameSceneLoadRequested(GameScenes scene)
+        {
+            // Fires before the scene switch: statics and HighLogic.LoadedScene are still
+            // old-scene, so Save() captures into the correct (old) scene profile (#035).
+            Debug.Log($"[CinematicShaders] Scene load requested ({scene}) - saving settings while {HighLogic.LoadedScene} is current");
+            GTAOSettings.Save();
+            StarfieldSettings.Save();
         }
 
 
