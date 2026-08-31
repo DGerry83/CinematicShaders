@@ -49,6 +49,8 @@ struct CubemapRenderJob {
 // Render-frame counter for deterministic texture upload readiness (Navball GPU race fix)
 static std::atomic<int> g_StarfieldRenderFrameCount{0};
 
+static constexpr int MAX_CONSOLE_CELLS = 767; // must match StarfieldNative.MaxConsoleCells (C#)
+
 static struct {
     ID3D11Device* device = nullptr;
     ID3D11Texture2D* hdrTexture = nullptr;
@@ -324,7 +326,7 @@ static struct {
     
     // Console render staging
     struct ConsoleDrawJob {
-        ConsoleCellInstance cells[767];
+        ConsoleCellInstance cells[MAX_CONSOLE_CELLS];
         int cellCount = 0;
         float displayX = 0;
         float displayY = 0;
@@ -2634,7 +2636,7 @@ static bool EnsureConsoleRenderer(ID3D11Device* device) {
         return false;
 
     D3D11_BUFFER_DESC instDesc = {};
-    instDesc.ByteWidth = 767 * sizeof(ConsoleCellInstance); // max console cells
+    instDesc.ByteWidth = MAX_CONSOLE_CELLS * sizeof(ConsoleCellInstance); // max console cells
     instDesc.Usage = D3D11_USAGE_DYNAMIC;
     instDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     instDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
@@ -4696,7 +4698,7 @@ void CR_DrawConsoleGrid(
 
     std::lock_guard<std::mutex> lock(g_StarfieldState.stateMutex);
 
-    int count = cellCount > 767 ? 767 : cellCount;
+    int count = cellCount > MAX_CONSOLE_CELLS ? MAX_CONSOLE_CELLS : cellCount;
     memcpy(g_StarfieldState.consoleDrawJob.cells, cells, count * sizeof(ConsoleCellInstance));
     g_StarfieldState.consoleDrawJob.cellCount = count;
     g_StarfieldState.consoleDrawJob.displayX = displayX;
@@ -4756,8 +4758,39 @@ static void ExecuteConsoleDraw(ID3D11DeviceContext* context)
                 g_StarfieldState.consoleRTV->Release();
                 g_StarfieldState.consoleRTV = nullptr;
             }
+            // #026: Unity RenderTexture native textures use a TYPELESS format, for which
+            // null-desc RTV creation fails with E_INVALIDARG. Mirror the explicit-desc
+            // pattern used by the other RTV call sites in this file.
+            D3D11_TEXTURE2D_DESC consoleTexDesc;
+            job.targetTexture->GetDesc(&consoleTexDesc);
+            DXGI_FORMAT rtvFormat = consoleTexDesc.Format;
+            if (consoleTexDesc.Format == DXGI_FORMAT_R8G8B8A8_TYPELESS) {
+                rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+            }
+            D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+            rtvDesc.Format = rtvFormat;
+            rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+            rtvDesc.Texture2D.MipSlice = 0;
+            HRESULT hr = device->CreateRenderTargetView(job.targetTexture, &rtvDesc, &g_StarfieldState.consoleRTV);
+            if (FAILED(hr)) {
+                // Fallback: try with null desc (let D3D11 infer from texture)
+                hr = device->CreateRenderTargetView(job.targetTexture, nullptr, &g_StarfieldState.consoleRTV);
+            }
+            if (FAILED(hr) || g_StarfieldState.consoleRTV == nullptr) {
+                // Failure guard: leave consoleRTV null and bail before draw state is set up;
+                // do NOT cache consoleRTTexture so a later frame can retry.
+                // Rate-limited: first 5 failures individually, then every 300th.
+                static int s_rtvFailCount = 0;
+                g_StarfieldState.consoleRTV = nullptr;
+                s_rtvFailCount++;
+                if (s_rtvFailCount <= 5 || (s_rtvFailCount % 300) == 0) {
+                    LogToFile("[Console] CreateRenderTargetView FAILED (hr=0x%08X); skipping console draw (failure #%d)", hr, s_rtvFailCount);
+                }
+                if (prevRTVs[0]) prevRTVs[0]->Release();
+                if (prevDSV) prevDSV->Release();
+                return;
+            }
             g_StarfieldState.consoleRTTexture = job.targetTexture;
-            device->CreateRenderTargetView(job.targetTexture, nullptr, &g_StarfieldState.consoleRTV);
         }
         if (g_StarfieldState.consoleRTV) {
             context->OMSetRenderTargets(1, &g_StarfieldState.consoleRTV, nullptr);

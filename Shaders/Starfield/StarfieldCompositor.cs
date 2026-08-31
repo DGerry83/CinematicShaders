@@ -399,7 +399,10 @@ namespace CinematicShaders.Shaders.Starfield
             if (StarfieldNative.CatalogNeedsReload())
             {
                 Debug.Log("[StarfieldCompositor] Native plugin signaled catalog reload needed");
-                StarfieldSettings.InvalidateCatalogForReload();
+                if (!string.IsNullOrEmpty(StarfieldSettings.ActiveCatalogPath))
+                    StarfieldSettings.InvalidateCatalogForReload();
+                else
+                    StarfieldSettings.InvalidateCatalog(); // no file to reload - regenerate
                 StarfieldSettings.PushSettingsToNative();
             }
             

@@ -34,6 +34,7 @@ namespace CinematicShaders.UI
             public const string UnitKilometersToken = " " + UnitKilometers;
             public const string UnitMegametersToken = " " + UnitMegameters;
             public const string UnitGigametersToken = " " + UnitGigameters;
+            public const string UnitTerametersToken = " " + UnitTerameters;
             public const string UnitMetersPerSecond = "m/s";
             public const string UnitKilometersPerSecond = "km/s";
             public const string UnitMegametersPerSecond = "Mm/s";
@@ -133,8 +134,8 @@ namespace CinematicShaders.UI
             public const string DefaultCatalogFileName = "MyStarfield";
             public const string DefaultCatalogDisplayName = "My Starfield";
 
-            // Catalog dropdown read-only indicator (glyph must exist in the IMGUI font)
-            public const string ReadOnlyLockPrefix = "🔒 ";
+            // Catalog dropdown read-only indicator (ASCII because the IMGUI font lacks U+1F512)
+            public const string ReadOnlyLockPrefix = "[RO] ";
             
             // Buttons
             public const string CancelButton = "Cancel";
@@ -312,8 +313,8 @@ namespace CinematicShaders.UI
             // ------------------------------------------------------------------------
             // SITUATION DISPLAY (grid-fixed)
             // NOTE: "P/E:" here = orbit periapsis, distinct from TargetSoiPeriapsisFormat.
-            // The distance lines are produced with Common.UnitMetersToken and PARSED by
-            // GridLabelSystem.ConvertLineUnit — keep both sides in sync.
+            // The distance lines are produced with Common.Unit*Token (M/KM/MM/GM/TM) and
+            // PARSED by GridLabelSystem.ConvertLineUnit — keep both sides in sync.
             // ------------------------------------------------------------------------
             public const string SituationNoVessel = "NO VESSEL";
             public const string SituationAltPrefix = "ALT: ";
@@ -374,6 +375,8 @@ namespace CinematicShaders.UI
             public const string VignetteEndFormat = "Vignette End: {0:F2}";
             public const string VignetteEndTooltip = "Distance from center where vignette reaches full strength";
             public const string DisplayColorLabel = "Display Color";
+            public const string SituationCompressUnitsToggle = "Short Distance Units (KM/MM/GM/TM)";
+            public const string SituationCompressUnitsTooltip = "Compress altitude and orbital distances into larger units when the value is large enough";
 
             // ------------------------------------------------------------------------
             // GRID SIZE LABELS
@@ -570,11 +573,11 @@ namespace CinematicShaders.UI
                 "                                                           ",
                 "                                                           ",
                 "                                                           ",
-                "                !STAR NAMES WILL BE RESET!                 ",
+                "             ALL CUSTOM DATA - STAR NAMES AND              ",
+                "               CONSTELLATION EDITS - WILL BE               ",
+                "                          ERASED                           ",
                 "                                                           ",
-                "                                                           ",
-                "                                                           ",
-                "                                                           ",
+                "             BACKUP SAVED AS _CUSTOM.OLD.JSON              ",
                 "                                                           ",
                 "                                                           ",
                 "   [YES]                                            [NO]   ",

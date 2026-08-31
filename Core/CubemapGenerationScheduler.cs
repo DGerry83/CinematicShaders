@@ -72,6 +72,17 @@ namespace CinematicShaders.Core
             {
                 Debug.Log("[CubemapGenerationScheduler] Starting cubemap generation...");
                 
+                // Gate on native D3D11 device readiness. The device is acquired lazily on the
+                // first render frame, so scene-load/catalog triggers may arrive earlier.
+                if (!IsNativeDeviceReady())
+                {
+                    if (!_hasPendingUpdate)
+                        Debug.Log("[CubemapGenerationScheduler] Native device not ready, deferring cubemap update");
+                    _hasPendingUpdate = true;
+                    _isGenerating = false;
+                    return;
+                }
+                
                 // Stage async native render
                 bool staged = StarfieldCubemapRenderer.RenderAndInjectCubemap();
                 
@@ -108,6 +119,16 @@ namespace CinematicShaders.Core
         /// </summary>
         public static void CheckCubemapCompletion()
         {
+            // Service any update that was deferred until the native D3D11 device is acquired.
+            // This is called every frame, so it provides the self-recovery path once the device
+            // becomes ready on the first render frame.
+            if (_hasPendingUpdate && IsNativeDeviceReady())
+            {
+                _hasPendingUpdate = false;
+                PerformUpdate();
+                return;
+            }
+            
             if (!_cubemapRenderPending) return;
             
             // Defensive: match pattern used by GridLabelSystem, KartographerSelector, etc.
@@ -180,6 +201,14 @@ namespace CinematicShaders.Core
             
             _cubemapRenderPending = false;
             _isGenerating = false;
+        }
+        
+        /// <summary>
+        /// Returns true once the native DLL is loaded and the D3D11 device has been acquired.
+        /// </summary>
+        private static bool IsNativeDeviceReady()
+        {
+            return Native.StarfieldNative.IsLoaded && Native.StarfieldNative.CR_StarfieldIsDeviceReady() != 0;
         }
         
         /// <summary>

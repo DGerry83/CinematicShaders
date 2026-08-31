@@ -101,7 +101,8 @@ namespace CinematicShaders.UI.Tabs
         // Star tracking
         
         // Star tracking
-        private KartographerSelector _selector;
+        // Shared between the scene-load static init and the tab instance — #046
+        private static KartographerSelector _selector;
         
         /// <summary>
         /// Public accessor for the selector (used by StarCatalogEditorWindow)
@@ -438,6 +439,18 @@ namespace CinematicShaders.UI.Tabs
 
                 GUILayout.Space(5);
 
+                // Distance unit compression toggle for situation display
+                bool newCompressUnits = GUILayout.Toggle(StarfieldSettings.SituationCompressUnits,
+                    new GUIContent(CinematicShadersUIStrings.Kartographer.SituationCompressUnitsToggle,
+                        CinematicShadersUIStrings.Kartographer.SituationCompressUnitsTooltip));
+                if (newCompressUnits != StarfieldSettings.SituationCompressUnits)
+                {
+                    StarfieldSettings.SituationCompressUnits = newCompressUnits;
+                    StarfieldSettings.Save();
+                }
+
+                GUILayout.Space(5);
+
                 // Grid Size: 0-3 (Jumbo, Large, Medium, Small), default 2 (Medium)
                 // Note: Tiny (4) is available in code but disabled in UI - too dense for labels
                 GUILayout.Label(new GUIContent(
@@ -670,28 +683,34 @@ namespace CinematicShaders.UI.Tabs
         /// </summary>
         private static void CreateSelectorAndLoadJsonStatic()
         {
-            var selector = new KartographerSelector();
+            if (_selector == null)
+            {
+                _selector = new KartographerSelector();
+                Debug.Log("[KartographerTab] KartographerSelector created");
+            }
             
             // JSON loading is handled by StarCatalogStateManager
             string catalogPath = StarfieldSettings.ActiveCatalogPath;
             if (!string.IsNullOrEmpty(catalogPath))
             {
                 string absolutePath = System.IO.Path.Combine(KSPUtil.ApplicationRootPath, catalogPath);
-                selector.LoadJsonForCatalog(absolutePath);
+                _selector.LoadJsonForCatalog(absolutePath);
             }
             
             // Enable mouse hover mode immediately
-            selector.SetMouseHoverMode(true);
+            _selector.SetMouseHoverMode(true);
             
             // Register for camera updates
             StarfieldCompositor.KartographerSelectorCallback = (right, up, forward, aspect, vfov) =>
             {
-                selector.CameraRight = right;
-                selector.CameraUp = up;
-                selector.CameraForward = forward;
-                selector.AspectRatio = aspect;
-                selector.VerticalFOV = vfov;
-                selector.Update();
+                var s = _selector;
+                if (s == null) return;
+                s.CameraRight = right;
+                s.CameraUp = up;
+                s.CameraForward = forward;
+                s.AspectRatio = aspect;
+                s.VerticalFOV = vfov;
+                s.Update();
             };
         }
 
@@ -773,6 +792,17 @@ namespace CinematicShaders.UI.Tabs
             StarfieldSettings.KartographerTrackedStarHIP = 0;
             StarfieldSettings.EnablePolarisTracking = false;
             StarfieldSettings.Save();
+        }
+        
+        /// <summary>Disposes the shared selector. Called by CinematicShadersWindow.OnDestroy;
+        /// the window clears KartographerSelectorCallback itself.</summary>
+        public void DisposeSelector()
+        {
+            if (_selector != null)
+            {
+                _selector.Dispose();
+                _selector = null;
+            }
         }
         
         /// <summary>
@@ -1098,18 +1128,23 @@ namespace CinematicShaders.UI.Tabs
                     return;
                 }
                 
-                // Delete _Custom.json to reset star names (user was warned by confirmation screen)
+                // Back up _Custom.json instead of deleting (user was warned by confirmation screen)
                 string customJsonPath = Path.ChangeExtension(binPath, null) + "_Custom.json";
                 if (File.Exists(customJsonPath))
                 {
                     try
                     {
-                        File.Delete(customJsonPath);
-                        Debug.Log($"[KartographerTab] Deleted custom names override: {customJsonPath}");
+                        string backupPath = Path.ChangeExtension(binPath, null) + "_Custom.old.json";
+                        if (File.Exists(backupPath))
+                        {
+                            File.Delete(backupPath);
+                        }
+                        File.Move(customJsonPath, backupPath);
+                        Debug.Log($"[KartographerTab] Backed up custom names override: {customJsonPath} -> {backupPath}");
                     }
                     catch (Exception delEx)
                     {
-                        Debug.LogError($"[KartographerTab] Failed to delete custom JSON: {delEx.Message}");
+                        Debug.LogError($"[KartographerTab] Failed to back up custom JSON: {delEx.Message}");
                     }
                 }
                 
@@ -1127,7 +1162,7 @@ namespace CinematicShaders.UI.Tabs
                     }
                 }
                 
-                // Always refresh state — either we deleted _Custom.json, or we generated a new .json
+                // Always refresh state — either we renamed/backed-up _Custom.json, or we generated a new .json
                 StarCatalogStateManager.RefreshJsonState();
                 
                 // Force reload JSON from disk

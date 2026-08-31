@@ -17,6 +17,7 @@ namespace CinematicShaders.UI.Screens.Layers
         public Vector2? CursorPosition { get; private set; }
         
         private readonly string[] _contentLines;
+        private readonly ConsoleCellInstanceNative[] _stagingCells = new ConsoleCellInstanceNative[StarfieldNative.MaxConsoleCells];
         
         public ContentLayer(string[] contentLines)
         {
@@ -54,64 +55,32 @@ namespace CinematicShaders.UI.Screens.Layers
             if (string.IsNullOrEmpty(text))
                 return;
 
-            int glyphCount = StarfieldNative.CR_TextLayoutEx(textSystem, text, fontSize,
-                color, 0f, 0f, 0f, aspectRatio);
+            int remaining = buffer.Length - writeIndex;
+            int maxCells = Mathf.Min(_stagingCells.Length, remaining);
+            int cellsWritten = StarfieldNative.CR_TextLayoutToCells(
+                textSystem, text, fontSize, color, 0f, 0f, 0f, aspectRatio,
+                _stagingCells, maxCells);
 
-            if (glyphCount <= 0)
-                return;
-
-            IntPtr glyphPtr = StarfieldNative.CR_TextGetGlyphPtr(textSystem);
-            int glyphSize = Marshal.SizeOf<StarfieldNative.GlyphData>();
-            int glyphIndex = 0;
-            int lastVisibleGlyphIndex = -1;
-
-            string[] lines = text.Split('\n');
-            for (int y = 0; y < lines.Length && writeIndex < buffer.Length; y++)
+            if (cellsWritten > 0)
             {
-                string line = lines[y];
-                for (int x = 0; x < line.Length && writeIndex < buffer.Length; x++)
+                Array.Copy(_stagingCells, 0, buffer, writeIndex, cellsWritten);
+
+                if (typeOnProgress > 0f && typeOnProgress < 1f)
                 {
-                    char c = line[x];
-                    if (c == ' ')
-                    {
-                        glyphIndex++;
-                        continue;
-                    }
-
-                    if (glyphIndex >= glyphCount)
-                        break;
-
-                    var glyph = Marshal.PtrToStructure<StarfieldNative.GlyphData>(
-                        IntPtr.Add(glyphPtr, glyphIndex * glyphSize));
-
-                    buffer[writeIndex] = new ConsoleCellInstanceNative
-                    {
-                        PosX = glyph.PosX,
-                        PosY = glyph.PosY,
-                        SizeX = glyph.SizeX,
-                        SizeY = glyph.SizeY,
-                        Color = color,
-                        U0 = glyph.UvX,
-                        V0 = glyph.UvY,
-                        U1 = glyph.UvW,
-                        V1 = glyph.UvH
-                    };
-                    lastVisibleGlyphIndex = glyphIndex;
-                    writeIndex++;
-                    glyphIndex++;
+                    var last = buffer[writeIndex + cellsWritten - 1];
+                    CursorPosition = new Vector2(last.PosX + last.SizeX, last.PosY);
                 }
-            }
-
-            if (typeOnProgress > 0f && typeOnProgress < 1f && lastVisibleGlyphIndex >= 0)
-            {
-                var lastGlyph = Marshal.PtrToStructure<StarfieldNative.GlyphData>(
-                    IntPtr.Add(glyphPtr, lastVisibleGlyphIndex * glyphSize));
-                CursorPosition = new Vector2(lastGlyph.PosX + lastGlyph.SizeX, lastGlyph.PosY);
+                else
+                {
+                    CursorPosition = null;
+                }
             }
             else
             {
                 CursorPosition = null;
             }
+
+            writeIndex += cellsWritten;
         }
 
         /// <summary>

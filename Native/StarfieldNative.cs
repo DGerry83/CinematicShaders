@@ -18,6 +18,9 @@ namespace CinematicShaders.Native
 
         public static bool IsLoaded => DllLoader.IsLoaded;
 
+        // Maximum console cell instances per frame. Must match MAX_CONSOLE_CELLS in StarfieldNative.cpp.
+        public const int MaxConsoleCells = 767;
+
         // ============================================================================
         // Text System structs and imports (Phase 2 - Font Integration)
         // ============================================================================
@@ -88,6 +91,19 @@ namespace CinematicShaders.Native
             float originY,
             float lineSpacing,
             float aspectRatio);  // NEW: aspect ratio parameter
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int CR_TextLayoutToCells(
+            IntPtr textSystem,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string text,
+            float fontSize,
+            uint color,
+            float originX,
+            float originY,
+            float lineSpacing,
+            float aspectRatio,
+            [In, Out] ConsoleCellInstanceNative[] cells,
+            int maxCells);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void CR_TextDispatchEx(

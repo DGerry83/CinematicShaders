@@ -1,5 +1,6 @@
 using CinematicShaders.Core;
 using CinematicShaders.Native;
+using CinematicShaders.UI.Tabs;
 using UnityEngine;
 using System.Collections;
 
@@ -160,6 +161,11 @@ namespace CinematicShaders.Shaders.Starfield
             
             // Push settings (this will load the catalog)
             StarfieldSettings.PushSettingsToNative();
+
+            // Sync Kartographer the same way scene-load DelayedInit does.
+            // The toggle path pushes params but not the enabled flag, and never
+            // creates the selector; InitializeFromSettings handles both.
+            KartographerTab.InitializeFromSettings();
 
             // Create persistent GameObject to host the compositor
             GameObject compositorHost = GameObject.Find("StarfieldCompositorHost");

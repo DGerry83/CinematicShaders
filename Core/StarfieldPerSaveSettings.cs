@@ -27,7 +27,7 @@ namespace CinematicShaders.Core
 
         // Per-save: Visual rendering settings
         [KSPField(isPersistant = true)]
-        public bool EnableStarfield = false;
+        public bool EnableStarfield = true;
 
         [KSPField(isPersistant = true)]
         public float Exposure = 3.0f;
@@ -51,8 +51,10 @@ namespace CinematicShaders.Core
         public float DimmingFactor = 1.0f;
 
         // Per-save: Active catalog
+        private const string DefaultCatalogPath = "GameData/CinematicShaders/PluginData/StarCatalogs/hyg_v42.bin";
+
         [KSPField(isPersistant = true)]
-        public string ActiveCatalogPath = "";
+        public string ActiveCatalogPath = DefaultCatalogPath;
 
         //[KSPField(isPersistant = true)]
         //public bool IsReadOnly = false;

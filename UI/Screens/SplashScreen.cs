@@ -145,7 +145,7 @@ namespace CinematicShaders.UI.Screens
             uint baseColor = CinematicShadersUIResources.Colors.CRTColors.GetColorUint(StarfieldSettings.KartographerGridColor);
             uint color = (baseColor & 0x00FFFFFF) | ((uint)(alpha * 255) << 24);
             
-            var cells = new ConsoleCellInstanceNative[767];
+            var cells = new ConsoleCellInstanceNative[StarfieldNative.MaxConsoleCells];
             int writeIndex = 0;
             
             var contentLayer = Layers[0] as ContentLayer;

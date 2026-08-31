@@ -110,6 +110,7 @@ namespace CinematicShaders.Core
             set => _kartographerGridSize = Mathf.Clamp(value, 0, 3);  // Max 3 = Small (Tiny disabled)
         }
         public static int KartographerGridColor { get; set; } = 0;                  // 0=Seafoam, 1=Amber, 2=White, 3=Green
+        public static bool SituationCompressUnits { get; set; } = false;            // Toggle-gated magnitude-based unit compression for situation display
         
         // Audio settings
         public static float StarConsoleVolume { get; set; } = 0.5f;                 // 0.0-1.0, Star Console UI audio group volume
@@ -233,11 +234,10 @@ namespace CinematicShaders.Core
                 ConfigNode settingsNode = node.GetNode("StarfieldSettings");
                 if (settingsNode == null) return;
 
-                EnableStarfield = bool.Parse(settingsNode.GetValue("EnableStarfield") ?? "false");
                 CatalogSeed = int.Parse(settingsNode.GetValue("CatalogSeed") ?? "12345");
                 CatalogSize = int.Parse(settingsNode.GetValue("CatalogSize") ?? "20000");
-                // NOTE: Exposure, BlurPixels, BloomThreshold, BloomIntensity, ColorSaturation and
-                // ActiveCatalogPath are per-save (StarfieldPerSaveSettings ScenarioModule) and are
+                // NOTE: EnableStarfield, Exposure, BlurPixels, BloomThreshold, BloomIntensity, ColorSaturation
+                // and ActiveCatalogPath are per-save (StarfieldPerSaveSettings ScenarioModule) and are
                 // deliberately NOT loaded from this global file - legacy keys in Settings.cfg are ignored.
                 MinMagnitude = float.Parse(settingsNode.GetValue("MinMagnitude") ?? "-1.0");
                 MaxMagnitude = float.Parse(settingsNode.GetValue("MaxMagnitude") ?? "10.0");
@@ -312,6 +312,7 @@ namespace CinematicShaders.Core
                 KartographerRotationPitch = float.Parse(settingsNode.GetValue("KartographerRotationPitch") ?? "0.0");
                 KartographerGridSize = int.Parse(settingsNode.GetValue("KartographerGridSize") ?? "2");
                 KartographerGridColor = int.Parse(settingsNode.GetValue("KartographerGridColor") ?? "0");
+                SituationCompressUnits = bool.Parse(settingsNode.GetValue("SituationCompressUnits") ?? "false");
                 StarConsoleVolume = float.Parse(settingsNode.GetValue("StarConsoleVolume") ?? "0.5");
                 ModAudioManager.SetGroupVolume(AudioGroup.StarConsole, StarConsoleVolume);
                 StarConsoleDisplayMode = settingsNode.GetValue("StarConsoleDisplayMode") ?? "Medium";
@@ -538,6 +539,15 @@ namespace CinematicShaders.Core
                     if (StarCatalogManager.LoadCatalog(absoluteCatalogPath))
                     {
                         _catalogNeedsReload = false;
+
+                        // Notify JSON/state listeners that the active catalog has changed.
+                        // SetCatalog self-guards same-path calls; Initialize is run-once.
+                        UnityEngine.Debug.Log($"[StarfieldSettings] Catalog loaded; notifying StarCatalogStateManager");
+                        if (!StarCatalogStateManager.IsInitialized)
+                            StarCatalogStateManager.Initialize(absoluteCatalogPath);
+                        else
+                            StarCatalogStateManager.SetCatalog(absoluteCatalogPath);
+
                         // Catalog loaded successfully - DO NOT generate in this same frame
                         // SyncTrackingVars() was called by LoadCatalog, so next frame won't detect changes
                         shouldGenerateCatalog = false;
@@ -687,9 +697,8 @@ namespace CinematicShaders.Core
 
                 ConfigNode settingsNode = node.AddNode("StarfieldSettings");
 
-                settingsNode.AddValue("EnableStarfield", EnableStarfield);
-                // NOTE: Exposure, BlurPixels, BloomThreshold, BloomIntensity, ColorSaturation and
-                // ActiveCatalogPath are per-save (StarfieldPerSaveSettings ScenarioModule) and are
+                // NOTE: EnableStarfield, Exposure, BlurPixels, BloomThreshold, BloomIntensity, ColorSaturation
+                // and ActiveCatalogPath are per-save (StarfieldPerSaveSettings ScenarioModule) and are
                 // deliberately NOT written to this global file - see Load() for details.
                 settingsNode.AddValue("MinMagnitude", MinMagnitude);
                 settingsNode.AddValue("MaxMagnitude", MaxMagnitude);
@@ -754,6 +763,7 @@ namespace CinematicShaders.Core
                 settingsNode.AddValue("KartographerRotationPitch", KartographerRotationPitch);
                 settingsNode.AddValue("KartographerGridSize", KartographerGridSize);
                 settingsNode.AddValue("KartographerGridColor", KartographerGridColor);
+                settingsNode.AddValue("SituationCompressUnits", SituationCompressUnits);
                 settingsNode.AddValue("StarConsoleVolume", StarConsoleVolume);
                 settingsNode.AddValue("StarConsoleDisplayMode", StarConsoleDisplayMode);
                 // settingsNode.AddValue("IsReadOnly", IsReadOnly);

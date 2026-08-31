@@ -45,6 +45,12 @@ namespace CinematicShaders.Core
         public static float FadeEndDistance { get; set; } = 25000.0f;
         public static float FadeCurve { get; set; } = 1.0f;
 
+        // Scene whose profile the active statics currently represent (set by ApplySceneProfile).
+        // Save() must capture into THIS scene, not HighLogic.LoadedScene: a save firing after
+        // a scene flip (window OnDestroy during teardown) would otherwise bleed the old
+        // scene's values into the new scene's profile (#035).
+        private static GameScenes? _staticsOwner;
+
         // Global settings - developer tools, not per-scene
         public static int DebugVisualizationMode { get; set; } = 0;
         public static bool GTAORawAOOutput { get; set; } = false;
@@ -64,6 +70,8 @@ namespace CinematicShaders.Core
         {
             GTAOProfile profile = GetProfile(scene);
             if (profile == null) return;
+
+            _staticsOwner = scene;
 
             EnableGTAO = profile.EnableGTAO;
             QualityPreset = profile.QualityPreset;
@@ -173,8 +181,9 @@ namespace CinematicShaders.Core
         {
             try
             {
-                // Persist any live edits into the current scene's profile first
-                CaptureSceneProfile(HighLogic.LoadedScene);
+                // Persist any live edits into the profile that owns the active statics.
+                // Fallback to the current scene if ownership has not been set yet.
+                CaptureSceneProfile(_staticsOwner ?? HighLogic.LoadedScene);
 
                 string dir = System.IO.Path.GetDirectoryName(SettingsPath);
                 if (!System.IO.Directory.Exists(dir))

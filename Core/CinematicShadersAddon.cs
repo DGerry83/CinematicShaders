@@ -92,6 +92,9 @@ namespace CinematicShaders.Core
             GameEvents.onGameStateLoad.Add(OnGameStateLoad);
             GameEvents.onGameStateSave.Add(OnGameStateSave);
 
+            // Save settings before a scene switch so the capture lands in the old scene's profile (#035)
+            GameEvents.onGameSceneLoadRequested.Add(OnGameSceneLoadRequested);
+
             if (_toolbarIcon == null)
             {
                 _toolbarIcon = GameDatabase.Instance.GetTexture(CinematicShadersUIResources.Textures.ToolbarIconPath, false);
@@ -430,9 +433,25 @@ namespace CinematicShaders.Core
             // Always output meters - per-line width detection in GenerateTexture will 
             // compress individual lines to KM/MM/GM/TM if they don't fit in texture
             // (unit token shared with the parser — see UIStrings.Common)
-            if (meters >= 100) return $"{prefix}{meters:F0}{CinematicShadersUIStrings.Common.UnitMetersToken}";
-            if (meters >= 10) return $"{prefix}{meters:F1}{CinematicShadersUIStrings.Common.UnitMetersToken}";
-            return $"{prefix}{meters:F2}{CinematicShadersUIStrings.Common.UnitMetersToken}";
+            if (!StarfieldSettings.SituationCompressUnits)
+            {
+                if (meters >= 100) return $"{prefix}{meters:F0}{CinematicShadersUIStrings.Common.UnitMetersToken}";
+                if (meters >= 10) return $"{prefix}{meters:F1}{CinematicShadersUIStrings.Common.UnitMetersToken}";
+                return $"{prefix}{meters:F2}{CinematicShadersUIStrings.Common.UnitMetersToken}";
+            }
+
+            double scale;
+            string unitToken;
+            if (meters >= 1e13) { scale = 1e12; unitToken = CinematicShadersUIStrings.Common.UnitTerametersToken; }
+            else if (meters >= 1e10) { scale = 1e9; unitToken = CinematicShadersUIStrings.Common.UnitGigametersToken; }
+            else if (meters >= 1e7) { scale = 1e6; unitToken = CinematicShadersUIStrings.Common.UnitMegametersToken; }
+            else if (meters >= 1e4) { scale = 1e3; unitToken = CinematicShadersUIStrings.Common.UnitKilometersToken; }
+            else { scale = 1.0; unitToken = CinematicShadersUIStrings.Common.UnitMetersToken; }
+
+            double scaled = meters / scale;
+            if (scaled >= 100) return $"{prefix}{scaled:F0}{unitToken}";
+            if (scaled >= 10) return $"{prefix}{scaled:F1}{unitToken}";
+            return $"{prefix}{scaled:F2}{unitToken}";
         }
         
         /// <summary>
@@ -480,6 +499,7 @@ namespace CinematicShaders.Core
             GameEvents.onLevelWasLoadedGUIReady.Remove(OnLevelWasLoadedGUIReady);
             GameEvents.onGameStateLoad.Remove(OnGameStateLoad);
             GameEvents.onGameStateSave.Remove(OnGameStateSave);
+            GameEvents.onGameSceneLoadRequested.Remove(OnGameSceneLoadRequested);
 
             if (_toolbarButton != null && ApplicationLauncher.Instance != null)
             {
@@ -544,6 +564,15 @@ namespace CinematicShaders.Core
         {
             Debug.Log("[CinematicShaders] Game state saving - capturing per-save settings");
             // Per-save settings are automatically saved by KSP from StarfieldPerSaveSettings.Instance
+        }
+
+        private void OnGameSceneLoadRequested(GameScenes scene)
+        {
+            // Fires before the scene switch: statics and HighLogic.LoadedScene are still
+            // old-scene, so Save() captures into the correct (old) scene profile (#035).
+            Debug.Log($"[CinematicShaders] Scene load requested ({scene}) - saving settings while {HighLogic.LoadedScene} is current");
+            GTAOSettings.Save();
+            StarfieldSettings.Save();
         }
 
 
