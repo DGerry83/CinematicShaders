@@ -101,7 +101,8 @@ namespace CinematicShaders.UI.Tabs
         // Star tracking
         
         // Star tracking
-        private KartographerSelector _selector;
+        // Shared between the scene-load static init and the tab instance — #046
+        private static KartographerSelector _selector;
         
         /// <summary>
         /// Public accessor for the selector (used by StarCatalogEditorWindow)
@@ -682,28 +683,34 @@ namespace CinematicShaders.UI.Tabs
         /// </summary>
         private static void CreateSelectorAndLoadJsonStatic()
         {
-            var selector = new KartographerSelector();
+            if (_selector == null)
+            {
+                _selector = new KartographerSelector();
+                Debug.Log("[KartographerTab] KartographerSelector created");
+            }
             
             // JSON loading is handled by StarCatalogStateManager
             string catalogPath = StarfieldSettings.ActiveCatalogPath;
             if (!string.IsNullOrEmpty(catalogPath))
             {
                 string absolutePath = System.IO.Path.Combine(KSPUtil.ApplicationRootPath, catalogPath);
-                selector.LoadJsonForCatalog(absolutePath);
+                _selector.LoadJsonForCatalog(absolutePath);
             }
             
             // Enable mouse hover mode immediately
-            selector.SetMouseHoverMode(true);
+            _selector.SetMouseHoverMode(true);
             
             // Register for camera updates
             StarfieldCompositor.KartographerSelectorCallback = (right, up, forward, aspect, vfov) =>
             {
-                selector.CameraRight = right;
-                selector.CameraUp = up;
-                selector.CameraForward = forward;
-                selector.AspectRatio = aspect;
-                selector.VerticalFOV = vfov;
-                selector.Update();
+                var s = _selector;
+                if (s == null) return;
+                s.CameraRight = right;
+                s.CameraUp = up;
+                s.CameraForward = forward;
+                s.AspectRatio = aspect;
+                s.VerticalFOV = vfov;
+                s.Update();
             };
         }
 
@@ -785,6 +792,17 @@ namespace CinematicShaders.UI.Tabs
             StarfieldSettings.KartographerTrackedStarHIP = 0;
             StarfieldSettings.EnablePolarisTracking = false;
             StarfieldSettings.Save();
+        }
+        
+        /// <summary>Disposes the shared selector. Called by CinematicShadersWindow.OnDestroy;
+        /// the window clears KartographerSelectorCallback itself.</summary>
+        public void DisposeSelector()
+        {
+            if (_selector != null)
+            {
+                _selector.Dispose();
+                _selector = null;
+            }
         }
         
         /// <summary>

@@ -206,9 +206,9 @@ namespace CinematicShaders.UI
                 CubemapGenerationScheduler.OnUIClose();
             }
 
-            if (_kartographerTab != null && _kartographerTab.Selector != null)
+            if (_kartographerTab != null)
             {
-                _kartographerTab.Selector.Dispose();
+                _kartographerTab.DisposeSelector();
             }
             StarfieldCompositor.KartographerSelectorCallback = null;
         }

@@ -32,6 +32,9 @@
 ### Cubemap
 - **#030** — Cubemap staging is now gated on the native device being ready, eliminating spurious device-init errors on scene load.
 
+### Kartographer
+- **#046** — Hover-select no longer breaks when the mod window is opened; the Kartographer selector is now shared between scene-load init and the tab instead of the tab constructor replacing it.
+
 ---
 
 ## Internal
